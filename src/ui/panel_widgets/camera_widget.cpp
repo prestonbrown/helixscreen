@@ -18,6 +18,7 @@
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
 #include "printer_state.h"
@@ -406,9 +407,7 @@ void CameraWidget::set_config(const nlohmann::json& config) {
 }
 
 std::string CameraWidget::configured_source() const {
-    if (config_.contains("source") && config_["source"].is_string())
-        return config_["source"].get<std::string>();
-    return "";
+    return helix::json_util::safe_string(config_, "source");
 }
 
 void CameraWidget::resync_source() {

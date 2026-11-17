@@ -16,6 +16,7 @@
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "print_control_buttons.h"
@@ -115,8 +116,8 @@ void FilamentSensorWidget::detach() {
 
 void FilamentSensorWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config.contains("source") && config["source"].is_string()) {
-        source_ = ui::parse_tile_source(config["source"].get<std::string>());
+    if (auto source = helix::json_util::read_field<std::string>(config, "source")) {
+        source_ = ui::parse_tile_source(*source);
     }
     spdlog::debug("[FilamentSensorWidget] Config: source={}", ui::tile_source_to_string(source_));
     rebind_source();

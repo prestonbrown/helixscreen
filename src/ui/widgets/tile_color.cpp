@@ -3,6 +3,7 @@
 
 #include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
+#include "json_utils.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
 
@@ -65,10 +66,11 @@ int palette_index(uint32_t rgb) {
 }
 
 uint32_t color_from_config(const nlohmann::json& config) {
-    if (!config.is_object() || !config.contains("color") || !config["color"].is_number_integer()) {
+    const nlohmann::json* color = helix::json_util::find_member(config, "color");
+    if (!color || !color->is_number_integer()) {
         return 0;
     }
-    const int64_t v = config["color"].get<int64_t>();
+    const int64_t v = color->get<int64_t>();
     return (v >= 0 && v <= 0xFFFFFF) ? static_cast<uint32_t>(v) : 0;
 }
 
