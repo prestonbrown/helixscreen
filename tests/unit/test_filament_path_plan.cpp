@@ -460,8 +460,7 @@ TEST_CASE("FilamentPath plan: an active bypass owns the trunk below the merge",
     REQUIRE(plan.bypass_route >= 0);
     const Route& b = plan.routes[plan.bypass_route];
     REQUIRE(b.path.count > 0);
-    // Out of the spool's bottom, standing over the merge line, then along the line.
-    CHECK(near(seg_start(b.path.segs[0]), 400 * kBypassXRatio,
+    CHECK(near(seg_start(b.path.segs[0]), 400 * kBypassXRatio, // the spool's bottom
                232.0f - helix::ui::bypass_spool_bottom_above_merge(), 1.0f));
     CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, 338));
     CHECK(contiguous(b.path));
@@ -687,10 +686,8 @@ TEST_CASE("FilamentPath plan: a toolhead error under an active bypass marks the 
     REQUIRE(b.path.count == 5);
     // Spool → merge (down, the turn, along), merge → toolhead, toolhead → inlet: the
     // TOOLHEAD run is the error, as on an AMS route; the run past the sensor stays filled.
-    CHECK(b.style[2].wall == TubeWall::Active);
-    CHECK(b.style[3].wall == TubeWall::Error);
-    CHECK(near(seg_end(b.path.segs[3]), 200, 272));
-    CHECK(b.style[4].wall == TubeWall::Active);
+    CHECK((b.style[2].wall == TubeWall::Active && b.style[4].wall == TubeWall::Active));
+    CHECK((b.style[3].wall == TubeWall::Error && near(seg_end(b.path.segs[3]), 200, 272)));
     for (int i = 0; i < 5; i++)
         CHECK(b.style[i].filled);
 
