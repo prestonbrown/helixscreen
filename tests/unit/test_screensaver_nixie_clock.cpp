@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <array>
 #include <set>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -37,6 +38,7 @@ using helix::ui::kNixieCycleMs;
 using helix::ui::kNixieCycleStepMs;
 using helix::ui::kNixieFadeMs;
 using helix::ui::kNixieTubeGeometry;
+using helix::ui::kNixieWarmShare;
 using helix::ui::NixieClockScreensaver;
 using helix::ui::NixieClockSim;
 using helix::ui::PixelFormat;
@@ -126,7 +128,7 @@ TEST_CASE("the nixie clock draws a lit numeral in each tube over its dark wire s
         CHECK(metal.g > 15);
         CHECK(metal.r < 120);
     }
-    // The colon between hours and minutes is two neon dots.
+    // The colon between hours and minutes is a small tube with two lit bulbs.
     REQUIRE(layout.colon_count == 1);
     CHECK(glowing_in(frame, layout.colons[0]) > 2);
 }
@@ -193,6 +195,35 @@ TEST_CASE("a changed numeral fades out as the new one warms up, and only its tub
     NixieClockSim fresh;
     fresh.init(still.target, 0, next);
     CHECK(bytes_differing(end, box_bytes(still, glow)) == 0);
+}
+
+TEST_CASE("a numeral change is quick: the new cathode lights almost at once while the old "
+          "one's afterglow dies, with frames between on the 33 ms rung",
+          "[screensaver][screensaver_nixie_clock]") {
+    CHECK(kNixieFadeMs >= 100);
+    CHECK(kNixieFadeMs <= 150);
+    const auto at = helix::ui::nixie_fade_amounts;
+    CHECK(at(0.0f).from == 1.0f);
+    CHECK(at(0.0f).to == 0.0f);
+    CHECK(at(0.15f).to > 0.7f);
+    CHECK(at(0.15f).from > 0.8f);
+    CHECK(at(kNixieWarmShare).to == Catch::Approx(1.0f));
+    CHECK(at(0.6f).from > 0.3f);
+    CHECK(at(1.0f).from == 0.0f);
+
+    REQUIRE(kNixieClockLevels[1].period_ms == 33);
+    TestFrame frame(480, 272, PixelFormat::XRGB8888);
+    NixieClockSim sim;
+    sim.init(frame.target, 1, clock_face(hms(10, 8), true));
+    std::vector<DirtyRect> dirty;
+    const FlipFace next = clock_face(hms(10, 9), true);
+    sim.step(0, frame.target, next, dirty);
+    int between = 0;
+    while (sim.fading() && between < 20) {
+        sim.step(33, frame.target, next, dirty);
+        between += sim.fading() ? 1 : 0;
+    }
+    CHECK(between >= 2);
 }
 
 TEST_CASE("between changes a nixie frame writes nothing",
@@ -292,8 +323,8 @@ TEST_CASE("the cathodes never cycle on a level that does not fade or while a pri
 // Layout, print and memory
 // ============================================================================
 
-TEST_CASE("the tubes and their sealed tips fit every screen at the widest drift, small row "
-          "included, with the AM/PM socket inside the first tube",
+TEST_CASE("the tubes, colon tubes and their sealed tips fit every screen at the widest drift, "
+          "small row included, with the AM/PM socket inside the first tube",
           "[screensaver][screensaver_nixie_clock]") {
     struct Screen {
         int32_t w;
@@ -323,28 +354,40 @@ TEST_CASE("the tubes and their sealed tips fit every screen at the widest drift,
                 screen.w, screen.h, face.shape, face.sub_shape, sx * drift.max_dx,
                 sy * drift.max_dy, face.sub_colons, kNixieTubeGeometry);
             CHECK(inside(layout.bounds(), whole));
-            // Each tube's tip moves with its tube.
+            // Each tube's and colon tube's tip moves with its box.
+            const FlipLayout& still = sim.layout();
             for (size_t i = 0; i < layout.card_count + size_t{layout.sub_count}; i++) {
-                CAPTURE(i);
                 const DirtyRect tip = sim.tip_box(i);
-                const int32_t dx = layout.cards[i].x1 - sim.layout().cards[i].x1;
-                const int32_t dy = layout.cards[i].y1 - sim.layout().cards[i].y1;
+                const int32_t dx = layout.cards[i].x1 - still.cards[i].x1;
+                const int32_t dy = layout.cards[i].y1 - still.cards[i].y1;
+                CHECK(inside({tip.x1 + dx, tip.y1 + dy, tip.x2 + dx, tip.y2 + dy}, whole));
+            }
+            for (size_t c = 0; c < layout.colon_count; c++) {
+                CHECK(inside(layout.colons[c], whole));
+                const DirtyRect tip = sim.colon_tip_box(c);
+                const int32_t dx = layout.colons[c].x1 - still.colons[c].x1;
+                const int32_t dy = layout.colons[c].y1 - still.colons[c].y1;
                 CHECK(inside({tip.x1 + dx, tip.y1 + dy, tip.x2 + dx, tip.y2 + dy}, whole));
             }
         }
     }
-    // Every tube has its tip drawn, inside its own box and above its numeral.
+    // Every tube and colon tube has its tip drawn inside its own box, alone in its top rows.
     const PixelWriter writer(frame.target);
+    std::vector<std::pair<DirtyRect, DirtyRect>> tubes;
     for (size_t i = 0; i < sim.layout().card_count + size_t{sim.layout().sub_count}; i++) {
-        CAPTURE(i);
-        const DirtyRect tip = sim.tip_box(i);
-        CHECK(inside(tip, sim.layout().cards[i]));
-        CHECK(tip.y2 < sim.glow_box(i).y1 + 1);
+        tubes.emplace_back(sim.layout().cards[i], sim.tip_box(i));
+        CHECK(sim.tip_box(i).y2 < sim.glow_box(i).y1 + 1);
+    }
+    for (size_t c = 0; c < sim.layout().colon_count; c++) {
+        tubes.emplace_back(sim.layout().colons[c], sim.colon_tip_box(c));
+    }
+    for (const auto& [box, tip] : tubes) {
+        CAPTURE(box.x1, box.y1);
+        CHECK(inside(tip, box));
         size_t glass = 0;
         size_t stray = 0;
-        // The rows above the dome hold only the tip.
         for (int32_t y = tip.y1; y < tip.y1 + 3; y++) {
-            for (int32_t x = sim.layout().cards[i].x1; x <= sim.layout().cards[i].x2; x++) {
+            for (int32_t x = box.x1; x <= box.x2; x++) {
                 const bool lit = !(writer.get(x, y) == NixieClockSim::kBackground);
                 glass += lit ? 1 : 0;
                 stray += lit && (x < tip.x1 || x > tip.x2) ? 1 : 0;
@@ -352,6 +395,15 @@ TEST_CASE("the tubes and their sealed tips fit every screen at the widest drift,
         }
         CHECK(glass > 0);
         CHECK(stray == 0);
+    }
+    // The main row's colon tubes stand on sockets level with the digit tubes'.
+    const int32_t socket_row = sim.meridiem_box().y1 - 2;
+    const DirtyRect& first = sim.layout().cards[0];
+    const Rgb socket_edge = writer.get((first.x1 + first.x2) / 2, socket_row);
+    for (size_t c = 0; c < sim.layout().main_colon_count; c++) {
+        const int32_t mid = (sim.layout().colons[c].x1 + sim.layout().colons[c].x2) / 2;
+        CHECK(writer.get(mid, socket_row) == socket_edge);
+        CHECK_FALSE(writer.get(mid, socket_row - 1) == socket_edge);
     }
     const DirtyRect marker = sim.meridiem_box();
     CHECK(inside(marker, sim.layout().cards[0]));

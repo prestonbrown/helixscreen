@@ -442,18 +442,26 @@ or a running print shows, and `print_state_color` otherwise. The AM/PM marker is
 on the first tube's socket (`NixieClockSim::meridiem_box`), below the reach of any glow, so a
 fade never redraws it.
 
-- **Cached art.** `NixieTubeArt` is built once per tube size: the unlit tube in `Rgb` (glass
-  with its rim and highlight, the anode mesh, the ten unlit numerals stacked as dark wire, the
-  socket) and a byte glow map per character over the numeral's box widened by the halo. The
-  digits' maps are built with the art; letters on first use. A frame composes the base and one
-  or two glow maps through a 256-entry ramp of the ink, additively, over the numeral's box only.
-- **Fade.** A changed character fades the old map out as the new one warms up over
-  `kNixieFadeMs`; only that tube's glow box is written and dirtied. Between changes nothing is.
+- **Cached art.** `NixieTubeArt` is built once per tube size: the unlit tube in `Rgb` (a
+  straight glass cylinder with rounded shoulders, a flat crown and the sealed exhaust tip, its
+  highlights; inside, the top and bottom mica discs, the posts, the support rods, the terminal
+  pins, a honeycomb anode mesh wrapped round the stack, the ten unlit numerals stacked as dark
+  wire, and the leads; the socket) and a byte glow map per character over the numeral's box
+  widened by the halo. The digits' maps are built with the art; letters on first use. A frame
+  composes the base and one or two glow maps through a 256-entry ramp of the ink, additively,
+  over the numeral's box only.
+- **Colon tubes.** The gap between groups holds a narrow IN-3 style tube (`NixieColonArt`): two
+  lit bulbs, its own tip, a socket level with the digit tubes'. It never changes, so it is
+  composed only when the layout is drawn.
+- **Fade.** A changed character takes `kNixieFadeMs` (120 ms): the new numeral reaches full
+  brightness by `kNixieWarmShare` of it, and the old one's afterglow dies across the whole of it
+  (`nixie_fade_amounts`). Only that tube's glow box is written and dirtied; the 33 ms rung shows
+  three frames between. Between changes nothing is written.
 - **Cathode cycling.** Every `kNixieCycleEveryMs` (10 minutes) of the time of day the main
   tubes flash through all ten numerals, `kNixieCycleStepMs` each, then fade back. Never on the
   instant rung, and never while a print shows.
-- **Memory.** About 354 KB at 800x480 for the four tubes of the time of day (242 KB for a
-  countdown's smaller tubes with the small row), about 129 KB at 480x272. The firmware builds
+- **Memory.** About 410 KB at 800x480 for the four tubes and colon of the time of day (263 KB for
+  a countdown's smaller tubes with the small row), about 145 KB at 480x272. The firmware builds
   no savers, so the K-Touch carries none of it.
 - **No flicker.** A flickering tube would redraw every frame.
 

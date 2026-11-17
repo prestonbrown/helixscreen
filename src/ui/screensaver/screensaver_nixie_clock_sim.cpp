@@ -21,13 +21,17 @@ namespace {
 /// The glass and socket's inset from the card's sides.
 constexpr float kInset = 0.05f;
 /// Glass below the numerals before the socket starts: past the halo, so a fade never redraws
-/// the socket and the AM/PM marker on it.
-constexpr float kGlassBelow = 0.22f;
-/// The sealed tip on top of the dome, where the tube was pumped out and closed: how far it
-/// stands above the dome, its neck's half width and the radius of the bead at its end.
-constexpr float kTipHeight = 0.13f;
-constexpr float kTipNeck = 0.03f;
-constexpr float kTipBead = 0.048f;
+/// the socket and the AM/PM marker on it; the bottom disc and the stem sit in it.
+constexpr float kGlassBelow = 0.3f;
+/// The glass's crown: rounded shoulders on the straight cylinder, a flat top between them.
+constexpr float kShoulder = 0.32f;
+/// The sealed exhaust tip on the crown, where the tube was pumped out and closed: its top, how
+/// far it stands, and the bulb, neck and base of the nub.
+constexpr float kTipTop = 0.03f;
+constexpr float kTipHeight = 0.17f;
+constexpr float kTipBulb = 0.038f;
+constexpr float kTipNeck = 0.022f;
+constexpr float kTipBase = 0.075f;
 /// Width of the glass's lit rim.
 constexpr float kRimWidth = 0.035f;
 /// The halo's reach beyond the wire, and how fast it falls off.
@@ -35,21 +39,45 @@ constexpr float kHaloReach = 0.2f;
 constexpr float kHaloFalloff = 0.06f;
 /// The halo's brightness next to the wire, against the wire's own.
 constexpr float kHaloPeak = 0.42f;
-/// The anode mesh: line pitch, and how far it reaches past the numerals.
-constexpr float kMeshPitch = 0.085f;
-constexpr float kMeshMargin = 0.08f;
+/// The anode mesh: honeycomb cell size, wire width, and how far it reaches past the numerals.
+constexpr float kMeshCell = 0.1f;
+constexpr float kMeshWire = 0.012f;
+constexpr float kMeshMargin = 0.09f;
+/// The mica discs above and below the stack: their centres from the numeral box, and their
+/// half thickness seen nearly edge-on.
+constexpr float kTopDisc = 0.17f;
+constexpr float kBottomDisc = 0.17f;
+constexpr float kDiscHalf = 0.032f;
+/// The posts standing on the top disc: height, offset from the centre, half width.
+constexpr float kPostHeight = 0.12f;
+constexpr float kPostOffset = 0.3f;
+constexpr float kPostHalf = 0.014f;
+/// The support rods down each side of the mesh, and the terminal pins above and below the stack.
+constexpr float kRodHalf = 0.012f;
+constexpr float kPinR = 0.03f;
+constexpr float kPinGap = 0.07f;
 /// The socket's rounded bottom corners.
 constexpr float kSocketCorner = 0.08f;
-/// The neon dots between groups: radius against a unit, and their height in the numeral box.
-constexpr float kDotR = 0.055f;
-constexpr float kDotRows[] = {0.36f, 0.68f};
+/// The colon tube: its glass width, the crown below the digit tubes', and its two bulbs (half
+/// width and half height, and their height in the numeral box).
+constexpr float kColonGlassW = 0.4f;
+constexpr float kColonCrownDrop = 0.14f;
+constexpr float kColonBulbHalfW = 0.045f;
+constexpr float kColonBulbHalfH = 0.085f;
+constexpr float kColonRows[] = {0.34f, 0.66f};
 
 constexpr Rgb kGlassInside{9, 8, 11};
 constexpr Rgb kGlassRim{64, 60, 68};
 constexpr Rgb kGlassStreak{46, 46, 54};
-/// The glint on the tip's bead.
+/// The glint on the tip's bulb.
 constexpr Rgb kTipGlint{150, 150, 162};
-constexpr Rgb kMesh{30, 26, 24};
+constexpr Rgb kMesh{46, 42, 40};
+/// The mesh at the cylinder's sides, where it turns away.
+constexpr Rgb kMeshSide{20, 18, 18};
+constexpr Rgb kMica{40, 38, 42};
+constexpr Rgb kMicaEdge{92, 88, 94};
+constexpr Rgb kMetal{82, 78, 80};
+constexpr Rgb kLead{48, 44, 44};
 /// The unlit wire numerals stacked behind the lit one.
 constexpr Rgb kWire{54, 42, 34};
 constexpr Rgb kSocketTop{58, 55, 60};
@@ -104,7 +132,140 @@ uint32_t to_amount(float share) {
     return static_cast<uint32_t>(std::lround(std::clamp(share, 0.0f, 1.0f) * 256.0f));
 }
 
+/// A tube's glass seen from the front: a straight cylinder from its crown down, the crown's
+/// corners rounded into shoulders. inside() is the distance into the glass in px, negative
+/// outside.
+struct GlassOutline {
+    float cx;
+    float half;
+    float crown;
+    float shoulder;
+
+    float inside(float fx, float fy) const {
+        const float qx = std::fabs(fx - cx) - (half - shoulder);
+        const float qy = crown + shoulder - fy;
+        if (qx > 0.0f && qy > 0.0f) {
+            return shoulder - std::hypot(qx, qy);
+        }
+        return std::min(half - std::fabs(fx - cx), fy - crown);
+    }
+};
+
+/// The sealed exhaust tip on a crown: a nub flaring into the crown, narrowing to a neck, a small
+/// bulb, and a point above it.
+struct GlassTip {
+    float cx;
+    float top;
+    float crown;
+    float bulb_cy;
+    float bulb_r;
+    float neck;
+    float base;
+
+    GlassTip(float cx_, float top_, float crown_, float u, float scale)
+        : cx(cx_), top(top_), crown(crown_) {
+        bulb_r = std::max(1.2f, kTipBulb * u * scale);
+        neck = std::max(0.7f, kTipNeck * u * scale);
+        base = std::max(1.5f, kTipBase * u * scale);
+        bulb_cy = top + 0.42f * (crown - top);
+    }
+
+    float inside(float fx, float fy) const {
+        const float dx = std::fabs(fx - cx);
+        const float overlap = 2.0f;
+        float best = bulb_r - std::hypot(fx - cx, fy - bulb_cy);
+        if (fy >= bulb_cy && fy <= crown + overlap) {
+            const float t =
+                std::clamp((fy - bulb_cy) / std::max(1.0f, crown - bulb_cy), 0.0f, 1.0f);
+            const float hw = neck + (base - neck) * t * t;
+            best = std::max(best, std::min({hw - dx, fy - bulb_cy, crown + overlap - fy}));
+        }
+        if (fy >= top && fy <= bulb_cy) {
+            const float hw = 0.7f * bulb_r * (fy - top) / std::max(1.0f, bulb_cy - top);
+            best = std::max(best, std::min(hw - dx, fy - top));
+        }
+        return best;
+    }
+
+    DirtyRect box() const {
+        return {static_cast<int32_t>(std::floor(cx - base)) - 1,
+                std::max(0, static_cast<int32_t>(std::floor(top)) - 1),
+                static_cast<int32_t>(std::ceil(cx + base)), static_cast<int32_t>(std::ceil(crown))};
+    }
+};
+
+/// Clear glass `inside` px in from its edge, its rim lit over `rim` px.
+Rgb glass_at(float inside, float rim) {
+    return mix_rgb(kGlassInside, kGlassRim, std::clamp(1.0f - inside / rim, 0.0f, 1.0f));
+}
+
+/// The tip's thin glass, with a glint on its bulb.
+Rgb tip_at(const GlassTip& tip, float inside, float rim, float fx, float fy) {
+    const Rgb t = glass_at(inside, std::max(1.0f, 0.5f * rim));
+    const float gr = std::max(0.8f, 0.4f * tip.bulb_r);
+    const float glint = edge_coverage(gr - std::hypot(fx - (tip.cx - 0.35f * tip.bulb_r),
+                                                      fy - (tip.bulb_cy - 0.35f * tip.bulb_r)));
+    return add_glow(t, kTipGlint, to_amount(glint));
+}
+
+/// The glass's highlights: a soft streak down the left and a fainter edge reflection on the
+/// right, both fading toward the socket.
+Rgb glass_highlights(Rgb c, const GlassOutline& g, float fx, float fy, float bottom) {
+    const float along = 1.0f - 0.6f * std::clamp(fy / bottom, 0.0f, 1.0f);
+    const float left = (fx - (g.cx - 0.55f * g.half)) / std::max(1.0f, 0.13f * g.half);
+    const float right = (fx - (g.cx + 0.8f * g.half)) / std::max(0.8f, 0.06f * g.half);
+    const float streak = (std::exp(-left * left) + 0.45f * std::exp(-right * right)) * along;
+    return streak > 0.01f ? add_glow(c, kGlassStreak, to_amount(streak)) : c;
+}
+
+/// Distance in px from (x, y) to the nearest wire of a honeycomb of `cell` px cells.
+float honeycomb_edge(float x, float y, float cell) {
+    constexpr float kSy = 1.7320508f;
+    const auto wrap = [](float v, float m) { return v - m * std::floor(v / m); };
+    const float px = x / cell;
+    const float py = y / cell;
+    const float ax = wrap(px, 1.0f) - 0.5f;
+    const float ay = wrap(py, kSy) - 0.5f * kSy;
+    const float bx = wrap(px - 0.5f, 1.0f) - 0.5f;
+    const float by = wrap(py - 0.5f * kSy, kSy) - 0.5f * kSy;
+    const bool use_a = ax * ax + ay * ay < bx * bx + by * by;
+    const float gx = std::fabs(use_a ? ax : bx);
+    const float gy = std::fabs(use_a ? ay : by);
+    const float hex = std::max(gx * 0.5f + gy * 0.8660254f, gx);
+    return (0.5f - hex) * cell;
+}
+
+/// A dark metal socket over rows [`top`, `h`) between `x1` and `x2`, its top edge lit and its
+/// bottom corners rounded by `corner` px.
+void paint_socket(std::vector<Rgb>& base, int32_t w, int32_t h, int32_t x1, int32_t x2, int32_t top,
+                  int32_t corner) {
+    const auto height = static_cast<float>(std::max<int32_t>(1, h - top));
+    for (int32_t y = top; y < h; y++) {
+        const Rgb shade =
+            y == top ? kSocketEdge
+                     : mix_rgb(kSocketTop, kSocketBottom, static_cast<float>(y - top) / height);
+        for (int32_t x = x1; x < x2; x++) {
+            const int32_t ccx = std::clamp(x, x1 + corner, x2 - corner - 1);
+            const int32_t ccy = std::min(y, h - corner - 1);
+            float cov = 1.0f;
+            if (ccx != x && ccy != y) {
+                cov = edge_coverage(
+                    static_cast<float>(corner) -
+                    std::hypot(static_cast<float>(x - ccx), static_cast<float>(y - ccy)));
+            }
+            base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, shade, cov);
+        }
+    }
+}
+
 } // namespace
+
+NixieFadeAmounts nixie_fade_amounts(float p) {
+    const float t = std::clamp(p, 0.0f, 1.0f);
+    const float warm = std::min(1.0f, t / kNixieWarmShare);
+    // The new cathode lights almost at once; the old one's afterglow dies away throughout.
+    return {1.0f - t, 1.0f - (1.0f - warm) * (1.0f - warm)};
+}
 
 // ---------- NixieTubeArt ----------
 
@@ -127,108 +288,102 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
 
     base.assign(static_cast<size_t>(w) * h, Rgb{});
     const float half_stroke = g.stroke / 2.0f;
+    const auto pad_x = static_cast<float>(row.pad_x);
+    const auto pad_y = static_cast<float>(row.pad_y);
+    const auto stack_bottom = static_cast<float>(row.pad_y + gh);
 
-    // The glass: a dome on a straight tube, from the top inset down into the socket.
-    const float glass_x1 = static_cast<float>(inset);
-    const float glass_x2 = static_cast<float>(w - inset);
-    const float radius = (glass_x2 - glass_x1) / 2.0f;
-    const float cx = (glass_x1 + glass_x2) / 2.0f;
+    const float cx = static_cast<float>(w) / 2.0f;
+    const float tip_top = std::max(0.5f, kTipTop * u);
+    const float crown = tip_top + std::max(3.0f, kTipHeight * u);
+    const GlassOutline glass{cx, cx - static_cast<float>(inset), crown,
+                             std::min(kShoulder * u, cx - static_cast<float>(inset))};
+    const GlassTip nub(cx, tip_top, crown, u, 1.0f);
+    tip = nub.box();
     const float rim = std::max(1.5f, kRimWidth * u);
-    // The tip stands on the dome's crown: a neck reaching into the dome, ending in a bead.
-    const float tip_h = std::max(3.0f, kTipHeight * u);
-    const float dome_top = static_cast<float>(inset) + tip_h;
-    const float dome_cy = dome_top + radius;
-    const float bead_r = std::max(1.5f, kTipBead * u);
-    const float neck = std::max(0.8f, kTipNeck * u);
-    const float bead_cy = static_cast<float>(inset) + bead_r;
-    const float neck_bottom = dome_top + 2.0f * rim;
-    const float tip_rim = std::max(1.0f, 0.5f * rim);
-    const float glint_x = cx - 0.35f * bead_r;
-    const float glint_y = bead_cy - 0.35f * bead_r;
-    const float glint_r = std::max(0.8f, 0.4f * bead_r);
-    tip = {static_cast<int32_t>(std::floor(cx - bead_r)) - 1, inset - 1,
-           static_cast<int32_t>(std::ceil(cx + bead_r)), static_cast<int32_t>(std::ceil(dome_top))};
-    const float streak_x = cx - 0.55f * radius;
-    const float streak_w = std::max(1.0f, 0.13f * radius);
-    // The anode cage around the numerals.
-    const int32_t margin = px(kMeshMargin, unit);
-    const int32_t mesh_x1 = row.pad_x - margin;
-    const int32_t mesh_x2 = row.pad_x + gw + margin;
-    const int32_t mesh_y1 = row.pad_y - margin;
-    const int32_t mesh_y2 = row.pad_y + gh + margin;
-    const int32_t pitch = std::max<int32_t>(3, px(kMeshPitch, unit));
+
+    // The scaffolding: the mesh cylinder between the discs, its rods, posts and pins.
+    const float margin = kMeshMargin * u;
+    const float mesh_x1 = pad_x - margin;
+    const float mesh_x2 = pad_x + static_cast<float>(gw) + margin;
+    const float mesh_r = (mesh_x2 - mesh_x1) / 2.0f;
+    const float top_disc = pad_y - kTopDisc * u;
+    const float bottom_disc = stack_bottom + kBottomDisc * u;
+    const float disc_half = std::max(1.0f, kDiscHalf * u);
+    const float disc_a = glass.half * 0.9f;
+    const float cell = std::max(3.0f, kMeshCell * u);
+    const float mesh_wire = std::max(0.5f, kMeshWire * u);
+    const float rod = std::max(0.6f, kRodHalf * u);
+    const float post = std::max(0.6f, kPostHalf * u);
+    const float pin = std::max(1.0f, kPinR * u);
+    const float pin_gap = kPinGap * u;
 
     for (int32_t y = 0; y < socket_y; y++) {
         const float fy = static_cast<float>(y) + 0.5f;
         for (int32_t x = 0; x < w; x++) {
             const float fx = static_cast<float>(x) + 0.5f;
-            const float dist =
-                fy < dome_cy ? std::hypot(fx - cx, fy - dome_cy) : std::fabs(fx - cx);
-            const float dome_inside = radius - dist;
-            const float bead_inside = bead_r - std::hypot(fx - cx, fy - bead_cy);
-            const float neck_inside =
-                std::min({neck - std::fabs(fx - cx), neck_bottom - fy, fy - bead_cy});
-            const float tip_inside = std::max(bead_inside, neck_inside);
-            const float inside = std::max(dome_inside, tip_inside);
-            const float cov = edge_coverage(inside);
+            const float body = glass.inside(fx, fy);
+            const float nub_in = nub.inside(fx, fy);
+            const float cov = edge_coverage(std::max(body, nub_in));
             if (cov <= 0.0f) {
                 continue;
             }
-            if (tip_inside > dome_inside) {
-                // Thin, clear glass with a lit edge and a glint on the bead.
-                Rgb t = mix_rgb(kGlassInside, kGlassRim,
-                                std::clamp(1.0f - tip_inside / tip_rim, 0.0f, 1.0f));
-                const float glint = edge_coverage(glint_r - std::hypot(fx - glint_x, fy - glint_y));
-                t = add_glow(t, kTipGlint, to_amount(glint));
-                base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, t, cov);
+            const size_t at = static_cast<size_t>(y) * w + x;
+            if (nub_in > body) {
+                base[at] = mix_rgb(Rgb{}, tip_at(nub, nub_in, rim, fx, fy), cov);
                 continue;
             }
-            Rgb c = mix_rgb(kGlassInside, kGlassRim, std::clamp(1.0f - inside / rim, 0.0f, 1.0f));
-            if (x >= mesh_x1 && x <= mesh_x2 && y >= mesh_y1 && y <= mesh_y2 &&
-                ((x + y) % pitch == 0 || (x - y + 4 * pitch * h) % pitch == 0)) {
-                c = mix_rgb(c, kMesh, 0.85f);
+            Rgb c = glass_at(body, rim);
+            const float dx = fx - cx;
+            // The anode mesh, wrapped round the stack: cells narrow and darken toward the sides.
+            if (fx >= mesh_x1 && fx <= mesh_x2 && fy >= top_disc && fy <= bottom_disc) {
+                const float side = std::clamp(dx / mesh_r, -1.0f, 1.0f);
+                const float around = mesh_r * std::asin(side);
+                const float wire = edge_coverage(mesh_wire - honeycomb_edge(cx + around, fy, cell));
+                c = mix_rgb(c, mix_rgb(kMesh, kMeshSide, side * side), wire);
+            }
+            // The rods down each side of the mesh, from disc to disc.
+            if (fy >= top_disc && fy <= bottom_disc) {
+                const float d = std::min(std::fabs(fx - mesh_x1), std::fabs(fx - mesh_x2));
+                c = mix_rgb(c, kMetal, edge_coverage(rod - d));
+            }
+            // The posts standing on the top disc.
+            if (fy >= top_disc - kPostHeight * u && fy <= top_disc) {
+                const float d = std::fabs(std::fabs(dx) - kPostOffset * u);
+                c = mix_rgb(c, kMetal, edge_coverage(post - d));
+            }
+            // The leads from the bottom disc down through the stem.
+            if (fy >= bottom_disc && fx >= mesh_x1 && fx <= mesh_x2) {
+                const float pitch = (mesh_x2 - mesh_x1) / 6.0f;
+                const float lead = std::fabs(std::fmod(fx - mesh_x1, pitch) - pitch / 2.0f);
+                c = mix_rgb(c, kLead, edge_coverage(rod - lead));
+            }
+            // The two mica discs, nearly edge-on: thin plates with a lit edge.
+            for (const float disc : {top_disc, bottom_disc}) {
+                const float e = std::hypot(dx / disc_a, (fy - disc) / disc_half);
+                if (e < 1.2f) {
+                    const float edge = edge_coverage((1.0f - e) * disc_half);
+                    c = mix_rgb(c, mix_rgb(kMica, kMicaEdge, std::clamp(e, 0.0f, 1.0f)), edge);
+                }
+            }
+            // The terminal pins above and below the stack.
+            for (const float py : {pad_y - pin_gap, stack_bottom + pin_gap}) {
+                c = mix_rgb(c, kMetal, edge_coverage(pin - std::hypot(dx, fy - py)));
             }
             if (x >= row.pad_x && x < row.pad_x + gw && y >= row.pad_y && y < row.pad_y + gh) {
-                const float gx = fx / u - static_cast<float>(row.pad_x) / u - half_stroke;
-                const float gy = fy / u - static_cast<float>(row.pad_y) / u - half_stroke;
+                const float gx = (fx - pad_x) / u - half_stroke;
+                const float gy = (fy - pad_y) / u - half_stroke;
                 float nearest = 1e9f;
                 for (int d = 0; d < 10; d++) {
                     nearest = std::min(nearest, stroke_digit_distance(d, gx, gy));
                 }
-                const float wire = edge_coverage((half_stroke - nearest) * u);
-                c = mix_rgb(c, kWire, wire);
+                c = mix_rgb(c, kWire, edge_coverage((half_stroke - nearest) * u));
             }
-            // The highlight down the glass's left side, fading toward the socket.
-            const float across = (fx - streak_x) / streak_w;
-            const float along = 1.0f - 0.6f * fy / static_cast<float>(socket_y);
-            const float streak = std::exp(-across * across) * along;
-            if (streak > 0.01f) {
-                c = add_glow(c, kGlassStreak, to_amount(streak));
-            }
-            base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, c, cov);
+            c = glass_highlights(c, glass, fx, fy, static_cast<float>(socket_y));
+            base[at] = mix_rgb(Rgb{}, c, cov);
         }
     }
-
-    // The socket: a dark metal cap with a lit top edge and rounded bottom corners.
-    const int32_t corner = std::max<int32_t>(1, px(kSocketCorner, unit));
-    const auto socket_h = static_cast<float>(std::max<int32_t>(1, h - socket_y));
-    for (int32_t y = socket_y; y < h; y++) {
-        const Rgb shade = y == socket_y ? kSocketEdge
-                                        : mix_rgb(kSocketTop, kSocketBottom,
-                                                  static_cast<float>(y - socket_y) / socket_h);
-        for (int32_t x = inset; x < w - inset; x++) {
-            // Coverage of the rounded bottom corners.
-            const int32_t ccx = std::clamp(x, inset + corner, w - inset - corner - 1);
-            const int32_t ccy = std::min(y, h - corner - 1);
-            float cov = 1.0f;
-            if (ccx != x && ccy != y) {
-                cov = edge_coverage(
-                    static_cast<float>(corner) -
-                    std::hypot(static_cast<float>(x - ccx), static_cast<float>(y - ccy)));
-            }
-            base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, shade, cov);
-        }
-    }
+    paint_socket(base, w, h, inset, w - inset, socket_y,
+                 std::max<int32_t>(1, px(kSocketCorner, unit)));
 
     for (char d = '0'; d <= '9'; d++) {
         ensure(d);
@@ -279,6 +434,85 @@ void NixieTubeArt::clear() {
     for (std::vector<uint8_t>& g : glow) {
         release_buffer(g);
     }
+    unit = 0;
+    w = 0;
+    h = 0;
+}
+
+// ---------- NixieColonArt ----------
+
+void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_h,
+                          int32_t socket_y) {
+    clear();
+    unit = std::max<int32_t>(1, row.unit);
+    w = gap_w;
+    h = gap_h;
+    const auto u = static_cast<float>(unit);
+    base.assign(static_cast<size_t>(w) * h, Rgb{});
+    glow.assign(static_cast<size_t>(w) * h, 0);
+    const float cx = static_cast<float>(w) / 2.0f;
+    const float half = std::min(cx - 1.0f, kColonGlassW * u / 2.0f);
+    const auto pad_y = static_cast<float>(row.pad_y);
+    const float gh = (kStrokeDigitPathH + kNixieTubeGeometry.stroke) * u;
+    const float crown = pad_y - (kTopDisc - kColonCrownDrop) * u;
+    const float tip_top = std::max(0.5f, crown - 0.8f * kTipHeight * u);
+    const GlassOutline glass{cx, half, crown, 0.8f * half};
+    const GlassTip nub(cx, tip_top, crown, u, 0.8f);
+    tip = nub.box();
+    const float rim = std::max(1.2f, kRimWidth * u);
+    const float bulb_w = std::max(1.0f, kColonBulbHalfW * u);
+    const float bulb_h = std::max(1.5f, kColonBulbHalfH * u);
+    const float reach = std::max(2.0f, kHaloReach * u * 0.8f);
+    const float falloff = std::max(0.8f, kHaloFalloff * u);
+    const float lead = std::max(0.6f, kRodHalf * u);
+
+    for (int32_t y = 0; y < socket_y; y++) {
+        const float fy = static_cast<float>(y) + 0.5f;
+        for (int32_t x = 0; x < w; x++) {
+            const float fx = static_cast<float>(x) + 0.5f;
+            const size_t at = static_cast<size_t>(y) * w + x;
+            // The bulbs' glow, elongated, as distance from each bulb's edge.
+            float d = 1e9f;
+            for (const float share : kColonRows) {
+                const float by = pad_y + gh * share;
+                const float e = std::hypot((fx - cx) / bulb_w, (fy - by) / bulb_h);
+                d = std::min(d, (e - 1.0f) * bulb_w);
+            }
+            glow[at] = unit_to_u8(glow_at(d + 1.0f, 1.0f, reach, falloff));
+            const float body = glass.inside(fx, fy);
+            const float nub_in = nub.inside(fx, fy);
+            const float cov = edge_coverage(std::max(body, nub_in));
+            if (cov <= 0.0f) {
+                continue;
+            }
+            if (nub_in > body) {
+                base[at] = mix_rgb(Rgb{}, tip_at(nub, nub_in, rim, fx, fy), cov);
+                continue;
+            }
+            Rgb c = glass_at(body, rim);
+            // Two leads from the lower bulb down to the socket.
+            const float low = pad_y + gh * kColonRows[1];
+            if (fy > low) {
+                const float dl = std::fabs(std::fabs(fx - cx) - 0.4f * half);
+                c = mix_rgb(c, kLead, edge_coverage(lead - dl));
+            }
+            c = glass_highlights(c, glass, fx, fy, static_cast<float>(socket_y));
+            base[at] = mix_rgb(Rgb{}, c, cov);
+        }
+    }
+    const auto socket_x1 = static_cast<int32_t>(std::floor(cx - half - 1.0f));
+    const auto socket_x2 = static_cast<int32_t>(std::ceil(cx + half + 1.0f));
+    paint_socket(base, w, h, std::max(0, socket_x1), std::min(w, socket_x2), socket_y,
+                 std::max<int32_t>(1, px(kSocketCorner * 0.6f, unit)));
+}
+
+size_t NixieColonArt::heap_bytes() const {
+    return buffer_bytes(base) + buffer_bytes(glow);
+}
+
+void NixieColonArt::clear() {
+    release_buffer(base);
+    release_buffer(glow);
     unit = 0;
     w = 0;
     h = 0;
@@ -344,6 +578,18 @@ void NixieClockSim::build_art(const FlipFace& face) {
             sub_art_.build(layout_.small, sw, sh);
         }
     }
+    for (size_t c = 0; c < layout_.colon_count; c++) {
+        const bool main = c < layout_.main_colon_count;
+        const DirtyRect& gap = layout_.colons[c];
+        const int32_t gw = gap.x2 - gap.x1 + 1;
+        const int32_t gh = gap.y2 - gap.y1 + 1;
+        NixieColonArt& colon = main ? colon_art_ : sub_colon_art_;
+        const NixieTubeArt& beside = main ? art_ : sub_art_;
+        if (colon.unit != (main ? layout_.main : layout_.small).unit || colon.w != gw ||
+            colon.h != gh) {
+            colon.build(main ? layout_.main : layout_.small, gw, gh, beside.socket_y);
+        }
+    }
     for (size_t i = 0; i < layout_.card_count; i++) {
         art_.ensure(face.cards[i].digit);
     }
@@ -382,6 +628,15 @@ DirtyRect NixieClockSim::tip_box(size_t i) const {
     return {tube.x1 + art.tip.x1, tube.y1 + art.tip.y1, tube.x1 + art.tip.x2, tube.y1 + art.tip.y2};
 }
 
+DirtyRect NixieClockSim::colon_tip_box(size_t c) const {
+    if (c >= layout_.colon_count) {
+        return {};
+    }
+    const NixieColonArt& art = c < layout_.main_colon_count ? colon_art_ : sub_colon_art_;
+    const DirtyRect& gap = layout_.colons[c];
+    return {gap.x1 + art.tip.x1, gap.y1 + art.tip.y1, gap.x1 + art.tip.x2, gap.y1 + art.tip.y2};
+}
+
 DirtyRect NixieClockSim::glow_box(size_t i) const {
     if (i >= tube_count()) {
         return {};
@@ -417,12 +672,15 @@ char NixieClockSim::lit(size_t i) const {
 }
 
 size_t NixieClockSim::heap_bytes() const {
-    return art_.heap_bytes() + sub_art_.heap_bytes();
+    return art_.heap_bytes() + sub_art_.heap_bytes() + colon_art_.heap_bytes() +
+           sub_colon_art_.heap_bytes();
 }
 
 void NixieClockSim::clear() {
     art_.clear();
     sub_art_.clear();
+    colon_art_.clear();
+    sub_colon_art_.clear();
     layout_ = {};
 }
 
@@ -558,8 +816,9 @@ void NixieClockSim::draw_glow(FrameTarget& frame, size_t i) const {
     const float p = fade_progress(i);
     const uint8_t* to = art.glow_of(anim.to);
     const uint8_t* from = p < 1.0f && anim.from != anim.to ? art.glow_of(anim.from) : nullptr;
-    const uint32_t to_amount_v = to_amount(p);
-    const uint32_t from_amount_v = to_amount(1.0f - p);
+    const NixieFadeAmounts amounts = nixie_fade_amounts(p);
+    const uint32_t to_amount_v = to_amount(amounts.to);
+    const uint32_t from_amount_v = to_amount(amounts.from);
     PixelWriter writer(frame);
     for (int32_t fy = box.y1; fy <= box.y2; fy++) {
         const int32_t ty = fy - tube.y1;
@@ -583,30 +842,21 @@ void NixieClockSim::draw_glow(FrameTarget& frame, size_t i) const {
 void NixieClockSim::draw_colons(FrameTarget& frame) const {
     PixelWriter writer(frame);
     for (size_t c = 0; c < layout_.colon_count; c++) {
-        const DirtyRect& box = layout_.colons[c];
-        const bool main = c < layout_.main_colon_count;
-        const FlipRowMetrics& row = main ? layout_.main : layout_.small;
-        const auto u = static_cast<float>(row.unit);
-        const float r = std::max(1.0f, kDotR * u);
-        const float reach = r * 2.2f;
-        const float falloff = std::max(0.7f, r * 0.7f);
-        const float gh = (kStrokeDigitPathH + kNixieTubeGeometry.stroke) * u;
-        const float cx = static_cast<float>(box.x1 + box.x2 + 1) / 2.0f;
-        for (const float share : kDotRows) {
-            const float cy = static_cast<float>(box.y1 + row.pad_y) + gh * share;
-            const auto y1 = static_cast<int32_t>(std::floor(cy - r - reach));
-            const auto y2 = static_cast<int32_t>(std::ceil(cy + r + reach));
-            const auto x1 = static_cast<int32_t>(std::floor(cx - r - reach));
-            const auto x2 = static_cast<int32_t>(std::ceil(cx + r + reach));
-            for (int32_t y = std::max(y1, box.y1); y <= std::min(y2, box.y2); y++) {
-                for (int32_t x = std::max(x1, box.x1); x <= std::min(x2, box.x2); x++) {
-                    const float d = std::hypot(static_cast<float>(x) + 0.5f - cx,
-                                               static_cast<float>(y) + 0.5f - cy);
-                    const uint8_t v = unit_to_u8(glow_at(d, r, reach, falloff));
-                    if (v != 0 && writer.contains(x, y)) {
-                        writer.put_dithered(x, y, ramp_[v]);
-                    }
+        const NixieColonArt& art = c < layout_.main_colon_count ? colon_art_ : sub_colon_art_;
+        const DirtyRect& gap = layout_.colons[c];
+        if (art.base.empty()) {
+            continue;
+        }
+        for (int32_t y = 0; y < art.h; y++) {
+            for (int32_t x = 0; x < art.w; x++) {
+                if (!writer.contains(gap.x1 + x, gap.y1 + y)) {
+                    continue;
                 }
+                const size_t at = static_cast<size_t>(y) * art.w + x;
+                const uint8_t g = art.glow[at];
+                const Rgb c0 = art.base[at];
+                writer.put_dithered(gap.x1 + x, gap.y1 + y,
+                                    g == 0 ? c0 : add_glow(c0, ramp_[g], 256));
             }
         }
     }

@@ -45,8 +45,18 @@ inline constexpr NixieClockLevel kNixieClockLevels[] = {
 
 inline constexpr size_t kNixieClockLevelCount = std::size(kNixieClockLevels);
 
-/// How long the old numeral takes to die away while the new one warms up.
-inline constexpr uint32_t kNixieFadeMs = 280;
+/// How long a change of numeral takes: the new cathode lights almost at once, and the old one's
+/// afterglow dies over the whole of it (nixie_fade_amounts()).
+inline constexpr uint32_t kNixieFadeMs = 120;
+/// Share of the fade by which the new numeral reaches full brightness.
+inline constexpr float kNixieWarmShare = 0.3f;
+
+/// How brightly the old and the new numeral glow `p` (0 to 1) into a fade, each 0 to 1.
+struct NixieFadeAmounts {
+    float from;
+    float to;
+};
+NixieFadeAmounts nixie_fade_amounts(float p);
 /// How often the tubes run through every numeral to keep the cathodes healthy, while the time of
 /// day shows.
 inline constexpr uint32_t kNixieCycleEveryMs = 10 * 60 * 1000;
@@ -54,15 +64,16 @@ inline constexpr uint32_t kNixieCycleEveryMs = 10 * 60 * 1000;
 inline constexpr uint32_t kNixieCycleStepMs = 70;
 inline constexpr uint32_t kNixieCycleMs = 10 * kNixieCycleStepMs;
 
-/// The tubes' proportions in glyph units: thin wire numerals, a glass dome above them with the
-/// sealed tip on top, and the socket below.
+/// The tubes' proportions in glyph units: thin wire numerals; above them the top mica disc, the
+/// glass's shoulders and crown and the sealed tip; below them the bottom disc, the stem and the
+/// socket. The gap between groups holds the narrow colon tube.
 inline constexpr CardGeometry kNixieTubeGeometry{
     0.07f, // stroke
     0.36f, // pad_x
-    0.55f, // pad_top
-    0.62f, // pad_bottom
+    0.62f, // pad_top
+    0.72f, // pad_bottom
     0.16f, // card_gap
-    0.5f,  // group_gap
+    0.74f, // group_gap
     0.3f,  // row_gap
     0.22f, // sub_gap
     1.4f,  // sub_spacer
@@ -91,7 +102,7 @@ struct NixieTubeArt {
     int32_t glow_h = 0;
     int32_t inset = 0;    ///< the glass and socket's inset from the card's sides
     int32_t socket_y = 0; ///< the socket's first row
-    /// The sealed glass tip on top of the dome, in the tube's pixels.
+    /// The sealed glass tip on top of the crown, in the tube's pixels.
     DirtyRect tip;
     std::vector<Rgb> base;
     /// One map per character of kStrokeGlyphChars; digits are built with the art, the rest on
@@ -105,6 +116,28 @@ struct NixieTubeArt {
     void ensure(char c);
     /// `c`'s glow map, or nullptr when it is not built.
     const uint8_t* glow_of(char c) const;
+    size_t heap_bytes() const;
+    void clear();
+};
+
+/**
+ * @brief The colon tube between two groups at one size: a narrow glass tube with two lit neon
+ * bulbs, its tip on top and its socket level with the digit tubes'
+ *
+ * `base` is the tube unlit and `glow` the bulbs' glow, both `w` x `h`; the colon never changes,
+ * so the ink's ramp adds the glow when the layout is drawn.
+ */
+struct NixieColonArt {
+    int32_t unit = 0;
+    int32_t w = 0;
+    int32_t h = 0;
+    DirtyRect tip;
+    std::vector<Rgb> base;
+    std::vector<uint8_t> glow;
+
+    /// Builds the colon for a gap of `w` x `h` px beside tubes of `row`'s metrics whose socket
+    /// starts at `socket_y`.
+    void build(const FlipRowMetrics& row, int32_t w, int32_t h, int32_t socket_y);
     size_t heap_bytes() const;
     void clear();
 };
@@ -147,8 +180,10 @@ class NixieClockSim {
     DirtyRect meridiem_box() const;
     /// The box of tube `i`'s numeral and its halo, which a fade redraws.
     DirtyRect glow_box(size_t i) const;
-    /// The box of tube `i`'s sealed glass tip, on top of its dome.
+    /// The box of tube `i`'s sealed glass tip, on top of its crown.
     DirtyRect tip_box(size_t i) const;
+    /// The box of colon tube `c`'s tip.
+    DirtyRect colon_tip_box(size_t c) const;
     /// True while any tube is mid-fade.
     bool fading() const;
     /// Share of the fade done for tube `i`, 1 when it is still.
@@ -208,6 +243,8 @@ class NixieClockSim {
     uint32_t cycle_ms_ = kNixieCycleMs;
     NixieTubeArt art_;
     NixieTubeArt sub_art_;
+    NixieColonArt colon_art_;
+    NixieColonArt sub_colon_art_;
 };
 
 } // namespace helix::ui
