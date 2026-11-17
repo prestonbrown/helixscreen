@@ -35,6 +35,8 @@ class FlipClockScreensaver : public ClockSaver<FlipClockSim, FlipClockState> {
     std::optional<lv_color_format_t> canvas_format() const override {
         return kLvDrawCanvasFormat;
     }
+    /// Starts the clock, then spins every card up to its value (FlipClockSim::spin_up()).
+    bool on_start() override;
     void draw_clock_text(const std::vector<DirtyRect>& under,
                          std::vector<DirtyRect>& dirty) override;
     void reset_clock_text() override;

@@ -28,11 +28,12 @@ This doc is the map: which file owns what, how the gate decides, and how to add 
 | `include/board_fingerprint.h` | `BoardFacts`, `board_fingerprint()` and `current_board_facts()`: the board identity the level store keys on, shared with the glass gate (`include/glass_gate.h`) so both measure again on the same boards |
 | `include/screensaver.h`, `src/ui/screensaver/screensaver_manager.cpp` | `ScreensaverManager`: factories, holds, the gate, the too-heavy fallback and the last-resort black screen |
 | `include/screensaver_usage.h` | `SaverUsage`: seconds shown, starts, run endings and settled levels per saver, which the manager writes and telemetry reads (`screensaver_usage` in `docs/devel/TELEMETRY_ADMIN.md`). Always compiled |
-| `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h` | The savers |
+| `include/ui_screensaver.h`, `include/screensaver_starfield.h`, `include/screensaver_pipes.h`, `include/screensaver_bounce.h`, `include/screensaver_fireworks.h`, `include/screensaver_hyperspace.h`, `include/screensaver_flip_clock.h`, `include/screensaver_fireflies.h`, `include/screensaver_aqua.h`, `include/screensaver_highfly.h`, `include/screensaver_nixie_clock.h` | The savers |
 | `include/screensaver_pipes_sim.h` | 3D Pipes: the node grid and growth rules, one screen of pipes, the meshes, the z-buffered rasterizer and the dissolve. No LVGL |
 | `include/screensaver_maze_sim.h`, `include/screensaver_maze.h` | The 3D maze: maze generation and opening up, the wall-following walk, the raycaster and its fog (the sim, no LVGL), and picking wall art from the thumbnail cache (the saver) |
 | `include/screensaver_fireflies_sim.h` | Fireflies: the swarms, their modes and wind, and the additive drawing (`FirefliesSim`). No LVGL |
-| `include/screensaver_flip_clock_sim.h` | Flip clock: the cards a reading shows (`flip_face`, `FlipClockState`), the card layout, and the drawing (`FlipClockSim`). No LVGL |
+| `include/screensaver_flip_clock_sim.h` | Flip clock: the cards a reading shows (`flip_face`, `FlipClockState`), the card layout and its proportions (`CardGeometry`), and the drawing (`FlipClockSim`). No LVGL |
+| `include/screensaver_nixie_clock_sim.h` | Nixie clock: the tube proportions (`kNixieTubeGeometry`), the cached tube art (`NixieTubeArt`) and the drawing (`NixieClockSim`); `NixieClockState` is the flip clock's state. No LVGL |
 | `include/screensaver_clock_reading.h` | What every clock saver reads: `ClockState` (the countdown, pause and done-hold machine), `ClockReading`, `clock_time`, `clock_drift_at`. No LVGL |
 | `include/screensaver_clock.h` | The app side of the clock savers: `saver_clock_now`, `clock_print_phase`, the print, date and AM/PM text, `clock_font_fitting`, and `SaverLabel`, a text line kept over a scene that repaints beneath it |
 | `include/screensaver_stroke_digits.h` | Digits as strokes along lines and arcs, rasterised at any size and stroke weight: the flip clock's bold cards, Aqua's ring digits and High Fly's thin numerals |
@@ -69,7 +70,8 @@ bouncing printer and bouncing logo (one class; `BouncingLogoScreensaver` swaps t
 33 ms, the same with flat floor and ceiling, and quarter resolution at 50 ms and at 66 ms; hyperspace per `kHyperspaceLevels`, which keeps 33 ms past level 0
 and then draws its tunnel and goo in 2x2 blocks, drops the goo, draws the tunnel in 4x4 blocks, and
 last drops the tunnel and flies 96 of its 160 stars; the flip clock per `kFlipClockLevels`: the folding
-flip at 33 ms, then an instant digit swap checked every 250 ms; fireflies per `kFirefliesLevels`:
+flip at 33 ms, then an instant digit swap checked every 250 ms; the nixie clock per `kNixieClockLevels`:
+the cross-fade and cathode cycling at 33 ms, then an instant swap checked every 250 ms; fireflies per `kFirefliesLevels`:
 33 ms past level 0, then tails one pixel wide with no glow halo, then 120 flies with 1.5 s tails
 at 50 ms, and last 48 flies with 0.75 s tails at 100 ms; Aqua Surface per `kAquaLevels`: the
 water at half resolution at 33 ms, then quarter resolution with fewer slices at 50 ms and
@@ -390,7 +392,7 @@ wandering every 8 to 15 s: stop, loop, glow, hyperspeed, split, merge and a wind
 
 ## Flip clock
 
-The clock savers (the flip clock, Aqua Surface and High Fly) are the ones that read app state.
+The clock savers (the flip clock, the nixie clock, Aqua Surface and High Fly) are the ones that read app state.
 `SaverHost::print_status` hands them the print lifecycle, the remaining time the print status panel shows (`print_time_left`, smoothed
 by `PrintEtaEstimator`) and the displayed progress; `saver_clock_now()` adds the local time,
 the date and the Time Format setting. `ClockState` (shared with Aqua Surface and High Fly)
@@ -424,11 +426,50 @@ gives larger cards (portrait), one group per row. `FlipClockSim` draws the digit
 strokes (lines and arcs, `build_stroke_digits` at a stroke of 0.2) into a coverage cache
 sized to the layout, so they scale to any screen and draw at both depths. Only the cards (small ones too) whose character changes flip, each with its own
 fold and dirty box, all at once when several change (09:59 to 10:00 flips four, 10:59 to
-11:00 three); nothing is written between changes. A new shape (the clock becoming a
+11:00 three); nothing is written between changes. A card more than one step from its new value runs
+forward through its drum, a station board's run: digits turn through 0 to 9 and wrap
+(`flip_drum_next`), each value between in a quick flip of at most `kFlipRunStepMs` and the
+last in a full `kFlipDurationMs`, the whole run within `kFlipRunMaxMs`; one step back (a
+countdown's tick) and letters flip straight to the value. A value that changes mid-run is run
+on to from where the drum stands. When the saver starts, every digit card spins up from blank
+(`FlipClockSim::spin_up`). A level that does not animate swaps at once. A new shape (the clock becoming a
 countdown, the hours gaining a digit) and the drift every `kClockDriftStepMs` repaint the
 layout whole. The AM/PM marker is `lv_draw_label` text on the canvas (`SaverLabel`), which is
 why its canvas uses `kLvDrawCanvasFormat`.
 
+## Nixie clock
+
+The nixie clock shows exactly what the flip clock shows: `NixieClockState` is `FlipClockState`,
+so `flip_face` decides every card, the small row included, and each card is a tube. The layout
+is the flip clock's too: `layout_flip_cards` takes a `CardGeometry`, and `kNixieTubeGeometry`
+gives a tube its proportions (thin wire numerals, a glass dome above them, a socket below).
+Letters and symbols glow as stroke glyphs like the digits. The neon is orange while the clock
+or a running print shows, and `print_state_color` otherwise. The AM/PM marker is a `SaverLabel`
+on the first tube's socket (`NixieClockSim::meridiem_box`), below the reach of any glow, so a
+fade never redraws it.
+
+- **Cached art.** `NixieTubeArt` is built once per tube size: the unlit tube in `Rgb` (a
+  straight glass cylinder whose shoulders slope in to a narrow flat crown with the sealed exhaust tip, its
+  highlights; inside, the top and bottom mica discs, the posts, the support rods, the terminal
+  pins, a honeycomb anode mesh wrapped round the stack, the ten unlit numerals stacked as dark
+  wire, and the leads; the socket) and a byte glow map per character over the numeral's box
+  widened by the halo. The digits' maps are built with the art; letters on first use. A frame
+  composes the base and one or two glow maps through a 256-entry ramp of the ink, additively,
+  over the numeral's box only.
+- **Colon tubes.** The gap between groups holds a narrow IN-3 style tube (`NixieColonArt`): two
+  lit bulbs, its own tip, a socket level with the digit tubes'. It never changes, so it is
+  composed only when the layout is drawn.
+- **Fade.** A changed character takes `kNixieFadeMs` (250 ms): the new numeral reaches full
+  brightness by `kNixieWarmShare` of it, and the old one's afterglow dies across the whole of it
+  (`nixie_fade_amounts`). Only that tube's glow box is written and dirtied; the 33 ms rung shows
+  seven frames between. Between changes nothing is written.
+- **Cathode cycling.** Every `kNixieCycleEveryMs` (10 minutes) of the time of day the main
+  tubes flash through all ten numerals, `kNixieCycleStepMs` each, then fade back. Never on the
+  instant rung, and never while a print shows.
+- **Memory.** About 418 KB at 800x480 for the four tubes and colon of the time of day (271 KB for
+  a countdown's smaller tubes with the small row), about 150 KB at 480x272. The firmware builds
+  no savers, so the K-Touch carries none of it.
+- **No flicker.** A flickering tube would redraw every frame.
 
 ## Long runs
 
@@ -479,7 +520,7 @@ which waits behind the saver. Sounds and the heater shutdown on an error are unc
 saver running, completion behaves as it always did.
 
 Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
-(the flip clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
+(the flip clock, the nixie clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
 creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in
 the state colour beside stroke-drawn text, 1h05 or 23m left, or 63% before an estimate, with a
 mark in the ring when paused or ended (`PrintCardPainter`). Its home is centred at the bottom

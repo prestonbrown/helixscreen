@@ -2533,6 +2533,7 @@
   <translation tag="Next Zone (~{} min)" de="Nächste (~{} Min)" en="Next Zone (~{} min)" es="Sig. zona (~{} min)" fr="Zone suiv. (~{} min)" it="Zona succ. (~{} min)" ja="次のゾーン(約{}分)" pt="Próx. zona (~{} min)" ru="След. зона (~{} мин)" zh="下一区间(约 {} 分钟)"/>
   <translation tag="Next: {}" de="Als Nächstes: {}" en="Next: {}" es="Siguiente: {}" fr="À suivre : {}" it="Prossimo: {}" ja="次の印刷：{}" pt="A seguir: {}" ru="Далее: {}" zh="下一个：{}"/>
   <translation tag="Niimbot (Bluetooth)" de="Niimbot (Bluetooth)" en="Niimbot (Bluetooth)" es="Niimbot (Bluetooth)" fr="Niimbot (Bluetooth)" it="Niimbot (Bluetooth)" ja="Niimbot (Bluetooth)" pt="Niimbot (Bluetooth)" ru="Niimbot (Bluetooth)" zh="Niimbot（蓝牙）"/>
+  <translation tag="Nixie Clock" de="Nixie-Röhrenuhr" en="Nixie Clock" es="Reloj Nixie" fr="Horloge Nixie" it="Orologio Nixie" ja="ニキシー管時計" pt="Relógio Nixie" ru="Часы на газоразрядных лампах" zh="辉光管时钟"/>
   <translation tag="No" de="Nein" en="No" es="No" fr="Non" it="No" ja="いいえ" pt="Não" ru="Нет" zh="否"/>
   <translation tag="No ACE unit was found." de="Keine ACE-Einheit gefunden." en="No ACE unit was found." es="No se encontró ninguna unidad ACE." fr="Aucune unité ACE trouvée." it="Nessuna unità ACE trovata." ja="ACEユニットが見つかりません。" pt="Nenhuma unidade ACE encontrada." ru="Блок ACE не найден." zh="未找到 ACE 单元。"/>
   <translation tag="No AMS Detected" de="Kein AMS erkannt" en="No AMS Detected" es="No se detectó AMS" fr="Aucun AMS détecté" it="Nessun AMS rilevato" ja="AMS が検出されません" pt="Nenhum AMS detectado" ru="AMS не обнаружен" zh="未检测到 AMS"/>

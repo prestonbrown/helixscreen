@@ -37,7 +37,7 @@ You only need these if your screen misbehaves at sleep or at low brightness. Eac
 
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|
-| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
+| `screensaver_type` | `"flipclock"` | `"off"`, `"toasters"`, `"starfield"`, `"pipes"`, `"bounce"`, `"fireworks"`, `"logo"`, `"maze"`, `"hyperspace"`, `"flipclock"`, `"fireflies"`, `"aqua"`, `"highfly"`, `"nixie"`, `"random"` | Which screensaver plays while the screen is idle. Set it at **Settings > Display > Screensaver**. |
 | `screensaver_print_progress` | `true` | `true` or `false` | Whether screensavers without a print display of their own (all but the Flip Clock, Aqua Surface and High Fly) show a small progress card during a print. **Settings > Display > Show Print Progress**. A paused or finished print shows the card either way. |
 | `screensaver_levels` | absent | written by HelixScreen | Do not edit. |
 
