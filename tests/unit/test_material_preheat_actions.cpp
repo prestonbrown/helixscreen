@@ -332,6 +332,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                   "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45", "HEAT_ABS"});
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "A preset that leaves the bed alone still sets its chamber",
+                 "[material_preheat][preheat][chamber][preset_bed]") {
+    MaterialSettingsScope settings;
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed();
+    sm.set_material_presets_heat_bed(false);
+    Harness h;
+    discover_macros(h);
+    helix_test::ScopedSharedResource<helix::TemperatureController> controller(
+        std::make_shared<helix::TemperatureController>(h.state, &h.api));
+    helix::MaterialSettingsManager::instance().set_override("ABS", abs_override(std::nullopt));
+    sm.set_chamber_heater_assignment("auto");
+    discover_macros(h, {"extruder", "heater_bed", "heater_generic chamber_heater"});
+    REQUIRE(controller.get().resolved_name(helix::HeaterType::Chamber) ==
+            "heater_generic chamber_heater");
+
+    PanelAccess::handle_preset_button(*h.panel, 2);
+
+    // "Material presets heat the bed" is about the bed alone.
+    CHECK(h.client.gcode_script_history() ==
+          Scripts{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
+                  "SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45"});
+    sm.set_material_presets_heat_bed(saved);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Home additive preheat honors selected or all tools before running its macro",
                  "[material_preheat][preheat][panel_widget]") {
