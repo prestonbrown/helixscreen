@@ -12,7 +12,9 @@
 #include "filament_path_test_helpers.h"
 #include "src/ui/ui_system_path_plan.h"
 
+#include <algorithm>
 #include <memory>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -796,19 +798,21 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
         CHECK(hub.buffer_in_hub);
     }
 
-    // The second junction's lanes enter from the canvas edge, join its top, and
-    // one outlet reaches its nozzle.
+    // The second junction's two lanes join its top, and one outlet reaches its
+    // nozzle. The parked stems stand apart, one tube pitch or more.
     const HubInfo& hub = p->boxes.hubs[1];
-    const float edge = (float)(p->L.x_off + p->L.width);
     int joined = 0;
+    std::vector<float> stems;
     for (int i = 0; i < p->plan.route_count; i++) {
         const Route& r = p->plan.routes[i];
-        if (seg_start(r.path.segs[0]).x < edge - 20.0f)
-            continue;
         CHECK(contiguous(r.path));
         joined += enters_top(r, hub);
+        stems.push_back(seg_start(r.path.segs[0]).x);
     }
-    CHECK(joined >= 2);
+    CHECK(joined == count - split);
+    std::sort(stems.begin(), stems.end());
+    for (size_t i = 1; i < stems.size(); i++)
+        CHECK(stems[i] - stems[i - 1] >= (float)(d->tube_gauge + helix::ui::kHaloWidthExtra));
     CHECK(routes_ending_at(p->plan, (float)hub.tool_x, nozzle_top) == 1);
 }
 
@@ -963,5 +967,206 @@ TEST_CASE("Overview plan: a crowded junction row narrows its boxes, never below 
         CHECK(h.mini_hub_w < roomy->boxes.hubs[t].mini_hub_w);
         CHECK(h.mini_hub_w >= lanes_w);
         CHECK(h.short_label);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Route spacing: on the rigs the mocks model, no two routes cross or run closer
+// than a haloed tube's width, except where they deliberately meet inside a box.
+// ----------------------------------------------------------------------------
+
+namespace {
+
+struct MockUnit {
+    int32_t x;
+    int topology, tool_count, first_tool;
+};
+
+// The overview canvas as the panel fills it for a mock: card centres, tools,
+// the theme's sizes at that breakpoint, unit 0 active on tool 0.
+std::unique_ptr<SystemPathData> mock_rig(std::initializer_list<MockUnit> units, int tools,
+                                         int32_t extruder_scale) {
+    auto d = multi();
+    d->unit_count = (int)units.size();
+    int u = 0;
+    for (const MockUnit& m : units) {
+        d->unit_x_positions[u] = m.x;
+        d->unit_topology[u] = m.topology;
+        d->unit_tool_count[u] = m.tool_count;
+        d->unit_first_tool[u] = m.first_tool;
+        d->unit_has_hub_sensor[u] = m.topology == 1;
+        d->unit_hub_triggered[u] = false;
+        ++u;
+    }
+    d->total_tools = tools;
+    d->active_unit = 0;
+    d->active_tool = 0;
+    d->hub_width = 70;
+    d->tube_gauge = 5;
+    d->extruder_scale = extruder_scale;
+    d->toolhead_style = helix::ToolheadStyle::DEFAULT;
+    return d;
+}
+
+struct Rig {
+    const char* name;
+    std::unique_ptr<SystemPathData> data;
+    lv_area_t area;
+};
+
+constexpr lv_area_t kPanel800 = {0, 0, 429, 283};   // the canvas at 800x480
+constexpr lv_area_t kPanelMicro = {0, 0, 284, 148}; // the canvas at 480x272
+
+// Card centres at 800x480 sit 110 px apart, at 480x272 86 px apart.
+std::vector<Rig> mock_rigs() {
+    std::vector<Rig> rigs;
+    for (const bool micro : {false, true}) {
+        const int32_t x0 = micro ? 39 : 49, pitch = micro ? 86 : 110;
+        const int32_t scale = micro ? 8 : 10;
+        const lv_area_t area = micro ? kPanelMicro : kPanel800;
+        auto at = [&](int card) { return x0 + pitch * card; };
+        rigs.push_back({micro ? "afc_direct micro" : "afc_direct",
+                        mock_rig({{at(0), 1, 1, 0},
+                                  {at(1), 2, 1, 1},
+                                  {at(2), 1, 1, 2},
+                                  {at(3), 1, 1, 2},
+                                  {at(4), 1, 1, 3},
+                                  {at(5), 1, 1, 3}},
+                                 4, scale),
+                        area});
+        rigs.push_back(
+            {micro ? "multi micro" : "multi",
+             mock_rig({{micro ? 80 : 99, 1, 1, 0}, {micro ? 230 : 309, 1, 1, 0}}, 1, scale), area});
+        rigs.push_back({micro ? "mixed micro" : "mixed",
+                        mock_rig({{micro ? 55 : 68, 2, 4, 0},
+                                  {micro ? 170 : 215, 1, 1, 4},
+                                  {micro ? 285 : 361, 1, 1, 5}},
+                                 6, scale),
+                        area});
+        rigs.push_back({micro ? "stealth micro" : "stealth",
+                        mock_rig({{at(0), 2, 4, 0},
+                                  {at(1), 1, 1, 4},
+                                  {at(2), 1, 1, 5},
+                                  {at(3), 1, 1, 6},
+                                  {at(4), 1, 1, 6}},
+                                 7, scale),
+                        area});
+        rigs.push_back({micro ? "torture micro" : "torture",
+                        mock_rig({{at(0), 1, 1, 0},
+                                  {at(2), 2, 2, 1},
+                                  {at(3), 1, 1, 3},
+                                  {at(4), 1, 1, 3},
+                                  {at(1), 1, 1, 0}},
+                                 4, scale),
+                        area});
+    }
+    return rigs;
+}
+
+// A route's painted centreline, sampled about every pixel.
+std::vector<pg::PathPoint> sample_route(const Route& r) {
+    std::vector<pg::PathPoint> pts;
+    for (int k = 0; k < r.path.count; k++) {
+        if (!r.style[k].painted)
+            continue;
+        const pg::PathSeg& s = r.path.segs[k];
+        float len = s.type == pg::PathSeg::LINE ? std::hypot(s.p1.x - s.p0.x, s.p1.y - s.p0.y)
+                                                : std::fabs(s.sweep) * s.radius;
+        const int steps = LV_MAX(1, (int)std::ceil(len));
+        for (int i = 0; i <= steps; i++) {
+            const float t = (float)i / (float)steps;
+            if (s.type == pg::PathSeg::LINE) {
+                pts.push_back({s.p0.x + (s.p1.x - s.p0.x) * t, s.p0.y + (s.p1.y - s.p0.y) * t});
+            } else {
+                const float a = s.start_angle + s.sweep * t;
+                pts.push_back(
+                    {s.center.x + s.radius * std::cos(a), s.center.y + s.radius * std::sin(a)});
+            }
+        }
+    }
+    return pts;
+}
+
+struct Box {
+    float x1, y1, x2, y2;
+    bool contains(pg::PathPoint p, float pad) const {
+        return p.x >= x1 - pad && p.x <= x2 + pad && p.y >= y1 - pad && p.y <= y2 + pad;
+    }
+};
+
+// Where routes meet on purpose: inside a hub box, and at a nozzle.
+std::vector<Box> meeting_places(const SystemPathData& d, const SysLayout& L,
+                                const OverviewBoxes& boxes) {
+    std::vector<Box> out;
+    for (const HubInfo& h : boxes.hubs)
+        if (h.valid)
+            out.push_back(
+                {(float)(h.hub_x - h.mini_hub_w / 2), (float)(h.mini_hub_y - h.mini_hub_h / 2),
+                 (float)(h.hub_x + h.mini_hub_w / 2), (float)(h.mini_hub_y + h.mini_hub_h / 2)});
+    if (boxes.combiner)
+        out.push_back({(float)(L.center_x - d.hub_width / 2), (float)(L.hub_y - L.hub_h / 2),
+                       (float)(L.center_x + d.hub_width / 2), (float)(L.hub_y + L.hub_h / 2)});
+    return out;
+}
+
+struct Clash {
+    int a, b;
+    float distance;
+    pg::PathPoint at;
+};
+
+// Every pair of routes whose painted centrelines come closer than @p min_gap
+// outside the meeting places, with the closest point.
+std::vector<Clash> route_clashes(const PathPlan& plan, const std::vector<Box>& meet,
+                                 float min_gap) {
+    std::vector<std::vector<pg::PathPoint>> pts(plan.route_count);
+    for (int i = 0; i < plan.route_count; i++)
+        pts[i] = sample_route(plan.routes[i]);
+    auto excluded = [&](pg::PathPoint p) {
+        for (const Box& b : meet)
+            if (b.contains(p, min_gap))
+                return true;
+        return false;
+    };
+    std::vector<Clash> out;
+    for (int a = 0; a < plan.route_count; a++)
+        for (int b = a + 1; b < plan.route_count; b++) {
+            Clash c{a, b, 1e9f, {}};
+            for (const pg::PathPoint& p : pts[a]) {
+                if (excluded(p))
+                    continue;
+                for (const pg::PathPoint& q : pts[b]) {
+                    const float dist = std::hypot(p.x - q.x, p.y - q.y);
+                    if (dist < c.distance && !excluded(q))
+                        c = {a, b, dist, p};
+                }
+            }
+            if (c.distance < min_gap)
+                out.push_back(c);
+        }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("Overview plan: routes on the mock rigs keep apart outside their boxes",
+          "[system_path][route_spacing]") {
+    for (const Rig& rig : mock_rigs()) {
+        CAPTURE(rig.name);
+        const SystemPathData& d = *rig.data;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        REQUIRE(plan.dropped == 0);
+        const float min_gap = (float)(d.tube_gauge + helix::ui::kHaloWidthExtra);
+        for (const Clash& c : route_clashes(plan, meeting_places(d, L, boxes), min_gap)) {
+            const pg::PathPoint sa = seg_start(plan.routes[c.a].path.segs[0]);
+            const pg::PathPoint sb = seg_start(plan.routes[c.b].path.segs[0]);
+            UNSCOPED_INFO(rig.name << ": routes from x=" << sa.x << " and x=" << sb.x << " come "
+                                   << c.distance << " px apart at (" << c.at.x << ", " << c.at.y
+                                   << ")");
+            CHECK(c.distance >= min_gap);
+        }
     }
 }
