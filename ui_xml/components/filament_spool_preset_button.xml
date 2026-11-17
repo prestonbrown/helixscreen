@@ -6,8 +6,8 @@
 <component>
   <view name="preset_spool"
         extends="ui_button" width="0" height="content" flex_grow="1" style_min_height="#touch_target_min"
-        layout="column" state_trickle="true" style_pad_ver="#space_sm" style_pad_hor="#space_xxs"
-        style_pad_gap="#temp_preset_btn_spacing" hidden="true">
+        layout="column" state_trickle="true" style_pad_ver="#space_xxs" style_pad_hor="#space_xxs" style_pad_gap="0"
+        hidden="true">
     <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
     <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
     <text_body name="spool_preset_label" width="100%" text="" style_text_align="center" long_mode="dots"/>

@@ -168,7 +168,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: a tool change moves the sel
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Filament panel: the Tool card names the nozzle as the screen numbers it",
+                 "Filament panel: the nozzle row names the target as the screen numbers it",
                  "[filament][target_tool][numbering]") {
     TargetToolHarness h(*this);
     auto text = [](const char* subject) {

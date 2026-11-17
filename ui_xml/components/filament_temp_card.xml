@@ -1,15 +1,14 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- The Filament panel's Temperature card on a one-head printer: the shared
-     heater rows (heater_rows.xml), each opening the temperature graph, and in
-     landscape from the small breakpoint up the panel's status line. A printer
-     with several heads shows the Tool card instead. -->
+<!-- The Filament panel's Temperature card: the shared heater rows
+     (heater_rows.xml), the nozzle row for the tool the panel aims at, each row
+     opening the temperature graph, and in landscape from the small breakpoint
+     up the panel's status line. -->
 <component>
   <view name="temp_status_card"
         extends="ui_card" width="100%" height="content" flex_flow="column" style_radius="#border_radius"
         style_pad_all="#space_sm" style_pad_gap="#space_xs" scrollable="false">
-    <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
     <lv_obj width="100%"
             height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_sm"
             scrollable="false" clickable="false">

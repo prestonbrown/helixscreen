@@ -12,8 +12,7 @@
   </api>
   <view extends="ui_button"
         width="0" height="content" flex_grow="1" style_min_height="#touch_target_min" layout="column"
-        state_trickle="true" style_pad_ver="#space_sm" style_pad_hor="#space_xxs"
-        style_pad_gap="#temp_preset_btn_spacing">
+        state_trickle="true" style_pad_ver="#space_xxs" style_pad_hor="#space_xxs" style_pad_gap="0">
     <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
     <event_cb trigger="clicked" callback="$callback"/>
     <event_cb trigger="long_pressed" callback="$hold_callback"/>

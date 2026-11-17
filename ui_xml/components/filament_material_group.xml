@@ -5,10 +5,9 @@
      the active spool's own preset when it matches none of them, and Cool
      Down. Landscape lays them out 3x2 (PLA/PETG/ABS, TPU/spool/Cool Down);
      portrait has the height for one row only, so the presets share it and
-     Cool Down moves to the card's header. Instantiated by both orientation
-     branches of filament_panel.xml; the responsive #temp_preset_btn_spacing
-     ladder it uses is declared in filament_panel.xml (top-level files only -
-     see bed_mesh_profiles_card.xml for the scope rule). -->
+     Cool Down moves to the card's header. Each preset is one touch target
+     tall, so the Operations card below keeps its room. Instantiated by both
+     orientation branches of filament_panel.xml. -->
 <component>
   <view name="material_group"
         extends="ui_card" width="100%" height="content" flex_flow="column" style_radius="#border_radius"

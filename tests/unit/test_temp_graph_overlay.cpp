@@ -20,8 +20,10 @@
 #include "../test_helpers/update_queue_test_access.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "preset_materials.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "subject_debug_registry.h"
 #include "target_tool.h"
 #include "temperature_controller.h"
@@ -223,6 +225,18 @@ class TempGraphOverlayTestAccess {
     /// The keypad's confirm, delivered the way ui_component_keypad does.
     static void keypad_confirm(TempGraphOverlay& o, float value) {
         TempGraphOverlay::keypad_value_cb(value, &o.keypad_ctx_);
+    }
+    /// A tap on the nozzle strip's preset button @p name ("preset_1" is the
+    /// first material slot), sending @p deg as that button's target.
+    static void preset_clicked(TempGraphOverlay& o, const char* name, int deg, lv_obj_t* parent) {
+        const int idx = name[std::string(name).size() - 1] - '0';
+        o.preset_data_[static_cast<size_t>(idx)] = {&o, deg};
+        lv_obj_t* btn = lv_obj_create(parent);
+        lv_obj_set_name(btn, name);
+        lv_obj_add_event_cb(btn, TempGraphOverlay::on_temp_graph_preset_clicked, LV_EVENT_CLICKED,
+                            nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        lv_obj_delete(btn);
     }
     static void discover(TempGraphOverlay& o) {
         o.discover_series();
@@ -464,4 +478,39 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
 
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
     tsm.discover({});
+}
+
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: a nozzle material preset heats the bed only while the setting is on",
+    "[temp_graph_overlay][preset_bed]") {
+    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed();
+    const bool heat_bed = GENERATE(true, false);
+    CAPTURE(heat_bed);
+    sm.set_material_presets_heat_bed(heat_bed);
+    const auto slot = helix::presets::slot_temps(0);
+    REQUIRE(slot.has_value());
+    client.clear_gcode_script_history();
+
+    TempGraphOverlayTestAccess::preset_clicked(overlay, "preset_1", 215, lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& hist = client.gcode_script_history();
+    auto sent = [&](const std::string& needle) {
+        return std::any_of(hist.begin(), hist.end(), [&](const std::string& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+    CHECK(sent("TARGET=215"));
+    CHECK(sent("HEATER=heater_bed TARGET=" + std::to_string(slot->bed)) == heat_bed);
+    CHECK(sent("HEATER=heater_bed") == heat_bed);
+
+    sm.set_material_presets_heat_bed(saved);
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }

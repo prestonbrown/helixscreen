@@ -84,7 +84,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Target tool: a pick aims every surface's no
 
     TargetTool::instance().pick(1);
     h.drain();
-    // The subjects the Controls card, the Filament Tool card and the graph's
+    // The subjects the Controls card, the Filament Temperature card and the graph's
     // card all bind.
     CHECK(subject_int("target_tool") == 1);
     CHECK(subject_text("target_nozzle_label") == "Nozzle 2");

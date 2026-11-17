@@ -3,9 +3,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!-- The Operations card (heading + cold-extrusion warning, Load/Unload/Purge,
-       length selector, Extrude/Retract). Instantiated by both orientation
-       branches of filament_panel.xml so the markup exists exactly once; the
-       card grows into whatever slack its branch's column gives it. -->
+       length selector, Extrude/Retract). On a printer with several heads it
+       also holds the panel's only tool chooser: a row of heads
+       (tool_target_row.xml) that aims every operation at the chosen tool and
+       never changes tools, and Pick up / Park at the right of the heading,
+       which does. Instantiated by both orientation branches of
+       filament_panel.xml so the markup exists exactly once. The action rows
+       are compact, one touch target tall. -->
   <styles>
     <!-- Reactive extrude length button state (L040: no inline bg attrs) -->
     <style name="extrude_length_btn_selected" bg_color="#primary" bg_opa="255"/>
@@ -14,20 +18,19 @@
     <style name="operations_heading_masked" opa="0"/>
   </styles>
   <api>
-    <!-- Action-row sizing. Landscape rows grow into the column's slack with
-         #button_height as the floor; portrait passes a fixed height because the
-         graph, not the rows, is that column's flexible remainder. -->
-    <prop name="row_height" type="string" default="0"/>
-    <prop name="row_grow" type="string" default="1"/>
-    <prop name="row_min_height" type="string" default="#button_height"/>
+    <!-- Action-row and length-row heights: one touch target, less where a
+         portrait column has no height to spare. -->
+    <prop name="row_height" type="string" default="#touch_target_min"/>
+    <prop name="length_height" type="string" default="#touch_target_min"/>
   </api>
   <view name="operations_group"
-        extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_all="#space_sm"
+        extends="ui_card" width="100%" height="content" style_radius="#border_radius" style_pad_all="#space_sm"
         scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
     <!-- Heading row. The cold-extrusion warning floats over the heading,
          one line with dots, rather than taking a row of its own, so the action
          rows keep the same height whether it shows or not. -->
-    <lv_obj name="operations_heading_row" width="100%" height="content" style_pad_all="0" scrollable="false">
+    <lv_obj name="operations_heading_row"
+            width="100%" height="content" style_min_height="#icon_size" style_pad_all="0" scrollable="false">
       <lv_obj name="operations_heading"
               width="content" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
               style_pad_gap="#space_sm" scrollable="false" clickable="false" align="left_mid">
@@ -42,12 +45,45 @@
         <icon src="alert" size="xs" variant="warning"/>
         <text_small width="0" height="100%" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="dots"/>
       </lv_obj>
+      <!-- Pick up / Park the tool the row below aims at (hidden when neither
+           applies). Park carries the Home tool switcher's Park glyph. -->
+      <lv_obj width="content"
+              height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+              style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" scrollable="false" align="right_mid">
+        <!-- Portrait has no room for a Multi-Filament card under several
+             heads, so their lane bars sit here (they open the AMS panel). -->
+        <!-- A wrapper carries the binding: the bars show and hide themselves
+             with the filament system. -->
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                hidden="true">
+          <bind_flag_if cond="ui_is_portrait eq 0 or target_tool_multi_head eq 0" flag="hidden"/>
+          <ams_mini_status name="operations_lanes"
+                           width="#filament_header_lanes_w" height="#touch_target_min" bars_align="end"/>
+        </lv_obj>
+        <ui_button name="btn_target_tool_pickup"
+                   width="content" height="#touch_target_min" style_pad_hor="#space_sm" icon="swap_horizontal"
+                   text="Pick up" style_text_font="#font_small" moves_machine="true" hidden="true">
+          <bind_flag_if_not_eq subject="filament_target_tool_action" flag="hidden" ref_value="1"/>
+          <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
+        </ui_button>
+        <ui_button name="btn_target_tool_park"
+                   width="content" height="#touch_target_min" style_pad_hor="#space_sm" icon="eject" text="Park"
+                   style_text_font="#font_small" moves_machine="true" hidden="true">
+          <bind_flag_if_not_eq subject="filament_target_tool_action" flag="hidden" ref_value="2"/>
+          <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
+        </ui_button>
+      </lv_obj>
     </lv_obj>
+    <!-- The heads, where there are several: choosing one aims every operation
+         below at it -->
+    <tool_target_row name="tool_card_row" labels="_row" hidden="true">
+      <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="0"/>
+    </tool_target_row>
     <!-- Load/Unload/Purge Row (macro-based, no length selector) -->
     <lv_obj width="100%"
-            height="$row_height" flex_grow="$row_grow" style_min_height="$row_min_height" style_pad_all="0"
-            scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-            style_pad_gap="#space_sm">
+            height="$row_height" style_pad_all="0" scrollable="false" flex_flow="row"
+            style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
       <ui_button name="btn_load"
                  height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1" flex_grow="1"
                  icon="arrow_down" text="Load" style_text_font="#font_small" bind_op_state="filament_op_load_state">
@@ -80,19 +116,19 @@
             style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
       <text_small text="Length:"/>
       <ui_button name="extrude_length_5mm"
-                 height="#button_height_sm" flex_grow="1" text="5mm" style_text_font="#font_small">
+                 height="$length_height" flex_grow="1" text="5mm" style_text_font="#font_small">
         <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_5mm_active" ref_value="1"/>
         <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_5mm_active" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_5mm"/>
       </ui_button>
       <ui_button name="extrude_length_10mm"
-                 height="#button_height_sm" flex_grow="1" text="10mm" style_text_font="#font_small">
+                 height="$length_height" flex_grow="1" text="10mm" style_text_font="#font_small">
         <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_10mm_active" ref_value="1"/>
         <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_10mm_active" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_10mm"/>
       </ui_button>
       <ui_button name="extrude_length_25mm"
-                 height="#button_height_sm" flex_grow="1" text="25mm" style_text_font="#font_small">
+                 height="$length_height" flex_grow="1" text="25mm" style_text_font="#font_small">
         <bind_style name="extrude_length_btn_selected" subject="filament_extrude_length_25mm_active" ref_value="1"/>
         <bind_style name="extrude_length_btn_unselected" subject="filament_extrude_length_25mm_active" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_25mm"/>
@@ -100,9 +136,8 @@
     </lv_obj>
     <!-- Extrude/Retract Row (length-based operations) -->
     <lv_obj width="100%"
-            height="$row_height" flex_grow="$row_grow" style_min_height="$row_min_height" style_pad_all="0"
-            scrollable="false" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
-            style_pad_gap="#space_sm">
+            height="$row_height" style_pad_all="0" scrollable="false" flex_flow="row"
+            style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
       <ui_button name="btn_extrude"
                  height="100%" flex_grow="1" icon="arrow_down" text="Extrude" style_text_font="#font_small"
                  bind_op_state="filament_op_extrude_state">

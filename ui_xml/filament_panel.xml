@@ -3,11 +3,20 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <consts>
-    <!-- Spacing overrides for temperature preset buttons -->
-    <px name="temp_preset_btn_spacing_tiny" value="1"/>
-    <px name="temp_preset_btn_spacing_small" value="6"/>
-    <px name="temp_preset_btn_spacing_medium" value="7"/>
-    <px name="temp_preset_btn_spacing_large" value="8"/>
+    <!-- Portrait Operations rows: a 320x480 column has no height to spare,
+         so the action rows and the length row come down from a touch target. -->
+    <px name="filament_portrait_row_h_tiny" value="42"/>
+    <px name="filament_portrait_row_h_small" value="48"/>
+    <px name="filament_portrait_row_h_medium" value="48"/>
+    <px name="filament_portrait_row_h_large" value="48"/>
+    <px name="filament_portrait_length_h_tiny" value="40"/>
+    <px name="filament_portrait_length_h_small" value="48"/>
+    <px name="filament_portrait_length_h_medium" value="48"/>
+    <px name="filament_portrait_length_h_large" value="48"/>
+    <!-- The lane bars' width in the portrait Operations header, beside Pick up. -->
+    <px name="filament_header_lanes_w_small" value="96"/>
+    <px name="filament_header_lanes_w_medium" value="96"/>
+    <px name="filament_header_lanes_w_large" value="120"/>
     <!-- AMS mini-status row height. Tuned so slot indicators have room
          even at MICRO (button_height_lg_micro=34 was visibly pinched). -->
     <px name="filament_ams_row_h_micro" value="48"/>
@@ -15,15 +24,6 @@
     <px name="filament_ams_row_h_small" value="64"/>
     <px name="filament_ams_row_h_medium" value="72"/>
     <px name="filament_ams_row_h_large" value="88"/>
-    <!-- Portrait action-row height. The portrait column's slack goes to the
-         temperature graph, so its rows are fixed, and short enough at the
-         small tiers that the graph can still clear its 70px floor. -->
-    <px name="filament_portrait_row_h_micro" value="36"/>
-    <px name="filament_portrait_row_h_tiny" value="40"/>
-    <px name="filament_portrait_row_h_small" value="48"/>
-    <px name="filament_portrait_row_h_medium" value="52"/>
-    <px name="filament_portrait_row_h_large" value="64"/>
-    <px name="filament_portrait_row_h_xlarge" value="72"/>
     <!-- Graph height and flex_grow on temp_graph_card / spool_card are owned
          by FilamentPanel::apply_left_column_sizing() in C++ — the default
          per-breakpoint heights (70/80/140/180/220) live there so the sizing
@@ -41,11 +41,10 @@
   </styles>
   <!-- Filament Management Panel -->
   <!-- Cards in the Controls panel's style. Landscape: two columns, left (the
-       Tool card or, with one head, the Temperature card; the graph; the
-       Multi-Filament card) and right (Material, Operations). Portrait: one
-       column - Tool or Temperature card, Material, graph, Operations, and with
-       one head the multi-filament strip; with several heads the lane bars sit
-       in the Tool card's header instead. The shared subtrees live in
+       Temperature card, the graph, the Multi-Filament card) and right
+       (Material, then Operations, which holds the tool chooser where several
+       heads dock). Portrait: one column - Temperature, Material, graph,
+       Operations, and the multi-filament strip. The shared subtrees live in
        ui_xml/components/filament_*.xml and heater_rows.xml and are
        instantiated by both branches so their markup exists exactly once.
        ui_is_portrait is reactive, so a rotation rebuilds this <if> in place -
@@ -65,7 +64,6 @@
       <lv_obj name="portrait_column"
               width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
               style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
-        <filament_tool_card/>
         <filament_temp_card/>
         <filament_material_group/>
 
@@ -73,13 +71,10 @@
              flex_grow come from apply_left_column_sizing(); whether it shows at
              all is the filament_graph_spacer subject, which
              FilamentPanel::fit_portrait_graph() sets when the remainder is too
-             short to read. Too short on a printer with several heads, where no
-             strip below needs pinning to the bottom, it leaves the column
-             altogether, so its gap goes to the cards around it. -->
+             short to read. -->
         <lv_obj name="temp_graph_card"
                 width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
                 style_radius="#border_radius">
-          <bind_flag_if cond="filament_graph_spacer eq 1 and target_tool_multi_head eq 1" flag="hidden"/>
           <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
           <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
           <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
@@ -90,14 +85,13 @@
           </lv_obj>
         </lv_obj>
 
-        <!-- Operations at fixed heights: the graph above takes the column's slack. -->
+        <!-- Operations at their compact height: the graph above takes the column's slack. -->
         <filament_operations_group name="filament_operations_group"
-                                   height="content" flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0"
-                                   row_min_height="0"/>
+                                   row_height="#filament_portrait_row_h" length_height="#filament_portrait_length_h"/>
 
         <!-- Multi-filament strip (C++ hides its header row in portrait so it
-             reads as a strip, not a card). With several heads the Tool card's
-             header carries the lane bars. -->
+             reads as a strip, not a card). With several heads the lane bars
+             sit in the Operations header instead. -->
         <filament_spool_card>
           <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
         </filament_spool_card>
@@ -112,7 +106,6 @@
         <lv_obj name="left_column"
                 width="40%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
                 style_flex_main_place="start" style_pad_gap="#space_md">
-          <filament_tool_card/>
           <filament_temp_card/>
 
           <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow

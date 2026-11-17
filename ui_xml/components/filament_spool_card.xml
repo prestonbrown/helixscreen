@@ -52,7 +52,7 @@
         <!-- AMS mini status (auto-binds to AmsState, fills width, stretches to row height) -->
         <ams_mini_status name="ams_mini_status" height="100%" flex_grow="1" bars_align="start"/>
         <!-- Manage opens the AMS panel. With several heads the bars alone
-             open it: the Tool card above is where a head is chosen. -->
+             open it: the Operations card is where a head is chosen. -->
         <ui_button name="btn_manage_slots"
                    width="content" height="#button_height" text="Manage" style_pad_left="#space_md"
                    style_pad_right="#space_md">

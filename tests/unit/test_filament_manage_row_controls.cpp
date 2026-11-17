@@ -6,8 +6,8 @@
  * @brief The Filament panel's tool chooser and Manage button, and the head
  * count alone decides which one shows.
  *
- * A printer with several heads gets the Tool card, whose row of heads is the
- * panel's only tool chooser; lanes a hub feeds into one head are a filament
+ * A printer with several heads gets a row of heads in the Operations card,
+ * the panel's only tool chooser; lanes a hub feeds into one head are a filament
  * system, not a tool choice, so a single-head printer gets no chooser at all
  * and keeps Manage, which opens the AMS panel (#1350).
  */
@@ -98,15 +98,16 @@ struct ManageRowHarness {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: several heads get the Tool card, not Manage",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: several heads get the row of heads, not Manage",
                  "[filament][ui][tool]") {
     // With no backend, Manage would navigate to an AMS panel that returns early;
     // the heads exist in ToolState whether or not a backend claimed them.
     ManageRowHarness h(*this, {"extruder", "extruder1"}, GENERATE(AmsType::NONE, AmsType::AFC));
 
     REQUIRE(ToolState::instance().has_multiple_toolheads());
-    CHECK_FALSE(h.hidden("filament_tool_card"));
-    CHECK(h.hidden("temp_status_card"));
+    CHECK_FALSE(h.hidden("tool_card_row"));
+    CHECK_FALSE(h.hidden("temp_status_card"));
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK(h.hidden("btn_manage_slots"));
 }
@@ -116,7 +117,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: one head with AMS gets Mana
     ManageRowHarness h(*this, {"extruder"}, AmsType::AFC);
 
     REQUIRE_FALSE(ToolState::instance().is_multi_tool());
-    CHECK(h.hidden("filament_tool_card"));
+    CHECK(h.hidden("tool_card_row"));
     CHECK_FALSE(h.hidden("temp_status_card"));
     REQUIRE_FALSE(h.hidden("ams_manage_row"));
     CHECK_FALSE(h.hidden("btn_manage_slots"));
@@ -137,7 +138,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE_FALSE(ToolState::instance().has_multiple_toolheads());
 
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "target_tool_multi_head")) == 0);
-    CHECK(h.hidden("filament_tool_card"));
+    CHECK(h.hidden("tool_card_row"));
     CHECK_FALSE(h.hidden("btn_manage_slots"));
 }
 
@@ -262,6 +263,62 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(mode) == 0);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "Portrait 320x480 Filament panel fits with nothing clipped",
+                 "[filament][ui][portrait][layout]") {
+    const bool multi_head = GENERATE(false, true);
+    CAPTURE(multi_head);
+    lv_display_t* disp = lv_display_get_default();
+    ScopedResolution res(disp, 320, 480);
+    theme_manager_refresh_layout_constants(disp);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 1);
+    ui_ams_mini_status_init();
+    ManageRowHarness h(*this,
+                       multi_head ? std::vector<std::string>{"extruder", "extruder1"}
+                                  : std::vector<std::string>{"extruder"},
+                       AmsType::AFC);
+    // What a 320x480 screen leaves the panel under the navigation bar.
+    lv_obj_set_size(h.root, 320, 402);
+    lv_obj_update_layout(h.root);
+    process_lvgl(30);
+    lv_obj_update_layout(h.root);
+
+    lv_obj_t* column = lv_obj_find_by_name(h.root, "portrait_column");
+    REQUIRE(column != nullptr);
+    lv_area_t col;
+    lv_obj_get_content_coords(column, &col);
+    // Every card the column shows ends inside it.
+    for (uint32_t i = 0; i < lv_obj_get_child_count(column); ++i) {
+        lv_obj_t* card = lv_obj_get_child(column, static_cast<int32_t>(i));
+        if (lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN)) {
+            continue;
+        }
+        lv_area_t a;
+        lv_obj_get_coords(card, &a);
+        CAPTURE(lv_obj_get_name(card), a.y2, col.y2);
+        CHECK(a.y2 <= col.y2);
+    }
+    // The action rows give up at most a few pixels of a touch target; the
+    // presets, the heads and Pick up keep a whole one.
+    auto height = [&](const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(h.root, name);
+        REQUIRE(obj != nullptr);
+        return lv_obj_get_height(obj);
+    };
+    for (const char* name : {"btn_load", "btn_unload", "btn_purge", "btn_extrude", "btn_retract",
+                             "extrude_length_5mm"}) {
+        CAPTURE(name);
+        CHECK(height(name) >= 40);
+    }
+    CHECK(height("preset_pla") >= 48);
+    if (multi_head) {
+        CHECK(height("tool_target_cell_0") >= 48);
+        CHECK(h.hidden("spool_card"));
+    } else {
+        CHECK_FALSE(h.hidden("spool_card"));
+    }
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 0);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Strip graph button stays hidden in landscape",
                  "[filament][ui][portrait]") {
     ManageRowHarness h(*this, {"extruder"}, AmsType::AFC);
@@ -336,15 +393,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel keeps the aimed tool with the carriage empty",
                  "[filament][ui][tool]") {
     ManageRowHarness h(*this, {"extruder", "extruder1"}, AmsType::NONE);
-    lv_subject_set_int(ToolState::instance().get_active_tool_subject(), 1);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 1}}}});
     h.fx.process_lvgl(30);
     REQUIRE(TA::target_tool(*h.panel) == 1);
 
     // A park leaves no tool on the carriage; the panel still aims at the tool
     // it was on, so heating it needs no pick up.
-    lv_subject_set_int(ToolState::instance().get_active_tool_subject(), -1);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", -1}}}});
     h.fx.process_lvgl(30);
     CHECK(TA::target_tool(*h.panel) == 1);
+    ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+    h.fx.process_lvgl(30);
 }
 
 namespace {

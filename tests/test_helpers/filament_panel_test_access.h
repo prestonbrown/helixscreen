@@ -94,7 +94,7 @@ struct FilamentPanelTestAccess {
     static int target_tool(const FilamentPanel& p) {
         return p.target_tool();
     }
-    /// Aim the panel at @p tool as a tap on its Tool card cell does: through
+    /// Aim the panel at @p tool as a tap on its cell in the Operations card does: through
     /// the shared target tool.
     static void choose_target(int tool) {
         helix::ui::TargetTool::instance().pick(tool);

@@ -358,11 +358,9 @@ void FilamentPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(material_bed_temp_subject_, material_bed_buf_, material_bed_buf_,
                                   "filament_material_bed_temp", subjects_);
 
-        // The Pick up / Park button: a TargetToolAction, and its caption.
+        // Which of Pick up / Park the Operations header shows: a TargetToolAction.
         UI_MANAGED_SUBJECT_INT(target_tool_action_subject_, 0, "filament_target_tool_action",
                                subjects_);
-        UI_MANAGED_SUBJECT_STRING(target_tool_action_text_subject_, target_tool_action_text_buf_,
-                                  "", "filament_target_tool_action_text", subjects_);
 
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
@@ -949,15 +947,6 @@ void FilamentPanel::update_target_tool_action() {
     const auto action = helix::ui::decide_target_tool_action(
         target_tool(), ts.active_tool_index(), ts.has_multiple_toolheads(),
         backend && backend->supports_tool_park());
-    // One lv_tr() per literal: the extractor cannot see keys chosen inside a
-    // ternary.
-    const char* text = "";
-    if (action == helix::ui::TargetToolAction::PickUp) {
-        text = lv_tr("Pick up");
-    } else if (action == helix::ui::TargetToolAction::Park) {
-        text = lv_tr("Park");
-    }
-    lv_subject_copy_string(&target_tool_action_text_subject_, text);
     lv_subject_set_int(&target_tool_action_subject_, static_cast<int>(action));
 }
 
@@ -1077,9 +1066,14 @@ void FilamentPanel::handle_preset_button(int material_id) {
 
 void FilamentPanel::send_preset_targets() {
     send_nozzle_target();
+    // With "Material presets heat the bed" off, a preset heats the nozzle alone.
+    const auto bed = helix::presets::bed_target(bed_target_);
+    if (!bed) {
+        return;
+    }
     if (auto* c = get_temperature_controller()) {
-        c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                      {.toast = true, .on_success = [target = bed_target_]() {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                      {.toast = true, .on_success = [target = *bed]() {
                            NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
                        }});
 
@@ -2084,9 +2078,10 @@ void FilamentPanel::handle_spool_preset_button() {
                               hw),
         [this]() {
             send_nozzle_target();
-            if (auto* c = get_temperature_controller()) {
-                c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                              {.toast = true, .on_success = [t = bed_target_]() {
+            const auto bed = helix::presets::bed_target(bed_target_);
+            if (auto* c = get_temperature_controller(); c && bed) {
+                c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                              {.toast = true, .on_success = [t = *bed]() {
                                    NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
                                }});
             }

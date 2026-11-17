@@ -296,10 +296,21 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
                   {.toast = true, .on_success = [nozzle]() {
                        NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), nozzle);
                    }});
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
+    send_bed(bed);
+}
+
+bool PreheatWidget::send_bed(int bed) {
+    // With "Material presets heat the bed" off, a preset heats the nozzle alone.
+    const auto target = presets::bed_target(bed);
+    auto* c = get_temperature_controller();
+    if (!target || !c) {
+        return false;
+    }
+    c->set_target(helix::HeaterType::Bed, static_cast<double>(*target),
+                  {.toast = true, .on_success = [t = *target]() {
+                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
                    }});
+    return true;
 }
 
 void PreheatWidget::handle_apply() {
@@ -432,21 +443,26 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
                            }});
     }
 
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
-                   }});
+    const bool bed_sent = send_bed(bed);
 
     if (*refused) {
         return;
     }
     int tool_count = static_cast<int>(heaters.size());
-    if (tool_target_ == -1) {
+    // One literal per message: the extractor cannot see keys chosen inside a
+    // ternary.
+    if (tool_target_ == -1 && bed_sent) {
         NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools + bed set",
                                                          static_cast<uint64_t>(tool_count))),
                        tool_count);
-    } else if (target_tool >= 0) {
+    } else if (tool_target_ == -1) {
+        NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools set",
+                                                         static_cast<uint64_t>(tool_count))),
+                       tool_count);
+    } else if (target_tool >= 0 && bed_sent) {
         NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), tools[target_tool].display_label);
+    } else if (target_tool >= 0) {
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} set"), tools[target_tool].display_label);
     }
 }
 

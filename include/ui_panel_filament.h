@@ -373,8 +373,6 @@ class FilamentPanel : public PanelBase {
 
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
     lv_subject_t target_tool_action_subject_{};
-    lv_subject_t target_tool_action_text_subject_{};
-    char target_tool_action_text_buf_[32] = {};
     helix::ui::ToolArrivalWait tool_arrival_;
 
     // Operation state

@@ -16,6 +16,7 @@
 #include "app_globals.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "panel_widget_manager.h"
+#include "preset_materials.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "static_panel_registry.h"
@@ -748,6 +749,16 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
                           {.toast = true});
         } else {
             c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
+        }
+        // A nozzle material preset heats the bed with it, unless "Material
+        // presets heat the bed" is off. Off (index 0) touches the nozzle alone.
+        if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
+            if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
+                if (const auto bed = helix::presets::bed_target(temps->bed)) {
+                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                                  {.toast = true});
+                }
+            }
         }
     }
 }

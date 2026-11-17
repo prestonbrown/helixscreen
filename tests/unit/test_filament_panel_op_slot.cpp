@@ -206,7 +206,7 @@ struct OpSlotHarness {
     }
 
     /// The tool the panel works on. Several heads: aim the panel at it, as a
-    /// tap on its Tool card cell does. One head behind a hub: the panel has no
+    /// tap on its Operations card cell does. One head behind a hub: the panel has no
     /// chooser and follows the lane the hub has in the head, so mount it.
     void select_tool(int idx) {
         if (ToolState::instance().has_multiple_toolheads()) {
