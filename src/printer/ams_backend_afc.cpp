@@ -2982,7 +2982,7 @@ void AmsBackendAfc::apply_unit_object(AfcUnitInfo& unit_info, const afc::UnitObj
     // The per-lane "hub" field ("direct" vs hub name) is the authoritative
     // source; the extruder/hub counts decide when it is unavailable.
     afc::UnitTopology topo = afc::derive_unit_topology(unit_info.lanes, unit_info.extruders.size(),
-                                                       !unit_info.hubs.empty(), lane_hub_routing_);
+                                                       unit_info.hubs.size(), lane_hub_routing_);
     unit_info.topology = topo.topology;
     unit_info.lane_is_hub_routed = std::move(topo.lane_is_hub_routed);
 

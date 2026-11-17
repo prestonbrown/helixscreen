@@ -281,10 +281,11 @@ struct UnitTopology {
     std::vector<bool> lane_is_hub_routed; ///< Parallel to the unit's lanes
 };
 
-/// A unit's topology from its lanes' hub routing; a lane with no routing yet
-/// counts as neither direct nor hub-routed.
+/// A unit's topology from its lanes' hub routing, decided by
+/// helix::printer::afc_unit_topology(); a lane with no routing yet counts as
+/// neither direct nor hub-routed.
 [[nodiscard]] UnitTopology
-derive_unit_topology(const std::vector<std::string>& lanes, size_t extruder_count, bool has_hubs,
+derive_unit_topology(const std::vector<std::string>& lanes, size_t extruder_count, size_t hub_count,
                      const std::unordered_map<std::string, std::string>& lane_hub_routing);
 
 /// One OpenAMS humidity chip reading.

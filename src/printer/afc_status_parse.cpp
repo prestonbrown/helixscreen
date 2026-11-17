@@ -3,6 +3,7 @@
 
 #include "afc_status_parse.h"
 
+#include "afc_defaults.h"
 #include "ams_status_json.h"
 #include "core/text_io.h"
 #include "humidity_sensor_types.h"
@@ -592,7 +593,7 @@ UnitObjectDelta parse_unit_object(const nlohmann::json& data) {
 }
 
 UnitTopology derive_unit_topology(const std::vector<std::string>& lanes, size_t extruder_count,
-                                  bool has_hubs,
+                                  size_t hub_count,
                                   const std::unordered_map<std::string, std::string>& routing) {
     UnitTopology out;
     bool has_direct = false;
@@ -613,23 +614,8 @@ UnitTopology derive_unit_topology(const std::vector<std::string>& lanes, size_t 
         (is_hub ? has_hub_routed : has_direct) = true;
     }
 
-    if (has_direct && has_hub_routed) {
-        out.topology = PathTopology::MIXED;
-    } else if (has_hub_routed && extruder_count > 1 && extruder_count == lanes.size()) {
-        // A hub AND an extruder per lane: independent paths with hub sensors
-        // along them (an ACE Pro as lane loader through AFC).
-        out.topology = PathTopology::PARALLEL;
-    } else if (has_hub_routed) {
-        out.topology = PathTopology::HUB;
-    } else if (has_direct && extruder_count > 1) {
-        out.topology = PathTopology::PARALLEL;
-    } else if (has_hubs && extruder_count <= 1) {
-        out.topology = PathTopology::HUB;
-    } else if (extruder_count > 1) {
-        out.topology = PathTopology::PARALLEL;
-    } else {
-        out.topology = PathTopology::HUB;
-    }
+    out.topology = helix::printer::afc_unit_topology(
+        {has_direct, has_hub_routed, lanes.size(), extruder_count, hub_count});
     return out;
 }
 
