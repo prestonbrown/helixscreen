@@ -37,7 +37,7 @@ from translations.yaml_manager import merge_new_keys
 from translations.coverage import generate_coverage_report, calculate_coverage
 from translations.obsolete import find_obsolete_keys, report_obsolete_keys
 from translations.cli import run_sync, run_extract, run_coverage, run_obsolete
-from translations.glossary import write_glossary
+from translations.glossary import generate_glossary_tbx, write_glossary
 
 # Default paths relative to project root
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -102,6 +102,10 @@ def cmd_glossary(args):
     print(f"Regenerating glossary from {yaml_dir} ...")
     write_glossary(yaml_dir, out)
     print(f"✓ Wrote {out}")
+    if args.tbx:
+        tbx = Path(args.tbx)
+        tbx.write_text(generate_glossary_tbx(yaml_dir), encoding="utf-8")
+        print(f"✓ Wrote {tbx} (upload it to the Weblate glossary)")
     return 0
 
 
@@ -264,6 +268,9 @@ def main():
     )
     glossary_parser.add_argument(
         "--output", default=str(DEFAULT_GLOSSARY), help="Glossary output path"
+    )
+    glossary_parser.add_argument(
+        "--tbx", help="Also write the glossary as multilingual TBX to this path"
     )
 
     args = parser.parse_args()

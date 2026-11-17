@@ -59,12 +59,22 @@ Rules:
 - **The value is the translated string** in the target language.
 - **Format specifiers** (`%d`, `%u`, `%lu`, `%s`, `%.2f`, `{0}`, `{count}`) must be preserved exactly. Change their *position* to fit grammar if needed, but don't rename or remove them.
 - **Trailing/leading whitespace** in the key is significant. `" elapsed · "` with the spaces is a different key than `"elapsed ·"`.
+- **One line per string.** Keep each `key: value` pair on a single line, however long. The files are kept in the exact shape Weblate writes them in, and a check on every pull request names the first line that is not (`make translation-normalize` fixes it if you have the dev environment).
 
 ---
 
 ## Improving an existing translation
 
 If a string is translated awkwardly, plainly wrong, or inconsistent with how that term is used elsewhere in HelixScreen, you can fix it. This is the most common contribution to HelixScreen and the lowest-friction one - you don't need to install anything, clone the repo, or run any commands. You can do the whole thing from your browser in a few minutes.
+
+### On Weblate
+
+HelixScreen is moving to a hosted [Weblate](https://weblate.org/) project, where you translate in a web form with the English text, the glossary and other languages' versions beside each string, and no YAML at all. Weblate turns your work into a pull request against this repository, and a maintainer reviews and merges it like any other. Until the project's link appears in this section, use the GitHub path below.
+
+Two kinds of string stay outside Weblate and are edited on GitHub instead:
+
+- **Plural forms.** A string whose value in your language is a `one:` / `few:` / `many:` / `other:` block is read-only on Weblate, because Weblate's YAML support would flatten the block into a single form. Fix those in the file as described below.
+- **British English** (`en-GB`) and any other regional variant. In a variant an empty value means "use the base language's text", which Weblate cannot express. See [Adding a regional variant](#adding-a-regional-variant).
 
 ### The fast path: fix one string on github.com
 
@@ -130,6 +140,8 @@ If you don't want to set up git but still need to make a lot of edits, you can a
 ## Adding a new language
 
 If you want to add a language HelixScreen doesn't ship with yet:
+
+A new language starts here in git, not on Weblate: the app needs a plural rule, a Settings entry and sometimes font coverage before the language can be selected (see [TRANSLATION_SYSTEM.md § Weblate](TRANSLATION_SYSTEM.md#new-languages)). If you would rather translate on Weblate, open an issue asking for the language; once a maintainer has added the empty file, it appears on Weblate ready to translate.
 
 ### Step 1: Copy `en.yml` to your new locale
 

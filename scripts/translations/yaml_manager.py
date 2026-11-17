@@ -5,13 +5,15 @@ YAML Manager module - handles merging new keys into translation YAML files.
 
 Insertion is **surgical**: new entries are spliced into the raw text at the
 correct alphabetical position and existing lines are left byte-for-byte
-untouched. The whole file is never re-serialized. A full round-trip dump (even
-with ruamel's round-trip mode) does not reproduce the committed files
-byte-for-byte — the locale files use a fold width and quoting style that no
-single dump config reproduces — so re-dumping to add one key reformatted
-thousands of unrelated lines (wrapping/unwrapping folded scalars, requoting).
+untouched. The whole file is never re-serialized, so an edit can only ever
+touch the entries it names, whatever shape the rest of the file is in.
 Reading uses ruamel only to obtain each key's source line number (`.lc`); the
 edit itself is a line splice.
+
+The committed files are kept in the shape Weblate writes (canonical_text(),
+enforced by scripts/check_translation_files.py), and every spliced entry is
+rendered in that shape too, so a Weblate commit and a translation-sync splice
+never reflow each other's lines.
 """
 
 from dataclasses import dataclass, field
@@ -52,16 +54,46 @@ class MergeResult:
     keys_per_file: Dict[str, int] = field(default_factory=dict)
 
 
+# The line width Weblate writes the locale files with: its YAML component is
+# set to "No line wrapping", which hands translate-toolkit's ruamel dumper this
+# width (docs/devel/TRANSLATION_SYSTEM.md, "Weblate").
+WEBLATE_YAML_WIDTH = 65535
+
+
 def get_yaml_instance():
-    """Get a configured YAML instance for round-trip reading."""
+    """A round-trip YAML instance configured the way Weblate writes our files.
+
+    Weblate re-serializes a whole locale file on every commit through
+    translate-toolkit, which dumps with ruamel's round-trip mode, quotes
+    preserved, block style, 2-space indent and WEBLATE_YAML_WIDTH. Dumping with
+    the same settings is what keeps a Weblate commit down to the lines a
+    translator changed; canonical_text() and every rendered entry go through
+    this one configuration.
+    """
     if not RUAMEL_AVAILABLE:
         return None
 
     yaml = YAML()
     yaml.preserve_quotes = True
+    yaml.default_flow_style = False
     yaml.indent(mapping=2, sequence=2, offset=2)
-    yaml.width = 4096  # Don't wrap lines
+    yaml.width = WEBLATE_YAML_WIDTH
     return yaml
+
+
+def canonical_text(text: str) -> str:
+    """The locale file ``text`` as Weblate would write it back unchanged.
+
+    A file already in this shape survives a Weblate commit byte-for-byte except
+    for the entries a translator edited. Keys longer than 128 characters come
+    out in YAML's explicit ``? key`` / ``: value`` form, because that is ruamel's
+    simple-key limit; nothing is folded across lines.
+    """
+    require_ruamel("Rendering a locale file in Weblate's shape")
+    yaml = get_yaml_instance()
+    buf = StringIO()
+    yaml.dump(yaml.load(text), buf)
+    return buf.getvalue()
 
 
 def require_ruamel(operation: str) -> None:
@@ -299,17 +331,14 @@ def _render_entry_lines(key: str, value: str) -> List[str]:
     the same 2-space indent and quoting-when-required that ruamel uses for the
     rest of the file. Each returned line ends in a newline.
 
-    A very wide dump width is used so neither key nor value is folded across
-    lines: at a small width ruamel folds a long *plain-scalar key* without
-    switching to ``? key`` complex-key notation, which is invalid YAML (a
-    block-mapping key cannot span lines as a plain scalar). Keeping each new
-    entry on a single ``key: value`` line is always valid and only affects the
-    inserted lines — untouched lines are never reflowed.
+    The dump uses get_yaml_instance(), Weblate's own settings, so the entry is
+    already in canonical_text() shape: the next Weblate commit leaves it alone.
+    That width also means neither key nor value is folded across lines; at a
+    small width ruamel folds a long *plain-scalar key* without switching to
+    ``? key`` complex-key notation, which is invalid YAML (a block-mapping key
+    cannot span lines as a plain scalar).
     """
-    yaml = YAML()
-    yaml.preserve_quotes = True
-    yaml.indent(mapping=2, sequence=2, offset=2)
-    yaml.width = 4096  # never fold key or value onto a continuation line
+    yaml = get_yaml_instance()
     doc = CommentedMap()
     inner = CommentedMap()
     inner[key] = value
