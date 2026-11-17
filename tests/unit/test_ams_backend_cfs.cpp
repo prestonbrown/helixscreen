@@ -3243,6 +3243,21 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
         CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
     }
 
+    SECTION("a loaded bay or a lane load withdraws the stored declaration") {
+        REQUIRE(rig.backend->enable_bypass().success());
+        REQUIRE(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared") == true);
+        SECTION("a bay loaded") {
+            json box =
+                make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+            box["T1"]["filament"] = "A";
+            rig.poll(box);
+        }
+        SECTION("a lane load") {
+            REQUIRE(rig.backend->load_filament(0).success());
+        }
+        CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
+    }
+
     SECTION("another client's declaration is picked up by the poll") {
         rig.client.mock_db_set("helix-screen", "cfs_bypass_declared", true);
         rig.backend->refresh_lane_records();

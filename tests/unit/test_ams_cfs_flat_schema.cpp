@@ -1040,6 +1040,17 @@ std::vector<int> units_with_environment(const AmsSystemInfo& info) {
 
 } // namespace
 
+TEST_CASE_METHOD(CfsGoldenFixture, "CFS Fork dialect: a runout offers no box reset the fork lacks",
+                 "[ams][cfs][flat][fork]") {
+    feed(box_frame(make_flat_box_json()));
+    helix::ClassifyContext paused;
+    paused.is_paused = true;
+    const auto ev = backend.classify_error("// no identical supplies", paused);
+    REQUIRE(ev.has_value());
+    REQUIRE(ev->recovery_actions.size() == 1);
+    CHECK(ev->recovery_actions[0].gcode == "RESUME");
+}
+
 TEST_CASE_METHOD(CfsGoldenFixture, "CFS flat: a slots-only delta keeps the environment reading",
                  "[ams][cfs][flat][environment]") {
     const json full = load_box_fixture("cfs_fork_four_box_L8MMBCCK.json");
