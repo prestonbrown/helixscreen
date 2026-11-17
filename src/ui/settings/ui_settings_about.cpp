@@ -241,7 +241,7 @@ void AboutSettingsOverlay::on_activate() {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_deactivate_);
     if (elapsed.count() > 500) {
-        helix::SoundManager::instance().play_file("assets/sounds/space_debris.mod",
+        helix::SoundManager::instance().play_file("assets/sounds/pole_position_nights.mod",
                                                   SoundPriority::EVENT);
     } else {
         spdlog::debug("[{}] Skipping tracker start - re-activated {}ms after deactivation",
