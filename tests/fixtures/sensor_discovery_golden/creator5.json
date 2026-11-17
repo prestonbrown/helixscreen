@@ -4,7 +4,15 @@
       "heater_fan heat_fan",
       "fan_generic fanM106",
       "fan_generic chamber_fan",
-      "fan_generic chamber_loop_fan"
+      "fan_generic chamber_loop_fan",
+      "fan_generic T0_part_fan",
+      "heater_fan T0_hotend_fan",
+      "fan_generic T1_part_fan",
+      "heater_fan T1_hotend_fan",
+      "fan_generic T2_part_fan",
+      "heater_fan T2_hotend_fan",
+      "fan_generic T3_part_fan",
+      "heater_fan T3_hotend_fan"
     ],
     "filament_sensor_names": [
       "filament_switch_sensor fd_ex0",
@@ -48,6 +56,14 @@
       "fan_generic fanM106",
       "fan_generic chamber_fan",
       "fan_generic chamber_loop_fan",
+      "fan_generic T0_part_fan",
+      "heater_fan T0_hotend_fan",
+      "fan_generic T1_part_fan",
+      "heater_fan T1_hotend_fan",
+      "fan_generic T2_part_fan",
+      "heater_fan T2_hotend_fan",
+      "fan_generic T3_part_fan",
+      "heater_fan T3_hotend_fan",
       "temperature_sensor mcu_temp",
       "led chamber_led",
       "ff_toolchange",
@@ -349,6 +365,22 @@
       "nozzle_diameter",
       "nozzle_volume_type"
     ],
+    "fan_generic T0_part_fan": [
+      "speed",
+      "rpm"
+    ],
+    "fan_generic T1_part_fan": [
+      "speed",
+      "rpm"
+    ],
+    "fan_generic T2_part_fan": [
+      "speed",
+      "rpm"
+    ],
+    "fan_generic T3_part_fan": [
+      "speed",
+      "rpm"
+    ],
     "fan_generic chamber_fan": [
       "speed",
       "rpm"
@@ -433,6 +465,22 @@
       "temperature",
       "target",
       "power"
+    ],
+    "heater_fan T0_hotend_fan": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan T1_hotend_fan": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan T2_hotend_fan": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan T3_hotend_fan": [
+      "speed",
+      "rpm"
     ],
     "heater_fan heat_fan": [
       "speed",
