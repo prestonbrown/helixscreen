@@ -19,6 +19,7 @@
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "print_eta_estimator.h"
+#include "printer_cache_registry.h"
 #include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
@@ -170,6 +171,20 @@ TEST_CASE("ETA: excluded work comes out of the slicer's estimate", "[print][eta]
         in.excluded_share = 0.5;
         CHECK(est.remaining_seconds(in) == 420);
     }
+    SECTION("with no clock yet") {
+        // Half of a 1000s job excluded leaves 500s, half of which remains.
+        PrintEtaEstimator est;
+        CHECK(est.remaining_seconds(excluded(job(50, 0, 1000), 0.5)) == 250);
+    }
+    SECTION("inside the blend window") {
+        // 10% in 100s extrapolates to 900s. The slicer's half job has 450s
+        // left, and it weighs a third at 10%: 450/3 + 900*2/3 = 750, give or
+        // take the rounding of the thirds.
+        PrintEtaEstimator est;
+        const int blended = est.remaining_seconds(excluded(job(10, 100, 1000), 0.5));
+        CHECK(blended >= 749);
+        CHECK(blended <= 750);
+    }
 }
 
 TEST_CASE("ETA: an exclusion mid-print scales the rate seen before it",
@@ -249,5 +264,39 @@ TEST_CASE_METHOD(HelixTestFixture,
     // halve the earlier rate and read 300s.
     state.update_from_status(
         nlohmann::json{{"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}});
+    CHECK(lv_subject_get_int(time_left) == 600);
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "ETA: an exclusion in a status frame shrinks the time left until the printer "
+                 "changes",
+                 "[print][eta][exclude_object][printer_state]") {
+    lv_init_safe();
+    helix::PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    state.update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
+    state.update_from_status(nlohmann::json{
+        {"print_stats",
+         {{"state", "printing"}, {"print_duration", 600.0}, {"total_duration", 620.0}}},
+        {"virtual_sdcard", {{"progress", 0.5}}},
+        {"exclude_object",
+         {{"objects", {{{"name", "a"}}, {{"name", "b"}}}},
+          {"excluded_objects", nlohmann::json::array()},
+          {"current_object", "b"}}}});
+    auto* time_left = state.print_state().get_print_time_left_subject();
+    const nlohmann::json tick = {
+        {"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}};
+
+    state.update_from_status(tick);
+    REQUIRE(lv_subject_get_int(time_left) == 600);
+
+    // One of the two parts excluded halves the work per percent: 300s left.
+    state.update_from_status(nlohmann::json{{"exclude_object", {{"excluded_objects", {"a"}}}}});
+    state.update_from_status(tick);
+    CHECK(lv_subject_get_int(time_left) == 300);
+
+    // The next printer's first frame owes nothing to the last one's exclusions.
+    helix::PrinterCacheRegistry::instance().invalidate_all();
+    state.update_from_status(tick);
     CHECK(lv_subject_get_int(time_left) == 600);
 }
