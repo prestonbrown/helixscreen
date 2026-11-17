@@ -163,21 +163,21 @@ void MoonrakerDiscoverySequence::start(
             if (is_stale() || !is_current_sequence(seq))
                 return;
 
-            if (identify_response.contains("result")) {
-                auto conn_id = identify_response["result"].value("connection_id", 0);
+            if (const json* result = helix::json_util::find_member(identify_response, "result")) {
+                auto conn_id = result->value("connection_id", 0);
                 spdlog::info("[Moonraker Client] Identified to Moonraker (connection_id: {})",
                              conn_id);
                 identified_.store(true);
                 helix::moonraker_auth::mark_authorized();
-            } else if (identify_response.contains("error")) {
-                const MoonrakerError err = MoonrakerError::from_json_rpc(
-                    identify_response["error"], "server.connection.identify");
+            } else if (const json* error =
+                           helix::json_util::find_member(identify_response, "error")) {
+                const MoonrakerError err =
+                    MoonrakerError::from_json_rpc(*error, "server.connection.identify");
                 if (stop_for_refused_login(err)) {
                     return;
                 }
                 // Log but continue - older Moonraker versions may not support this
-                spdlog::warn("[Moonraker Client] Failed to identify: {}",
-                             identify_response["error"].dump());
+                spdlog::warn("[Moonraker Client] Failed to identify: {}", error->dump());
             }
 
             // Continue with discovery regardless of identify result
@@ -324,12 +324,14 @@ void MoonrakerDiscoverySequence::fetch_update_manager_version(uint64_t seq,
 // detect_webcam() cross-checks, which is why one query feeds both.
 void MoonrakerDiscoverySequence::parse_system_info(const json& sys_response) {
     // Extract distribution name: result.system_info.distribution.name
-    if (sys_response.contains("result") && sys_response["result"].contains("system_info") &&
-        sys_response["result"]["system_info"].contains("distribution") &&
-        sys_response["result"]["system_info"]["distribution"].contains("name") &&
-        sys_response["result"]["system_info"]["distribution"]["name"].is_string()) {
-        std::string os_name =
-            sys_response["result"]["system_info"]["distribution"]["name"].get<std::string>();
+    const json* system_info = helix::json_util::find_path(sys_response, "result", "system_info");
+    if (system_info == nullptr) {
+        return;
+    }
+    const json* distribution = helix::json_util::find_member(*system_info, "distribution");
+    if (auto name = distribution ? helix::json_util::read_field<std::string>(*distribution, "name")
+                                 : std::nullopt) {
+        std::string os_name = std::move(*name);
         {
             std::lock_guard<std::mutex> lock(hardware_mutex_);
             hardware_.set_os_version(os_name);
@@ -338,12 +340,11 @@ void MoonrakerDiscoverySequence::parse_system_info(const json& sys_response) {
     }
 
     // Extract CPU architecture from cpu_info.processor
-    if (sys_response.contains("result") && sys_response["result"].contains("system_info") &&
-        sys_response["result"]["system_info"].contains("cpu_info") &&
-        sys_response["result"]["system_info"]["cpu_info"].contains("processor") &&
-        sys_response["result"]["system_info"]["cpu_info"]["processor"].is_string()) {
-        std::string cpu_arch =
-            sys_response["result"]["system_info"]["cpu_info"]["processor"].get<std::string>();
+    const json* cpu_info = helix::json_util::find_member(*system_info, "cpu_info");
+    if (auto processor = cpu_info
+                             ? helix::json_util::read_field<std::string>(*cpu_info, "processor")
+                             : std::nullopt) {
+        std::string cpu_arch = std::move(*processor);
         {
             std::lock_guard<std::mutex> lock(hardware_mutex_);
             hardware_.set_cpu_arch(cpu_arch);
@@ -353,11 +354,8 @@ void MoonrakerDiscoverySequence::parse_system_info(const json& sys_response) {
 
     // Vendor forks publish the machine's own model name here; upstream
     // Moonraker does not send the field at all, so its absence is the norm.
-    if (sys_response.contains("result") && sys_response["result"].contains("system_info") &&
-        sys_response["result"]["system_info"].contains("machine_name") &&
-        sys_response["result"]["system_info"]["machine_name"].is_string()) {
-        std::string machine_name =
-            sys_response["result"]["system_info"]["machine_name"].get<std::string>();
+    if (auto reported = helix::json_util::read_field<std::string>(*system_info, "machine_name")) {
+        std::string machine_name = std::move(*reported);
         if (!machine_name.empty()) {
             {
                 std::lock_guard<std::mutex> lock(hardware_mutex_);
@@ -387,8 +385,8 @@ void MoonrakerDiscoverySequence::detect_webcam(json service_state, bool probe_lo
         "server.webcams.list", json::object(),
         [service_state = std::move(service_state), probe_local_endpoints](const json& response) {
             std::vector<WebcamInfo> cams;
-            if (response.contains("result") && response["result"].contains("webcams")) {
-                for (const auto& entry : response["result"]["webcams"]) {
+            if (const json* webcams = helix::json_util::find_path(response, "result", "webcams")) {
+                for (const auto& entry : *webcams) {
                     WebcamInfo cam = webcam::parse_webcam_entry(entry);
                     if (!cam.enabled) {
                         spdlog::debug("[Discovery] Skipping disabled webcam '{}'", cam.name);
@@ -518,10 +516,10 @@ void MoonrakerDiscoverySequence::continue_discovery(uint64_t seq) {
 
             // Extract klippy_state from response
             std::string klippy_state = "unknown";
-            if (server_info_response.contains("result") &&
-                server_info_response["result"].contains("klippy_state") &&
-                server_info_response["result"]["klippy_state"].is_string()) {
-                klippy_state = server_info_response["result"]["klippy_state"].get<std::string>();
+            if (const json* result =
+                    helix::json_util::find_member(server_info_response, "result")) {
+                klippy_state = helix::json_util::read_field<std::string>(*result, "klippy_state")
+                                   .value_or(klippy_state);
             }
 
             spdlog::debug("[Moonraker Client] Klippy state gate check: {}", klippy_state);
@@ -627,18 +625,20 @@ void MoonrakerDiscoverySequence::on_objects_listed(uint64_t seq, const json& res
     spdlog::debug("[Moonraker Client] printer.objects.list response: {}", response.dump());
 
     // Validate response
-    if (!response.contains("result") || !response["result"].contains("objects")) {
+    const json* objects_json = helix::json_util::find_path(response, "result", "objects");
+    if (!objects_json) {
         // Extract error message from response if available
         std::string error_reason = "Failed to query printer objects from Moonraker";
-        if (response.contains("error") && response["error"].contains("message") &&
-            response["error"]["message"].is_string()) {
-            const auto raw_reason = response["error"]["message"].get<std::string>();
+        const json* error = helix::json_util::find_member(response, "error");
+        if (auto message = error ? helix::json_util::read_field<std::string>(*error, "message")
+                                 : std::nullopt) {
+            const auto raw_reason = std::move(*message);
             spdlog::error("[Moonraker Client] printer.objects.list failed: {}", raw_reason);
             error_reason = MoonrakerError::extract_friendly_message(raw_reason);
         } else {
             spdlog::error("[Moonraker Client] printer.objects.list failed: invalid response");
-            if (response.contains("error")) {
-                spdlog::error("[Moonraker Client]   Error details: {}", response["error"].dump());
+            if (error) {
+                spdlog::error("[Moonraker Client]   Error details: {}", error->dump());
             }
         }
 
@@ -647,7 +647,7 @@ void MoonrakerDiscoverySequence::on_objects_listed(uint64_t seq, const json& res
     }
 
     // Parse discovered objects into typed arrays
-    const json& objects = response["result"]["objects"];
+    const json& objects = *objects_json;
     parse_objects(objects);
 
     // Early hardware discovery callback - allows AMS/MMU backends to initialize
@@ -713,8 +713,8 @@ void MoonrakerDiscoverySequence::on_status_claims(uint64_t seq, const json& stat
 void MoonrakerDiscoverySequence::on_server_info(uint64_t seq, const json& info_response) {
     if (is_stale() || !is_current_sequence(seq))
         return;
-    if (info_response.contains("result")) {
-        apply_server_info(seq, info_response["result"]);
+    if (const json* result = helix::json_util::find_member(info_response, "result")) {
+        apply_server_info(seq, *result);
     }
 
     // Fire-and-forget webcam detection - independent of components list.
@@ -752,8 +752,8 @@ void MoonrakerDiscoverySequence::apply_server_info(uint64_t seq, const json& res
     spdlog::debug("[Moonraker Client] Moonraker version: {}", moonraker_version);
     spdlog::debug("[Moonraker Client] Klippy version: {}", klippy_version);
 
-    if (result.contains("components") && result["components"].is_array()) {
-        apply_server_components(seq, result["components"], moonraker_version);
+    if (const json* components = helix::json_util::find_array(result, "components")) {
+        apply_server_components(seq, *components, moonraker_version);
     }
 }
 
@@ -851,8 +851,8 @@ void MoonrakerDiscoverySequence::query_spoolman_status(uint64_t seq) {
             if (is_stale() || !is_current_sequence(seq))
                 return;
             bool connected = false;
-            if (response.contains("result")) {
-                connected = response["result"].value("spoolman_connected", false);
+            if (const json* result = helix::json_util::find_member(response, "result")) {
+                connected = result->value("spoolman_connected", false);
             }
             spdlog::info("[Moonraker Client] Spoolman status: connected={}", connected);
             get_printer_state().capabilities_state().set_spoolman_available(connected);
@@ -874,8 +874,8 @@ void MoonrakerDiscoverySequence::query_timelapse_settings(uint64_t seq) {
             if (is_stale() || !is_current_sequence(seq))
                 return;
             bool enabled = false;
-            if (response.contains("result")) {
-                enabled = response["result"].value("enabled", false);
+            if (const json* result = helix::json_util::find_member(response, "result")) {
+                enabled = result->value("enabled", false);
             }
             spdlog::info("[Moonraker Client] Timelapse global enabled={}", enabled);
             get_printer_state().set_timelapse_default_enabled(enabled);
@@ -912,8 +912,8 @@ void MoonrakerDiscoverySequence::query_system_info(uint64_t seq) {
 void MoonrakerDiscoverySequence::on_printer_info(uint64_t seq, const json& printer_response) {
     if (is_stale() || !is_current_sequence(seq))
         return;
-    if (printer_response.contains("result")) {
-        publish_printer_info(printer_response["result"]);
+    if (const json* result = helix::json_util::find_member(printer_response, "result")) {
+        publish_printer_info(*result);
         std::string software_version;
         {
             std::lock_guard<std::mutex> lock(hardware_mutex_);
@@ -1002,19 +1002,19 @@ void MoonrakerDiscoverySequence::query_configfile(uint64_t seq) {
 void MoonrakerDiscoverySequence::on_configfile(uint64_t seq, const json& config_response) {
     if (is_stale() || !is_current_sequence(seq))
         return;
-    if (config_response.contains("result") && config_response["result"].contains("status") &&
-        config_response["result"]["status"].contains("configfile") &&
-        config_response["result"]["status"]["configfile"].contains("config")) {
-        apply_configfile_config(config_response["result"]["status"]["configfile"]["config"]);
+    const json* configfile =
+        helix::json_util::find_path(config_response, "result", "status", "configfile");
+    if (const json* config =
+            configfile ? helix::json_util::find_member(*configfile, "config") : nullptr) {
+        apply_configfile_config(*config);
     }
 
     // Analyze M106/M107/M141 macros from configfile.settings to detect
     // output_pin fan roles. Write role hints as default display names
     // (only when no custom name already exists).
-    if (config_response.contains("result") && config_response["result"].contains("status") &&
-        config_response["result"]["status"].contains("configfile") &&
-        config_response["result"]["status"]["configfile"].contains("settings")) {
-        apply_configfile_settings(config_response["result"]["status"]["configfile"]["settings"]);
+    if (const json* settings =
+            configfile ? helix::json_util::find_member(*configfile, "settings") : nullptr) {
+        apply_configfile_settings(*settings);
     }
 }
 
@@ -1130,10 +1130,11 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
         if (!fan.empty()) {
             std::string key = fan;
             key = helix::text_io::to_lower(key);
-            if (settings.contains(key) && settings[key].contains("target_temp") &&
-                settings[key]["target_temp"].is_number()) {
-                int resting_deci =
-                    helix::units::to_decidegrees(settings[key]["target_temp"].get<double>());
+            const json* fan_cfg = helix::json_util::find_member(settings, key.c_str());
+            if (auto target_temp =
+                    fan_cfg ? helix::json_util::read_field<double>(*fan_cfg, "target_temp")
+                            : std::nullopt) {
+                int resting_deci = helix::units::to_decidegrees(*target_temp);
                 hardware_.set_chamber_fan_resting_deci(resting_deci);
                 spdlog::debug("[Discovery] Chamber cooling fan '{}' "
                               "resting target: {} deci",
@@ -1156,11 +1157,13 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
                 kind == hw::ObjectKind::Fan || kind == hw::ObjectKind::HeaterFan ||
                 kind == hw::ObjectKind::GenericFan || kind == hw::ObjectKind::ControllerFan ||
                 kind == hw::ObjectKind::TemperatureFan;
-            if (!is_fan_section || !cfg_vals.is_object() || !cfg_vals.contains("max_power") ||
-                !cfg_vals["max_power"].is_number()) {
+            const auto max_power = is_fan_section
+                                       ? helix::json_util::read_field<double>(cfg_vals, "max_power")
+                                       : std::nullopt;
+            if (!max_power) {
                 continue;
             }
-            double mp = cfg_vals["max_power"].get<double>();
+            double mp = *max_power;
             if (mp <= 0.0 || mp >= 1.0) {
                 continue; // 1.0 (or invalid) means no scaling
             }
@@ -1226,20 +1229,20 @@ void MoonrakerDiscoverySequence::on_mcu_reply(uint64_t seq, const std::string& m
     std::string mcu_version;
 
     // Extract MCU chip type and version from response
-    if (mcu_response.contains("result") && mcu_response["result"].contains("status") &&
-        mcu_response["result"]["status"].contains(mcu_obj)) {
-        const json& mcu_data = mcu_response["result"]["status"][mcu_obj];
+    if (const json* mcu_json =
+            helix::json_util::find_path(mcu_response, "result", "status", mcu_obj.c_str())) {
+        const json& mcu_data = *mcu_json;
 
-        if (mcu_data.contains("mcu_constants") && mcu_data["mcu_constants"].is_object() &&
-            mcu_data["mcu_constants"].contains("MCU") &&
-            mcu_data["mcu_constants"]["MCU"].is_string()) {
-            chip_type = mcu_data["mcu_constants"]["MCU"].get<std::string>();
+        const json* constants = helix::json_util::find_object(mcu_data, "mcu_constants");
+        if (auto mcu = constants ? helix::json_util::read_field<std::string>(*constants, "MCU")
+                                 : std::nullopt) {
+            chip_type = std::move(*mcu);
             spdlog::debug("[Moonraker Client] Detected MCU '{}': {}", mcu_obj, chip_type);
         }
 
         // Extract mcu_version for About section
-        if (mcu_data.contains("mcu_version") && mcu_data["mcu_version"].is_string()) {
-            mcu_version = mcu_data["mcu_version"].get<std::string>();
+        if (auto version = helix::json_util::read_field<std::string>(mcu_data, "mcu_version")) {
+            mcu_version = std::move(*version);
             spdlog::debug("[Moonraker Client] MCU '{}' version: {}", mcu_obj, mcu_version);
         }
     }
@@ -1689,20 +1692,19 @@ void MoonrakerDiscoverySequence::send_discovery_subscribe(uint64_t seq, const Pr
 void MoonrakerDiscoverySequence::finish_discovery_subscription(const PrinterDiscovery& hw,
                                                                size_t num_subscribed,
                                                                const json& sub_response) {
-    if (sub_response.contains("result")) {
+    if (const json* result = helix::json_util::find_member(sub_response, "result")) {
         spdlog::info("[Moonraker Client] Subscription complete: {} objects subscribed",
                      num_subscribed);
 
         // Process initial state from subscription response
         // Moonraker returns current values in result.status
-        if (sub_response["result"].contains("status")) {
-            const auto& status = sub_response["result"]["status"];
+        if (const json* status_json = helix::json_util::find_member(*result, "status")) {
+            const auto& status = *status_json;
             spdlog::info("[Moonraker Client] Processing initial printer state from subscription");
 
             // DEBUG: Log print_stats specifically to diagnose startup sync issues
-            if (status.contains("print_stats")) {
-                spdlog::info("[Moonraker Client] INITIAL print_stats: {}",
-                             status["print_stats"].dump());
+            if (const json* print_stats = helix::json_util::find_member(status, "print_stats")) {
+                spdlog::info("[Moonraker Client] INITIAL print_stats: {}", print_stats->dump());
             } else {
                 spdlog::warn("[Moonraker Client] INITIAL status has NO print_stats!");
             }
@@ -1734,11 +1736,11 @@ void MoonrakerDiscoverySequence::finish_discovery_subscription(const PrinterDisc
                     AmsState::instance().any_filament_batch_in_flight());
             }
         }
-    } else if (sub_response.contains("error")) {
-        spdlog::error("[Moonraker Client] Subscription failed: {}", sub_response["error"].dump());
+    } else if (const json* error = helix::json_util::find_member(sub_response, "error")) {
+        spdlog::error("[Moonraker Client] Subscription failed: {}", error->dump());
 
         // Emit discovery failed event (subscription is part of discovery)
-        client_.emit_event(moonraker_event::subscribe_failed(sub_response["error"].dump()));
+        client_.emit_event(moonraker_event::subscribe_failed(error->dump()));
     }
 
     // Discovery complete - pass initial status to the callback so the caller
@@ -1746,15 +1748,15 @@ void MoonrakerDiscoverySequence::finish_discovery_subscription(const PrinterDisc
     // dispatched from here would reach fan/sensor parsers before their subjects
     // exist. Copy hardware_ under lock before invoking callback (#562, #777).
     json initial_status;
-    if (sub_response.contains("result") && sub_response["result"].contains("status")) {
-        initial_status = sub_response["result"]["status"];
+    if (const json* status = helix::json_util::find_path(sub_response, "result", "status")) {
+        initial_status = *status;
     }
     // The objects list names the tools but not their numbers; the first status
     // does, and every consumer of the hardware takes a tool's slot from its
     // position.
-    if (initial_status.contains("toolchanger")) {
+    if (const json* toolchanger = helix::json_util::find_member(initial_status, "toolchanger")) {
         std::lock_guard<std::mutex> lock(hardware_mutex_);
-        hardware_.order_tools_by_number(initial_status["toolchanger"]);
+        hardware_.order_tools_by_number(*toolchanger);
     }
     if (on_discovery_complete_) {
         PrinterDiscovery hw_snapshot;
@@ -1864,8 +1866,8 @@ void MoonrakerDiscoverySequence::refresh_subscription() {
                 last_sent_objects_ = objects;
                 refresh_in_flight_ = false;
             }
-            if (response.contains("result") && response["result"].contains("status")) {
-                client_.dispatch_status_update(response["result"]["status"],
+            if (const json* status = helix::json_util::find_path(response, "result", "status")) {
+                client_.dispatch_status_update(*status,
                                                /*from_cached_snapshot=*/false,
                                                /*whole_objects=*/true);
             }
