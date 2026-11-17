@@ -83,6 +83,15 @@ TEST_CASE("DebugBundleCollector: a local log fallback names its file and its age
           "1970-01-01T00:10:00Z (after this bundle's clock)]");
 }
 
+TEST_CASE("DebugBundleCollector: the UI perf report rides along only when it parses",
+          "[debug-bundle]") {
+    helix::BundleOptions opts;
+    opts.ui_perf_json = R"({"frames": {"drawn": 12}})";
+    CHECK(helix::DebugBundleCollector::collect(opts)["ui_perf"]["frames"]["drawn"] == 12);
+    opts.ui_perf_json = "{not json";
+    CHECK_FALSE(helix::DebugBundleCollector::collect(opts).contains("ui_perf"));
+}
+
 TEST_CASE("DebugBundleCollector: collect() returns valid JSON with expected keys",
           "[debug-bundle]") {
     json bundle = helix::DebugBundleCollector::collect();
