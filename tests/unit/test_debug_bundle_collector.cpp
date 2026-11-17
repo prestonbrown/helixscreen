@@ -2451,3 +2451,144 @@ TEST_CASE("DebugBundleCollector: collect() always carries a kernel_log section",
     if (bundle["kernel_log"]["source"] == "none")
         CHECK(bundle["kernel_log"].contains("note"));
 }
+
+// ============================================================================
+// klipper_log freshness [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: the running klippy.py's -l names its live log", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    using helix::diag::ProcMatch;
+    const std::vector<ProcMatch> procs = {
+        {10, "/usr/bin/python3 /opt/moonraker/moonraker/moonraker.py -d /data/pd -l "
+             "/data/pd/logs/moonraker.log"},
+        {11, "/usr/bin/python3 /opt/klipper/klippy/klippy.py /cfg/printer.cfg -l "
+             "/live/pd/logs/klippy.log -a /tmp/klippy_uds"},
+    };
+    CHECK(DebugBundleCollector::live_klippy_log_path(procs) == "/live/pd/logs/klippy.log");
+
+    CHECK(DebugBundleCollector::live_klippy_log_path(
+              {{12, "python3 /k/klippy/klippy.py /cfg/printer.cfg --logfile=/eq/klippy.log"}}) ==
+          "/eq/klippy.log");
+    CHECK(DebugBundleCollector::live_klippy_log_path(
+              {{13, "python3 /k/klippy/klippy.py /cfg/printer.cfg -l logs/klippy.log"}})
+              .empty());
+    CHECK(DebugBundleCollector::live_klippy_log_path({{14, "python3 /k/klippy/klippy.py /c.cfg"}})
+              .empty());
+    CHECK(DebugBundleCollector::live_klippy_log_path({procs[0]}).empty());
+}
+
+TEST_CASE("DebugBundleCollector: the live Klippy log wins only when it is newer",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::time_t served = 1'700'000'000;
+    const int slack = DebugBundleCollector::kLogStaleSlackS;
+    CHECK(DebugBundleCollector::prefer_live_klippy_log(served, 0));
+    CHECK(DebugBundleCollector::prefer_live_klippy_log(served + slack + 1, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served + slack, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served, served));
+    CHECK_FALSE(DebugBundleCollector::prefer_live_klippy_log(served - 86400, served));
+}
+
+TEST_CASE("DebugBundleCollector: a klippy.log tail's newest wall-clock stamp is found",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string log = "Start printer at Mon Aug 17 17:46:01 2026 (1.0 2.0)\n"
+                            "Stats 10.0: gcodein=0\n"
+                            "=============== Log rollover at Tue Aug  4 01:02:03 2026 "
+                            "===============\n"
+                            "18:12:04.073:Stats 1828.9: gcodein=0\n";
+    CHECK(DebugBundleCollector::last_klippy_log_stamp(log) == "2026-08-04 01:02:03");
+    CHECK(DebugBundleCollector::last_klippy_log_stamp("2026-09-01T10:11:12 boot\nStats 1.0\n") ==
+          "2026-09-01 10:11:12");
+    CHECK(DebugBundleCollector::last_klippy_log_stamp("Stats 1.0: x\n18:00:00.000:Stats 2\n")
+              .empty());
+}
+
+namespace {
+std::time_t local_time_of(int y, int mo, int d, int h, int mi, int s) {
+    std::tm tm{};
+    tm.tm_year = y - 1900;
+    tm.tm_mon = mo - 1;
+    tm.tm_mday = d;
+    tm.tm_hour = h;
+    tm.tm_min = mi;
+    tm.tm_sec = s;
+    tm.tm_isdst = -1;
+    return std::mktime(&tm);
+}
+} // namespace
+
+TEST_CASE("DebugBundleCollector: Klippy's latest connection comes from moonraker.log or the "
+          "journal",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string mr_log =
+        "2026-11-14 14:00:00,100 [klippy_connection.py:_do_connect()] - Klippy Connection "
+        "Established\n"
+        "2026-11-14 14:06:52,759 [klippy_connection.py:_on_connection_closed()] - Klippy "
+        "Connection Removed\n"
+        "2026-11-14 14:07:00,193 [klippy_connection.py:_do_connect()] - Klippy Connection "
+        "Established\n"
+        "2026-11-14 14:08:00,000 [server.py:x()] - unrelated\n";
+    std::string from;
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {}, true, &from) ==
+          local_time_of(2026, 11, 14, 14, 7, 0));
+    CHECK(from == "moonraker.log");
+
+    // A remote printer's local-time stamps cannot be placed on this clock.
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {}, false, &from) == 0);
+    CHECK(from.empty());
+
+    helix::JournalEntry ready;
+    ready.kind = helix::journal_kind::kReady;
+    ready.time = static_cast<double>(local_time_of(2026, 11, 14, 15, 0, 0));
+    helix::JournalEntry shutdown;
+    shutdown.kind = helix::journal_kind::kShutdown;
+    shutdown.time = static_cast<double>(local_time_of(2026, 11, 14, 16, 0, 0));
+    CHECK(DebugBundleCollector::last_klippy_connection(mr_log, {ready, shutdown}, true, &from) ==
+          local_time_of(2026, 11, 14, 15, 0, 0));
+    CHECK(from == "event_journal");
+}
+
+TEST_CASE("DebugBundleCollector: a klippy.log written before Klippy's connection is stale",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::time_t connected = 1'763'000'000;
+    const DebugBundleCollector::LogOrigin old_copy{"moonraker", "", connected - 90 * 86400};
+    const json stale = DebugBundleCollector::assess_klipper_log(old_copy, "2026-08-17 17:46:01",
+                                                                connected, "moonraker.log");
+    CHECK(stale["stale"] == true);
+    CHECK(stale["source"] == "moonraker");
+    CHECK(stale["last_stamp"] == "2026-08-17 17:46:01");
+    CHECK(stale["klippy_connected_from"] == "moonraker.log");
+    const std::string banner = DebugBundleCollector::stale_klipper_log_banner(stale);
+    CHECK(banner.find("STALE") != std::string::npos);
+    CHECK(banner.find(stale["klippy_connected_at"].get<std::string>()) != std::string::npos);
+
+    const DebugBundleCollector::LogOrigin live{"local", "/live/logs/klippy.log", connected + 5};
+    const json fresh = DebugBundleCollector::assess_klipper_log(live, "", connected, "x");
+    CHECK(fresh["stale"] == false);
+    CHECK(fresh["path"] == "/live/logs/klippy.log");
+    CHECK(fresh["last_stamp"].is_null());
+    CHECK(DebugBundleCollector::stale_klipper_log_banner(fresh).empty());
+
+    const json within_slack = DebugBundleCollector::assess_klipper_log(
+        {"moonraker", "", connected - DebugBundleCollector::kLogStaleSlackS}, "", connected, "x");
+    CHECK(within_slack["stale"] == false);
+
+    const json unknown =
+        DebugBundleCollector::assess_klipper_log({"moonraker", "", 0}, "", connected, "x");
+    CHECK(unknown["stale"].is_null());
+    CHECK(DebugBundleCollector::stale_klipper_log_banner(unknown).empty());
+    const json no_connection = DebugBundleCollector::assess_klipper_log(old_copy, "", 0, "");
+    CHECK(no_connection["stale"].is_null());
+    CHECK(no_connection["klippy_connected_at"].is_null());
+}
+
+TEST_CASE("DebugBundleCollector: klipper_log_meta scrubs the log path", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const json meta = DebugBundleCollector::assess_klipper_log(
+        {"local", "/home/someone@example.com/logs/klippy.log", 100}, "", 0, "");
+    CHECK(meta["path"].get<std::string>().find("someone@example.com") == std::string::npos);
+}

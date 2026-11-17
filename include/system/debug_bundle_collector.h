@@ -6,6 +6,7 @@
 #include "printer_event_journal.h"
 #include "system/diagnostics.h"
 #include "system/host_census.h"
+#include "system/moonraker_local_probe.h"
 #include "touch_calibration.h"
 
 #include <cstdint>
@@ -241,18 +242,69 @@ class DebugBundleCollector {
 
     static std::string collect_crash_txt();
     static nlohmann::json collect_sanitized_settings();
+    /// Where a log tail came from, so the bundle can say how old it is.
+    struct LogOrigin {
+        std::string source;       ///< "moonraker" (served over HTTP) or "local" (read off disk)
+        std::string path;         ///< the local file read; "" for a served log
+        std::time_t modified = 0; ///< the file's last write; 0 when unknown
+    };
+
     /// The line cap is a backstop; the byte window (kKlipperTailBytes) is what
     /// bounds history. A chatty host (a CFS logs every RS-485 poll) still
     /// condenses to thousands of distinct event lines across that window, and
     /// the bundle upload accepts at most 500 KB gzipped.
-    static std::string collect_klipper_log_tail(int num_lines = 8000);
+    static std::string collect_klipper_log_tail(int num_lines = 8000, LogOrigin* origin = nullptr);
+
+    /// The `-l` / `--logfile` of the first running klippy.py in @p procs, when
+    /// absolute; "" otherwise. That file is the log Klippy is writing now, which
+    /// need not be the klippy.log Moonraker serves: a vendor layout can start
+    /// Klippy with a logfile outside Moonraker's data directory.
+    static std::string live_klippy_log_path(const std::vector<diag::ProcMatch>& procs);
+
+    /// Whether the running Klippy's own logfile should replace Moonraker's
+    /// copy: it was written more than kLogStaleSlackS after the served one, or
+    /// the served one's age is unknown (@p served_modified == 0).
+    static bool prefer_live_klippy_log(std::time_t live_modified, std::time_t served_modified);
+
+    /// The newest wall-clock stamp in a klippy.log tail, "YYYY-MM-DD HH:MM:SS"
+    /// in the printer's local time, or "". Klipper stamps wall time only on
+    /// "Start printer at" and "Log rollover at" lines; a line that opens with an
+    /// ISO date counts too.
+    static std::string last_klippy_log_stamp(const std::string& log);
+
+    /// The latest time Klippy is known to have connected, 0 when none: the last
+    /// "Klippy Connection Established" in @p moonraker_log (local time, read
+    /// only when @p moonraker_clock_is_local) and the last klippy_ready in
+    /// @p journal. @p from names which one won.
+    static std::time_t last_klippy_connection(const std::string& moonraker_log,
+                                              const std::vector<JournalEntry>& journal,
+                                              bool moonraker_clock_is_local, std::string* from);
+
+    /// The `klipper_log_meta` section. `stale` is true when the log was last
+    /// written more than kLogStaleSlackS before Klippy's latest connection (a
+    /// connecting Klippy always writes to its log), null when either time is
+    /// unknown.
+    static nlohmann::json assess_klipper_log(const LogOrigin& origin, const std::string& last_stamp,
+                                             std::time_t klippy_connected_at,
+                                             const std::string& connected_from);
+
+    /// The line a stale klipper_log opens with; "" when @p meta is not stale.
+    static std::string stale_klipper_log_banner(const nlohmann::json& meta);
+
+    /// Clock disagreement tolerated before a log counts as older than an event.
+    static constexpr int kLogStaleSlackS = 120;
+    /// 4 MiB of raw klippy.log is ~80 minutes of Klipper's one Stats line per
+    /// second; condense_klipper_log() strips that padding, so the payload stays
+    /// small while reaching back far enough to contain the incident.
+    static constexpr int kKlipperTailBytes = 4 * 1024 * 1024;
 
     /// Read klippy.log / moonraker.log straight off the local disk, for when
     /// Moonraker cannot serve them. Only for a same-host printer; the paths come
     /// from the daemons' own argv (see candidate_log_paths()), so an unknown
     /// platform layout returns empty rather than a guess.
     static std::string collect_local_log_tail(const std::string& log_name, int num_lines,
-                                              int condense_max_repeats = 0);
+                                              int condense_max_repeats = 0,
+                                              LogOrigin* origin = nullptr);
     /// The line a local log fallback opens with: which file it read and how
     /// long before @p now it was last written, so a stale copy that covers some
     /// other session cannot pass for the incident's log.
@@ -586,6 +638,9 @@ class DebugBundleCollector {
 
     /// Get the Moonraker HTTP base URL (from IMoonrakerAPI if connected)
     static std::string get_moonraker_url();
+    /// Whether the configured Moonraker runs on this machine, so that our own
+    /// /proc, disk and clock describe the printer's host too.
+    static bool moonraker_on_this_host();
 
     /// Fetch the tail of a log file from Moonraker using HTTP Range requests.
     ///
