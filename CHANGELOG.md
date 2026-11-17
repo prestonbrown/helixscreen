@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **XY on the Motion home bar** - the Motion panel's home bar now shows an XY button, like the one on the Controls panel, on printers that home their axes separately. It appears wherever the bar has room for five buttons at a comfortable touch size, such as 1024x600, wide strip screens and portrait screens. On an 800x480 screen the bar keeps All, X, Y and Z.
+- **Tool selector lines up with Pick up on the Filament panel** - in the Multi-Filament card the tool dropdown now sits level with the Pick up or Park button beside it. The "Tool" caption above it is gone, because the dropdown already names the tool, and the lane bars keep the room it took.
 
 ## [1.1.0-rc.2] - 2026-11-17
 

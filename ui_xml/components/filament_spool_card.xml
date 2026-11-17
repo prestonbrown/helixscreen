@@ -57,14 +57,16 @@
                    style_pad_right="#space_md">
           <event_cb trigger="clicked" callback="filament_manage_slots_cb"/>
         </ui_button>
-        <!-- Extruder Dropdown (shown when multi-tool, replaces Manage button) -->
+        <!-- Extruder Dropdown (shown when multi-tool, replaces Manage button).
+             No caption: the closed field names the tool ("Tool 3"), and the
+             row's width goes to the lane bars. The dropdown and the Pick up
+             button share the row's center line. -->
         <lv_obj name="extruder_selector_group"
-                width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="column"
-                style_flex_cross_place="start" style_pad_gap="2" hidden="true">
-          <text_small name="extruder_caption" bind_text="filament_tool_noun"/>
+                width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_cross_place="center" hidden="true">
           <lv_dropdown name="extruder_dropdown"
-                       width="content" height="content" style_min_width="80" style_radius="#border_radius_sm"
-                       style_pad_all="#space_sm">
+                       width="content" height="#button_height" style_min_width="80" style_radius="#border_radius_sm"
+                       style_pad_hor="#space_sm">
             <event_cb trigger="value_changed" callback="on_extruder_dropdown_changed"/>
           </lv_dropdown>
         </lv_obj>
