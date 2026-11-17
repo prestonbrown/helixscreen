@@ -16,6 +16,7 @@
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_slot_resolver.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lane_source_store.h"
@@ -258,9 +259,8 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
         "notify_gcode_response", handler_name, [this, token](const json& msg) {
             // BG THREAD: extract the line into a local; no `this` access here.
             std::string line;
-            const json* params = json_util::find_array(msg, "params");
-            if (params && !params->empty() && (*params)[0].is_string()) {
-                line = (*params)[0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             } else {
@@ -2679,9 +2679,8 @@ void AmsBackendToolChanger::register_mount_feed_listener() {
         "notify_gcode_response", handler_name, [this, token](const json& msg) {
             // BG THREAD: extract the line into a local; no `this` access here.
             std::string line;
-            const json* params = json_util::find_array(msg, "params");
-            if (params && !params->empty() && (*params)[0].is_string()) {
-                line = (*params)[0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             }

@@ -11,6 +11,7 @@
 #include "core/observer_guard.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "gcode_unknown_command.h"
 #include "helix_regex.h"
 #include "json_utils.h"
@@ -705,11 +706,12 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     void on_gcode_response(const json& msg) {
         if (core_.completed())
             return;
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string())
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
+        }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[PIDCalibrateCollector] Received: {}", line);
 
         // Check for progress: "sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a"
@@ -876,11 +878,12 @@ class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateColl
     void on_gcode_response(const json& msg) {
         if (completed_.load())
             return;
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string())
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
+        }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[PACalibrateCollector] Received: {}", line);
 
         // Result first: on firmwares that apply the value through
@@ -1027,12 +1030,13 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void on_gcode_response(const json& msg) {
         if (core_.completed())
             return;
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string())
+        const std::string* text_param = helix::first_gcode_response_param(msg);
+        if (!text_param) {
             return;
+        }
 
         // Kalico sends the whole result block as one multi-line respond_info.
-        const std::string& text = (*params)[0].get_ref<const std::string&>();
+        const std::string& text = *text_param;
         for (std::string_view line : text_io::Lines(text, '\n')) {
             if (core_.completed())
                 return;
@@ -1325,12 +1329,12 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
         }
 
         // notify_gcode_response format: {"method": "notify_gcode_response", "params": ["line"]}
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[ScrewsTiltCollector] Received: {}", line);
 
         // Check for unknown command error (screws_tilt_adjust not configured)
@@ -1537,12 +1541,12 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
             return;
         }
 
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[InputShaperCollector] Received: {}", line);
 
         // Activity watchdog. There is no line to match on for "the calibration
@@ -2038,12 +2042,12 @@ class BeltResonanceCollector : public std::enable_shared_from_this<BeltResonance
         if (core_.completed()) {
             return;
         }
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[BeltResonanceCollector] Received: {}", line);
 
         if (line.rfind("!! ", 0) == 0 || line.rfind("Error: ", 0) == 0) {
@@ -2177,12 +2181,12 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
             return;
         }
 
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[NoiseCheckCollector] Received: {}", line);
 
         // Check for unknown command error (no accelerometer configured)
@@ -2360,12 +2364,12 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
         }
 
         // notify_gcode_response format: {"method": "notify_gcode_response", "params": ["line"]}
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[BedMeshProgressCollector] Received: {}", line);
 
         // Check for errors first

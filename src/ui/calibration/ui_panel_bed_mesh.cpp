@@ -38,6 +38,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "gcode_response_lines.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -1706,11 +1707,11 @@ void BedMeshPanel::save_profile_as(const std::string& name, std::function<void()
     static std::atomic<uint64_t> s_watch_id{0};
     const std::string watch = "bed_mesh_profile_save_" + std::to_string(++s_watch_id);
     api->register_method_callback("notify_gcode_response", watch, [refusal](const json& msg) {
-        const json* params = json_util::find_array(msg, "params");
-        if (!params || params->empty() || !(*params)[0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
-        const auto& line = (*params)[0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         if (!helix::bed_mesh::is_profile_save_refusal(line)) {
             return;
         }

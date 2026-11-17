@@ -33,6 +33,17 @@ template <typename Fn> void for_each_gcode_response_line(const nlohmann::json& m
     }
 }
 
+/// The first element of a `notify_gcode_response` frame's params when it is a string, else
+/// nullptr. Moonraker sends one line per frame as `{"params": ["line"]}`; the pointer is into
+/// @p msg, so it lives as long as the frame does.
+inline const std::string* first_gcode_response_param(const nlohmann::json& msg) {
+    const nlohmann::json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty() || !(*params)[0].is_string()) {
+        return nullptr;
+    }
+    return &(*params)[0].get_ref<const std::string&>();
+}
+
 /// The text of a respond_info() line: Klipper sends "// <text>", and a firmware
 /// that drops the space or the prefix entirely still yields its text.
 inline std::string_view strip_respond_info_prefix(std::string_view line) {

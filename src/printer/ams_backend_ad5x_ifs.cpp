@@ -15,6 +15,7 @@
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_fs.h"
@@ -4224,9 +4225,8 @@ void AmsBackendAd5xIfs::register_zcolor_listener() {
             // BG THREAD: extract the line from the JSON envelope into a local;
             // no `this` access here.
             std::string line;
-            const json* params = json_util::find_array(msg, "params");
-            if (params && !params->empty() && (*params)[0].is_string()) {
-                line = (*params)[0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             } else {

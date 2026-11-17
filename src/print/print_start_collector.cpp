@@ -13,6 +13,7 @@
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lvgl.h"
@@ -1240,8 +1241,8 @@ bool PrintStartCollector::is_own_pre_start_echo_locked(const std::string& line) 
 }
 
 void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
-    const json* params = json_util::find_array(msg, "params");
-    if (!params || params->empty() || !(*params)[0].is_string()) {
+    const std::string* line = helix::first_gcode_response_param(msg);
+    if (!line) {
         return;
     }
     std::shared_ptr<PrintStartProfile> profile;
@@ -1249,7 +1250,7 @@ void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         profile = profile_;
     }
-    if (!profile || !profile->announces_print_start((*params)[0].get_ref<const std::string&>())) {
+    if (!profile || !profile->announces_print_start(*line)) {
         return;
     }
     auto self = shared_from_this();
@@ -1322,16 +1323,11 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     }
 
     // Parse notify_gcode_response format: {"method": "...", "params": ["line"]}
-    const json* params = json_util::find_array(msg, "params");
-    if (!params || params->empty()) {
+    const std::string* line_param = helix::first_gcode_response_param(msg);
+    if (!line_param) {
         return;
     }
-
-    // I4: Type-check params[0] before extracting string reference
-    if (!(*params)[0].is_string()) {
-        return;
-    }
-    const std::string& line = (*params)[0].get_ref<const std::string&>();
+    const std::string& line = *line_param;
 
     // Skip empty lines and common noise
     if (line.empty() || line == "ok") {
