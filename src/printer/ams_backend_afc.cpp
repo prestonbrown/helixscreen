@@ -1496,6 +1496,7 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             std::string tc_status;
             if (auto v = ams::read_field<std::string>(tc_data, "status")) {
                 tc_status = std::move(*v);
+                toolchanger_error_ = tc_status == "error";
             }
 
             if (!tc_status.empty() && tc_status != "ready") {
@@ -3416,6 +3417,11 @@ bool AmsBackendAfc::has_toolchanger_unit_locked() const {
 bool AmsBackendAfc::carriage_can_be_empty() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return has_toolchanger_unit_locked() || system_info_.mount_state != MountState::UNKNOWN;
+}
+
+bool AmsBackendAfc::fault_concerns_carriage() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return toolchanger_error_;
 }
 
 bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) const {

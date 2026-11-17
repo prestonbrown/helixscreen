@@ -863,6 +863,19 @@ class AmsBackend {
     }
 
     /**
+     * @brief True when the backend's current ERROR is about the carriage or the
+     *        changer, so a docked head may not be where the changer thinks.
+     *
+     * Asked only while the action reads ERROR. A backend whose every error is a
+     * changer error (a tool changer, the Snapmaker U1) answers with
+     * carriage_can_be_empty(), the default. One that also reports lane faults on
+     * a machine with docking heads answers true only for the carriage's own.
+     */
+    [[nodiscard]] virtual bool fault_concerns_carriage() const {
+        return carriage_can_be_empty();
+    }
+
+    /**
      * @brief True when Load is a firmware feed that cannot tell an inserted strand
      *        from a fed one.
      *

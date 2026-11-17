@@ -356,6 +356,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// AFC never reports a carriage and keeps -1 meaning "no lane loaded".
     [[nodiscard]] bool carriage_can_be_empty() const override;
 
+    /// Only klipper-toolchanger's own `status: error` is a carriage fault. A
+    /// lane fault (a jam, a load that timed out) leaves the docked heads where
+    /// they are.
+    [[nodiscard]] bool fault_concerns_carriage() const override;
+
     /// Status-driven fault, surfaced by AmsErrorBridge on the AmsAction::ERROR
     /// edge. Keyed on AFC's error_state, which upstream sets in lockstep with
     /// current_state = State.ERROR — the same transition that produced the edge.
@@ -1317,6 +1322,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // tools and current_map alone, so a remap from here is refused rather than
     // sent as an edit that appears to do nothing.
     bool afc_multiple_tool_mapping_{false};
+
+    // toolchanger.status reads "error": the carriage itself has faulted.
+    bool toolchanger_error_{false};
 
     /// The firmware behind these objects picks each tool's lane at print time
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
