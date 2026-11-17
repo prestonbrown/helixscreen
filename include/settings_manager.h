@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <vector>
@@ -299,6 +300,14 @@ class SettingsManager {
     /** @brief Set extrude/retract speed in mm/s (clamped 1-50, persisted) */
     void set_extrude_speed(int mm_per_sec) {
         settings_.set(Key::ExtrudeSpeed, mm_per_sec);
+    }
+
+    /// Sets extrude_speed to kExtrudeSpeedPresets[@p index]; an index outside the
+    /// list changes nothing.
+    void set_extrude_speed_preset(uint32_t index) {
+        if (index < std::size(kExtrudeSpeedPresets)) {
+            set_extrude_speed(kExtrudeSpeedPresets[index]);
+        }
     }
 
     /** @brief Extrude speed subject (integer: mm/s) for UI binding */

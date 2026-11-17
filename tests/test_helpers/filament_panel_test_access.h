@@ -106,15 +106,6 @@ struct FilamentPanelTestAccess {
         return p.extruder_dropdown_;
     }
 
-    static lv_obj_t* extrude_speed_dropdown(FilamentPanel& p) {
-        return p.extrude_speed_dropdown_;
-    }
-    /// The speed dropdown's value_changed handler, for the panel under test
-    /// (the registered XML callback reaches the global panel).
-    static void handle_extrude_speed_select(FilamentPanel& p, int index) {
-        p.handle_extrude_speed_select(index);
-    }
-
     /// Raw member pointers, for asserting an orientation flip re-finds them
     /// into the rebuilt tree (compare against lv_obj_find_by_name).
     static lv_obj_t* temp_graph_card(FilamentPanel& p) {

@@ -783,8 +783,6 @@ class FilamentPanel : public PanelBase {
     void handle_purge_button();
     void handle_retract_button();
     void handle_extrude_length_select(int amount);
-    /// Writes the preset at @p index (SettingsManager::kExtrudeSpeedPresets).
-    void handle_extrude_speed_select(int index);
     /// Shows the setting's current speed on the dropdown, a preset or not.
     void sync_extrude_speed_dropdown();
     void handle_cooldown();

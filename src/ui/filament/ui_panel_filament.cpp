@@ -188,8 +188,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         {"on_filament_extrude_speed_changed",
          [](lv_event_t* e) {
              auto* dd = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-             get_global_filament_panel().handle_extrude_speed_select(
-                 static_cast<int>(lv_dropdown_get_selected(dd)));
+             helix::SettingsManager::instance().set_extrude_speed_preset(
+                 lv_dropdown_get_selected(dd));
          }},
         // Cooldown button
         {"on_filament_cooldown",
@@ -1565,16 +1565,6 @@ void FilamentPanel::handle_extrude_length_select(int amount) {
     lv_subject_set_int(&extrude_length_10mm_active_subject_, amount == 10 ? 1 : 0);
     lv_subject_set_int(&extrude_length_25mm_active_subject_, amount == 25 ? 1 : 0);
     spdlog::debug("[{}] Extrude length set to {}mm", get_name(), amount);
-}
-
-void FilamentPanel::handle_extrude_speed_select(int index) {
-    const auto& presets = helix::SettingsManager::kExtrudeSpeedPresets;
-    if (index < 0 || index >= static_cast<int>(std::size(presets))) {
-        return;
-    }
-    const int speed = presets[static_cast<size_t>(index)];
-    helix::SettingsManager::instance().set_extrude_speed(speed);
-    spdlog::debug("[{}] Extrude speed set to {} mm/s", get_name(), speed);
 }
 
 void FilamentPanel::sync_extrude_speed_dropdown() {
