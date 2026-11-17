@@ -326,18 +326,18 @@ TEST_CASE("AFC hub and extruder parse keep silence apart from a clear", "[afc][s
 TEST_CASE("AFC unit topology follows per-lane hub routing", "[afc][status_parse][topology]") {
     const std::vector<std::string> lanes{"lane1", "lane2"};
     using R = std::unordered_map<std::string, std::string>;
-    CHECK(afc::derive_unit_topology(lanes, 1, true, R{{"lane1", "Turtle_1"}, {"lane2", "Turtle_1"}})
+    CHECK(afc::derive_unit_topology(lanes, 1, 1, 1, R{{"lane1", "Turtle_1"}, {"lane2", "Turtle_1"}})
               .topology == PathTopology::HUB);
-    CHECK(afc::derive_unit_topology(lanes, 1, true, R{{"lane1", "HTLF_1"}, {"lane2", "direct"}})
+    CHECK(afc::derive_unit_topology(lanes, 1, 1, 1, R{{"lane1", "HTLF_1"}, {"lane2", "direct"}})
               .topology == PathTopology::MIXED);
     CHECK(
-        afc::derive_unit_topology(lanes, 2, false, R{{"lane1", "direct"}, {"lane2", "direct_load"}})
+        afc::derive_unit_topology(lanes, 2, 0, 2, R{{"lane1", "direct"}, {"lane2", "direct_load"}})
             .topology == PathTopology::PARALLEL);
-    CHECK(afc::derive_unit_topology(lanes, 2, true, R{{"lane1", "h1"}, {"lane2", "h2"}}).topology ==
+    CHECK(afc::derive_unit_topology(lanes, 2, 1, 2, R{{"lane1", "h1"}, {"lane2", "h2"}}).topology ==
           PathTopology::PARALLEL);
 
     // An unparsed lane is neither direct nor hub-routed.
-    const auto partial = afc::derive_unit_topology(lanes, 1, true, R{{"lane1", "Turtle_1"}});
+    const auto partial = afc::derive_unit_topology(lanes, 1, 1, 1, R{{"lane1", "Turtle_1"}});
     CHECK(partial.topology == PathTopology::HUB);
     CHECK(partial.lane_is_hub_routed == std::vector<bool>{true, false});
 }
