@@ -281,6 +281,15 @@ struct AceUnitDelta {
     std::optional<float> humidity_pct;      ///< `ace_humidity` (ACE 2 only)
 };
 
+/// Whether an action prompt titled @p title is one AFC raised.
+///
+/// AFC's prompts are plain `// action:prompt_begin <title>` lines (AFC_respond.py),
+/// with nothing marking where they came from, so the title is the only signal.
+/// Matches every title AFC v1.2.0 and DEV build: the ones naming AFC, the
+/// calibration and TD-1 flows (their titles name the unit, a lane or a
+/// `tool_stn` step), and the fixed toolhead-load titles.
+[[nodiscard]] bool is_afc_prompt_title(const std::string& title);
+
 /// Whether an ACE dryer status word means a cycle is running. The idle words
 /// are AFC_ACE.py's `_DRYER_IDLE`.
 [[nodiscard]] bool ace_dryer_running(const std::string& status);

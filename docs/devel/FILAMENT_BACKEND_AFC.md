@@ -918,6 +918,18 @@ backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that ha
 AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
 a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
 
+#### AFC's own prompts
+
+An `AFC.message` toast is held back (it goes to the notification list only) while one of
+AFC's action prompts is on screen, since the prompt already tells the user. AFC's prompts
+carry nothing that marks their origin: AFC_respond.py writes plain
+`// action:prompt_begin <title>` lines. So `afc::is_afc_prompt_title` decides by title: a
+title naming AFC, any calibration or TD-1 title (`Toolhead Calibration`,
+`tool_stn Calibration`, `Cutter Retract Calibration`, `<unit> Calibration`, ...), or one
+of the fixed toolhead-load titles (`Loading Lane`, `Unloading Lane`, `Checking toolhead
+temperature`, `Moving extruder`, `Iteration Count`). A new AFC prompt title outside those
+shapes toasts until it is added there.
+
 ### AFC Version Reporting
 
 `afc_version_` is **display and diagnostics only. Never gate behavior on it.** AFC has no

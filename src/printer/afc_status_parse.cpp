@@ -586,6 +586,18 @@ ExtruderObjectDelta parse_extruder_object(const nlohmann::json& data) {
     return d;
 }
 
+bool is_afc_prompt_title(const std::string& title) {
+    static constexpr const char* kParts[] = {"AFC", "Calibrat", "TD-1"};
+    static constexpr const char* kTitles[] = {"Loading Lane", "Unloading Lane",
+                                              "Checking toolhead temperature", "Moving extruder",
+                                              "Iteration Count"};
+    return std::any_of(
+               std::begin(kParts), std::end(kParts),
+               [&title](const char* part) { return title.find(part) != std::string::npos; }) ||
+           std::any_of(std::begin(kTitles), std::end(kTitles),
+                       [&title](const char* fixed) { return title == fixed; });
+}
+
 bool ace_dryer_running(const std::string& status) {
     const std::string word = text_io::to_lower(status);
     static constexpr const char* kIdle[] = {"",     "stop", "stopped", "stopping",

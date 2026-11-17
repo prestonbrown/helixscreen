@@ -90,6 +90,7 @@ is out.
 - **Job queue and Spoolman screens** (#1140, #1141) - the job queue says it is empty while the printer is disconnected, and Spoolman settings always open on the configured state.
 - **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
+- **No stacked AFC errors over AFC's own prompts** - while AFC shows one of its calibration or toolhead-load prompts, its messages go to the notification list instead of popping up over the prompt, as they already did for prompts with AFC in the title.
 
 ## [1.1.0-rc.2] - UNRELEASED
 

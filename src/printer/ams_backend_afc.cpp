@@ -1959,8 +1959,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
                     // An AFC action:prompt on screen already tells the user.
                     const bool afc_prompt_active =
                         helix::ActionPromptManager::is_showing() &&
-                        helix::ActionPromptManager::current_prompt_name().find("AFC") !=
-                            std::string::npos;
+                        afc::is_afc_prompt_title(helix::ActionPromptManager::current_prompt_name());
 
                     if (afc_prompt_active || operation_active) {
                         // Notification history only (no toast)
