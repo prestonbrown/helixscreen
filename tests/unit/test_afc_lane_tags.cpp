@@ -98,19 +98,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: a lane's tag is its slot's RFID
               {"AFC_lane lane3", {{"lane", 3}}},
               {"AFC_lane lane4", {{"lane", 4}}}});
 
-    // One unit: its lanes fill the slots in the unit's order.
-    const int lane1 = 0;
-    const int lane2 = 1;
-    const int lane3 = 2;
-    const auto tag1 = afc.tag_reading(lane1);
+    // One unit: its lanes fill slots 0-3 in the unit's order.
+    const auto tag1 = afc.tag_reading(0);
     REQUIRE(tag1.has_value());
     CHECK(tag1->material == std::optional<std::string>("ABS"));
     CHECK(tag1->color_rgb == std::optional<uint32_t>(0xFFFFFF));
-    const auto tag2 = afc.tag_reading(lane2);
+    const auto tag2 = afc.tag_reading(1);
     REQUIRE(tag2.has_value());
     CHECK(tag2->material == std::optional<std::string>("PLA"));
     // A read still in progress is no reading.
-    CHECK_FALSE(afc.tag_reading(lane3).has_value());
+    CHECK_FALSE(afc.tag_reading(2).has_value());
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "AFC CFS unit: a lane's tag comes from cfs.lanes",
@@ -130,8 +127,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC CFS unit: a lane's tag comes from cfs.lan
     };
     afc.feed(frame({{"material", "PETG"}, {"color", "112233"}, {"weight", 500}}));
 
-    const int lane1 = 0;
-    auto tag = afc.tag_reading(lane1);
+    auto tag = afc.tag_reading(0);
     REQUIRE(tag.has_value());
     CHECK(tag->material == std::optional<std::string>("PETG"));
     CHECK(tag->color_rgb == std::optional<uint32_t>(0x112233));
@@ -139,5 +135,5 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC CFS unit: a lane's tag comes from cfs.lan
 
     // The next read found no tag: the lane has no reading any more.
     afc.feed(frame(nullptr));
-    CHECK_FALSE(afc.tag_reading(lane1).has_value());
+    CHECK_FALSE(afc.tag_reading(0).has_value());
 }
