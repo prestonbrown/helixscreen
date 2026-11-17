@@ -33,6 +33,8 @@ HelixScreen draws filament units (AMS, ACE, CFS, Box Turtle, ERCF, Tradrack and 
 
 A true isometric view was rejected: the near flange hides most of the filament, which carries the live colour.
 
+Every drawing comes from real photos and proportions. A drawing that looks plausible but is wrong is a failure, so detail is never invented to fill a gap: the unit keeps its logo until it can be drawn properly.
+
 The kit is the single source. Parts a unit needs are written once in its definition, and nothing per unit is hand-written in C++. A unit with no definition keeps its logo and the generic tray, and hardware that cannot be told apart (a Happy Hare setup that reports only firmware) gets no row in the lookup, so it is never given a guessed drawing. Art contains no wordmarks and one set serves the light and dark themes. A DIY system gets one representative drawing.
 
 ## Baked layers
@@ -55,6 +57,18 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 - The drying glow is a runtime image over the drawing, limited to the chamber around the spools by `unit_art_chamber_mask`. It runs only while the unit dries, and `unit_art_glow_for` turns it off on reduced-effects boards and stops it pulsing when animations are off.
 
 Spools follow the app. The kit reads the flange colours, vent pattern and sizes from the C++ spool values (`spool_constants`), so art cannot drift from the live widget. Every unit draws its spools at one real spool proportion in a common frame (`kSpoolWidth` is 0.294 of the spool size).
+
+## On the AMS overview
+
+Each unit on the overview row (`src/ui/filament/ui_panel_ams_overview_cards.cpp`) is one of three things:
+
+| The unit | It draws as |
+|----------|-------------|
+| Has art for its lane count | `ams_unit_tile`: the full art with no card chrome, the name under it and the climate readout over its lower right corner |
+| Has no art, beside a unit that has | `ams_unit_tile` holding one lane bar per lane at a fixed compact width |
+| Has no art, in a row where no unit has | `ams_unit_card`, the logo card with lane bars and a lane count |
+
+Each unit resolves on its own, so a rig of mixed units mixes tiles. A unit that gains or loses art, such as after a lane count change, rebuilds the row. The readout is hidden at the two smallest breakpoints. A row that overflows sizes every tile to one width chosen so the next tile stands partly past the right edge (`overview_peek_card_width`); a bars tile's compact width counts as its floor there, so art is never narrower than a bars tile beside it. A disconnected unit's art takes the `unit_offline` fade, and an absent one shows disabled with "Not connected".
 
 ## The live tray
 
@@ -83,7 +97,7 @@ Selecting a unit's shell is the only place that names hardware. `unit_shell_for`
 
 ## Rendering on small boards
 
-The shell is static between state changes, so it is drawn once and kept, and only spools repaint on data changes. Boards where `helix::ui::reduced_effects()` is true skip the drying glow and spool rotation. A printing lane turns slowly and a loading or unloading lane spins fast, both only with animations on (`decide_spool_spin` in `include/spool_spin.h`); the vents step through cached phases, so a step is a buffer copy.
+The shell is static between state changes, so it is drawn once and kept, and only spools repaint on data changes. The bar for the full tier is no visible frame drop while a spool repaints and no more than 2 points of added idle CPU on MIPS; on the AD5X the ACE shell measured 2.50% idle against 2.48% for the generic tray. A theme change repaints the shell from the new tokens without leaving the screen. Boards where `helix::ui::reduced_effects()` is true skip the drying glow and spool rotation. A printing lane turns slowly and a loading or unloading lane spins fast, both only with animations on (`decide_spool_spin` in `include/spool_spin.h`); the vents step through cached phases, so a step is a buffer copy.
 
 ## Toolheads
 
