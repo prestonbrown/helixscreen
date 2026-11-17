@@ -49,7 +49,7 @@ encoder (`clog_detection` 1 or 2) and FlowGuard (`flowguard.enabled`) feed the
 | `MMU_CHECK_GATE` | Probe every gate sensor (sidebar **Check slots**). Physical: parks the toolhead and unloads/reloads each gate, and Happy Hare does not refuse it mid-print, so the sidebar gates it |
 | `MMU_TTG_MAP TOOL={n} GATE={g}` | Set tool-to-gate mapping |
 | `MMU_GATE_MAP GATE={n} [COLOR=..] [MATERIAL=..] [VENDOR=..] [NAME=..] [TEMP=..] [SPOOLID=..]` | Write a slot edit to the gate map (`mmu_vars.cfg`). Omitted params keep their current value, so a field is only cleared by naming it with an explicit empty value. `VENDOR` is v4-only; `TEMP` is sent only when the edit moves it, never 0. In Spoolman pull mode an edit is refused - see [Lane identity and edits](#lane-identity-and-edits) |
-| `MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1` | **Clear Spool**: wipe every field the gate map holds for one gate - see [Clear Spool](#clear-spool) |
+| `MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP={default} QUIET=1` | **Clear Spool**: wipe every field the gate map holds for one gate and return its temperature to `default_extruder_temp` - see [Clear Spool](#clear-spool) |
 | `MMU_SELECT_BYPASS` | Select bypass position |
 
 ### Path Topology
@@ -118,11 +118,17 @@ spool link. Happy Hare keeps omitted `MMU_GATE_MAP` params at their current valu
 something) and sends one wipe:
 
 ```
-MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1
+MMU_GATE_MAP GATE={n} MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP={default} QUIET=1
 ```
 
 Every writable field is named with an explicit empty value; v2/v3 ignore params they do
-not fetch, and `VENDOR` is v4-only. Three params are permanently off this command:
+not fetch, and `VENDOR` is v4-only. `TEMP` names `default_extruder_temp`, read at connect
+from configfile (`[mmu]` on v3, `[mmu_parameters]` on v4) into
+`ConfigDefaults::default_extruder_temp`. Happy Hare up to v4.2.0 reads an omitted `TEMP`
+as that default, but from upstream 65e3656d (#1509) an omitted `TEMP` keeps the gate's
+own, so only the explicit value resets the gate on every version. Before the configfile
+query answers there is no default to name, and the wipe leaves `TEMP` off. Three params
+are permanently off this command:
 
 - `RESET=1` - on v2/v3 it ignores `GATE` and wipes **every** gate.
 - `TEMP=0` - falsy values mean "keep the current value".
@@ -148,10 +154,11 @@ lane shows the gate map, filed as the lane's `Firmware` source.
 
 - **Edits** (`AmsBackendHappyHare::apply_user_edit`) are one `MMU_GATE_MAP` naming each moved
   field (`COLOR`, `MATERIAL`, `VENDOR` on v4, `NAME`, `SPOOLID`), plus `MMU_TTG_MAP` for a tool
-  remap. Every edit names `TEMP`: the new value when it moved, else `TEMP=0`. Happy Hare reads an
-  omitted `TEMP` as `default_extruder_temp` and overwrites the gate's own, and reads `TEMP=0` as
-  "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py cmd_MMU_GATE_MAP). Clear Spool omits
-  it, so a cleared gate returns to the default temperature.
+  remap. Every edit names `TEMP`: the new value when it moved, else `TEMP=0`. Happy Hare up to
+  v4.2.0 reads an omitted `TEMP` as `default_extruder_temp` and overwrites the gate's own, and every
+  version reads `TEMP=0` as "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py
+  cmd_MMU_GATE_MAP). Clear Spool names `TEMP={default_extruder_temp}`, so a cleared gate returns
+  to the default temperature whether the firmware keeps or resets an omitted `TEMP`.
 - **Fields the gate map cannot hold** (brand before v4, total and remaining weight, colour name,
   catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the
   same 10 s poll as every lane record. The name, and the vendor on v4, are the gate map's alone,

@@ -144,6 +144,9 @@ class HappyHareTestAccess {
     template <class B, class... A> static decltype(auto) apply_heater_config(B& b, A&&... a) {
         return b.apply_heater_config(std::forward<A>(a)...);
     }
+    template <class B, class... A> static decltype(auto) apply_config_defaults(B& b, A&&... a) {
+        return b.apply_config_defaults(std::forward<A>(a)...);
+    }
     template <class B, class... A>
     static decltype(auto) apply_filament_heater_status(B& b, A&&... a) {
         return b.apply_filament_heater_status(std::forward<A>(a)...);

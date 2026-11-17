@@ -292,7 +292,8 @@ TEST_CASE("Happy Hare layout: v3 reads every tunable from [mmu]",
                              {"gear_from_spool_speed", "60"},
                              {"toolhead_ooze_reduction", 2.5},
                              {"enable_clog_detection", 2},
-                             {"heater_default_dry_humidity", 30}}},
+                             {"heater_default_dry_humidity", 30},
+                             {"default_extruder_temp", 205}}},
                            {"mmu_parameters", {{"gear_from_spool_speed", 99}}}};
     const auto layout = happy_hare::read_machine_layout(settings, json::object());
     REQUIRE_FALSE(layout.v4);
@@ -303,6 +304,8 @@ TEST_CASE("Happy Hare layout: v3 reads every tunable from [mmu]",
               happy_hare::find_config_param(settings, layout, "toolhead_ooze_reduction")) == 2.5f);
     CHECK(happy_hare::read_config_number(
               happy_hare::find_config_param(settings, layout, "clog_detection")) == 2.0f);
+    CHECK(happy_hare::read_config_number(
+              happy_hare::find_config_param(settings, layout, "default_extruder_temp")) == 205.0f);
     // v3 takes no HUMIDITY=, so a stray key of that name is not read.
     CHECK_FALSE(happy_hare::find_config_param(settings, layout, "heater_default_dry_humidity"));
 }

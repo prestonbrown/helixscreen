@@ -420,6 +420,12 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
             happy_hare::read_machine_layout(settings, live_mmu_machine));
     }
 
+    /// Expose apply_config_defaults for testing (simulates the async configfile query result)
+    void test_apply_config_defaults(const nlohmann::json& settings) {
+        HappyHareTestAccess::apply_config_defaults(
+            *this, settings, happy_hare::read_machine_layout(settings, nlohmann::json::object()));
+    }
+
     /// Expose apply_filament_heater_status for testing
     bool test_apply_filament_heater_status(const nlohmann::json& params) {
         return HappyHareTestAccess::apply_filament_heater_status(*this, params);
@@ -659,12 +665,41 @@ TEST_CASE("Happy Hare clear: the wipe names every gate-map field", "[ams][happy_
     // echo out of the printer console.
     REQUIRE(
         helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1"));
-    // RESET ignores GATE on v2/v3 and wipes every gate; an omitted TEMP
-    // returns the gate to default_extruder_temp; AVAILABLE=0 marks the gate
-    // EMPTY, not unknown.
+    // RESET ignores GATE on v2/v3 and wipes every gate; AVAILABLE=0 marks the
+    // gate EMPTY, not unknown. With no configfile read yet there is no default
+    // temperature to name, so TEMP stays off.
     REQUIRE_FALSE(helper.has_gcode_containing("RESET="));
     REQUIRE_FALSE(helper.has_gcode_containing("TEMP="));
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
+}
+
+TEST_CASE("Happy Hare clear: the wipe returns the gate to default_extruder_temp",
+          "[ams][happy_hare][clear]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg;
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(2);
+
+    // Happy Hare up to v4.2.0 reads an omitted TEMP as default_extruder_temp;
+    // later versions keep the gate's own. Naming the default resets the gate
+    // on both.
+    SECTION("v3 keeps it in [mmu]") {
+        helper.test_apply_config_defaults({{"mmu", {{"default_extruder_temp", 215}}}});
+    }
+    SECTION("v4 keeps it in [mmu_parameters], as Klipper's parsed float") {
+        helper.test_apply_config_defaults({{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
+                                           {"mmu_parameters", {{"default_extruder_temp", 215.0}}}});
+    }
+
+    SlotInfo* slot = helper.get_mutable_slot(1);
+    REQUIRE(slot != nullptr);
+    slot->material = "PETG";
+    slot->nozzle_temp_min = 240;
+    helper.clear_captured_gcodes();
+
+    helix::test::apply_edit(helper, 1, funnel_cleared_copy(*slot));
+
+    REQUIRE(helper.has_gcode(
+        "MMU_GATE_MAP GATE=1 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP=215 QUIET=1"));
 }
 
 TEST_CASE("Happy Hare clear: a material edit does not take the wipe path",
@@ -5525,7 +5560,11 @@ TEST_CASE("Happy Hare claims its own error notice prompt as a duplicate of the f
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
     AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    // v3 to v4.1 title the pause dialog "Error Notice"; v4.2 builds it in Python
+    // as "Pause Notice" (mmu_dialog.py ERROR_DIALOG_TITLE).
     CHECK(hh.duplicates_firmware_prompt("Happy Hare Error Notice"));
+    CHECK(hh.duplicates_firmware_prompt("Happy Hare Pause Notice"));
+    CHECK_FALSE(hh.duplicates_firmware_prompt("Happy Hare"));
     CHECK_FALSE(hh.duplicates_firmware_prompt("Filament Change"));
 }
 
@@ -5541,6 +5580,36 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // _MMU_ERROR_DIALOG runs ahead of the `!!` line, so its prompt is up first.
     prompts.process_line("// action:prompt_begin Happy Hare Error Notice");
     prompts.process_line("// action:prompt_text Reason: Gate 2 is empty!");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK_FALSE(helix::ActionPromptManager::is_showing());
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare v4.2's pause notice closes when the HH recovery popup shows",
+                 "[ams][happy_hare][error-center][1323]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    // mmu_dialog.py shows the prompt ahead of the `!!` line, so it is up first.
+    prompts.process_line("// action:prompt_begin Happy Hare Pause Notice");
+    prompts.process_line("// action:prompt_text Gate 2 is empty.");
     prompts.process_line("// action:prompt_show");
     REQUIRE(helix::ActionPromptManager::is_showing());
 

@@ -776,6 +776,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
         int clog_detection = 0;
         /// Manual-mode clog detection length, when the config names one
         std::optional<float> detection_length;
+        /// The temperature Happy Hare gives a gate with no spool, when the
+        /// config names one. Clear Spool sends it as the wipe's TEMP.
+        std::optional<int> default_extruder_temp;
         bool loaded = false;
     };
     ConfigDefaults config_defaults_;
