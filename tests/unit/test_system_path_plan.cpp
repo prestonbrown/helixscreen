@@ -7,6 +7,7 @@
 // nozzle 346 (top 326, glyph bottom 372).
 
 #include "ui_system_path_canvas.h"
+#include "ui_toolhead_badge.h"
 
 #include "../lvgl_test_fixture.h"
 #include "filament_path_test_helpers.h"
@@ -145,6 +146,24 @@ TEST_CASE("Overview layout: the toolheads stand on their glyph-bottom line",
     // The tool row's glyphs (scale 7, bottom 19 below center) stand on 320.
     CHECK(small_tool_scale(*d) == 7);
     CHECK(row.tools_y == 320 - 19);
+}
+
+TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
+          "[system_path][filament_path]") {
+    auto d = multi();
+    bool art_inlet_seen = false;
+    for (int s = static_cast<int>(helix::ToolheadStyle::DEFAULT);
+         s <= static_cast<int>(helix::ToolheadStyle::FLASHFORGE_AD5); s++) {
+        CAPTURE(s);
+        d->toolhead_style = static_cast<helix::ToolheadStyle>(s);
+        const SysLayout L = compute_sys_layout(*d, AREA);
+        const int32_t inlet_y =
+            helix::ui::toolhead_inlet(d->toolhead_style, L.nozzle_y, d->extruder_scale).y;
+        art_inlet_seen = art_inlet_seen || inlet_y != L.nozzle_y - 2 * d->extruder_scale;
+        const Route& active = plan_of(*d).routes[0];
+        CHECK(seg_end(active.path.segs[active.path.count - 1]).y == (float)inlet_y);
+    }
+    REQUIRE(art_inlet_seen);
 }
 
 TEST_CASE("Overview plan: hub bands take the detail view's four states",
@@ -298,10 +317,14 @@ TEST_CASE("Overview plan: toolchanger tools each get a continuous route to their
     d->unit_tool_count[0] = 3;
     d->total_tools = 3;
     d->active_tool = 1;
+    // Art whose inlet is not the generic nozzle top: each route ends at the art's inlet.
+    d->toolhead_style = helix::ToolheadStyle::A4T;
     const PathPlan& plan = plan_of(*d);
     const SysLayout L = compute_sys_layout(*d, AREA);
     REQUIRE(plan.route_count == 3);
-    const float nozzle_top = (float)(L.tools_y - small_tool_scale(*d) * 2);
+    const float nozzle_top =
+        (float)helix::ui::toolhead_inlet(d->toolhead_style, L.tools_y, small_tool_scale(*d)).y;
+    REQUIRE(nozzle_top != (float)(L.tools_y - small_tool_scale(*d) * 2));
     for (int i = 0; i < 3; i++) {
         CAPTURE(i);
         const Route& r = plan.routes[i];
