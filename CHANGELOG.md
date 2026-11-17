@@ -100,6 +100,7 @@ is out.
 - **Screen Sharing behind a reverse proxy** - taps on the shared screen now work through a reverse proxy in front of the printer that sends the browser's host name in `X-Forwarded-Host` or `Forwarded`, on printers where Moonraker decides who gets in. Opening the screen address without its final slash now stays on the proxy's address instead of jumping to the printer's own. An existing setup gets this the next time the HelixScreen installer runs.
 - **No tool shown mounted on a parked AFC toolchanger** - on a toolchanger run by AFC, parking every head now shows no tool on the carriage. Before, the screen kept showing the first tool, or the tool whose lane AFC last loaded, as mounted. AFC printers with a single toolhead are unchanged.
 - **Unloading a CFS spool that ran out** - when the CFS reports that a spool ran out while filament is still in the toolhead, Unload no longer runs the cut and retract that cannot pull it back and then reports a failure. It tells you to remove the leftover filament by hand instead.
+- **Screen Sharing webcam keeps the screen's shape** - the HelixScreen Screen webcam that Mainsail and Fluidd show now gets the screen's own proportions, such as 5:3 on an 800x480 screen, instead of 4:3, so the tile no longer has bars or cuts off the picture. A webcam added before this update keeps the aspect ratio it has, including one you chose yourself. To have it set from the screen, turn Add to Mainsail/Fluidd Webcams off and on again.
 
 ## [1.1.0-rc.2] - UNRELEASED
 

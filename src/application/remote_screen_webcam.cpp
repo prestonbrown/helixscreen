@@ -10,6 +10,7 @@
 #include "host_identity.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
+#include "lvgl/lvgl.h"
 #include "printer_state.h"
 #include "remote_screen_service.h"
 #include "remote_screen_settings_manager.h"
@@ -18,6 +19,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <numeric>
 #include <unistd.h>
 
 namespace helix {
@@ -33,9 +35,18 @@ std::string remote_screen_effective_route(bool moonraker_remote, const std::stri
     return moonraker_remote ? std::string() : route;
 }
 
+std::string remote_screen_aspect_ratio(int w, int h) {
+    if (w <= 0 || h <= 0) {
+        return {};
+    }
+    const int g = std::gcd(w, h);
+    return std::to_string(w / g) + ":" + std::to_string(h / g);
+}
+
 std::optional<nlohmann::json> remote_screen_webcam_item(const std::string& name, bool enabled,
                                                         bool control, const std::string& route,
-                                                        const std::string& lan_ip, int port) {
+                                                        const std::string& lan_ip, int port,
+                                                        int frame_w, int frame_h) {
     if (!enabled) {
         return std::nullopt;
     }
@@ -58,6 +69,9 @@ std::optional<nlohmann::json> remote_screen_webcam_item(const std::string& name,
         {"snapshot_url", snapshot},
         {"extra_data", {{kRemoteScreenWebcamMarker, true}}},
     };
+    if (const std::string ratio = remote_screen_aspect_ratio(frame_w, frame_h); !ratio.empty()) {
+        item["aspect_ratio"] = ratio;
+    }
     if (control) {
         item["service"] = "iframe";
         item["stream_url"] = base;
@@ -89,7 +103,7 @@ void post_by_name(IMoonrakerAPI& api, const nlohmann::json& item, StoreUid store
 }
 
 /// Refresh the entry @p uid with @p item's URLs. Only what the screen decides is sent, so
-/// the name, enabled state and frame rate the user gave the entry are kept.
+/// the name, enabled state, frame rate and aspect ratio the user gave the entry are kept.
 void post_by_uid(IMoonrakerAPI& api, const nlohmann::json& item, const std::string& uid,
                  StoreUid store_uid) {
     nlohmann::json update = {{"uid", uid}};
@@ -186,9 +200,12 @@ void sync_remote_screen_webcam(IMoonrakerAPI& api, MoonrakerLocality locality) {
     const std::string name = remote_screen_webcam_name(!remote, host);
     const std::string route = remote_screen_effective_route(
         remote, remote_screen_route(writable_path(".remote_screen_route")));
+    // The served frame is the display at its logical (rotated) size.
+    lv_display_t* disp = lv_display_get_default();
     const auto item = remote_screen_webcam_item(
         name, service.running() && settings.get_webcam(), settings.get_control(), route,
-        select_lan_ipv4(local_interface_ips()), service.port());
+        select_lan_ipv4(local_interface_ips()), service.port(),
+        lv_display_get_horizontal_resolution(disp), lv_display_get_vertical_resolution(disp));
     // The uid belongs to the printer this reconcile ran against, even if the active
     // printer changes before Moonraker answers.
     const std::string printer = Config::get_instance()->df();
