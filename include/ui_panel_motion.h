@@ -55,6 +55,14 @@ std::optional<AxisKeypadParams> keypad_params_for_axis(const AxisBounds& bounds,
 bool z_direction_blocked(bool z_homed, bool bounds_known, double z, double z_min, double z_max,
                          double direction_mm);
 
+/// Segments the home bar shows with XY: All, X, Y, XY and Z.
+inline constexpr int kHomeBarSegmentsWithXy = 5;
+
+/// Whether a home bar @p bar_content_w px wide holds the XY segment: every one
+/// of its kHomeBarSegmentsWithXy segments must stay at least @p min_segment_w
+/// (touch_target_min) wide, or XY stays out and the other four keep their room.
+bool home_bar_fits_xy(int32_t bar_content_w, int32_t min_segment_w);
+
 /// A block's size in px.
 struct BlockSize {
     int w = 0;
@@ -287,6 +295,10 @@ class MotionPanel : public OverlayBase {
     /// SIZE_CHANGED event calls this, and so does a change in the step count.
     void fit_jog_layout(lv_obj_t* root);
 
+    /// Publish whether @p bar, a home_axis_bar, is wide enough for its XY
+    /// segment (home_bar_fits_xy()). Its SIZE_CHANGED event calls this.
+    void fit_home_bar(lv_obj_t* bar);
+
     /// Bed tab: draw the reference grid and the print's outlines on the plate
     /// (its DRAW_MAIN hook).
     void draw_bed_plate(lv_event_t* e) const;
@@ -321,7 +333,8 @@ class MotionPanel : public OverlayBase {
     lv_subject_t motion_y_homed_{};
     lv_subject_t motion_z_homed_{};
     lv_subject_t motion_all_homed_{};   ///< the home bar's All segment
-    lv_subject_t motion_home_bar_xy_{}; ///< 0: the bar is too narrow for XY
+    lv_subject_t motion_xy_homed_{};    ///< the home bar's XY segment
+    lv_subject_t motion_home_bar_xy_{}; ///< 1: the bar is wide enough for XY
     // Z button limit state (1=render disabled): a further move in that
     // button's G-code direction is impossible. up/down are screen directions,
     // the bed_moves inversion inside update_z_button_blocked() maps them.

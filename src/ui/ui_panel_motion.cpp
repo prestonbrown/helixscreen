@@ -247,6 +247,10 @@ bool helix::z_direction_blocked(bool z_homed, bool bounds_known, double z, doubl
     return z <= z_min + tolerance;
 }
 
+bool helix::home_bar_fits_xy(int32_t bar_content_w, int32_t min_segment_w) {
+    return min_segment_w > 0 && bar_content_w >= kHomeBarSegmentsWithXy * min_segment_w;
+}
+
 /// Bed-grid preset keys as they appear in motion_panel.xml user_data, in
 /// MotionPreset declaration order (rear row first, front row last).
 // ============================================================================
@@ -386,6 +390,7 @@ void MotionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(motion_y_homed_, 0, "motion_y_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(motion_z_homed_, 0, "motion_z_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(motion_all_homed_, 0, "motion_all_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_xy_homed_, 0, "motion_xy_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(motion_home_bar_xy_, 0, "motion_home_bar_xy", subjects_);
 
     // Z button limit state (0=enabled, 1=disabled); XML binds these with
@@ -584,6 +589,12 @@ void MotionPanel::register_callbacks() {
         {"on_motion_home_all", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
         {"on_motion_home_x", [](lv_event_t*) { get_global_motion_panel().home('X'); }},
         {"on_motion_home_y", [](lv_event_t*) { get_global_motion_panel().home('Y'); }},
+        {"on_motion_home_xy", [](lv_event_t*) { get_global_motion_panel().home_axes("XY"); }},
+        {"on_motion_home_bar_size_changed",
+         [](lv_event_t* e) {
+             get_global_motion_panel().fit_home_bar(
+                 static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
+         }},
         {"on_motion_home_z", [](lv_event_t*) { get_global_motion_panel().home('Z'); }},
         {"on_motion_bed_cleared", [](lv_event_t*) { helix::confirm_bed_cleared(); }},
         {"on_motion_bed_plate_draw",
@@ -997,6 +1008,7 @@ void MotionPanel::register_position_observers() {
             lv_subject_set_int(&self->motion_y_homed_, y);
             lv_subject_set_int(&self->motion_z_homed_, z);
             lv_subject_set_int(&self->motion_all_homed_, x && y && z ? 1 : 0);
+            lv_subject_set_int(&self->motion_xy_homed_, x && y ? 1 : 0);
             self->update_z_button_blocked();
             self->refresh_bed_readout();
             self->update_jog_pad_homed();
@@ -1579,6 +1591,17 @@ PlateRect plate_rect(const helix::BedCoordMapper& mapper, const helix::AxisBound
             static_cast<int32_t>(std::lround(x2 - x1)), static_cast<int32_t>(std::lround(y2 - y1))};
 }
 } // namespace
+
+void MotionPanel::fit_home_bar(lv_obj_t* bar) {
+    if (!bar || !subjects_initialized_) {
+        return;
+    }
+    const auto min_segment = static_cast<int32_t>(theme_manager_get_spacing("touch_target_min"));
+    const int fits = helix::home_bar_fits_xy(lv_obj_get_content_width(bar), min_segment) ? 1 : 0;
+    if (lv_subject_get_int(&motion_home_bar_xy_) != fits) {
+        lv_subject_set_int(&motion_home_bar_xy_, fits);
+    }
+}
 
 void MotionPanel::layout_bed_map() {
     if (!overlay_root_ || motion_tab_ != 2) {

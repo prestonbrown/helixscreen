@@ -160,3 +160,78 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the Z column draws what the Z keys move", "
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
 }
+
+TEST_CASE("the home bar holds XY only at a touch target per segment", "[motion][homed]") {
+    using helix::home_bar_fits_xy;
+    using helix::kHomeBarSegmentsWithXy;
+    constexpr int32_t kMin = 48;
+    CHECK(home_bar_fits_xy(kHomeBarSegmentsWithXy * kMin, kMin));
+    CHECK_FALSE(home_bar_fits_xy(kHomeBarSegmentsWithXy * kMin - 1, kMin));
+    CHECK(home_bar_fits_xy(640, kMin));
+    // Four touch targets is not five.
+    CHECK_FALSE(home_bar_fits_xy(4 * kMin, kMin));
+    // An unknown minimum keeps XY out rather than squeezing every segment.
+    CHECK_FALSE(home_bar_fits_xy(1000, 0));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the motion home bar shows XY when it is wide enough",
+                 "[motion][homed][xml]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(helix::KlippyState::READY);
+    MoonrakerAPI api(client, state);
+    IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(lv_screen_active());
+    NavigationManager::instance().set_panels(panels.data());
+    REQUIRE(get_global_motion_panel().show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* root = get_global_motion_panel().get_root();
+    REQUIRE(root != nullptr);
+    lv_subject_t* individual = lv_xml_get_subject(nullptr, "printer_has_individual_xyz_homing");
+    REQUIRE(individual != nullptr);
+    lv_subject_set_int(individual, 1);
+
+    lv_obj_t* bar = lv_obj_find_by_name(root, "motion_home_bar");
+    lv_obj_t* xy = lv_obj_find_by_name(root, "btn_home_xy");
+    REQUIRE(bar != nullptr);
+    REQUIRE(xy != nullptr);
+    const int32_t min_segment = theme_manager_get_spacing("touch_target_min");
+    REQUIRE(min_segment > 0);
+
+    // The bar's own SIZE_CHANGED event decides; nothing else is called.
+    auto resize = [&](int32_t content_w) {
+        lv_obj_set_flex_grow(bar, 0);
+        lv_obj_set_width(bar, content_w + lv_obj_get_style_pad_left(bar, LV_PART_MAIN) +
+                                  lv_obj_get_style_pad_right(bar, LV_PART_MAIN) +
+                                  2 * lv_obj_get_style_border_width(bar, LV_PART_MAIN));
+        lv_obj_update_layout(bar);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    resize(helix::kHomeBarSegmentsWithXy * min_segment + 40);
+    CHECK_FALSE(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+
+    client.clear_gcode_script_history();
+    lv_obj_send_event(xy, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    const auto& h = client.gcode_script_history();
+    CHECK(std::find(h.begin(), h.end(), "G28 X Y") != h.end());
+
+    // A printer that cannot home axes separately shows All alone.
+    lv_subject_set_int(individual, 0);
+    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(individual, 1);
+
+    resize(helix::kHomeBarSegmentsWithXy * min_segment - 10);
+    CHECK(lv_obj_has_flag(xy, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(root, "btn_home_z"), LV_OBJ_FLAG_HIDDEN));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    set_moonraker_api(previous);
+}

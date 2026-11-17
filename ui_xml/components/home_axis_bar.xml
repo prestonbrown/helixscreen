@@ -4,9 +4,9 @@
 <component>
   <!-- The segmented homing bar: All, then the single axes where the printer
        homes them separately. Each segment reads green once its axis is homed.
-       The owning panel names its own callbacks; `xy_gate` names the subject
-       that shows the XY segment (a panel whose bar is too narrow for it
-       passes one that stays 0). -->
+       The owning panel names its own callbacks; `xy_gate` names a subject
+       that is 0 while the bar is too narrow for the XY segment. XY also needs
+       the printer to home its axes separately, like X, Y and Z. -->
   <api>
     <prop name="all_callback" type="string" default=""/>
     <prop name="x_callback" type="string" default=""/>
@@ -57,6 +57,7 @@
                        moves_machine="true">
       <bind_style name="home_btn_homed" subject="$xy_homed" ref_value="1"/>
       <bind_style name="home_btn_unhomed" subject="$xy_homed" ref_value="0"/>
+      <bind_flag_if_eq subject="printer_has_individual_xyz_homing" flag="hidden" ref_value="0"/>
       <bind_flag_if_eq subject="$xy_gate" flag="hidden" ref_value="0"/>
       <bind_state_if_eq subject="controls_operation_in_progress" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="$xy_callback"/>
