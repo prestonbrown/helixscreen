@@ -1070,6 +1070,14 @@ still on the bed; `HELIX_MOCK_NOZZLE_CAL_FAIL=<n>` fails head `n`'s probe.
 would leave it, so the connect-time "End it now?" prompt shows.
 `tests/unit/test_mock_nozzle_offset_calibration.cpp` pins it.
 
+### `HELIX_MOCK_HH_DEVELOPMENT`
+
+`1` makes the Happy Hare mock hardware (the default persona's `mmu`) also publish what
+only Happy Hare's development branch has: `printer.mmu.drying` (one `null` per unit) and
+`[mmu_parameters] endless_spool_auto_groups: 1`, which makes the endless spool groups
+read-only. Unset, the mock is Happy Hare 4.2.0 as released, with `gate_remaining_weight` and
+`gate_initial_weight`. `tests/unit/test_mock_real_ams_backends.cpp` pins both.
+
 ### `HELIX_MOCK_AMS_STATE`
 
 Select the mock AMS visual scenario.

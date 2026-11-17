@@ -129,7 +129,7 @@ TEST_CASE_METHOD(HappyHareMock,
     const helix::PrinterDiscovery hw = mock->hardware();
     CHECK(hw.mmu_type() == helix::AmsType::HAPPY_HARE);
     const json status = mock->happy_hare_status_json();
-    CHECK(status["mmu_machine"]["happy_hare_version"] == "4.1.0");
+    CHECK(status["mmu_machine"]["happy_hare_version"] == "4.2.0");
     CHECK(status["mmu_machine"]["unit_0"]["environment_sensor"] == "temperature_sensor dryer");
 
     const auto d = helix::happy_hare::parse_mmu_status(mmu());
@@ -152,6 +152,27 @@ TEST_CASE_METHOD(HappyHareMock,
     CHECK(d.topology.ttg_map == std::vector<int>{0, 1, 2, 3});
     CHECK(mock->happy_hare_config_sections()["mmu_parameters"]["form_tip_macro"] ==
           "_MMU_FORM_TIP");
+    // 4.2 gate weights; gate 4 (index 3) is empty but keeps its spool's weights.
+    REQUIRE(d.identity.remaining_weight);
+    CHECK((*d.identity.remaining_weight)[0] == 1000);
+    CHECK((*d.identity.remaining_weight)[1] == 870);
+    CHECK((*d.identity.initial_weight)[2] == 1000);
+    // Development-only fields stay off by default.
+    CHECK_FALSE(d.drying_cycles);
+    CHECK_FALSE(
+        mock->happy_hare_config_sections()["mmu_parameters"].contains("endless_spool_auto_groups"));
+}
+
+TEST_CASE("Happy Hare mock: HELIX_MOCK_HH_DEVELOPMENT publishes development-only fields",
+          "[ams][mock][happy_hare]") {
+    helix::ScopedEnv development{"HELIX_MOCK_HH_DEVELOPMENT", "1"};
+    HappyHareMock hh;
+    const auto d = helix::happy_hare::parse_mmu_status(hh.mmu());
+    REQUIRE(d.drying_cycles);
+    REQUIRE(d.drying_cycles->size() == 1);
+    CHECK_FALSE((*d.drying_cycles)[0]);
+    CHECK(hh.mock->happy_hare_config_sections()["mmu_parameters"]["endless_spool_auto_groups"] ==
+          1);
 }
 
 TEST_CASE_METHOD(HappyHareMock, "Happy Hare mock: unload, load and T<n> step through the path",
@@ -199,6 +220,14 @@ TEST_CASE_METHOD(HappyHareMock, "Happy Hare mock: gate map, eject, select and en
     CHECK(frames.values("mmu", "gate_material").back()[1] == "PETG");
     REQUIRE(mock->gcode_script("MMU_GATE_MAP GATE=1 MATERIAL= COLOR=") == 0);
     CHECK(mmu()["gate_material"][1] == "");
+    // TEMP=0 keeps the temperature; WEIGHT= and INITIAL_WEIGHT= (4.2) set the weights.
+    const json temp = mmu()["gate_temperature"][1];
+    REQUIRE(mock->gcode_script("MMU_GATE_MAP GATE=1 WEIGHT=420 INITIAL_WEIGHT=750 TEMP=0") == 0);
+    CHECK(mmu()["gate_temperature"][1] == temp);
+    CHECK(mmu()["gate_remaining_weight"][1] == 420);
+    CHECK(mmu()["gate_initial_weight"][1] == 750);
+    REQUIRE(mock->gcode_script("MMU_GATE_MAP GATE=3 AVAILABLE=1 TEMP=0 QUIET=1") == 0);
+    CHECK(mmu()["gate_status"][3] == 1);
 
     REQUIRE(mock->gcode_script("MMU_ENDLESS_SPOOL QUIET=1 GROUPS=2,1,2,3") == 0);
     REQUIRE(mock->gcode_script("MMU_ENDLESS_SPOOL ENABLE=0 QUIET=1") == 0);
