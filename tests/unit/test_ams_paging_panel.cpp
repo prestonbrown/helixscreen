@@ -1452,6 +1452,13 @@ bool card_shows(lv_obj_t* card, const char* name) {
     REQUIRE(obj != nullptr);
     return !lv_obj_is_hidden(obj);
 }
+/// The overview's cards, in the order the row lays them out.
+std::vector<lv_obj_t*> row_cards(lv_obj_t* row) {
+    std::vector<lv_obj_t*> out;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i)
+        out.push_back(lv_obj_get_child(row, static_cast<int32_t>(i)));
+    return out;
+}
 uint32_t bar_count(lv_obj_t* card) {
     lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
     REQUIRE(bars != nullptr);
@@ -1469,7 +1476,7 @@ TEST_CASE_METHOD(PagingFixture,
     open();
 
     CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 1);
-    for (lv_obj_t* card : AmsPanelTestAccess::unit_cards(panel())) {
+    for (lv_obj_t* card : row_cards(named("unit_cards_row"))) {
         CHECK(bar_count(card) == kSlotsPerUnit);
         CHECK(card_shows(card, "env_indicator"));
         // The line takes the lane count's place, so the card keeps its height.
@@ -1488,13 +1495,11 @@ TEST_CASE_METHOD(PagingFixture,
     open();
 
     CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);
-    const auto cards = AmsPanelTestAccess::unit_cards(panel());
-    REQUIRE_FALSE(cards.empty());
-    const auto units = AmsPanelTestAccess::unit_card_units(panel());
-    REQUIRE(units.size() == cards.size());
-    // The cards have readouts to drop.
-    REQUIRE(subject(AmsState::instance().get_env_ind_visible_subject(units[0])) == 1);
-    for (lv_obj_t* card : cards) {
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE_FALSE(card_list.empty());
+    // The cards have readouts to drop; units are numbered by position here.
+    REQUIRE(subject(AmsState::instance().get_env_ind_visible_subject(0)) == 1);
+    for (lv_obj_t* card : card_list) {
         CHECK(bar_count(card) == kSlotsPerUnit);
         CHECK_FALSE(card_shows(card, "env_indicator"));
         CHECK(card_shows(card, "slot_count"));
@@ -1511,21 +1516,18 @@ TEST_CASE_METHOD(PagingFixture,
     });
     open();
 
-    const auto cards = AmsPanelTestAccess::unit_cards(panel());
-    const auto units = AmsPanelTestAccess::unit_card_units(panel());
-    REQUIRE(cards.size() == 2);
-    for (size_t i = 0; i < cards.size(); ++i) {
-        if (units[i] != 0)
-            continue;
-        lv_obj_t* bars = lv_obj_find_by_name(cards[i], "bars_container");
-        const int32_t width = lv_obj_get_content_width(bars);
-        const int32_t gap = theme_manager_get_spacing("space_xxs");
-        // The bars that fit at the floor width are drawn; the rest are not.
-        const auto fit = helix::ui::decide_unit_card_fit(width, 40, 6, gap, 0);
-        REQUIRE(fit.bars_shown < 40);
-        CHECK(bar_count(cards[i]) == static_cast<uint32_t>(fit.bars_shown));
-        CHECK(card_shows(cards[i], "slot_count"));
-    }
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE(card_list.size() == 2);
+    // The row lays the units out by position: the 40-lane unit is first.
+    lv_obj_t* wide = card_list[0];
+    lv_obj_t* bars = lv_obj_find_by_name(wide, "bars_container");
+    const int32_t width = lv_obj_get_content_width(bars);
+    const int32_t gap = theme_manager_get_spacing("space_xxs");
+    // The bars that fit at the floor width are drawn; the rest are not.
+    const auto fit = helix::ui::decide_unit_card_fit(width, 40, 6, gap, 0);
+    REQUIRE(fit.bars_shown < 40);
+    CHECK(bar_count(wide) == static_cast<uint32_t>(fit.bars_shown));
+    CHECK(card_shows(wide, "slot_count"));
     // One answer for the row: the overflowing unit leaves every card's readout
     // to its page.
     CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);

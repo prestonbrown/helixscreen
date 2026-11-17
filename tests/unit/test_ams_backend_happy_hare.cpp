@@ -428,12 +428,6 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
             happy_hare::read_machine_layout(settings, live_mmu_machine));
     }
 
-    /// Expose apply_config_defaults for testing (simulates the async configfile query result)
-    void test_apply_config_defaults(const nlohmann::json& settings) {
-        HappyHareTestAccess::apply_config_defaults(
-            *this, settings, happy_hare::read_machine_layout(settings, nlohmann::json::object()));
-    }
-
     /// Expose apply_filament_heater_status for testing
     bool test_apply_filament_heater_status(const nlohmann::json& params) {
         return HappyHareTestAccess::apply_filament_heater_status(*this, params);
@@ -694,19 +688,27 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare clear: the wipe names every gate-map fiel
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
 }
 
-TEST_CASE_METHOD(HhHelper, "Happy Hare clear: the wipe returns the gate to default_extruder_temp",
-                 "[ams][happy_hare][clear]") {
-    helper.initialize_test_gates(2);
+namespace {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
+} // namespace
 
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare clear: the wipe returns the gate to default_extruder_temp",
+                 "[ams][happy_hare][clear]") {
     // Happy Hare up to v4.2.0 reads an omitted TEMP as default_extruder_temp;
     // later versions keep the gate's own. Naming the default resets the gate
-    // on both.
+    // on both. The connect-time configfile read supplies it.
     SECTION("v3 keeps it in [mmu]") {
-        helper.test_apply_config_defaults({{"mmu", {{"default_extruder_temp", 215}}}});
+        connect_with_fixture(
+            helper, client, {{"configfile_settings", {{"mmu", {{"default_extruder_temp", 215}}}}}});
     }
     SECTION("v4 keeps it in [mmu_parameters], as Klipper's parsed float") {
-        helper.test_apply_config_defaults({{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
-                                           {"mmu_parameters", {{"default_extruder_temp", 215.0}}}});
+        connect_with_fixture(helper, client,
+                             {{"configfile_settings",
+                               {{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
+                                {"mmu_parameters", {{"default_extruder_temp", 215.0}}}}},
+                              {"mmu_machine", {{"happy_hare_version", "4.2.0"}}}});
     }
 
     SlotInfo* slot = helper.get_mutable_slot(1);

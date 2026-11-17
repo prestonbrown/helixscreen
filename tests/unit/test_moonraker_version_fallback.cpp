@@ -148,7 +148,7 @@ class TaglessMoonrakerClient : public MoonrakerClientMock {
 
 } // namespace
 
-TEST_CASE("Discovery reads Moonraker's version from update_manager when server.info has none",
+TEST_CASE("Discovery reads a placeholder version from update_manager",
           "[versions][moonraker_version][discovery]") {
     LVGLTestFixture fixture;
     PrinterState& state = get_printer_state();
@@ -156,48 +156,31 @@ TEST_CASE("Discovery reads Moonraker's version from update_manager when server.i
     state.init_subjects(false);
     TaglessMoonrakerClient client;
     client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
-
     bool completed = false;
-    client.discover_printer_real([&completed]() { completed = true; }, [](const std::string&) {});
-    REQUIRE(completed);
-    CHECK(client.hardware().moonraker_version() == "9e676eb");
+    const auto discover = [&] {
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string&) {});
+        REQUIRE(completed);
+        UpdateQueue::instance().drain();
+    };
 
-    UpdateQueue::instance().drain();
-    CHECK(std::string(lv_subject_get_string(
-              state.versions_state().get_moonraker_version_subject())) == "9e676eb");
-}
+    SECTION("Moonraker, when server.info has none") {
+        discover();
+        CHECK(client.hardware().moonraker_version() == "9e676eb");
+        CHECK(std::string(lv_subject_get_string(
+                  state.versions_state().get_moonraker_version_subject())) == "9e676eb");
+    }
 
-TEST_CASE("Discovery reads Klipper's version from update_manager when printer.info has none",
-          "[versions][moonraker_version][discovery]") {
-    LVGLTestFixture fixture;
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-    TaglessMoonrakerClient client;
-    client.klipper_placeholder = true;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    SECTION("Klipper, when printer.info has none") {
+        client.klipper_placeholder = true;
+        discover();
+        CHECK(client.hardware().software_version() == "25d8714");
+        CHECK(std::string(lv_subject_get_string(
+                  state.versions_state().get_klipper_version_subject())) == "25d8714");
+    }
 
-    bool completed = false;
-    client.discover_printer_real([&completed]() { completed = true; }, [](const std::string&) {});
-    REQUIRE(completed);
-    CHECK(client.hardware().software_version() == "25d8714");
-
-    UpdateQueue::instance().drain();
-    CHECK(std::string(lv_subject_get_string(
-              state.versions_state().get_klipper_version_subject())) == "25d8714");
-}
-
-TEST_CASE("Discovery keeps the version printer.info reports over update_manager's",
-          "[versions][moonraker_version][discovery]") {
-    LVGLTestFixture fixture;
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-    TaglessMoonrakerClient client;
-    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
-
-    bool completed = false;
-    client.discover_printer_real([&completed]() { completed = true; }, [](const std::string&) {});
-    REQUIRE(completed);
-    CHECK(client.hardware().software_version() == "v0.12.0-mock");
+    SECTION("never over the version printer.info reports") {
+        discover();
+        CHECK(client.hardware().software_version() == "v0.12.0-mock");
+    }
 }

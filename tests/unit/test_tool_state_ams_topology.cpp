@@ -16,7 +16,6 @@
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
-#include "test_helpers/afc_test_access.h"
 #include "test_helpers/ams_backend_probes.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/log_capture.h"
@@ -898,14 +897,11 @@ TEST_CASE("A lane backend's topology does not allow an empty carriage",
 TEST_CASE_METHOD(ToolStateFixture,
                  "An AFC toolchanger with every head parked shows no tool mounted",
                  "[tool-state][ams-topology][empty-carriage][afc]") {
-    helix::AmsBackendAfc afc(nullptr, nullptr);
-    helix::AfcTestAccess::initialize_slots(afc,
-                                           std::vector<std::string>{"lane1", "lane2", "lane3"});
-    const auto feed = [&afc](const nlohmann::json& frame) {
-        nlohmann::json notification;
-        notification["params"] = nlohmann::json::array({frame, 0.0});
-        helix::AfcTestAccess::handle_status_update(afc, notification);
-    };
+    helix::test::WiredBackend<helix::AmsBackendAfc> afc;
+    afc.set_discovered_lanes({"lane1", "lane2", "lane3"}, {});
+    REQUIRE(afc.start().success());
+    UpdateQueue::instance().drain();
+    const auto feed = [&afc](const nlohmann::json& frame) { afc.fire_status(frame); };
     const auto publish = [&afc] {
         auto topo = helix::build_ams_topology(&afc, 0);
         REQUIRE(topo.has_value());

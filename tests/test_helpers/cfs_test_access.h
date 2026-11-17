@@ -38,9 +38,6 @@ class CfsTestAccess {
     }
 
     /// Runs only the startup store load: a null client skips the initial query.
-    static void handle_status(helix::printer::AmsBackendCfs& b, const nlohmann::json& n) {
-        b.handle_status_update(n);
-    }
     static void start_load(helix::printer::AmsBackendCfs& b) {
         b.on_started();
         // The store's first read lands through the update queue.
@@ -233,12 +230,6 @@ class CfsTestAccess {
         b.filament_sensor_seen_ = seen;
         b.last_filament_detected_ = detected;
         b.system_info_.filament_loaded = detected;
-    }
-
-    /// Seed the box's spool-used-up latch (box.filament_useup).
-    static void set_filament_runout(helix::printer::AmsBackendCfs& b, bool runout) {
-        std::lock_guard<std::mutex> lock(b.mutex_);
-        b.system_info_.filament_runout = runout;
     }
 
     /// Run the real completion path (the gcode-script success callback body),

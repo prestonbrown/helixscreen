@@ -4539,7 +4539,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
-    CHECK(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 49);
     send_gcode_response("// probe at 30.000,30.000 is z=0.100000");
     drain_async_updates();
     CHECK(get_current_message().find("(1/49)") != std::string::npos);
@@ -7385,7 +7384,7 @@ TEST_CASE_METHOD(LevelingPointsFixture,
         }
     });
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
-    CHECK(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 49);
+    CHECK(get_current_message().rfind("Probing Bed Mesh (49/49", 0) == 0);
 }
 
 TEST_CASE_METHOD(LevelingPointsFixture,
