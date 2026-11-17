@@ -1037,9 +1037,10 @@ int32_t live_content_max_width(lv_obj_t* obj);
  *
  * The overlay keeps the full width ui_set_overlay_geometry() gave it, so it
  * still occludes the backdrop, and whatever overshoots the cap becomes extra
- * right padding. @p base_pad_right is the padding the overlay was built with;
- * the caller remembers it so the overflow can shrink or vanish on a resize.
- * With @p capped false the padding returns to @p base_pad_right.
+ * right padding. Its header (the overlay_header child) keeps the full width,
+ * so only the content below the header is capped. @p base_pad_right is the padding the overlay was
+ * built with; the caller remembers it so the overflow can shrink or vanish on a resize. With @p
+ * capped false the padding returns to @p base_pad_right.
  */
 void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped);
 
