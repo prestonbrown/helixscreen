@@ -129,7 +129,7 @@ HelixScreen starts by itself when the install finishes; a reboot is sometimes ne
 3. **Connection:** HelixScreen connects to the printer's own Moonraker by itself and skips this step. If it can't reach it yet, the step appears: the address `127.0.0.1` and port `7125` are right, so tap **Test Connection**, then continue.
 4. **Printer Identification:** confirm your model (the K1, K1C and K1 Max are all in HelixScreen's printer list). HelixScreen then fills in the heaters, fans and sensors for you and skips those steps.
 5. **Preferences:** a few choices, such as sounds, that you can change later in Settings.
-6. **Review:** check the summary, pick an update channel, and choose whether to send anonymous usage statistics with **Share Usage Data**. You can change these later in **Settings > Updates** and **Settings > System**.
+6. **Updates & Data:** pick an update channel, and choose whether to send anonymous usage statistics with **Share Usage Data**. You can change these later in **Settings > Updates** and **Settings > System**.
 
 Then the Home screen appears. Worth doing first:
 

@@ -12,13 +12,20 @@
          value_tag="Review your configuration below, then click Finish to save"/>
     <int name="step_order" value="10"/>
   </consts>
+  <styles>
+    <!-- The setting rows' horizontal inset (their pad_micro / pad_standard), so the summary
+         headings line up with the rows above them -->
+    <style name="inset_micro" pad_left="#space_md" pad_right="#space_md"/>
+    <style name="inset_standard" pad_left="#space_lg" pad_right="#space_lg"/>
+  </styles>
   <view name="wizard_summary_root"
         extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
         flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
     <!-- Single combined card: update channel and telemetry opt-in, then the config summary -->
     <ui_card name="telemetry_card"
-             width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
-             style_flex_main_place="start" style_flex_cross_place="start" scrollable="true">
+             width="100%" flex_grow="1" style_pad_top="#space_md" style_pad_bottom="#space_md" style_pad_left="0"
+             style_pad_right="0" style_pad_gap="#space_sm" flex_flow="column" style_flex_main_place="start"
+             style_flex_cross_place="start" scrollable="true">
       <!-- The update channel and the statistics opt-in, the Updates & Data step's rows, are
            asked once, on the first printer -->
       <lv_obj name="telemetry_opt_in_rows"
@@ -32,10 +39,14 @@
       <divider_horizontal name="telemetry_divider">
         <bind_flag_if_eq subject="summary_telemetry_visible" flag="hidden" ref_value="0"/>
       </divider_horizontal>
-      <!-- Config summary: two-column layout -->
+      <!-- Config summary: two-column layout. The card has no side padding because the setting
+           rows bring their own; this block takes the same inset, from the bound styles (an
+           inline side padding would outrank them). -->
       <lv_obj width="100%"
-              height="content" style_pad_all="0" style_pad_gap="#space_md" flex_flow="row" style_flex_main_place="start"
-              style_flex_cross_place="start">
+              height="content" style_pad_top="0" style_pad_bottom="0" style_pad_gap="#space_md" flex_flow="row"
+              style_flex_main_place="start" style_flex_cross_place="start">
+        <bind_style_if_eq name="inset_micro" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if_ge name="inset_standard" subject="ui_breakpoint" ref_value="1"/>
         <!-- Left column: Connection settings -->
         <lv_obj width="48%"
                 height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column"
