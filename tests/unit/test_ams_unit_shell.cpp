@@ -4,7 +4,6 @@
 #include "ams_unit_shell.h"
 
 #include <string>
-#include <utility>
 
 #include "../catch_amalgamated.hpp"
 

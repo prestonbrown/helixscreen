@@ -415,7 +415,6 @@ TEST_CASE("A unit's combiner decides how its lanes reach one extruder", "[filame
     using helix::PathTopology;
     using helix::ui::tray::Combiner;
     for (PathTopology one : {PathTopology::LINEAR, PathTopology::HUB}) {
-        CAPTURE(static_cast<int>(one));
         const CombinerLayout inside = combiner_layout(Combiner::Internal, false, one);
         const CombinerLayout outside = combiner_layout(Combiner::External, false, one);
         CHECK((inside.topology == PathTopology::HUB && inside.merge_inside));
