@@ -161,7 +161,10 @@ confirm point. It runs on the builder's machine, so it starts no service, runs n
 `sudo`, `apt` or `udevadm`, asks no Moonraker and reads nothing of the build host's own state.
 Every write is the target root plus the path the booted printer sees, and every path written into
 a file (unit lines, Moonraker's `path:`) is the printer's path alone. `--target-root /` is the
-CustomPiOS case, where the module runs inside the image's chroot.
+CustomPiOS case, where the module (`scripts/custompios/helixscreen/`) runs inside the image's
+chroot. Any spelling of `/` (`//`, `/.`, a symlink to it) is refused on a booted system
+(`_image_host_is_booted`: `/run/systemd/system` exists), so the mode never installs onto the
+build host; a missing directory, or one with no `etc/passwd` or `etc/systemd`, is refused too.
 
 - **Inputs.** `--platform pi|pi32` and `--local` are required: an image build installs a pinned
   archive and nothing is downloaded. `--update`, `--uninstall`, `--clean`, `--version`,
