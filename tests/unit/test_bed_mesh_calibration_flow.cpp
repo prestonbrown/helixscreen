@@ -13,6 +13,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
@@ -273,6 +274,26 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     CHECK(helix::ui::BedMeshPanelTestAccess::calibrate_state(panel) ==
           static_cast<int>(BedMeshCalibrationState::NAMING));
     CHECK(sent().empty());
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a calibration that cannot start shows why",
+                 "[bed_mesh_flow]") {
+    use_printer("");
+    BedMeshPanel panel; // no API
+    panel.init_subjects();
+    lv_subject_t* error = lv_xml_get_subject(nullptr, "bed_mesh_error_message");
+    REQUIRE(error != nullptr);
+    // The error label redraws only on a notification of its subject.
+    int notes = 0;
+    ObserverGuard guard = helix::ui::observe<const char*>(
+        error, &notes, [](int* n, const char*) { ++*n; }, subject_never_freed(),
+        helix::ui::Dispatch::Immediate);
+    notes = 0;
+
+    calibrate_as(panel, "default");
+
+    CHECK(notes > 0);
+    CHECK(std::string(lv_subject_get_string(error)).find("API") != std::string::npos);
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture, "the mesh is named before any calibration gcode is sent",
