@@ -326,6 +326,8 @@ TEST_CASE("CFS Fork variant never homes via dispatch_action_script", "[ams][homi
 
 namespace {
 
+using PanelAccess = helix::ui::FilamentPanelTestAccess;
+
 /// A FilamentPanel whose load reaches the configured-macro tier on an unhomed
 /// printer with a hot nozzle.
 struct UnhomedMacroLoad {
@@ -341,13 +343,13 @@ struct UnhomedMacroLoad {
     }
 
     void press_load() {
-        helix::ui::FilamentPanelTestAccess::handle_load_button(*h.panel);
+        PanelAccess::handle_load_button(*h.panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
     void execute_load_needing_home() {
-        helix::ui::FilamentPanelTestAccess::set_home_before_load_macro(*h.panel, true);
-        helix::ui::FilamentPanelTestAccess::execute_load(*h.panel);
+        PanelAccess::set_home_before_load_macro(*h.panel, true);
+        PanelAccess::execute_load(*h.panel);
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 
@@ -414,5 +416,5 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A home that fails before a macro-tier load 
     CHECK(t.first_sent("G28") >= 0);
     CHECK(t.first_sent("LOAD_FILAMENT") < 0);
     // The op's own failure path ran: nothing is left waiting on the guard.
-    CHECK(helix::ui::FilamentPanelTestAccess::operation_timer(*t.h.panel) == nullptr);
+    CHECK(PanelAccess::operation_timer(*t.h.panel) == nullptr);
 }
