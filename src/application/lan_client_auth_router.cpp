@@ -5,6 +5,7 @@
 #include "ui_toast_manager.h"
 
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
 
@@ -74,10 +75,11 @@ std::string LanClientAuthRouter::describe_request(const lan_auth::PendingRequest
 }
 
 std::string LanClientAuthRouter::decision_state(const nlohmann::json& response) {
-    if (!response.contains("result") || !response["result"].is_object()) {
+    const nlohmann::json* result_obj = helix::json_util::find_object(response, "result");
+    if (!result_obj) {
         return {};
     }
-    const auto& result = response["result"];
+    const auto& result = *result_obj;
     auto it = result.find("state");
     if (it == result.end() || !it->is_string()) {
         return {};

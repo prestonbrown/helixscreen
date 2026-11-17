@@ -245,7 +245,8 @@ int on_agent_event(lua_State* L) {
             if (helix::json_util::safe_string(p0, "event", "") != event)
                 return;
             std::string agent = helix::json_util::safe_string(p0, "agent", "");
-            json data = p0.contains("data") ? p0["data"] : json();
+            const json* data_field = helix::json_util::find_member(p0, "data");
+            json data = data_field ? *data_field : json();
             size_t bytes = pushed_bytes(data);
             token.defer("plugin_agent_event", [rtp, ref, agent, data, bytes]() {
                 if (bytes > memory_remaining(*rtp)) {
