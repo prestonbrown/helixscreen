@@ -63,6 +63,9 @@ struct GateIdentityDelta {
     GateArray<std::string> name;          ///< gate_name
     GateArray<std::string> filament_name; ///< gate_filament_name (EMU)
     GateArray<int> endless_spool_group;
+    /// 4.2 gate_remaining_weight / gate_initial_weight: net grams, -1 unknown.
+    GateArray<int> remaining_weight;
+    GateArray<int> initial_weight;
 };
 
 struct EncoderDelta {
@@ -205,7 +208,17 @@ struct MachineLayout {
     /// Whether any unit has a bypass, from mmu_machine.unit_N.has_bypass. v4
     /// only: v4 publishes printer.mmu.has_bypass as a constant true.
     std::optional<bool> has_bypass;
+
+    /// Whether the install is Happy Hare @p version or later. An unknown
+    /// version is none of them, so an install that names none keeps the
+    /// oldest behavior.
+    [[nodiscard]] bool since(double version) const {
+        return version_number >= version;
+    }
 };
+
+/// The release that added each capability a version gate asks about.
+inline constexpr double kGateWeightsSince = 4.2; ///< gate_*_weight, MMU_GATE_MAP WEIGHT=
 
 /// One unit's machine fields. v3 and v4 both publish them on the live
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on

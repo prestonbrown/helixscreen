@@ -243,6 +243,12 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
 
     // Configuration
     AmsError apply_user_edit(int slot_index, const SlotInfo& info) override;
+    /// From 4.2 the gate map holds the weights, so a metered weight goes there
+    /// (MMU_GATE_MAP WEIGHT=) rather than to the extras record. Not in Spoolman
+    /// pull mode, which refuses it, nor on a gate linked to a spool, whose
+    /// weight is Spoolman's.
+    void persist_slot_weight(int slot_index, float remaining_weight_g,
+                             float total_weight_g) override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
     /// can_set_tool_mapping() for a caller that holds mutex_.
     [[nodiscard]] AmsError can_set_tool_mapping_locked(int tool_number, int slot_index) const;
@@ -393,17 +399,23 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
 
     // --- AmsSubscriptionBackend hooks ---
     void on_started() override;
-    /// The gate map holds the name on every version and the vendor on v4,
-    /// and no remaining weight: the extras record keeps the rest.
+    /// The gate map holds the name on every version, the vendor on v4 and
+    /// both weights from 4.2: the extras record keeps the rest.
     void configure_lane_record_store_locked(helix::ams::FilamentSlotOverrideStore& store) override {
         store.set_extras_fields(extras_fields_locked());
     }
     [[nodiscard]] helix::ams::ExtrasFields extras_fields_locked() const {
         helix::ams::ExtrasFields fields;
-        fields.remaining_weight = true;
+        fields.remaining_weight = !gate_map_holds_weights_locked();
+        fields.total_weight = !gate_map_holds_weights_locked();
         fields.spool_name = false;
         fields.brand = !is_v4_locked();
         return fields;
+    }
+    /// Happy Hare 4.2 keeps each gate's remaining and initial weight in its
+    /// gate map (MMU_GATE_MAP WEIGHT= / INITIAL_WEIGHT=).
+    [[nodiscard]] bool gate_map_holds_weights_locked() const {
+        return machine_layout_.since(happy_hare::kGateWeightsSince);
     }
     /// Re-point the store's extras fields once the layout names the version.
     /// Caller holds mutex_.

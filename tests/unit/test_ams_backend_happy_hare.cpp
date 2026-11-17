@@ -371,6 +371,13 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         system_info_.spoolman_mode = mode;
     }
 
+    /// The version the connect-time query would read off mmu_machine.
+    void set_happy_hare_version(const std::string& version) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        HappyHareTestAccess::machine_layout(*this) = happy_hare::read_machine_layout(
+            nlohmann::json::object(), nlohmann::json{{"happy_hare_version", version}});
+    }
+
     void set_selector_type(const std::string& type) {
         HappyHareTestAccess::selector_type(*this) = type;
     }
@@ -1231,6 +1238,109 @@ TEST_CASE("Happy Hare mark available waits for a running print to pause",
     helix::test::set_wire_state(fx.state, helix::PrintJobState::PAUSED);
     REQUIRE(helper.mark_gate_available(1).success());
     CHECK(helper.has_gcode_containing("MMU_GATE_MAP GATE=1 AVAILABLE=1"));
+}
+
+// ============================================================================
+// Gate weights (Happy Hare 4.2): the gate map holds remaining and initial weight
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 gate weights reach the slot as the firmware's",
+                 "[ams][happy_hare][gate_weights]") {
+    helper.set_happy_hare_version("4.2.0");
+    helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, 0, 120}},
+                            {"gate_initial_weight", {1000, -1, 1000, -1}}});
+
+    CHECK(helper.get_slot_info(0).remaining_weight_g == Catch::Approx(750.0F));
+    CHECK(helper.get_slot_info(0).total_weight_g == Catch::Approx(1000.0F));
+    CHECK(helper.get_slot_info(2).remaining_weight_g == Catch::Approx(0.0F));
+    CHECK(helper.get_slot_info(3).remaining_weight_g == Catch::Approx(120.0F));
+    // -1 is Happy Hare not knowing: no firmware weight on the lane.
+    const auto firmware = [&](int gate) {
+        const auto sources = helix::ams::lane_sources(helper.lane_id(gate));
+        REQUIRE(sources.firmware.has_value());
+        return *sources.firmware;
+    };
+    CHECK_FALSE(firmware(1).remaining_weight_g);
+    CHECK_FALSE(firmware(3).total_weight_g);
+    CHECK(firmware(0).remaining_weight_g == Catch::Approx(750.0F));
+
+    // A gate whose weight Happy Hare forgets drops the firmware's figure.
+    helper.feed_mmu_status({{"gate_remaining_weight", {-1, -1, 0, 120}}});
+    CHECK_FALSE(firmware(0).remaining_weight_g);
+}
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 sends a weight edit to the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    helper.set_happy_hare_version("4.2.0");
+    helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, -1, -1}},
+                            {"gate_initial_weight", {1000, -1, -1, -1}}});
+    SlotInfo edit = helper.get_slot_info(0);
+    edit.remaining_weight_g = 500.4F;
+
+    REQUIRE(helix::test::apply_edit(helper, 0, edit).success());
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
+
+    // The extras record keeps neither weight once the gate map holds them.
+    const auto fields = HappyHareTestAccess::extras_fields(helper);
+    CHECK_FALSE(fields.remaining_weight);
+    CHECK_FALSE(fields.total_weight);
+}
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
+                 "[ams][happy_hare][gate_weights]") {
+    helper.set_happy_hare_version("4.2.0");
+    helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+    SlotInfo edit = helper.get_slot_info(1);
+    edit.remaining_weight_g = 300.0F;
+
+    const AmsError err = helix::test::apply_edit(helper, 1, edit);
+    CHECK(err.result == AmsResult::COMMAND_FAILED);
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+}
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare before 4.2 keeps weights beside the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    helper.set_happy_hare_version("4.1.0");
+    SECTION("an edit") {
+        SlotInfo edit = helper.get_slot_info(1);
+        edit.remaining_weight_g = 300.0F;
+        REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
+    }
+    SECTION("an edit in pull mode") {
+        helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+        SlotInfo edit = helper.get_slot_info(1);
+        edit.remaining_weight_g = 300.0F;
+        REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
+    }
+    SECTION("a metered weight") {
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+    }
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+    const auto fields = HappyHareTestAccess::extras_fields(helper);
+    CHECK(fields.remaining_weight);
+    CHECK(fields.total_weight);
+}
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare 4.2 writes a metered weight to the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    helper.set_happy_hare_version("4.2.0");
+
+    SECTION("an unlinked gate") {
+        helper.persist_slot_weight(1, 280.4F, 1000.0F);
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_GATE_MAP GATE=1 WEIGHT=280 INITIAL_WEIGHT=1000 "
+                                       "TEMP=0 QUIET=1"});
+    }
+    SECTION("a gate linked to a spool, whose weight is Spoolman's") {
+        helper.get_mutable_slot(1)->spoolman_id = 7;
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("pull mode") {
+        helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
 }
 
 TEST_CASE_METHOD(HhHelper,

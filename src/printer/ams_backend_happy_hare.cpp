@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <map>
 
 namespace helix {
@@ -760,6 +761,30 @@ void AmsBackendHappyHare::apply_gate_binding_locked(const happy_hare::MmuStatusD
         }
         spdlog::trace("[AMS HappyHare] Parsed gate_spool_id for {} gates", spool_ids.size());
     }
+
+    // gate_remaining_weight / gate_initial_weight (4.2): the gate map's own
+    // weights in net grams. -1 is Happy Hare not knowing, which leaves the
+    // weight to whatever else knows it.
+    const auto file_weights = [this](const happy_hare::GateArray<int>& weights,
+                                     std::optional<float> ams::Observation::*field) {
+        if (!weights) {
+            return;
+        }
+        for (size_t i = 0; i < weights->size(); ++i) {
+            const auto& grams = (*weights)[i];
+            if (!grams || !slots_.get(static_cast<int>(i))) {
+                continue;
+            }
+            auto& reading = gate_reading_locked(static_cast<int>(i));
+            if (*grams >= 0) {
+                reading.*field = static_cast<float>(*grams);
+            } else {
+                (reading.*field).reset();
+            }
+        }
+    };
+    file_weights(identity.remaining_weight, &ams::Observation::remaining_weight_g);
+    file_weights(identity.initial_weight, &ams::Observation::total_weight_g);
 
     // gate_temperature (v4): per-gate nozzle temperature recommendations
     if (identity.temperature) {
@@ -2727,12 +2752,25 @@ AmsError pull_mode_refusal() {
                     lv_tr("Make color, material and spool changes in Spoolman."));
 }
 
+/// A weight as the gate map's whole grams, -1 for unknown.
+int gate_map_grams(float grams) {
+    return grams >= 0.0F ? static_cast<int>(std::lround(grams)) : -1;
+}
+
+/// Whether @p info moves a weight the gate map holds for the gate @p old
+/// describes, compared in the gate map's whole grams.
+bool edits_gate_weights(const SlotInfo& old, const SlotInfo& info) {
+    return gate_map_grams(info.remaining_weight_g) != gate_map_grams(old.remaining_weight_g) ||
+           gate_map_grams(info.total_weight_g) != gate_map_grams(old.total_weight_g);
+}
+
 /// True when @p info moves anything the gate map holds for the gate @p old
-/// describes. A tool remap or a weight is not a gate-map field.
-bool edits_gate_map(const SlotInfo& old, const SlotInfo& info) {
+/// describes. A tool remap is not a gate-map field, and a weight is one only
+/// when @p weights (Happy Hare 4.2).
+bool edits_gate_map(const SlotInfo& old, const SlotInfo& info, bool weights) {
     return info.material != old.material || info.color_rgb != old.color_rgb ||
            info.spool_name != old.spool_name || info.brand != old.brand ||
-           info.spoolman_id != old.spoolman_id;
+           info.spoolman_id != old.spoolman_id || (weights && edits_gate_weights(old, info));
 }
 
 /// The one nozzle temperature a gate map holds, from a slot's range: the
@@ -2757,6 +2795,8 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     int current_slot = -1;
     std::string old_name;
     int old_temp = 0;
+    bool weights = false;
+    SlotInfo old_weights;
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
@@ -2780,13 +2820,17 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         old_color_rgb = entry->info.color_rgb;
         old_name = entry->info.spool_name;
         old_temp = gate_map_temperature(entry->info);
+        weights = gate_map_holds_weights_locked();
+        old_weights.remaining_weight_g = entry->info.remaining_weight_g;
+        old_weights.total_weight_g = entry->info.total_weight_g;
         spoolman_mode = system_info_.spoolman_mode;
         current_slot = system_info_.current_slot;
         // Spoolman pull mode: Happy Hare refuses local writes to material,
         // colour, name, vendor and spool id, and logs the refusal rather than
         // returning it. The gate map is Spoolman's on this printer, so the
-        // edit is refused whole before anything is written.
-        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info)) {
+        // edit is refused whole before anything is written. 4.2 refuses the
+        // weights there too.
+        if (spoolman_mode == SpoolmanMode::PULL && edits_gate_map(entry->info, info, weights)) {
             spdlog::warn("[AMS HappyHare] Spoolman pull mode owns the gate map; gate {} edit "
                          "refused",
                          slot_index);
@@ -2919,6 +2963,14 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
         has_changes = true;
     }
 
+    // Weights (4.2): the gate map holds them in whole grams, -1 unknown, and
+    // keeps an omitted one.
+    if (weights && edits_gate_weights(old_weights, info)) {
+        cmd += fmt::format(" WEIGHT={} INITIAL_WEIGHT={}", gate_map_grams(info.remaining_weight_g),
+                           gate_map_grams(info.total_weight_g));
+        has_changes = true;
+    }
+
     // Temperature: one per gate, named on every write. Happy Hare reads an
     // omitted TEMP as default_extruder_temp, which would overwrite the gate's
     // own, and TEMP=0 as "keep the stored value".
@@ -2958,6 +3010,33 @@ AmsError AmsBackendHappyHare::apply_user_edit(int slot_index, const SlotInfo& in
     }
 
     return AmsErrorHelper::success();
+}
+
+void AmsBackendHappyHare::persist_slot_weight(int slot_index, float remaining_weight_g,
+                                              float total_weight_g) {
+    bool to_gate_map = false;
+    bool send = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        to_gate_map = gate_map_holds_weights_locked();
+        const auto* entry = slots_.get(slot_index);
+        send = to_gate_map && entry && system_info_.spoolman_mode != SpoolmanMode::PULL &&
+               entry->info.spoolman_id <= 0 && remaining_weight_g >= 0.0F;
+    }
+    if (!to_gate_map) {
+        AmsSubscriptionBackend::persist_slot_weight(slot_index, remaining_weight_g, total_weight_g);
+        return;
+    }
+    if (!send) {
+        return;
+    }
+    std::string cmd = fmt::format("MMU_GATE_MAP GATE={} WEIGHT={}", slot_index,
+                                  gate_map_grams(remaining_weight_g));
+    if (total_weight_g >= 0.0F) {
+        cmd += fmt::format(" INITIAL_WEIGHT={}", gate_map_grams(total_weight_g));
+    }
+    cmd += " TEMP=0 QUIET=1";
+    execute_gcode(cmd);
 }
 
 SlotInfo* AmsBackendHappyHare::identity_slot_locked(int slot_index) {

@@ -226,7 +226,9 @@ FilamentSlotOverride extras_only(const FilamentSlotOverride& o, ExtrasFields fie
     kept.color_name = o.color_name;
     kept.catalog_id = o.catalog_id;
     kept.product_name = o.product_name;
-    kept.total_weight_g = o.total_weight_g;
+    if (fields.total_weight) {
+        kept.total_weight_g = o.total_weight_g;
+    }
     kept.fingerprint = o.fingerprint;
     return kept;
 }

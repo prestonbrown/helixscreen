@@ -606,6 +606,8 @@ GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu) {
     d.name = ams::read_array<std::string>(mmu, "gate_name");
     d.filament_name = ams::read_array<std::string>(mmu, "gate_filament_name");
     d.endless_spool_group = ams::read_array<int>(mmu, "endless_spool_groups", ams::read_integer);
+    d.remaining_weight = ams::read_array<int>(mmu, "gate_remaining_weight", read_number_as_int);
+    d.initial_weight = ams::read_array<int>(mmu, "gate_initial_weight", read_number_as_int);
     return d;
 }
 

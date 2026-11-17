@@ -67,13 +67,14 @@ from_lane_data_record(const nlohmann::json& j);
 /// The defaults are AFC's: its lane holds the weight, not the brand or name.
 struct ExtrasFields {
     bool remaining_weight = false;
+    bool total_weight = true;
     bool brand = true;
     bool spool_name = true;
 };
 
 /// The record an extras namespace stores: only what the firmware cannot hold
-/// (colour name, catalog pick, total weight, and whichever of @p fields the
-/// firmware does not hold) and HelixScreen's bookkeeping. A spool id, material
+/// (colour name, catalog pick, and whichever of @p fields the firmware does
+/// not hold) and HelixScreen's bookkeeping. A spool id, material
 /// or colour in it is ignored on read and never written: the firmware's value
 /// is the lane's.
 [[nodiscard]] FilamentSlotOverride extras_only(const FilamentSlotOverride& o,

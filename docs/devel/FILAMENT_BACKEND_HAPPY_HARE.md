@@ -25,6 +25,7 @@ Klipper object `mmu` in `printer.objects.list` sets `AmsType::HAPPY_HARE`.
 | `printer.mmu.gate_color_rgb` | int[] | Per-gate RGB colors (0xRRGGBB) |
 | `printer.mmu.gate_material` | string[] | Per-gate material names |
 | `printer.mmu.filament_pos` | int | 0-8 filament position for path visualization |
+| `printer.mmu.gate_remaining_weight` / `gate_initial_weight` | int[] | 4.2+: per-gate net grams, -1 unknown. Filed as the lane's `Firmware` weights (see [Lane identity and edits](#lane-identity-and-edits)) |
 | `printer.mmu.sync_feedback_bias_modelled` | float | -1 (tight) to +1 (loose); `AmsSystemInfo::sync_feedback_bias`, the one buffer reading Happy Hare gives (`sync_feedback_bias_raw` is the raw sensor value). `helix::buffer_reading()` draws it as the "Sync" buffer on every buffer surface |
 
 Happy Hare has both a buffer reading (sync feedback, above) and clog detection: the
@@ -155,9 +156,17 @@ lane shows the gate map, filed as the lane's `Firmware` source.
   omitted `TEMP` as `default_extruder_temp` and overwrites the gate's own, and reads `TEMP=0` as
   "keep" (Happy Hare v4 commands/mmu_gate_map.py, v3 mmu.py cmd_MMU_GATE_MAP). Clear Spool omits
   it, so a cleared gate returns to the default temperature.
-- **Fields the gate map cannot hold** (brand before v4, total and remaining weight, colour name,
-  catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`, read by the
-  same 10 s poll as every lane record. The name, and the vendor on v4, are the gate map's alone,
+- **Fields the gate map cannot hold** (brand before v4, total and remaining weight before 4.2,
+  colour name, catalog pick) go to HelixScreen's extras namespace `helix-screen-hh-overrides`,
+  read by the same 10 s poll as every lane record.
+- **Weights from 4.2** (`MachineLayout::since(kGateWeightsSince)`): the gate map holds
+  `gate_remaining_weight` and `gate_initial_weight`, so an edit that moves either names both as
+  `WEIGHT=` / `INITIAL_WEIGHT=` (whole grams, -1 unknown) and the extras record keeps neither
+  (`ExtrasFields::remaining_weight` / `total_weight` off). A metered weight
+  (`persist_slot_weight`) is sent as `MMU_GATE_MAP GATE=n WEIGHT=.. INITIAL_WEIGHT=.. TEMP=0
+  QUIET=1`, except on a gate linked to a Spoolman spool (Spoolman's weight wins on the lane) and in
+  pull mode. In pull mode Happy Hare refuses weights, so a weight edit is refused like any other
+  gate-map edit. The name, and the vendor on v4, are the gate map's alone,
   so another client clearing them shows as cleared.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,

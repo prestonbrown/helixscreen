@@ -36,6 +36,13 @@ class HappyHareTestAccess {
     template <class B> static auto& slots(B& b) {
         return b.slots_;
     }
+    template <class B> static auto& machine_layout(B& b) {
+        return b.machine_layout_;
+    }
+    template <class B> static auto extras_fields(B& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        return b.extras_fields_locked();
+    }
     template <class B> static auto& overrides(B& b) {
         return b.overrides_;
     }
