@@ -232,6 +232,12 @@ writes `lane_data` on AFC. The lane shows what AFC reports (`AFC_stepper` / `AFC
 - **An unlink** is `SET_SPOOL_ID LANE=x SPOOL_ID=` (empty). A lane with `remember_spool` keeps
   its id through it (prestonbrown/helixscreen#1717); the lane then shows the id AFC still holds
   once the pending unlink times out.
+  On any other lane AFC's `clear_values()` wipes the lane's spool data with the id. Color,
+  material and an edited weight are sent again right after it; the temperatures go back with
+  `AFC_SET_SPOOL_TEMP LANE=x EXTRUDER_TEMP= BED_TEMP=` (AFC v1.2.0) when `printer.gcode.help`
+  lists it. The vendor and filament name stay wiped on AFC, so the slicer no longer sees them in
+  `lane_data`: only AFC's development branch has a command that sets them (`SET_FILAMENT_INFO`).
+  Multi-color hexes stay wiped too, since only a Spoolman link sets them on AFC.
 - **Vendor** reads `spool_vendor` (get_status) or `vendor_name` (`lane_data`). An empty value is
   AFC stating no vendor and clears the brand; a missing key leaves it.
 

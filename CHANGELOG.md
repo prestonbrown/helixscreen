@@ -5,6 +5,12 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.3] - UNRELEASED
+
+### Fixed
+
+- **AFC lanes keep their temperatures when you unlink a spool** - unlinking a Spoolman spool from an AFC lane made AFC forget the lane's nozzle and bed temperatures, so the next load heated to AFC's default for the material. HelixScreen now sends the temperatures from the spool editor back to AFC after the unlink, on AFC v1.2.0 and newer.
+
 ## [1.1.0-rc.2] - 2026-11-17
 
 ### Added
