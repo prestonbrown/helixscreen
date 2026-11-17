@@ -123,6 +123,7 @@ nlohmann::json AmsBackendHappyHare::required_status_objects(const helix::Printer
                                             "filament",
                                             "action",
                                             "reason_for_pause",
+                                            "pause_hint",
                                             "filament_pos",
                                             "gate_status",
                                             "gate_color_rgb",
@@ -540,6 +541,14 @@ void AmsBackendHappyHare::apply_mmu_selector_locked(const happy_hare::MmuCoreDel
     if (core.reason_for_pause) {
         reason_for_pause_ = *core.reason_for_pause;
         spdlog::trace("[AMS HappyHare] Reason for pause: {}", reason_for_pause_);
+    }
+    // pause_hint: what to do next about that reason (v4.2+). It describes the
+    // pause, so it ends with the reason even in a frame that leaves it out.
+    if (core.pause_hint) {
+        pause_hint_ = *core.pause_hint;
+    }
+    if (reason_for_pause_.empty()) {
+        pause_hint_.clear();
     }
 
     // printer.mmu.action: "Idle", "Loading", "Unloading", "Forming Tip",
@@ -1444,11 +1453,19 @@ AmsBackendHappyHare::classify_error(const std::string& raw_line,
     }
 
     const std::string detail = display_reason(reason);
-    return helix::make_ams_fault_event(helix::ErrorSource::HAPPY_HARE,
-                                       helix::text_io::contains_ignore_case(detail, "runout")
-                                           ? lv_tr("Filament runout")
-                                           : lv_tr("Filament System Error"),
-                                       detail, recovery_actions_locked(ctx.is_paused));
+    auto ev = helix::make_ams_fault_event(helix::ErrorSource::HAPPY_HARE,
+                                          helix::text_io::contains_ignore_case(detail, "runout")
+                                              ? lv_tr("Filament runout")
+                                              : lv_tr("Filament System Error"),
+                                          detail, recovery_actions_locked(ctx.is_paused));
+    // HH's own dialog shows the hint under the reason, and the recovery popup
+    // closes that dialog, so the hint goes here. It belongs to the first
+    // reason only: a later fault while paused names a reason of its own.
+    if (!pause_hint_.empty() && reason == reason_for_pause_) {
+        ev.raw_detail = detail;
+        ev.detail = detail + "\n" + display_reason(pause_hint_);
+    }
+    return ev;
 }
 
 bool AmsBackendHappyHare::duplicates_firmware_prompt(const std::string& title) const {

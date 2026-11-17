@@ -71,8 +71,10 @@ TEST_CASE("each backend's required_status_objects matches its own printer and is
         const json objects = AmsBackendHappyHare::required_status_objects(discover({"mmu"}));
         REQUIRE(keys(objects) == std::set<std::string>{"mmu"});
         REQUIRE(objects["mmu"].is_array());
-        CHECK(objects["mmu"].size() == 43);
+        CHECK(objects["mmu"].size() == 44);
         CHECK(std::find(objects["mmu"].begin(), objects["mmu"].end(), "leds") !=
+              objects["mmu"].end());
+        CHECK(std::find(objects["mmu"].begin(), objects["mmu"].end(), "pause_hint") !=
               objects["mmu"].end());
     }
 

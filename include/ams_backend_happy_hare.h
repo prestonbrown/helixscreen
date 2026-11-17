@@ -757,6 +757,9 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend {
 
     // Error state tracking
     std::string reason_for_pause_; ///< Last reason_for_pause from MMU (descriptive error text)
+    /// What to do next about reason_for_pause_ (pause_hint, v4.2+); empty
+    /// whenever reason_for_pause_ is.
+    std::string pause_hint_;
 
     // --- Config defaults from configfile.settings ---
 
