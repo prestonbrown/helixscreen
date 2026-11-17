@@ -354,6 +354,15 @@ def test_the_htlf_body_continues_below_its_outlets():
     assert htlf.PROFILE[0] == (0.0, 0.0)
 
 
+def test_the_htlf_leaves_its_loose_spools_the_plain_tray_and_rails_keep_theirs():
+    table = build.generate_shell_table([htlf.UNIT, rail.ERCF])
+    row = next(line for line in table.splitlines() if line.strip().startswith('{"htlf"'))
+    assert row.rstrip().endswith("true},")
+    assert htlf.UNIT.tray.plain_tray and not rail.ERCF.tray.plain_tray
+    ercf = next(line for line in table.splitlines() if line.strip().startswith('{"ercf_rail"'))
+    assert not ercf.rstrip().endswith("true},")
+
+
 def test_the_htlf_face_has_an_outlet_under_each_inlet_and_no_carriage(tmp_path):
     scene = build.face_scene(htlf.UNIT, 4)
     row = build.face_row(scene, 4)

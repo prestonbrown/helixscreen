@@ -98,6 +98,8 @@ struct UnitShell {
     uint32_t lid_color = 0;
     /// How far the unit's base reaches below its spools, at the reference spool size.
     float spool_lift_px = 0.0f;
+    /// The unit stands in front of loose spools, so the tray under them is the plain one.
+    bool plain_tray = false;
 };
 
 /// The head-on art for a unit built with @p lanes gates, or nullptr.

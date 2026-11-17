@@ -479,8 +479,13 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
     const tray::LidMode climate_lid = unit_lid_mode(unit_index);
-    const tray::UnitShell* shell = view_shell(unit_index, climate_lid != tray::LidMode::None);
-    const tray::LidMode lid = shell ? tray::lid_mode(*shell) : climate_lid;
+    const tray::UnitShell* found = view_shell(unit_index, climate_lid != tray::LidMode::None);
+    // A unit that stands in front of loose spools leaves them the plain, open tray.
+    const bool loose = found && found->plain_tray;
+    const tray::UnitShell* shell = loose ? nullptr : found;
+    const tray::LidMode lid = shell   ? tray::lid_mode(*shell)
+                              : loose ? tray::LidMode::None
+                                      : climate_lid;
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;
