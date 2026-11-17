@@ -91,8 +91,13 @@ void tray_back_draw_cb(lv_event_t* e) {
             tray::fill_convex(layer, o, f.left_wall, 4, c.wall, LV_OPA_COVER);
     }
     tray::edge(layer, o, f.back_wall[0], f.back_wall[1], c.edge, s_tray.opa.edge);
-    if (s_tray.shell)
+    if (s_tray.shell) {
         tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fl, c.edge, s_tray.opa.edge);
+    } else {
+        // The far wall's top and bottom edges run behind the leftmost spool.
+        tray::edge(layer, o, f.front[0], f.back_wall[0], c.edge, s_tray.opa.edge);
+        tray::edge(layer, o, f.front[3], f.back_wall[3], c.edge, s_tray.opa.edge);
+    }
 
     if (simple || s_tray.lid == tray::LidMode::None)
         return;
@@ -186,8 +191,10 @@ void tray_front_draw_cb(lv_event_t* e) {
                                      {fr_t, fr_b}, {fr_t, br_t}, {fr_b, br_b},
                                      {br_t, br_b}, {fl_t, bl_t}, {fl_b, bl_b}};
     if (!s_tray.shell || simple) {
-        for (const auto& ab : edges)
-            tray::edge(layer, o, ab[0], ab[1], c.edge, s_tray.opa.edge);
+        // The generic box's far-wall edges are drawn behind the spools, in the back pass.
+        const int n_edges = s_tray.shell ? 9 : 7;
+        for (int i = 0; i < n_edges; ++i)
+            tray::edge(layer, o, edges[i][0], edges[i][1], c.edge, s_tray.opa.edge);
     } else {
         tray::stroke_cheek(shell_view(), layer, o, s_tray.box.fr, c.edge, s_tray.opa.edge);
     }
