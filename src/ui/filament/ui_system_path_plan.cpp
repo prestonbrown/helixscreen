@@ -51,12 +51,12 @@ int32_t lane_pitch(const SystemPathData& data) {
     return data.tube_gauge + kHaloWidthExtra + 2;
 }
 
-// Horizontal position of unit `i`'s entry stem: the centre of its unit card,
+// Horizontal position of unit `i`'s entry stem: the center of its unit card,
 // clamped into the canvas.
 //
 // The anchor is pushed by the panel and re-pushed on every card-row scroll -
 // unit_cards_row is an independently scrollable container. Once the row
-// overflows, a scrolled-off card's centre lands outside the canvas; clamped,
+// overflows, a scrolled-off card's center lands outside the canvas; clamped,
 // the stem parks at the edge it went out of, which reads as "this unit is off
 // to that side". Several parked stems stand one tube pitch apart in card
 // order, the farthest card at the edge, so their lines never share a stem.
@@ -141,15 +141,21 @@ bool per_tool_unit(const SystemPathData& data, int u) {
 // outlet apart, leaving the run above them to the routes. A lone route's
 // buffer box sits in the same row, and its hub sensor's band on the line, in
 // the row or just above that buffer.
+// The row grows upward to fit a line of label text, as long as the stems keep
+// room for two bends above it.
 struct HubRowYs {
     int32_t center, height, top, bottom;
+    bool labeled;
 };
 HubRowYs hub_row_ys(const SystemPathData& data, const SysLayout& L) {
-    const int32_t h = L.hub_h * 2 / 3;
     const int32_t nozzle_top = L.tools_y - small_tool_scale(data) * 2;
     const int32_t outlet = 2 * data.tube_gauge;
-    const int32_t y = nozzle_top - outlet - h / 2;
-    return {y, h, y - h / 2, y + h / 2};
+    const int32_t bottom = nozzle_top - outlet;
+    bool labeled = true;
+    const int32_t h = labeled_box_h(data, L.hub_h * 2 / 3,
+                                    bottom - L.entry_y - 2 * (int32_t)kFanFillet, &labeled);
+    const int32_t y = bottom - h / 2;
+    return {y, h, y - h / 2, y + h / 2, labeled};
 }
 
 // PARALLEL / MIXED unit: one route per unique tool position. For MIXED,
@@ -161,7 +167,7 @@ int collect_parallel_mixed_routes(const SystemPathData& data, const SysLayout& L
     int tool_count = data.unit_tool_count[i];
     int first_tool = data.unit_first_tool[i];
 
-    // Fan the lane start points one tube pitch apart, centred under the card:
+    // Fan the lane start points one tube pitch apart, centered under the card:
     // close enough to read as leaving their unit, never so close they touch.
     const int32_t spread = tool_count > 1 ? (tool_count - 1) * lane_pitch(data) : 0;
     auto start_x_of = [&](int t) {
@@ -214,7 +220,7 @@ int32_t junction_lanes_w(const SystemPathData& data, int lanes) {
     return 2 * (int32_t)kFanEntryMargin + lanes * lane_pitch(data);
 }
 
-// The box at each junction, centred on its nozzle, and the buffer box on each
+// The box at each junction, centered on its nozzle, and the buffer box on each
 // lone route that has one: half the run from the merge height to the nozzle,
 // no wider than the gap between two neighboring toolheads leaves.
 void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const NozzleFeed* feeds,
@@ -233,6 +239,7 @@ void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const No
         HubInfo& h = boxes.hubs[t];
         const int32_t tool_x = calc_tool_x(t, data.total_tools, L.x_off, L.width);
         h = {tool_x, tool_x, ys.center, 0, ys.height, data.color_hub_bg, f.junction};
+        h.labeled = ys.labeled;
         h.buffer_unit = f.buffer ? f.buffer_unit : -1;
         if (f.junction) {
             h.buffer_in_hub = f.buffer;
@@ -422,7 +429,7 @@ void sort_routes(GlobalRoute* routes, int n) {
                      [](const GlobalRoute& a, const GlobalRoute& b) { return a.end_x < b.end_x; });
 }
 
-// Clear distance two tube centrelines keep: a haloed tube's width.
+// Clear distance two tube centerlines keep: a haloed tube's width.
 int32_t route_gap(const SystemPathData& data) {
     return data.tube_gauge + kHaloWidthExtra;
 }
@@ -556,24 +563,36 @@ Lane route_lane(const SystemPathData& data, const GlobalRoute& route) {
 }
 
 // Each junction's routes enter its box top left to right, in the order of
-// their stems, at slots spread evenly between the box's entry margins.
-void slot_into_junctions(const OverviewBoxes& boxes, GlobalRoute* routes, int n) {
+// their stems, one tube pitch apart. The group of slots sits as near the
+// routes' mean stem as the box's entry margins allow, so routes arriving from
+// one side enter on that side and their runs stay short.
+void slot_into_junctions(const SystemPathData& data, const OverviewBoxes& boxes,
+                         GlobalRoute* routes, int n) {
     for (int t = 0; t < SystemPathData::kMaxTools; ++t) {
         const HubInfo& hub = boxes.hubs[t];
         if (!hub.valid)
             continue;
         int members[SystemPathData::kMaxTools];
         int count = 0;
+        int64_t sum = 0;
         for (int r = 0; r < n; ++r)
-            if (routes[r].junction && routes[r].tool_idx == t)
+            if (routes[r].junction && routes[r].tool_idx == t) {
                 members[count++] = r;
+                sum += routes[r].start_x;
+            }
+        if (count == 0)
+            continue;
         std::sort(members, members + count,
                   [&](int a, int b) { return routes[a].start_x < routes[b].start_x; });
-        const int32_t left = hub.hub_x - hub.mini_hub_w / 2 + (int32_t)kFanEntryMargin;
-        const int32_t span = LV_MAX(0, hub.mini_hub_w - 2 * (int32_t)kFanEntryMargin);
+        const int32_t inner = LV_MAX(0, hub.mini_hub_w - 2 * (int32_t)kFanEntryMargin);
+        const int32_t pitch = count > 1 ? LV_MIN(lane_pitch(data), inner / (count - 1)) : 0;
+        const int32_t span = pitch * (count - 1);
+        const int32_t lo = hub.hub_x - inner / 2 + span / 2;
+        const int32_t hi = hub.hub_x + inner / 2 - span / 2;
+        const int32_t mid = clamp_span(lo, (int32_t)(sum / count), hi);
         for (int m = 0; m < count; ++m) {
             GlobalRoute& r = routes[members[m]];
-            r.end_x = count > 1 ? left + span * m / (count - 1) : hub.hub_x;
+            r.end_x = mid - span / 2 + m * pitch;
             r.end_y = hub.mini_hub_y - hub.mini_hub_h / 2;
             r.dist = LV_ABS(r.start_x - r.end_x);
         }
@@ -602,7 +621,7 @@ void junction_owners(const SystemPathData& data, const GlobalRoute* routes, int 
     }
 }
 
-// Junction outlet: through the box (unpainted) to its centre and straight down,
+// Junction outlet: through the box (unpainted) to its center and straight down,
 // so the hub sensor's band sits level on its bottom edge; then on to the
 // nozzle, angling in when the row moved the box.
 void append_junction_outlet(PathPlan& plan, Route& r, const Lane& lane, const HubInfo& hub,
@@ -671,7 +690,7 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     }
     place_nozzle_boxes(data, L, feeds, tools, boxes);
     resolve_hub_row(data, L, feeds, routes, n, boxes);
-    slot_into_junctions(boxes, routes, n);
+    slot_into_junctions(data, boxes, routes, n);
     assign_run_heights(data, L, boxes, routes, n);
     sort_routes(routes, n);
     int owner[SystemPathData::kMaxTools];
@@ -782,6 +801,7 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     const NozzleFeed feed = nozzle_feed(data, 0);
     boxes.combiner = feed.junction;
     boxes.combiner_buffer = feed.junction && feed.buffer;
+    boxes.combiner_labeled = L.hub_labeled;
 
     bool trunk_owned = false;
     for (int k = 0; k < count; k++) {
@@ -896,6 +916,21 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
     return f;
 }
 
+int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled) {
+    const int32_t need = data.label_line_h > 0 ? data.label_line_h + data.space_xs : 0;
+    *labeled = need <= base_h || need <= room;
+    return *labeled ? LV_MAX(base_h, need) : base_h;
+}
+
+TrunkBuffer trunk_buffer(const SystemPathData& data, const SysLayout& L) {
+    const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
+    const int32_t nozzle_top = L.nozzle_y - data.extruder_scale * 2;
+    const int32_t run = nozzle_top - hub_bottom;
+    TrunkBuffer b{hub_bottom + run / 2, 0, true};
+    b.h = labeled_box_h(data, L.hub_h * 2 / 3, run - 2 * data.tube_gauge, &b.labeled);
+    return b;
+}
+
 SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_coords) {
     SysLayout L{};
     L.width = lv_area_get_width(&obj_coords);
@@ -918,6 +953,12 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
     L.merge_y = L.entry_y + (int32_t)(run * merge);
     L.hub_y = L.entry_y + (int32_t)(run * hub);
     L.hub_h = (int32_t)(run * hub_h);
+    if (!L.multi_tool) {
+        // The combiner grows to fit its label while the fan still has room to
+        // bend into its top.
+        L.hub_h = labeled_box_h(data, L.hub_h, 2 * (L.hub_y - L.merge_y - (int32_t)kFanFillet),
+                                &L.hub_labeled);
+    }
     L.tools_y = toolhead_y;
     L.nozzle_y = toolhead_y;
     L.center_x = L.x_off + L.width / 2;
@@ -965,7 +1006,7 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
 
     // Comfortable gap between the rightmost toolhead and the bypass spool.
     int32_t comfort = LV_MAX(data.space_md, 8);
-    // Right boundary the spool centre must stay inside (leave room for its half
+    // Right boundary the spool center must stay inside (leave room for its half
     // width + a small margin from the canvas edge).
     int32_t right_limit = x_off + width - spool_half - 4;
     int32_t left_limit = x_off + spool_half + 4;
@@ -989,7 +1030,7 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
 
         if (bypass_x > right_limit) {
             // No horizontal room even at the canvas edge — drop the spool below
-            // the toolhead row, centred over the rightmost toolhead, clamped so
+            // the toolhead row, centered over the rightmost toolhead, clamped so
             // its lower edge stays on the canvas.
             bypass_x = clamp_span(left_limit, rightmost_tool_x, right_limit);
             merge_y = nozzle_y + scale * 4 + spool_half + comfort;

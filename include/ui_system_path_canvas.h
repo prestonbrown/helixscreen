@@ -61,11 +61,11 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent);
 void ui_system_path_canvas_set_unit_count(lv_obj_t* obj, int count);
 
 /**
- * @brief Set the X centre of a unit's entry stem
+ * @brief Set the X center of a unit's entry stem
  *
  * @param obj The system_path_canvas widget
  * @param unit_index Unit index (0-7)
- * @param center_x Unit card centre, in pixels relative to this canvas's left edge
+ * @param center_x Unit card center, in pixels relative to this canvas's left edge
  *
  * The caller MUST re-push this whenever the unit-card row scrolls: that row is an
  * independently scrollable container, so an anchor sampled once goes stale and

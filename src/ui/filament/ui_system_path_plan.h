@@ -28,7 +28,7 @@ struct SystemPathData {
     // no stem, no hub, and a hub group made only of such units is missing from the plan.
     static constexpr int kMaxUnits = helix::kAmsMaxUnits;
     static constexpr int kMaxTools = 16;
-    // X centre of each unit's card, relative to this canvas's left edge. Pushed
+    // X center of each unit's card, relative to this canvas's left edge. Pushed
     // by the panel and re-pushed whenever the card row scrolls, so a stem stays
     // under the card it belongs to. Clamped at draw time by unit_stem_x().
     int32_t unit_x_positions[kMaxUnits] = {};
@@ -113,7 +113,11 @@ struct SystemPathData {
     int32_t border_radius = 6;
     int32_t extruder_scale = 10;
     int32_t space_md = 8;
+    int32_t space_xs = 4;
     const lv_font_t* label_font = nullptr;
+    // label_font's line height; 0 when no font is measured (every box then
+    // takes its labels).
+    int32_t label_line_h = 0;
 };
 
 // Vertical layout. The unit stems start at kEntryYRatio of the height, and the
@@ -129,9 +133,23 @@ struct SysLayout {
     int32_t entry_y = 0, merge_y = 0, hub_y = 0, hub_h = 0, tools_y = 0, nozzle_y = 0;
     int32_t center_x = 0; // shifted ~10% left in single-tool bypass layouts
     bool multi_tool = false;
+    bool hub_labeled = true; // the single-toolhead combiner fits its label
 };
 
 SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_coords);
+
+/// A labelled box's height: at least @p base_h, and tall enough for one line
+/// of the label font plus space_xs when that fits in @p room. When it does not,
+/// the box keeps @p base_h and @p labeled says to draw it without text.
+int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled);
+
+/// The single-toolhead buffer box on the trunk: its center, height and
+/// whether its label fits.
+struct TrunkBuffer {
+    int32_t y, h;
+    bool labeled;
+};
+TrunkBuffer trunk_buffer(const SystemPathData& data, const SysLayout& L);
 
 // Bypass geometry shared by the planner and the public position getter, so the
 // panel-side widget overlay stays anchored to the planned merge point.
@@ -176,7 +194,7 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool);
 // What the canvas draws over the tubes at one nozzle of the several-toolhead
 // layout: the junction's hub box, or the buffer on a lone route.
 struct HubInfo {
-    int32_t hub_x;  // centre of the hub box (or of the lone route's buffer)
+    int32_t hub_x;  // center of the hub box (or of the lone route's buffer)
     int32_t tool_x; // nozzle the box feeds (== hub_x unless the row moved it)
     int32_t mini_hub_y;
     int32_t mini_hub_w;
@@ -189,6 +207,7 @@ struct HubInfo {
     int32_t buffer_w = 0;
     int32_t buffer_h = 0;
     bool short_label = false;   // too narrow for "Hub": draw "H"
+    bool labeled = true;        // the row is tall enough for a line of text
     bool buffer_in_hub = false; // the junction's hub carries the buffer: one box
     int buffer_unit = -1;       // whose unit_buffer_* the buffer shows
 };
@@ -200,7 +219,8 @@ struct OverviewBoxes {
     // and whether it carries the system buffer.
     bool combiner = false;
     bool combiner_buffer = false;
-    lv_color_t combiner_bg; // single-tool combiner hub fill
+    bool combiner_labeled = true; // the combiner is tall enough for its label
+    lv_color_t combiner_bg;       // single-tool combiner hub fill
 };
 
 /// One unit's route state: the active unit carries the system's filament
