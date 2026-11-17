@@ -6,7 +6,7 @@ Printers with one toolhead or hot end per slot. Back to [Filament Management](fi
 
 ## Choosing and picking up a tool
 
-Which tool the Filament panel acts on, the **Pick up** and **Park** button, and what **Confirm tool changes** does are on the Filament page: see [Choosing a tool on a multi-head printer](filament.md#choosing-a-tool-on-a-multi-head-printer). The sidebar's **Mounted** line and the **Mount...** and **Park** buttons are described under [The sidebar](filament-ams-panel.md#sidebar). The temperature screen has its own tool picker (see [Temperature Control](temperature.md)).
+Which tool the Filament panel acts on, the **Pick up** and **Park** button, and what **Confirm tool changes** does are on the Filament page: see [Choosing a tool on a multi-head printer](filament.md#choosing-a-tool-on-a-multi-head-printer). The Filament panel, the Controls Temperature card and the temperature graph share that aimed tool. The sidebar's **Mounted** line and the **Mount...** and **Park** buttons are described under [The sidebar](filament-ams-panel.md#sidebar). The temperature screen chooses its nozzle with the same row of heads (see [Temperature Control](temperature.md)).
 
 ## Other tool changers
 

@@ -306,9 +306,9 @@ for (const auto& [name, info] : extruders) {
 
 Shows the first extruder and bed temperatures using legacy static subjects. On multi-extruder printers, observes `extruder_version` to optionally show a multi-tool temperature summary.
 
-### TempControlPanel Extruder Selector
+### Target Tool (Controls, Filament, temperature graph)
 
-Provides a dropdown populated from the `extruders()` map. Each entry shows the `display_name`. Selecting an extruder binds the temperature arc and target controls to that extruder's per-extruder subjects. Hidden on single-extruder printers.
+The surfaces that show and set one nozzle share `helix::ui::TargetTool` (`include/target_tool.h`), which mirrors the target tool's extruder subjects into `target_nozzle_temp` / `target_nozzle_target` and the status pair. Its chooser is a row of heads, not extruders (`ToolState::physical_heads()`), so it is hidden where lanes feed one hotend. See [TOOL_ABSTRACTION.md](TOOL_ABSTRACTION.md#the-target-tool-filament-panel-controls-temperature-card-temperature-overlay).
 
 ### PrintStatusPanel Per-Tool Temps
 

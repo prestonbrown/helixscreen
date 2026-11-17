@@ -3,7 +3,7 @@
 **Settings > Printing** holds the settings that change how your printer moves, heats and handles filament, and the buttons and macros HelixScreen runs for you. The page has three sections:
 
 - **MACHINE**: Machine Limits, Motion, Retraction Settings and Enclosure
-- **FILAMENT**: Multi-Filament System Management, Material Temperatures, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Number slots from 0 and Confirm tool changes
+- **FILAMENT**: Multi-Filament System Management, Material Temperatures, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Material presets heat the bed, Number slots from 0 and Confirm tool changes
 - **EXTRAS**: Timelapse, Power-loss recovery, Resume reloads the saved bed mesh, Apply start options to prints from other apps, and Macro Buttons
 
 Rows for things your printer doesn't have are hidden, so your list may be shorter than the one pictured.
@@ -206,6 +206,17 @@ The editor opens when the printer reports a slot that was empty now holds filame
 
 ---
 
+## Material presets heat the bed
+
+| Setting | What it does |
+|---------|--------------|
+| **On** (default) | A material preset sets the bed to the material's bed temperature along with the nozzle |
+| **Off** | A material preset sets the nozzle only and leaves the bed's target as it is |
+
+This covers every material preset: the PLA, PETG, ABS/ASA and TPU buttons and the spool's own preset on the Filament screen, the Home screen's Preheat widget, and the nozzle presets on the temperature graph screen. The graph screen's bed presets still set the bed. A material whose preheat macro you assigned in Material Temperatures runs that macro as before. Each printer keeps its own setting.
+
+---
+
 ## Number slots from 0
 
 | Setting | What happens |
@@ -233,7 +244,7 @@ Only the display changes. Tool names such as T0 and T1 stay as they are. See [th
 
 > Only shown on printers with more than one tool.
 
-On a printer with more than one toolhead, three places switch tools with a tap: the tool switcher on the home screen, a toolhead on your filament system's screen, and the tool list on the Filament screen. This setting decides whether those taps ask first. Where a hub feeds several lanes into one toolhead, selecting that toolhead keeps the lane already loaded in it.
+On a printer with more than one toolhead, three places switch tools with a tap: the tool switcher on the home screen, a toolhead on your filament system's screen, and the **Pick up** button on the Filament screen (and the pick-up that Load, Unload, Extrude, Retract or Purge do first). This setting decides whether those ask first. Choosing a head in the Filament screen's Operations card, the Controls Temperature card's tool picker or the temperature graph's row of heads never switches tools, so it never asks. Where a hub feeds several lanes into one toolhead, selecting that toolhead keeps the lane already loaded in it.
 
 Some things happen whatever the switch says:
 
