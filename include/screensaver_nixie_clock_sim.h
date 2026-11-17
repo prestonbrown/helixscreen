@@ -54,12 +54,12 @@ inline constexpr uint32_t kNixieCycleEveryMs = 10 * 60 * 1000;
 inline constexpr uint32_t kNixieCycleStepMs = 70;
 inline constexpr uint32_t kNixieCycleMs = 10 * kNixieCycleStepMs;
 
-/// The tubes' proportions in glyph units: thin wire numerals, a glass dome above them and the
-/// socket below.
+/// The tubes' proportions in glyph units: thin wire numerals, a glass dome above them with the
+/// sealed tip on top, and the socket below.
 inline constexpr CardGeometry kNixieTubeGeometry{
     0.07f, // stroke
     0.36f, // pad_x
-    0.42f, // pad_top
+    0.55f, // pad_top
     0.62f, // pad_bottom
     0.16f, // card_gap
     0.5f,  // group_gap
@@ -91,6 +91,8 @@ struct NixieTubeArt {
     int32_t glow_h = 0;
     int32_t inset = 0;    ///< the glass and socket's inset from the card's sides
     int32_t socket_y = 0; ///< the socket's first row
+    /// The sealed glass tip on top of the dome, in the tube's pixels.
+    DirtyRect tip;
     std::vector<Rgb> base;
     /// One map per character of kStrokeGlyphChars; digits are built with the art, the rest on
     /// first use.
@@ -145,6 +147,8 @@ class NixieClockSim {
     DirtyRect meridiem_box() const;
     /// The box of tube `i`'s numeral and its halo, which a fade redraws.
     DirtyRect glow_box(size_t i) const;
+    /// The box of tube `i`'s sealed glass tip, on top of its dome.
+    DirtyRect tip_box(size_t i) const;
     /// True while any tube is mid-fade.
     bool fading() const;
     /// Share of the fade done for tube `i`, 1 when it is still.

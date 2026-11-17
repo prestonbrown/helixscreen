@@ -297,8 +297,8 @@ TEST_CASE("the cathodes never cycle on a level that does not fade or while a pri
 // Layout, print and memory
 // ============================================================================
 
-TEST_CASE("the tubes fit every screen at the widest drift, small row included, with the "
-          "AM/PM socket inside the first tube",
+TEST_CASE("the tubes and their sealed tips fit every screen at the widest drift, small row "
+          "included, with the AM/PM socket inside the first tube",
           "[screensaver][screensaver_nixie_clock]") {
     struct Screen {
         int32_t w;
@@ -328,7 +328,35 @@ TEST_CASE("the tubes fit every screen at the widest drift, small row included, w
                 screen.w, screen.h, face.shape, face.sub_shape, sx * drift.max_dx,
                 sy * drift.max_dy, face.sub_colons, kNixieTubeGeometry);
             CHECK(inside(layout.bounds(), whole));
+            // Each tube's tip moves with its tube.
+            for (size_t i = 0; i < layout.card_count + size_t{layout.sub_count}; i++) {
+                CAPTURE(i);
+                const DirtyRect tip = sim.tip_box(i);
+                const int32_t dx = layout.cards[i].x1 - sim.layout().cards[i].x1;
+                const int32_t dy = layout.cards[i].y1 - sim.layout().cards[i].y1;
+                CHECK(inside({tip.x1 + dx, tip.y1 + dy, tip.x2 + dx, tip.y2 + dy}, whole));
+            }
         }
+    }
+    // Every tube has its tip drawn, inside its own box and above its numeral.
+    const PixelWriter writer(frame.target);
+    for (size_t i = 0; i < sim.layout().card_count + size_t{sim.layout().sub_count}; i++) {
+        CAPTURE(i);
+        const DirtyRect tip = sim.tip_box(i);
+        CHECK(inside(tip, sim.layout().cards[i]));
+        CHECK(tip.y2 < sim.glow_box(i).y1 + 1);
+        size_t glass = 0;
+        size_t stray = 0;
+        // The rows above the dome hold only the tip.
+        for (int32_t y = tip.y1; y < tip.y1 + 3; y++) {
+            for (int32_t x = sim.layout().cards[i].x1; x <= sim.layout().cards[i].x2; x++) {
+                const bool lit = !(writer.get(x, y) == NixieClockSim::kBackground);
+                glass += lit ? 1 : 0;
+                stray += lit && (x < tip.x1 || x > tip.x2) ? 1 : 0;
+            }
+        }
+        CHECK(glass > 0);
+        CHECK(stray == 0);
     }
     const DirtyRect marker = sim.meridiem_box();
     CHECK(inside(marker, sim.layout().cards[0]));

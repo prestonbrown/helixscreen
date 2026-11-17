@@ -23,6 +23,11 @@ constexpr float kInset = 0.05f;
 /// Glass below the numerals before the socket starts: past the halo, so a fade never redraws
 /// the socket and the AM/PM marker on it.
 constexpr float kGlassBelow = 0.22f;
+/// The sealed tip on top of the dome, where the tube was pumped out and closed: how far it
+/// stands above the dome, its neck's half width and the radius of the bead at its end.
+constexpr float kTipHeight = 0.13f;
+constexpr float kTipNeck = 0.03f;
+constexpr float kTipBead = 0.048f;
 /// Width of the glass's lit rim.
 constexpr float kRimWidth = 0.035f;
 /// The halo's reach beyond the wire, and how fast it falls off.
@@ -42,6 +47,8 @@ constexpr float kDotRows[] = {0.36f, 0.68f};
 constexpr Rgb kGlassInside{9, 8, 11};
 constexpr Rgb kGlassRim{64, 60, 68};
 constexpr Rgb kGlassStreak{46, 46, 54};
+/// The glint on the tip's bead.
+constexpr Rgb kTipGlint{150, 150, 162};
 constexpr Rgb kMesh{30, 26, 24};
 /// The unlit wire numerals stacked behind the lit one.
 constexpr Rgb kWire{54, 42, 34};
@@ -126,8 +133,21 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
     const float glass_x2 = static_cast<float>(w - inset);
     const float radius = (glass_x2 - glass_x1) / 2.0f;
     const float cx = (glass_x1 + glass_x2) / 2.0f;
-    const float dome_cy = static_cast<float>(inset) + radius;
     const float rim = std::max(1.5f, kRimWidth * u);
+    // The tip stands on the dome's crown: a neck reaching into the dome, ending in a bead.
+    const float tip_h = std::max(3.0f, kTipHeight * u);
+    const float dome_top = static_cast<float>(inset) + tip_h;
+    const float dome_cy = dome_top + radius;
+    const float bead_r = std::max(1.5f, kTipBead * u);
+    const float neck = std::max(0.8f, kTipNeck * u);
+    const float bead_cy = static_cast<float>(inset) + bead_r;
+    const float neck_bottom = dome_top + 2.0f * rim;
+    const float tip_rim = std::max(1.0f, 0.5f * rim);
+    const float glint_x = cx - 0.35f * bead_r;
+    const float glint_y = bead_cy - 0.35f * bead_r;
+    const float glint_r = std::max(0.8f, 0.4f * bead_r);
+    tip = {static_cast<int32_t>(std::floor(cx - bead_r)) - 1, inset - 1,
+           static_cast<int32_t>(std::ceil(cx + bead_r)), static_cast<int32_t>(std::ceil(dome_top))};
     const float streak_x = cx - 0.55f * radius;
     const float streak_w = std::max(1.0f, 0.13f * radius);
     // The anode cage around the numerals.
@@ -144,9 +164,23 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
             const float fx = static_cast<float>(x) + 0.5f;
             const float dist =
                 fy < dome_cy ? std::hypot(fx - cx, fy - dome_cy) : std::fabs(fx - cx);
-            const float inside = radius - dist;
+            const float dome_inside = radius - dist;
+            const float bead_inside = bead_r - std::hypot(fx - cx, fy - bead_cy);
+            const float neck_inside =
+                std::min({neck - std::fabs(fx - cx), neck_bottom - fy, fy - bead_cy});
+            const float tip_inside = std::max(bead_inside, neck_inside);
+            const float inside = std::max(dome_inside, tip_inside);
             const float cov = edge_coverage(inside);
             if (cov <= 0.0f) {
+                continue;
+            }
+            if (tip_inside > dome_inside) {
+                // Thin, clear glass with a lit edge and a glint on the bead.
+                Rgb t = mix_rgb(kGlassInside, kGlassRim,
+                                std::clamp(1.0f - tip_inside / tip_rim, 0.0f, 1.0f));
+                const float glint = edge_coverage(glint_r - std::hypot(fx - glint_x, fy - glint_y));
+                t = add_glow(t, kTipGlint, to_amount(glint));
+                base[static_cast<size_t>(y) * w + x] = mix_rgb(Rgb{}, t, cov);
                 continue;
             }
             Rgb c = mix_rgb(kGlassInside, kGlassRim, std::clamp(1.0f - inside / rim, 0.0f, 1.0f));
@@ -337,6 +371,15 @@ DirtyRect NixieClockSim::meridiem_box() const {
     const DirtyRect& tube = layout_.cards[0];
     const int32_t pad = std::max<int32_t>(1, art_.inset * 2);
     return {tube.x1 + pad, tube.y1 + art_.socket_y + 2, tube.x2 - pad, tube.y2 - 1};
+}
+
+DirtyRect NixieClockSim::tip_box(size_t i) const {
+    if (i >= tube_count()) {
+        return {};
+    }
+    const NixieTubeArt& art = art_of(i);
+    const DirtyRect& tube = layout_.cards[i];
+    return {tube.x1 + art.tip.x1, tube.y1 + art.tip.y1, tube.x1 + art.tip.x2, tube.y1 + art.tip.y2};
 }
 
 DirtyRect NixieClockSim::glow_box(size_t i) const {

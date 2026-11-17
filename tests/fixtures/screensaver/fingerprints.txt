@@ -12,8 +12,8 @@ highfly_print e75dffec78189856
 hyperspace 43366bb6400403a4
 hyperspace_print 851aacefc0faf21f
 maze 99611da53bce4d3d
-nixie_clock bb4efe90830d61fc
-nixie_clock_print 0cda5c40cf1a18e9
+nixie_clock d838c473e04da9cd
+nixie_clock_print 8765b61a6d31b88c
 pipes be6279be7f6f5ac2
 pipes_print 9725f52520dd1f9b
 starfield a9f7f27791f8af84
