@@ -16,16 +16,19 @@ translations:
     few: '%d дополнительных вентилятора'
     many: '%d дополнительных вентиляторов'
     other: '%d дополнительных вентилятора'
+  '%d feeder': '%d фидер'
   '%d feeders':
     one: '%d фидер'
     few: '%d фидера'
     many: '%d фидеров'
     other: '%d фидера'
+  '%d gate': '%d шлюз'
   '%d gates':
     one: '%d шлюз'
     few: '%d шлюза'
     many: '%d шлюзов'
     other: '%d шлюза'
+  '%d lane': '%d канал'
   '%d lanes':
     one: '%d канал'
     few: '%d канала'
@@ -43,11 +46,14 @@ translations:
   '%d of %d printing': '%d из %d печатается'
   '%d skipped': 'Пропущено: %d'
   '%d profiles': 'Профилей: %d'
+  '%d slot': '%d слот'
   '%d slots':
     one: '%d слот'
     few: '%d слота'
     many: '%d слотов'
     other: '%d слота'
+  '%d tool': '%d инструмент'
+  '%d toolhead': '%d печатающая головка'
   '%d toolheads':
     one: '%d печатающая головка'
     few: '%d печатающие головки'

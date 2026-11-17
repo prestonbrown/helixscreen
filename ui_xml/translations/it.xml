@@ -11,8 +11,11 @@
   <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." it="&quot;Dopo&quot; è la compensazione così come la applica la stampante, con le impostazioni di fabbrica."/>
   <translation tag="%d additional fan" it="%d ventola aggiuntiva"/>
   <translation tag="%d additional fans" it="%d ventole aggiuntive"/>
+  <translation tag="%d feeder" it="%d alimentatore"/>
   <translation tag="%d feeders" it="%d alimentatori"/>
+  <translation tag="%d gate" it="%d Gate"/>
   <translation tag="%d gates" it="%d Gate"/>
+  <translation tag="%d lane" it="%d corsia"/>
   <translation tag="%d lanes" it="%d corsie"/>
   <translation tag="%d min" it="%d min"/>
   <translation tag="%d min left" it="%d min rimanenti"/>
@@ -22,7 +25,10 @@
   <translation tag="%d of %d printing" it="%d di %d in stampa"/>
   <translation tag="%d profiles" it="%d profili"/>
   <translation tag="%d skipped" it="%d saltati"/>
+  <translation tag="%d slot" it="%d slot"/>
   <translation tag="%d slots" it="%d slot"/>
+  <translation tag="%d tool" it="%d strumento"/>
+  <translation tag="%d toolhead" it="%d testina"/>
   <translation tag="%d toolheads" it="%d testine"/>
   <translation tag="%d tools" it="%d strumenti"/>
   <translation tag="%d units" it="%d unità"/>

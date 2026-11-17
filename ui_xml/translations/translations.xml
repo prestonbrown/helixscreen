@@ -14,18 +14,21 @@
   <translation tag="%d additional fans_few" ru="%d дополнительных вентилятора"/>
   <translation tag="%d additional fans_many" ru="%d дополнительных вентиляторов"/>
   <translation tag="%d additional fans_one" ru="%d дополнительный вентилятор"/>
+  <translation tag="%d feeder" de="%d Zuführung" en="%d feeder" es="%d alimentador" fr="%d alimentateur" it="%d alimentatore" ja="%d フィーダー" pt="%d alimentador" ru="%d фидер" zh="%d 个送料器"/>
   <translation tag="%d feeders" de="%d Zuführungen" en="%d feeders" es="%d alimentadores" fr="%d alimentateurs" it="%d alimentatori" ja="%d フィーダー" pt="%d alimentadores" ru="%d фидера" zh="%d 个送料器"/>
   <translation tag="%d feeders_few" ru="%d фидера"/>
   <translation tag="%d feeders_many" ru="%d фидеров"/>
-  <translation tag="%d feeders_one" ru="%d фидер"/>
+  <translation tag="%d feeders_one" fr="%d alimentateur" ru="%d фидер"/>
+  <translation tag="%d gate" de="%d Gate" en="%d gate" es="%d Gate" fr="%d Gate" it="%d Gate" ja="%d ゲート" pt="%d Gate" ru="%d шлюз" zh="%d 个通道"/>
   <translation tag="%d gates" de="%d Gates" en="%d gates" es="%d Gates" fr="%d Gates" it="%d Gate" ja="%d ゲート" pt="%d Gates" ru="%d шлюза" zh="%d 个通道"/>
   <translation tag="%d gates_few" ru="%d шлюза"/>
   <translation tag="%d gates_many" ru="%d шлюзов"/>
-  <translation tag="%d gates_one" ru="%d шлюз"/>
+  <translation tag="%d gates_one" fr="%d Gate" ru="%d шлюз"/>
+  <translation tag="%d lane" de="%d Spur" en="%d lane" es="%d carril" fr="%d voie" it="%d corsia" ja="%d レーン" pt="%d lane" ru="%d канал" zh="%d 个耗材通道"/>
   <translation tag="%d lanes" de="%d Spuren" en="%d lanes" es="%d carriles" fr="%d voies" it="%d corsie" ja="%d レーン" pt="%d lanes" ru="%d канала" zh="%d 个耗材通道"/>
   <translation tag="%d lanes_few" ru="%d канала"/>
   <translation tag="%d lanes_many" ru="%d каналов"/>
-  <translation tag="%d lanes_one" ru="%d канал"/>
+  <translation tag="%d lanes_one" fr="%d voie" ru="%d канал"/>
   <translation tag="%d min" de="%d Min" en="%d min" es="%d min" fr="%d min" it="%d min" ja="%d分" pt="%d min" ru="%d мин" zh="%d分钟"/>
   <translation tag="%d min left" de="noch %d Min" en="%d min left" es="quedan %d min" fr="%d min restantes" it="%d min rimanenti" ja="残り %d 分" pt="restam %d min" ru="осталось %d мин" zh="剩余 %d 分钟"/>
   <translation tag="%d mm/s" de="%d mm/s" en="%d mm/s" es="%d mm/s" fr="%d mm/s" it="%d mm/s" ja="%d mm/s" pt="%d mm/s" ru="%d mm/s" zh="%d mm/s"/>
@@ -37,18 +40,21 @@
   <translation tag="%d of %d printing" de="%d von %d werden gedruckt" en="%d of %d printing" es="%d de %d imprimiéndose" fr="%d sur %d en impression" it="%d di %d in stampa" ja="%d/%d 印刷中" pt="%d de %d imprimindo" ru="%d из %d печатается" zh="%d / %d 正在打印"/>
   <translation tag="%d profiles" de="%d Profile" en="%d profiles" es="%d perfiles" fr="%d profils" it="%d profili" ja="%d 個のプロファイル" pt="%d perfis" ru="Профилей: %d" zh="%d 个配置"/>
   <translation tag="%d skipped" de="%d übersprungen" en="%d skipped" es="%d omitidos" fr="%d ignorés" it="%d saltati" ja="%d個スキップ" pt="%d ignorados" ru="Пропущено: %d" zh="已跳过 %d 个"/>
+  <translation tag="%d slot" de="%d Slot" en="%d slot" es="%d ranura" fr="%d emplacement" it="%d slot" ja="%d スロット" pt="%d slot" ru="%d слот" zh="%d 个槽位"/>
   <translation tag="%d slots" de="%d Slots" en="%d slots" es="%d ranuras" fr="%d emplacements" it="%d slot" ja="%d スロット" pt="%d slots" ru="%d слота" zh="%d 个槽位"/>
   <translation tag="%d slots_few" ru="%d слота"/>
   <translation tag="%d slots_many" ru="%d слотов"/>
-  <translation tag="%d slots_one" ru="%d слот"/>
+  <translation tag="%d slots_one" fr="%d emplacement" ru="%d слот"/>
+  <translation tag="%d tool" de="%d Werkzeug" en="%d tool" es="%d herramienta" fr="%d outil" it="%d strumento" ja="%d ツール" pt="%d ferramenta" ru="%d инструмент" zh="%d 个工具"/>
+  <translation tag="%d toolhead" de="%d Werkzeugkopf" en="%d toolhead" es="%d cabezal" fr="%d tête d&apos;outil" it="%d testina" ja="%d ツールヘッド" pt="%d cabeçote" ru="%d печатающая головка" zh="%d 个工具头"/>
   <translation tag="%d toolheads" de="%d Werkzeugköpfe" en="%d toolheads" es="%d cabezales" fr="%d têtes d&apos;outil" it="%d testine" ja="%d ツールヘッド" pt="%d cabeçotes" ru="%d печатающие головки" zh="%d 个工具头"/>
   <translation tag="%d toolheads_few" ru="%d печатающие головки"/>
   <translation tag="%d toolheads_many" ru="%d печатающих головок"/>
-  <translation tag="%d toolheads_one" ru="%d печатающая головка"/>
+  <translation tag="%d toolheads_one" fr="%d tête d&apos;outil" ru="%d печатающая головка"/>
   <translation tag="%d tools" de="%d Werkzeuge" en="%d tools" es="%d herramientas" fr="%d outils" it="%d strumenti" ja="%d ツール" pt="%d ferramentas" ru="%d инструмента" zh="%d 个工具"/>
   <translation tag="%d tools_few" ru="%d инструмента"/>
   <translation tag="%d tools_many" ru="%d инструментов"/>
-  <translation tag="%d tools_one" ru="%d инструмент"/>
+  <translation tag="%d tools_one" fr="%d outil" ru="%d инструмент"/>
   <translation tag="%d units" de="%d Einheiten" en="%d units" es="%d unidades" fr="%d unités" it="%d unità" ja="%dユニット" pt="%d unidades" ru="%d ед." zh="%d 个单元"/>
   <translation tag="%d-%d" de="%d-%d" en="%d-%d" es="%d-%d" fr="%d-%d" it="%d-%d" ja="%d〜%d" pt="%d-%d" ru="%d-%d" zh="%d-%d"/>
   <translation tag="%d:%02d left" de="noch %d:%02d" en="%d:%02d left" es="quedan %d:%02d" fr="%d:%02d restantes" it="%d:%02d rimanenti" ja="残り %d:%02d" pt="restam %d:%02d" ru="осталось %d:%02d" zh="剩余 %d:%02d"/>

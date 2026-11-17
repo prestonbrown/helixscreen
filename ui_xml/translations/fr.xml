@@ -11,9 +11,15 @@
   <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." fr="« Après » correspond à la compensation telle que votre imprimante l&apos;applique, avec ses réglages d&apos;usine."/>
   <translation tag="%d additional fan" fr="%d ventilateur supplémentaire"/>
   <translation tag="%d additional fans" fr="%d ventilateurs supplémentaires"/>
+  <translation tag="%d feeder" fr="%d alimentateur"/>
   <translation tag="%d feeders" fr="%d alimentateurs"/>
+  <translation tag="%d feeders_one" fr="%d alimentateur"/>
+  <translation tag="%d gate" fr="%d Gate"/>
   <translation tag="%d gates" fr="%d Gates"/>
+  <translation tag="%d gates_one" fr="%d Gate"/>
+  <translation tag="%d lane" fr="%d voie"/>
   <translation tag="%d lanes" fr="%d voies"/>
+  <translation tag="%d lanes_one" fr="%d voie"/>
   <translation tag="%d min" fr="%d min"/>
   <translation tag="%d min left" fr="%d min restantes"/>
   <translation tag="%d mm/s" fr="%d mm/s"/>
@@ -22,9 +28,15 @@
   <translation tag="%d of %d printing" fr="%d sur %d en impression"/>
   <translation tag="%d profiles" fr="%d profils"/>
   <translation tag="%d skipped" fr="%d ignorés"/>
+  <translation tag="%d slot" fr="%d emplacement"/>
   <translation tag="%d slots" fr="%d emplacements"/>
+  <translation tag="%d slots_one" fr="%d emplacement"/>
+  <translation tag="%d tool" fr="%d outil"/>
+  <translation tag="%d toolhead" fr="%d tête d&apos;outil"/>
   <translation tag="%d toolheads" fr="%d têtes d&apos;outil"/>
+  <translation tag="%d toolheads_one" fr="%d tête d&apos;outil"/>
   <translation tag="%d tools" fr="%d outils"/>
+  <translation tag="%d tools_one" fr="%d outil"/>
   <translation tag="%d units" fr="%d unités"/>
   <translation tag="%d-%d" fr="%d-%d"/>
   <translation tag="%d:%02d left" fr="%d:%02d restantes"/>

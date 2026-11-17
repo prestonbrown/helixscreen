@@ -11,8 +11,11 @@
   <translation tag="&quot;After&quot; is compensation as your printer applies it, with its factory settings." en="&quot;After&quot; is compensation as your printer applies it, with its factory settings."/>
   <translation tag="%d additional fan" en="%d additional fan"/>
   <translation tag="%d additional fans" en="%d additional fans"/>
+  <translation tag="%d feeder" en="%d feeder"/>
   <translation tag="%d feeders" en="%d feeders"/>
+  <translation tag="%d gate" en="%d gate"/>
   <translation tag="%d gates" en="%d gates"/>
+  <translation tag="%d lane" en="%d lane"/>
   <translation tag="%d lanes" en="%d lanes"/>
   <translation tag="%d min" en="%d min"/>
   <translation tag="%d min left" en="%d min left"/>
@@ -22,7 +25,10 @@
   <translation tag="%d of %d printing" en="%d of %d printing"/>
   <translation tag="%d profiles" en="%d profiles"/>
   <translation tag="%d skipped" en="%d skipped"/>
+  <translation tag="%d slot" en="%d slot"/>
   <translation tag="%d slots" en="%d slots"/>
+  <translation tag="%d tool" en="%d tool"/>
+  <translation tag="%d toolhead" en="%d toolhead"/>
   <translation tag="%d toolheads" en="%d toolheads"/>
   <translation tag="%d tools" en="%d tools"/>
   <translation tag="%d units" en="%d units"/>
