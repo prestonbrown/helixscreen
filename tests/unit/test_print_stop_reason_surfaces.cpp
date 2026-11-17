@@ -196,6 +196,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(wakes == 1);
     lv_obj_t* dialog = ModalStack::instance().dialog_for_component("print_completion_modal");
     CHECK(dialog != nullptr);
+    for (const char* name : {"print_completion_title", "print_completion_filename"}) {
+        CAPTURE(name);
+        lv_subject_t* subject = lv_xml_get_subject(nullptr, name);
+        REQUIRE(subject != nullptr);
+        CHECK_FALSE(std::string(lv_subject_get_string(subject)).empty());
+    }
 
     if (dialog) {
         helix::ui::modal_hide(dialog);
