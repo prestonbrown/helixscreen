@@ -104,7 +104,7 @@ Developer Reference below.
 Panels and overlays fill the space beside the navigation bar, which on an ultrawide panel is
 three or four screen-heights across. A settings list or the jog pad stretched that far is
 hard to read and costs reach, so their content stops at **2.4 x the screen height**, kept
-against the navigation bar. The space to its right stays empty.
+against the navigation bar, while an overlay's header still spans the screen. The space to its right stays empty.
 
 | Screen | Cap | Binds? |
 |--------|-----|--------|
@@ -125,6 +125,11 @@ resize path refreshes it.
   covered, and take the overflow as extra right padding on top of the padding they were
   built with (`helix::set_overlay_content_cap()`). `NavigationManager` remembers that built
   padding per overlay, so a resize shrinks or removes the overflow.
+- **Overlay headers** keep the full width: the back button and title stay at the left and
+  the header's right-side items (Motion's position readout, the gear) sit at the screen's
+  right edge. Only the content below the header is capped. The header is the root's direct
+  `overlay_header` child; it gets a pixel width reaching into the cap's padding and a matching
+  negative right margin, so the root gains no horizontal scroll.
 - **Modals** are untouched and stay centered on the full screen.
 
 A view opts out by overriding `IPanelLifecycle::uses_full_content_width()` to return true.

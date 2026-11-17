@@ -153,6 +153,39 @@ int32_t live_content_max_width(lv_obj_t* obj) {
     return content_max_width(screen ? lv_obj_get_height(screen) : 480);
 }
 
+namespace {
+
+// The header keeps the overlay's full width while the content below it is
+// capped: back button and title at the left, its right-side items at the
+// screen's right edge. It is found by the overlay_header name every overlay
+// gives its header_bar, and only as a direct child of the root, where the
+// root's right padding is what would otherwise pull it in.
+void span_overlay_header(lv_obj_t* overlay, int32_t base_pad_right, int32_t overflow) {
+    lv_obj_t* header = lv_obj_find_by_name(overlay, "overlay_header");
+    if (!header || lv_obj_get_parent(header) != overlay) {
+        return;
+    }
+    // A header never widened is left exactly as its XML built it.
+    const bool widened = lv_obj_get_style_margin_right(header, LV_PART_MAIN) < 0;
+    if (overflow == 0) {
+        if (widened) {
+            lv_obj_set_width(header, lv_pct(100));
+            lv_obj_set_style_margin_right(header, 0, LV_PART_MAIN);
+        }
+        return;
+    }
+    const int32_t border = lv_obj_get_style_border_width(overlay, LV_PART_MAIN);
+    const int32_t full_width = lv_obj_get_style_width(overlay, LV_PART_MAIN) -
+                               lv_obj_get_style_pad_left(overlay, LV_PART_MAIN) - base_pad_right -
+                               2 * border;
+    lv_obj_set_width(header, full_width);
+    // The header reaches overflow px into the root's right padding; the
+    // matching negative margin keeps that out of the root's scroll extent.
+    lv_obj_set_style_margin_right(header, -overflow, LV_PART_MAIN);
+}
+
+} // namespace
+
 // DECLARATIVE_OK: the cap depends on the width class resolved at push time
 // (ui_set_overlay_geometry above), so it is written at the same site.
 void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped) {
@@ -163,6 +196,7 @@ void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool cap
         capped ? content_cap_overflow(lv_obj_get_style_width(overlay, LV_PART_MAIN),
                                       live_content_max_width(overlay))
                : 0;
+    span_overlay_header(overlay, base_pad_right, overflow);
     const int32_t pad_right = base_pad_right + overflow;
     // An overlay that fits keeps whatever its XML or theme gives it; the local
     // style is written only to add the overflow or to take it away again.

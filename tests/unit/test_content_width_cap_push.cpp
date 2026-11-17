@@ -150,6 +150,42 @@ TEST_CASE_METHOD(UltrawideFixture, "An overlay on an ultrawide screen stops at t
     CHECK(lv_obj_get_style_pad_right(w, LV_PART_MAIN) == kBasePadRight);
 }
 
+TEST_CASE_METHOD(UltrawideFixture,
+                 "The overlay header spans the overlay while its content is capped",
+                 "[content-cap][overlay]") {
+    // Built the way overlay XML is: a flex column with the header first.
+    lv_obj_t* w = lv_obj_create(lv_screen_active());
+    lv_obj_set_height(w, lv_pct(100));
+    lv_obj_set_align(w, LV_ALIGN_RIGHT_MID);
+    lv_obj_set_style_border_width(w, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(w, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(w, kBasePadRight, LV_PART_MAIN);
+    lv_obj_set_flex_flow(w, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t* header = lv_obj_create(w);
+    lv_obj_set_name(header, "overlay_header");
+    lv_obj_set_width(header, lv_pct(100));
+    lv_obj_t* content = lv_obj_create(w);
+    lv_obj_set_width(content, lv_pct(100));
+
+    FakeOverlay lifecycle(/*full_width=*/false);
+    auto& nav = NavigationManager::instance();
+    nav.register_overlay_instance(w, &lifecycle);
+    nav.push_overlay(w);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_update_layout(w);
+
+    const int32_t cap = read_const("content_max_width");
+    const int32_t width = lv_obj_get_width(w);
+    REQUIRE(width > cap);
+    CHECK(lv_obj_get_width(content) == cap - kBasePadRight);
+    // The header runs from the leading edge to the overlay's own right padding.
+    CHECK(lv_obj_get_width(header) == width - kBasePadRight);
+    CHECK(lv_obj_get_scroll_right(w) == 0);
+
+    resize(kTestDisplayWidth, kTestDisplayHeight);
+    CHECK(lv_obj_get_width(header) == lv_obj_get_width(content));
+}
+
 TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
                  "[content-cap][overlay]") {
     FakeOverlay full_overlay(/*full_width=*/true);
