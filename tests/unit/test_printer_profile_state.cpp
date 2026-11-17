@@ -196,6 +196,10 @@ TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-ap
     CHECK(reapplied() == 1);
     REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
     CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    // The firmware saves per head whatever the saving setting says.
+    profile.set_z_offset_save_enabled(false);
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    profile.set_z_offset_save_enabled(true);
     CHECK(profile.set_z_offset_per_head(false));
     CHECK(reapplied() == 0);
 

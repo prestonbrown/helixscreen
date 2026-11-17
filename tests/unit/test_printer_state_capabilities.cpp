@@ -150,6 +150,24 @@ TEST_CASE("PrinterCapabilitiesState: every setter's pre-init answer survives ini
     caps.deinit_subjects();
 }
 
+TEST_CASE("PrinterCapabilitiesState: the ripple check needs an accelerometer and X geometry",
+          "[printer_state][capabilities][ripple]") {
+    lv_init_safe();
+    PrinterDiscovery hardware;
+    hardware.parse_config_keys(nlohmann::json{{"adxl345", nlohmann::json::object()}});
+    hardware.set_kinematics("corexy");
+    CapabilityOverrides overrides;
+    PrinterCapabilitiesState caps;
+    caps.init_subjects(false);
+
+    caps.set_hardware(hardware, overrides);
+    CHECK(lv_subject_get_int(caps.subject(Capability::SupportsRippleCheck)) == 0);
+    hardware.parse_stepper_geometry(nlohmann::json{{"stepper_x", {{"rotation_distance", 40}}}});
+    caps.set_hardware(hardware, overrides);
+    CHECK(lv_subject_get_int(caps.subject(Capability::SupportsRippleCheck)) == 1);
+    caps.deinit_subjects();
+}
+
 // ============================================================================
 // External z-offset persistence override (prestonbrown/helixscreen#1401)
 // ============================================================================
