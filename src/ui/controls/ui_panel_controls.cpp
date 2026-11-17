@@ -1282,9 +1282,15 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
     lv_subject_set_string(&fan_speed_subject_, fan_speed_buf_);
     lv_subject_set_int(&fan_pct_subject_, value);
 
+    // The card shows the printer's part cooling fan, which can be a named fan
+    // rather than the bare [fan]; command the same one.
+    std::string part_fan = printer_state_.fan_state().classify_primary_fans().part;
+    if (part_fan.empty())
+        part_fan = "fan";
+
     if (api_) {
         api_->set_fan_speed(
-            "fan", static_cast<double>(value), []() { /* Silent success */ },
+            part_fan, static_cast<double>(value), []() { /* Silent success */ },
             [](const MoonrakerError& err) {
                 helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
             });
