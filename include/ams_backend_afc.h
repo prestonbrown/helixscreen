@@ -1312,6 +1312,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     // signal.
     bool afc_reset_mapping_renamed_{false};
 
+    // multiple_tool_mapping's VALUE: AFC's enable_multiple_mapping opt-in (#832).
+    // On, SET_MAP adds the tool to the target lane and leaves that lane's other
+    // tools and current_map alone, so a remap from here is refused rather than
+    // sent as an edit that appears to do nothing.
+    bool afc_multiple_tool_mapping_{false};
+
     /// The firmware behind these objects picks each tool's lane at print time
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
     /// raises an error by design.

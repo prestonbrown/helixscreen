@@ -2379,6 +2379,7 @@ translations:
   'Multi-Filament System is busy: {}': 'マルチフィラメントシステムがビジー状態: {}'
   Multi-Filament System not available: マルチフィラメントシステムが利用できません
   Multi-filament system not ready: マルチフィラメントシステムの準備ができていません
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'AFC で複数ツール割り当てが有効なため、ツールは AFC で割り当てます'
   Must home axes first: 先にホーミングしてください
   Muted: ミュート
   My Custom Theme: マイカスタムテーマ
@@ -4413,6 +4414,7 @@ translations:
   Upload unavailable in this build: このビルドではアップロードできません
   Upper belt: "上ベルト"
   Uptime: 稼働時間
+  Use AFC's mapping commands to add or move a tool: 'ツールの追加や移動には AFC の割り当てコマンドを使用してください'
   Use Android native keyboard for text input: テキスト入力に Android ネイティブキーボードを使用
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use New Address: '新しいアドレスを使用'

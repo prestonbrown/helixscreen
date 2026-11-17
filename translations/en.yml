@@ -2450,6 +2450,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Multi-Filament System is busy: {}'
   Multi-Filament System not available: Multi-Filament System not available
   Multi-filament system not ready: Multi-filament system not ready
+  Multiple tool mapping is on in AFC, so tools are assigned there: Multiple tool mapping is on in AFC, so tools are assigned there
   Must home axes first: Must home axes first
   Muted: Muted
   My Custom Theme: My Custom Theme
@@ -4559,6 +4560,7 @@ translations:
   Upload unavailable in this build: Upload unavailable in this build
   Upper belt: Upper belt
   Uptime: Uptime
+  Use AFC's mapping commands to add or move a tool: Use AFC's mapping commands to add or move a tool
   Use Android native keyboard for text input: Use Android native keyboard for text
     input
   Use G10/G11 firmware retraction: Use G10/G11 firmware retraction

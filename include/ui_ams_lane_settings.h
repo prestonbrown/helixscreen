@@ -65,6 +65,12 @@ using BackupEligibleFn = std::function<helix::printer::BackupEligibility(int slo
 /// @p backend's eligibility rule, or an always-eligible one with no backend.
 [[nodiscard]] BackupEligibleFn eligibility_of(const AmsBackend* backend);
 
+/// Why the Assigned Tool row reads disabled for @p slot, or empty when a tool
+/// can be assigned there. Asks AmsBackend::can_set_tool_mapping() with the
+/// lane's own tool (@p assigned, or the first tool when it has none); a refusal
+/// about that one tool number is not a refusal of the row.
+[[nodiscard]] std::string tool_row_refusal(const AmsBackend& backend, int slot, int assigned);
+
 /// The Assigned Tool dropdown's options: "None", then one tool per slot.
 [[nodiscard]] std::string tool_options(int tool_count);
 

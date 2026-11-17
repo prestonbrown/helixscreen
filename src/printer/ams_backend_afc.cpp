@@ -2390,6 +2390,9 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     if (afc_data.contains("multiple_tool_mapping")) {
         afc_reset_mapping_renamed_ = true;
     }
+    if (auto v = ams::read_field<bool>(afc_data, "multiple_tool_mapping")) {
+        afc_multiple_tool_mapping_ = *v;
+    }
 
     // Parse global quiet_mode and LED state
     if (auto v = ams::read_field<bool>(afc_data, "quiet_mode")) {
@@ -6077,7 +6080,8 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
             // Mirrors set_tool_mapping() but is reachable from the slot edit modal,
             // which routes all changes through apply_user_edit().
             if (info.mapped_tool != old_mapped_tool && info.mapped_tool >= 0 &&
-                !firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
+                !firmware_maps_tools_per_print_.load(std::memory_order_relaxed) &&
+                !afc_multiple_tool_mapping_) {
                 execute_gcode(fmt::format("SET_MAP LANE={} MAP=T{}", lane_name, info.mapped_tool));
             }
         }
@@ -6167,6 +6171,15 @@ int AmsBackendAfc::lane_carrying_tool_locked(int tool_number) const {
 AmsError AmsBackendAfc::can_set_tool_mapping_locked(int tool_number, int slot_index) const {
     if (firmware_maps_tools_per_print_.load(std::memory_order_relaxed)) {
         return AmsErrorHelper::not_supported("The firmware maps tools per print");
+    }
+    // AFC_REMOVE_MAPPING would move a tool cleanly but deletes its T macro from
+    // Klipper, so the tool is never moved on the user's behalf.
+    if (afc_multiple_tool_mapping_) {
+        return AmsError(AmsResult::NOT_SUPPORTED,
+                        "AFC multiple tool mapping is on: SET_MAP adds the tool to the lane "
+                        "without moving the lane's own",
+                        lv_tr("Multiple tool mapping is on in AFC, so tools are assigned there"),
+                        lv_tr("Use AFC's mapping commands to add or move a tool"), slot_index);
     }
     if (!tool_registered_locked(tool_number)) {
         return AmsErrorHelper::tool_out_of_range(tool_number);

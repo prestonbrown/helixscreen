@@ -91,6 +91,18 @@ Real production data from a 6-toolhead mixed system:
 - PARALLEL: `tool_count = max_tool - min_tool + 1` (each map value = different nozzle)
 - HUB: `tool_count = 1` (all map values = same nozzle)
 
+**Multiple tool mapping refuses remaps here.** AFC's `enable_multiple_mapping` (turned on
+with `AFC_ENABLE_MULTIPLE_MAPPING`, published as the `multiple_tool_mapping` value on the
+`AFC` object) changes `SET_MAP`: it removes the tool from the lane that had it and adds it
+to the target lane, leaving the target's own tools and `current_map` in place (`cmd_SET_MAP` in
+AFC_spool.py on AFC's DEV branch). The target lane then keeps showing its old tool, so
+the edit looks like it did nothing. While the value is true,
+`AmsBackendAfc::can_set_tool_mapping_locked()` refuses every remap with a reason, the lane
+editor's Assigned Tool row reads disabled with that reason
+(`src/ui/ui_ams_lane_settings.cpp#tool_row_refusal`), and a slot edit sends no `SET_MAP`.
+The tool is never moved on the user's behalf: `AFC_REMOVE_MAPPING` deletes the tool's
+`T` macro from Klipper. The key's presence alone still selects `AFC_RESET_MAPPING`.
+
 ### Hub Sensor Propagation
 
 Standard Box Turtle: hub name matches unit name (e.g., hub "Turtle_1" for unit "Turtle_1"), so `hub_name == unit.name` works.

@@ -1715,6 +1715,53 @@ TEST_CASE("AFC reset_tool_mappings uses AFC_RESET_MAPPING once multiple_tool_map
     REQUIRE(helper.captured_gcodes.size() == 1);
 }
 
+// With AFC's multiple tool mapping on, SET_MAP adds the tool to the target lane
+// and leaves that lane's own tools and current_map in place, so the lane keeps
+// showing its old tool. A remap is refused with a reason rather than sent.
+TEST_CASE("AFC refuses a tool remap while multiple tool mapping is on",
+          "[ams][afc][tool_mapping][multiple_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+
+    SECTION("flag off: the remap is allowed and sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
+        REQUIRE(helper.set_tool_mapping(2, 0).success());
+        CHECK(helper.has_gcode("SET_MAP LANE=lane1 MAP=T2"));
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T3"));
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0).empty());
+    }
+
+    SECTION("flag on: the remap is refused with a reason and nothing is sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        const AmsError err = helper.can_set_tool_mapping(2, 0);
+        CHECK(err.result == AmsResult::NOT_SUPPORTED);
+        CHECK_FALSE(err.user_msg.empty());
+        CHECK_FALSE(helper.set_tool_mapping(2, 0).success());
+        // The lane editor greys the Assigned Tool row and says why.
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0) == err.user_msg);
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, -1) == err.user_msg);
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        for (const auto& gcode : helper.captured_gcodes) {
+            INFO(gcode);
+            CHECK(gcode.rfind("SET_MAP ", 0) != 0);
+        }
+    }
+
+    SECTION("the flag turning off again allows the remap") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
+    }
+}
+
 TEST_CASE("AFC reset_tool_mappings keeps the old name until the firmware reports the flag",
           "[ams][afc][tool_mapping][reset]") {
     AmsBackendAfcTestHelper helper;

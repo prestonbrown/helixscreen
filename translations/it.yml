@@ -2507,6 +2507,7 @@ translations:
   'Multi-Filament System is busy: {}': 'Sistema multi-filamento occupato: {}'
   Multi-Filament System not available: Sistema multi-filamento non disponibile
   Multi-filament system not ready: Sistema multi-filamento non pronto
+  Multiple tool mapping is on in AFC, so tools are assigned there: 'L''assegnazione multipla degli utensili è attiva in AFC, quindi gli utensili si assegnano lì'
   Must home axes first: È necessario eseguire homing prima
   Muted: Silenziato
   My Custom Theme: Il mio tema personalizzato
@@ -4656,6 +4657,7 @@ translations:
   Upload unavailable in this build: Caricamento non disponibile in questa build
   Upper belt: "Cinghia superiore"
   Uptime: Tempo di attività
+  Use AFC's mapping commands to add or move a tool: 'Usa i comandi di assegnazione di AFC per aggiungere o spostare un utensile'
   Use Android native keyboard for text input: Usa la tastiera nativa di Android per
     l'inserimento testo
   Use G10/G11 firmware retraction: Usa retrazione firmware G10/G11
