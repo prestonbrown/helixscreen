@@ -69,6 +69,8 @@ class PtySession {
     using WakeFn = std::function<void()>;
 
     static constexpr std::size_t kMaxBufferedOutput = 64 * 1024;
+    /// Typed or pasted input the child has not read yet.
+    static constexpr std::size_t kMaxPendingInput = 16 * 1024;
 
     PtySession() = default;
     ~PtySession();
@@ -81,7 +83,10 @@ class PtySession {
     bool start(const std::vector<std::string>& argv, const std::vector<std::string>& env, int rows,
                int cols, WakeFn wake, std::string& error);
 
-    /// Write @p bytes to the child's terminal. False once the child is gone.
+    /// Send @p bytes to the child's terminal without blocking. What the terminal
+    /// cannot take now waits, up to kMaxPendingInput bytes, for the reader thread
+    /// to send as the child reads. False once the child is gone, or when bytes past
+    /// that cap were dropped (logged).
     bool write(std::string_view bytes);
     /// Tell the child its terminal is now @p rows x @p cols (SIGWINCH).
     void resize(int rows, int cols);
@@ -106,6 +111,8 @@ class PtySession {
 
   private:
     void read_loop();
+    /// Write as much of pending_input_ as the terminal takes now. input_mutex_ held.
+    void send_pending_locked();
 
     int master_fd_ = -1;
     int wake_pipe_[2] = {-1, -1};
@@ -113,6 +120,8 @@ class PtySession {
     std::thread reader_;
     WakeFn wake_;
     OutputBuffer output_{kMaxBufferedOutput};
+    std::mutex input_mutex_;
+    std::string pending_input_;
     std::atomic<bool> hung_up_{false};
     std::atomic<bool> stopping_{false};
 };

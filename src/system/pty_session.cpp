@@ -208,6 +208,12 @@ bool PtySession::start(const std::vector<std::string>& argv, const std::vector<s
     }
     ::fcntl(wake_pipe[0], F_SETFD, FD_CLOEXEC);
     ::fcntl(wake_pipe[1], F_SETFD, FD_CLOEXEC);
+    // Nothing here may block the caller: write() runs on the UI thread, and a
+    // child that stops reading would otherwise freeze it once the tty's input
+    // queue is full. Unsent bytes wait in pending_input_ for the reader thread.
+    for (int fd : {master, wake_pipe[0], wake_pipe[1]}) {
+        ::fcntl(fd, F_SETFL, ::fcntl(fd, F_GETFL) | O_NONBLOCK);
+    }
 
     // Everything the child needs is built before the fork: between fork and exec only
     // async-signal-safe calls are allowed, because another thread may have held the
@@ -285,7 +291,14 @@ bool PtySession::start(const std::vector<std::string>& argv, const std::vector<s
 void PtySession::read_loop() {
     char buf[kReadChunk];
     while (!stopping_.load(std::memory_order_acquire)) {
-        struct pollfd fds[2] = {{master_fd_, POLLIN, 0}, {wake_pipe_[0], POLLIN, 0}};
+        short master_events = POLLIN;
+        {
+            std::lock_guard<std::mutex> lock(input_mutex_);
+            if (!pending_input_.empty()) {
+                master_events |= POLLOUT;
+            }
+        }
+        struct pollfd fds[2] = {{master_fd_, master_events, 0}, {wake_pipe_[0], POLLIN, 0}};
         const int n = ::poll(fds, 2, -1);
         if (n < 0) {
             if (errno == EINTR) {
@@ -294,13 +307,22 @@ void PtySession::read_loop() {
             break;
         }
         if (fds[1].revents != 0) {
-            break;
+            // A kick: stop() asking the loop to end, or write() leaving bytes for
+            // it to send. Drain it and look again.
+            char drain[64];
+            while (::read(wake_pipe_[0], drain, sizeof(drain)) > 0) {
+            }
+            continue;
         }
-        if (fds[0].revents == 0) {
+        if ((fds[0].revents & POLLOUT) != 0) {
+            std::lock_guard<std::mutex> lock(input_mutex_);
+            send_pending_locked();
+        }
+        if ((fds[0].revents & (POLLIN | POLLHUP | POLLERR)) == 0) {
             continue;
         }
         const ssize_t got = ::read(master_fd_, buf, sizeof(buf));
-        if (got < 0 && errno == EINTR) {
+        if (got < 0 && (errno == EINTR || errno == EAGAIN)) {
             continue;
         }
         if (got <= 0) {
@@ -321,20 +343,44 @@ void PtySession::read_loop() {
     }
 }
 
+void PtySession::send_pending_locked() {
+    while (!pending_input_.empty()) {
+        const ssize_t n = ::write(master_fd_, pending_input_.data(), pending_input_.size());
+        if (n < 0 && errno == EINTR) {
+            continue;
+        }
+        if (n <= 0) {
+            return;
+        }
+        pending_input_.erase(0, static_cast<std::size_t>(n));
+    }
+}
+
 bool PtySession::write(std::string_view bytes) {
     if (master_fd_ < 0 || hung_up()) {
         return false;
     }
-    std::size_t done = 0;
-    while (done < bytes.size()) {
-        const ssize_t n = ::write(master_fd_, bytes.data() + done, bytes.size() - done);
-        if (n < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            return false;
+    bool kick = false;
+    std::size_t dropped = 0;
+    {
+        std::lock_guard<std::mutex> lock(input_mutex_);
+        pending_input_.append(bytes.data(), bytes.size());
+        send_pending_locked();
+        if (pending_input_.size() > kMaxPendingInput) {
+            dropped = pending_input_.size() - kMaxPendingInput;
+            pending_input_.resize(kMaxPendingInput);
         }
-        done += static_cast<std::size_t>(n);
+        kick = !pending_input_.empty();
+    }
+    if (kick) {
+        char byte = 1;
+        [[maybe_unused]] const ssize_t ignored = ::write(wake_pipe_[1], &byte, 1);
+    }
+    if (dropped > 0) {
+        spdlog::warn("[HostTerminal] The shell is not reading its input; dropped {} bytes "
+                     "past the {} already waiting",
+                     dropped, kMaxPendingInput);
+        return false;
     }
     return true;
 }
