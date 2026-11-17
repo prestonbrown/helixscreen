@@ -249,6 +249,34 @@ INST=home/pi/helixscreen
     if reached_out; then fail "a refused install reached out: $(calls)"; fi
 }
 
+@test "a target root that is missing, a booted system's own root or not an image is refused" {
+    _image_host_is_booted() { return 0; }
+    ln -s / "$BATS_TEST_TMPDIR/slash"
+    for root in / // /. "$BATS_TEST_TMPDIR/slash"; do
+        run main --target-root "$root" --platform pi --local "$ARCHIVE"
+        [ "$status" -ne 0 ] || fail "accepted --target-root $root"
+        contains "is this running system's own root" "$output"
+    done
+
+    # Inside an image's chroot / is the image: the run goes on to read the
+    # image's accounts (a user no system has stops it there, writing nothing).
+    _image_host_is_booted() { return 1; }
+    run main --target-root / --platform pi --local "$ARCHIVE" --user helix-no-such-user --dry-run
+    [ "$status" -ne 0 ]
+    contains "helix-no-such-user is not in the image's /etc/passwd" "$output"
+
+    run main --target-root "$BATS_TEST_TMPDIR/no-such-image" --platform pi --local "$ARCHIVE"
+    [ "$status" -ne 0 ]
+    contains "Target root not found: $BATS_TEST_TMPDIR/no-such-image" "$output"
+
+    mkdir -p "$BATS_TEST_TMPDIR/empty"
+    run main --target-root "$BATS_TEST_TMPDIR/empty" --platform pi --local "$ARCHIVE"
+    [ "$status" -ne 0 ]
+    contains "has no etc/passwd" "$output"
+    [ -z "$(ls -A "$BATS_TEST_TMPDIR/empty")" ]
+    if reached_out; then fail "a refused install reached out: $(calls)"; fi
+}
+
 @test "a release whose install.sh cannot run first boot is refused and its tree removed" {
     local pkg="$BATS_TEST_TMPDIR/pkg/helixscreen"
     printf '#!/bin/sh\n# handles --first-boot\n' > "$pkg/install.sh"

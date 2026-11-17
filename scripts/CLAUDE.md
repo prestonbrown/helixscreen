@@ -239,6 +239,7 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `lib/lvgl_image_lib.sh` | Shared LVGL image conversion helpers |
 | `lib/worktree_lib.sh` | Path canonicalization and shared-module pointer repair for the worktree scripts |
 | `kiauh/` | KIAUH integration (Klipper installer plugin) |
+| `custompios/helixscreen/` | Image-build module (CustomPiOS, or a CustoPiZer script for MainsailOS) running `install.sh --target-root /` in the chroot |
 | `translations/` | Python package for translation extraction, sync, and coverage |
 
 ## Key Patterns
