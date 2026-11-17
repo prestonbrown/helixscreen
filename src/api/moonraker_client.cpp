@@ -1098,18 +1098,17 @@ void MoonrakerClient::dispatch_status_update(const json& status, bool from_cache
     // Parse bed mesh data before dispatching (mirrors WebSocket handler behavior)
     // This ensures bed mesh is populated on initial subscription response,
     // not just on subsequent notify_status_update messages
-    if (status.contains("bed_mesh") && status["bed_mesh"].is_object()) {
-        parse_bed_mesh(status["bed_mesh"]);
+    if (const json* bed_mesh = json_util::find_object(status, "bed_mesh")) {
+        parse_bed_mesh(*bed_mesh);
         // NOTE: Do NOT set build_volume from mesh bounds here!
         // Mesh bounds represent the probe area, not bed dimensions.
         // Actual bed dimensions come from stepper config in moonraker_api_motion.cpp.
     }
 
     // Extract kinematics type from toolhead data (for printer detection)
-    if (status.contains("toolhead") && status["toolhead"].is_object()) {
-        const json& toolhead = status["toolhead"];
-        if (toolhead.contains("kinematics") && toolhead["kinematics"].is_string()) {
-            auto kinematics = toolhead["kinematics"].get<std::string>();
+    if (const json* toolhead = json_util::find_object(status, "toolhead")) {
+        if (auto found = json_util::read_field<std::string>(*toolhead, "kinematics")) {
+            auto kinematics = std::move(*found);
             discovery_.modify_hardware(
                 [&](PrinterDiscovery& hw) { hw.set_kinematics(kinematics); });
             spdlog::debug("[Moonraker Client] Kinematics type: {}", kinematics);
@@ -1294,8 +1293,8 @@ void MoonrakerClient::get_gcode_store(
             std::vector<GcodeStoreEntry> entries;
 
             // Parse response: {"result": {"gcode_store": [...]}}
-            if (response.contains("result") && response["result"].contains("gcode_store")) {
-                const auto& store = response["result"]["gcode_store"];
+            if (const json* gcode_store = json_util::find_path(response, "result", "gcode_store")) {
+                const auto& store = *gcode_store;
                 entries.reserve(store.size());
 
                 for (const auto& item : store) {
@@ -1331,8 +1330,8 @@ TemperatureStore MoonrakerClient::parse_temperature_store(const json& result) {
         const json& series_json = series_json_binding;
         TemperatureStoreSeries series;
         auto load_array = [&series_json](const char* field, std::vector<float>& out) {
-            if (series_json.contains(field) && series_json[field].is_array()) {
-                const auto& arr = series_json[field];
+            if (const json* found = json_util::find_array(series_json, field)) {
+                const auto& arr = *found;
                 out.reserve(arr.size());
                 for (const auto& v : arr) {
                     if (v.is_number()) {
@@ -1359,8 +1358,8 @@ void MoonrakerClient::get_temperature_store(
         "server.temperature_store", params,
         [on_success](const json& response) {
             TemperatureStore store;
-            if (response.contains("result")) {
-                store = parse_temperature_store(response["result"]);
+            if (const json* result = json_util::find_member(response, "result")) {
+                store = parse_temperature_store(*result);
             }
             if (on_success) {
                 on_success(store);
