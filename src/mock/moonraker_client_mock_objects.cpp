@@ -3,6 +3,7 @@
 
 #include "core/text_io.h"
 #include "env_knobs.h"
+#include "json_utils.h"
 #include "moonraker_client_mock_internal.h"
 #include "snapmaker_nozzle_offset.h"
 
@@ -339,8 +340,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        if (params.contains("objects")) {
-            auto& objects = params["objects"];
+        if (const json* objects_field = helix::json_util::find_member(params, "objects")) {
+            const json& objects = *objects_field;
 
             // webhooks state
             if (objects.contains("webhooks")) {
@@ -796,8 +797,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        if (params.contains("objects")) {
-            auto& objects = params["objects"];
+        if (const json* objects_field = helix::json_util::find_member(params, "objects")) {
+            const json& objects = *objects_field;
 
             // webhooks state
             if (objects.contains("webhooks")) {
