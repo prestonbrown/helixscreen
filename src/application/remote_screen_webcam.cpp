@@ -40,6 +40,9 @@ std::optional<nlohmann::json> remote_screen_webcam_item(const std::string& name,
     if (!enabled) {
         return std::nullopt;
     }
+    // Root-relative, not relative: Mainsail and Fluidd resolve both against the site
+    // root, so neither keeps a reverse proxy's path prefix, and only a root-relative URL
+    // gets Mainsail's move onto the web UI's own port.
     std::string base;
     if (!route.empty()) {
         base = route.back() == '/' ? route : route + "/";

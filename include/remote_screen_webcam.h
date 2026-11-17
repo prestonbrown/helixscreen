@@ -20,7 +20,7 @@ class IMoonrakerAPI;
  *
  * One entry: an iframe of the control page when control is on (tap-to-control
  * inside Mainsail/Fluidd's webcam panel), the MJPEG stream when view only.
- * Behind nginx the URLs are relative to @p route; facing the LAN they are
+ * Behind nginx the URLs are root-relative on @p route; facing the LAN they are
  * absolute on @p lan_ip:@p port. `extra_data` carries kRemoteScreenWebcamMarker so the
  * entry is recognizable under any name.
  *
