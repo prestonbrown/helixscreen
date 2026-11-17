@@ -14,6 +14,7 @@
 #include "refresh_timing.h"
 #include "remote_screen_manager.h"
 #include "scroll_click_guard.h"
+#include "sleep_input_wait.h"
 #include "touch_calibration.h"
 #include "touch_calibration_session.h"
 #include "touch_calibration_wrapper.h"
@@ -557,6 +558,14 @@ class DisplayManager : public helix::ICalibrationSink {
      */
     static void delay(uint32_t ms);
 
+    /**
+     * @brief The main loop's wait between passes
+     *
+     * Awake, a plain delay(). While the display sleeps, waits on the input devices and
+     * the main-loop wake fd as well, returning early when one turns readable.
+     */
+    void wait_for_work(uint32_t ms);
+
     // ========================================================================
     // Window Resize Handler (Desktop/SDL)
     // ========================================================================
@@ -670,6 +679,9 @@ class DisplayManager : public helix::ICalibrationSink {
     // Dim, screensaver, sleep and wake. Reads m_backend, m_backlight, m_display and
     // m_settle_for_wake_frame through references, so it must be declared after them.
     helix::DisplaySleepController m_sleep;
+
+    // Pauses fd-backed input read timers while the display sleeps; wait_for_work() polls.
+    helix::SleepInputWait m_input_wait;
 
     bool m_touch_calibration_active = false; // suppresses the debug-touches ripple (#943)
     // Original pointer read callback (before sleep-aware wrapper)

@@ -17,6 +17,7 @@
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "display_metrics.h"
+#include "sleep_input_wait.h"
 #include "touch_calibration.h"
 
 #include <cstdlib>
@@ -471,6 +472,16 @@ class DisplayBackend {
      */
     virtual lv_indev_t* reopen_input_pointer() {
         return nullptr;
+    }
+
+    /**
+     * @brief Input devices whose events arrive on a file descriptor
+     *
+     * While the display sleeps, the main loop waits on these instead of polling them
+     * (helix::SleepInputWait). A device left out keeps its read timer.
+     */
+    virtual std::vector<helix::InputWakeSource> input_wake_sources() const {
+        return {};
     }
 
     /// Whether reopen_input_pointer() can ever bring a pointer back. DisplayManager

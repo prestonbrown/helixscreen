@@ -16,11 +16,13 @@
 #include "display_settings_manager.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
+#include "main_loop_wake.h"
 #include "moonraker_manager.h"
 #include "printer_state.h"
 #include "spoolman_manager.h"
 #include "status_coalescer.h"
 
+#include <poll.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -217,6 +219,17 @@ TEST_CASE_METHOD(StatusHoldFixture, "without hold every status frame applies",
         mgr.process_notifications();
     }
     CHECK(bed_values == std::vector<int>{210, 220, 230});
+}
+
+TEST_CASE_METHOD(StatusHoldFixture, "queued status wakes a sleeping main loop at once",
+                 "[status_hold][moonraker_manager][sleep_input_wait]") {
+    helix::main_loop_wake::drain();
+    pollfd pfd{helix::main_loop_wake::fd(), POLLIN, 0};
+    REQUIRE(pfd.fd >= 0);
+    REQUIRE(poll(&pfd, 1, 0) == 0);
+    send_bed(40.0);
+    CHECK(poll(&pfd, 1, 0) == 1);
+    helix::main_loop_wake::drain();
 }
 
 TEST_CASE_METHOD(StatusHoldFixture, "held telemetry applies once per interval, latest value",

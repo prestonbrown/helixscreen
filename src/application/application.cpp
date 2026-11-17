@@ -2290,7 +2290,7 @@ int Application::main_loop() {
                     lv_timer_set_period(queue, helix::update_queue_period_ms(
                                                    display_sleeping, timing, LV_DEF_REFR_PERIOD));
                 }
-                DisplayManager::delay(
+                m_display->wait_for_work(
                     helix::main_loop_sleep_ms(time_till_next, display_sleeping, timing));
             } else {
                 DisplayManager::delay(1);

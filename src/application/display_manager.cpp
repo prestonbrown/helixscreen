@@ -778,6 +778,16 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
     // Refresh pacing overrides, now that the refresh, animation, input and update-queue
     // timers they set all exist.
     helix::apply_refresh_timing(m_refresh_timing);
+
+    // Asleep, input is read when its fd turns readable rather than every 33 ms. Waking
+    // resumes the timers before anything else reads input.
+    register_sleep_callback([this](bool sleeping) {
+        if (sleeping && m_backend) {
+            m_input_wait.begin(m_backend->input_wake_sources());
+        } else if (!sleeping) {
+            m_input_wait.end();
+        }
+    });
 }
 
 void DisplayManager::create_keyboard_input() {
@@ -814,6 +824,14 @@ uint32_t DisplayManager::get_ticks() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<uint32_t>(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #endif
+}
+
+void DisplayManager::wait_for_work(uint32_t ms) {
+    if (m_input_wait.active()) {
+        m_input_wait.wait(ms);
+        return;
+    }
+    delay(ms);
 }
 
 void DisplayManager::delay(uint32_t ms) {
