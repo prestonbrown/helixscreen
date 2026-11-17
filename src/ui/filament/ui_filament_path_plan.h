@@ -68,7 +68,7 @@ struct LinearHubFrame {
     // The toolhead glyph's scale: the theme's, or smaller on a canvas too short to fit the hub
     // between the lanes and a full-size head.
     int32_t tool_scale = 0;
-    int32_t inlet_y = 0; // where the tube meets the toolhead glyph: its top
+    int32_t inlet_y = 0; // the head's filament inlet, where the tube ends
     int32_t head_x = 0;  // the toolhead glyph's column, its inlet on center_x
     int32_t bypass_merge_y = 0;
     int32_t center_x = 0;

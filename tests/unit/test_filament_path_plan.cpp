@@ -7,7 +7,7 @@
 // the click handler reads, so the renderer records exactly the boxes it draws.
 // The rest run the pure frame → plan step on a fixed 400x400 frame: slots at
 // x = 50, 150, 250, 350, center 200; entry -48, prep 40, hub 120 (h 40, top
-// 100), output 140, merge 232, toolhead 272, nozzle 358, glyph top 327.
+// 100), output 140, merge 232, toolhead 272, nozzle 358, glyph top 327, inlet 338.
 
 #include "ui_ams_detail.h"
 #include "ui_bypass_spool_widget.h"
@@ -145,6 +145,8 @@ constexpr uint32_t kBypassColor = 0x8E24AA;
 const lv_color_t kBg = lv_color_hex(0x101010);
 // The default toolhead glyph's top for nozzle 358 at extruder scale 10.
 constexpr int32_t kGlyphTop = 327;
+// Its filament inlet, where the tube ends.
+constexpr int32_t kInletY = 338;
 
 std::unique_ptr<FilamentPathData> make_data(helix::PathTopology topo) {
     auto d = std::make_unique<FilamentPathData>();
@@ -265,7 +267,7 @@ TEST_CASE("FilamentPath plan: the frame fixture lays out as the plan states",
     CHECK(f.bypass_merge_y == 232);
     CHECK(f.toolhead_y == 272);
     CHECK(f.nozzle_y == 358);
-    CHECK(f.inlet_y == 327); // the glyph's top: the tube ends where the head's art begins
+    CHECK(f.inlet_y == kInletY);
 }
 
 TEST_CASE("FilamentPath plan: coalesce joins equal painted runs", "[filament-path][plan]") {
@@ -361,7 +363,7 @@ TEST_CASE("FilamentPath plan: HUB active route runs unbroken from spool to inlet
     const Route& r = plan.routes[plan.active_route];
     REQUIRE(r.path.count > 0);
     CHECK(near(seg_start(r.path.segs[0]), 150, -48));
-    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 327));
+    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, kInletY));
     CHECK(contiguous(r.path));
     CHECK(has_boundary(r.path, 150, 40));
     CHECK(has_boundary(r.path, 200, 140));
@@ -461,7 +463,7 @@ TEST_CASE("FilamentPath plan: an active bypass owns the trunk below the merge",
     REQUIRE(b.path.count > 0);
     CHECK(near(seg_start(b.path.segs[0]), 400 * kBypassXRatio, // the spool's bottom
                232.0f - helix::ui::bypass_spool_bottom_above_merge(), 1.0f));
-    CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, 327));
+    CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, kInletY));
     CHECK(contiguous(b.path));
     for (int i = 0; i < b.path.count; i++) {
         CHECK(b.style[i].wall == TubeWall::Active);
@@ -580,7 +582,7 @@ TEST_CASE("FilamentPath plan: the on-toolhead route fits the segment budget",
     CHECK(plan.dropped == 0);
     CHECK(contiguous(r.path));
     CHECK(near(seg_start(r.path.segs[0]), 50, -48));
-    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 327));
+    CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, kInletY));
 }
 
 TEST_CASE("FilamentPath plan: the toolhead band follows the unit's sensor, bypass or not",
@@ -598,7 +600,7 @@ TEST_CASE("FilamentPath plan: the toolhead band follows the unit's sensor, bypas
         const Route& r = plan.routes[plan.active_route];
         CHECK(contiguous(r.path));
         CHECK(has_boundary(r.path, 200, 299));
-        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, 327));
+        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 200, kInletY));
     }
     SECTION("a unit without one gets none") {
         d->has_toolhead_sensor = false;
@@ -626,7 +628,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: the animation replays one unbro
     CHECK(near(seg_start(p.segs[0]), (float)(c.x1 + 150),
                (float)(c.y1 + (int32_t)(H * kEntryYRatio))));
     CHECK(near(seg_end(p.segs[p.count - 1]), (float)(c.x1 + 200),
-               (float)toolhead_top_y(nozzle_y, d->theme.extruder_scale)));
+               (float)path_toolhead_inlet(nozzle_y, d->theme.extruder_scale).y));
 }
 
 TEST_CASE("FilamentPath plan: sixteen HUB lanes fit the segment and band budgets",
@@ -1018,10 +1020,10 @@ PathPlan& mixed_plan(const FilamentPathData& d) {
     return plan;
 }
 
-// Where a MIXED tube meets its head: the glyph's top.
-float mixed_head_top(const FilamentPathData& d) {
+// Where a MIXED tube meets its head: its filament inlet.
+float mixed_inlet_y(const FilamentPathData& d) {
     const MixedFrame m = compute_mixed_frame(d, geometry());
-    return (float)toolhead_top_y(m.toolhead_y, m.tool_scale);
+    return (float)path_toolhead_inlet(m.toolhead_y, m.tool_scale).y;
 }
 
 } // namespace
@@ -1035,13 +1037,13 @@ TEST_CASE("FilamentPath plan: idle PARALLEL tools are one stroke each through th
     CHECK(plan.active_route == -1);
     const float sensor_y = 198;
     const ParallelRows rows = parallel_rows(*d, geometry());
-    const float head_top = (float)toolhead_top_y(rows.toolhead_y, rows.tool_scale);
+    const float inlet = (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y;
     for (int i = 0; i < 4; i++) {
         const Route& r = plan.routes[i];
         Stroke strokes[16];
         CHECK(coalesce(r, strokes, 16) == 1);
         CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, -48));
-        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i, head_top));
+        CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i, inlet));
         CHECK(has_boundary(r.path, 50.0f + 100 * i, sensor_y));
     }
     REQUIRE(plan.band_count == 4);
@@ -1072,7 +1074,7 @@ TEST_CASE("FilamentPath plan: PARALLEL tubes hang from below their spools",
         const Route& r = plan.routes[i];
         CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, (float)entry_y));
         CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i,
-                   (float)toolhead_top_y(rows.toolhead_y, rows.tool_scale)));
+                   (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y));
         CHECK(band_at(plan, 50.0f + 100 * i, (float)rows.sensor_y) != nullptr);
     }
 
@@ -1152,7 +1154,7 @@ TEST_CASE("FilamentPath plan: a PARALLEL unit without a toolhead sensor draws no
         const Route& r = plan.routes[i];
         CHECK(contiguous(r.path));
         CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i,
-                   (float)toolhead_top_y(rows.toolhead_y, rows.tool_scale)));
+                   (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y));
     }
 }
 
@@ -1285,14 +1287,14 @@ TEST_CASE("FilamentPath plan: MIXED direct lanes and the hub trunk reach a nozzl
     d->slot_is_hub_routed[2] = true;
     d->slot_is_hub_routed[3] = true;
     const PathPlan& plan = mixed_plan(*d);
-    const float head_top = mixed_head_top(*d);
+    const float inlet = mixed_inlet_y(*d);
 
     int at_nozzle = 0;
     for (int i = 0; i < plan.route_count; i++) {
         const Route& r = plan.routes[i];
         REQUIRE(r.path.count > 0);
         CHECK(contiguous(r.path));
-        at_nozzle += std::fabs(seg_end(r.path.segs[r.path.count - 1]).y - head_top) < 0.01f;
+        at_nozzle += std::fabs(seg_end(r.path.segs[r.path.count - 1]).y - inlet) < 0.01f;
     }
     CHECK(at_nozzle == 3);
     for (int i : {2, 3}) {
@@ -1302,7 +1304,7 @@ TEST_CASE("FilamentPath plan: MIXED direct lanes and the hub trunk reach a nozzl
     REQUIRE(plan.trunk_route >= 0);
     const Route& t = plan.routes[plan.trunk_route];
     CHECK(near(seg_start(t.path.segs[0]), 300, 178));
-    CHECK(near(seg_end(t.path.segs[t.path.count - 1]), 300, head_top));
+    CHECK(near(seg_end(t.path.segs[t.path.count - 1]), 300, inlet));
     CHECK(plan.band_count == 4);
 }
 
@@ -1346,7 +1348,7 @@ TEST_CASE("FilamentPath plan: a MIXED direct lane short of the nozzle fills to i
     REQUIRE(r.path.count == 2);
     CHECK(r.style[0].filled);
     CHECK_FALSE(r.style[1].filled);
-    CHECK(near(seg_end(r.path.segs[1]), 50, mixed_head_top(*d)));
+    CHECK(near(seg_end(r.path.segs[1]), 50, mixed_inlet_y(*d)));
 }
 
 TEST_CASE("FilamentPath plan: PARALLEL and MIXED show an error on the mounted lane",

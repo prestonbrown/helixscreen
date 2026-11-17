@@ -109,9 +109,9 @@ int segment_starting_at(const pg::FilamentPath& route, float y) {
     return -1;
 }
 
-// Where a tube meets the toolhead glyph: its top.
+// Where a tube meets the toolhead: its filament inlet.
 float inlet_y(const HubCanvas& c) {
-    return (float)toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
+    return (float)path_toolhead_inlet(c.data->path_cache.nozzle_y, c.data->path_cache.tool_scale).y;
 }
 
 // The buffer hangs just under the hub, nearer it than the toolhead.
@@ -231,14 +231,16 @@ TEST_CASE_METHOD(HubStackFixture,
 }
 
 // The OpenAMS unit view at 480x272: four lanes leave the spool box at y 180 into a canvas
-// 66 px tall below it, a buffer present and no bypass. Its sizes are that breakpoint's.
-TEST_CASE_METHOD(HubStackFixture, "HUB on a 480x272 canvas keeps its hub and buffer off the head",
+// 66 px tall below it. Its sizes are that breakpoint's.
+TEST_CASE_METHOD(HubStackFixture,
+                 "HUB on a 480x272 canvas keeps room under its hub for the buffer above the head",
                  "[filament-path][hub-stack]") {
     const auto style = GENERATE(helix::ToolheadStyle::DEFAULT, helix::ToolheadStyle::STEALTHBURNER,
                                 helix::ToolheadStyle::JABBERWOCKY, helix::ToolheadStyle::A4T);
     ScopedToolheadStyle scoped(style);
     const bool buffer = GENERATE(true, false);
-    CAPTURE(static_cast<int>(style), buffer);
+    const bool bypass = GENERATE(false, true);
+    CAPTURE(static_cast<int>(style), buffer, bypass);
 
     FilamentPathData d;
     d.topology = static_cast<int>(helix::PathTopology::HUB);
@@ -252,7 +254,7 @@ TEST_CASE_METHOD(HubStackFixture, "HUB on a 480x272 canvas keeps its hub and buf
     d.has_hub_sensor = true;
     d.has_toolhead_sensor = true;
     d.buffer_present = buffer;
-    d.show_bypass = false;
+    d.show_bypass = bypass;
     BaseGeometry g;
     g.x_off = 330;
     g.y_off = 194;
@@ -266,19 +268,40 @@ TEST_CASE_METHOD(HubStackFixture, "HUB on a 480x272 canvas keeps its hub and buf
 
     const LinearHubFrame f = compute_linear_hub_frame(
         d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    const int32_t r = d.theme.sensor_radius;
     const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
-    CAPTURE(f.hub_y, f.hub_h, f.toolhead_y, f.tool_scale, head_top);
-    CHECK(f.hub_y + f.hub_h / 2 <= head_top);
-    CHECK(f.toolhead_y <= head_top);
-    if (f.has_buffer)
-        CHECK(f.buffer_y + std::max<int32_t>(16, f.hub_h) / 2 <= head_top);
+    const int32_t inlet = path_toolhead_inlet(f.nozzle_y, f.tool_scale).y;
+    const int32_t hub_bottom = f.hub_y + f.hub_h / 2;
+    const int32_t buf_h = std::max<int32_t>(16, f.hub_h);
+    CAPTURE(f.hub_y, f.hub_h, f.buffer_y, f.bypass_merge_y, f.toolhead_y, f.tool_scale, head_top,
+            inlet);
+    // The tube ends at the head's filament inlet.
+    CHECK(f.inlet_y == inlet);
+    // The buffer keeps its box, with a clear gap above and below it; the head keeps a clear gap
+    // above it for the toolhead band.
+    CHECK(f.has_buffer == buffer);
+    CHECK(hub_bottom + (buffer ? r + buf_h : 0) + r + 2 * r <= inlet);
+    if (buffer) {
+        CHECK(f.buffer_y - buf_h / 2 >= hub_bottom + r);
+        CHECK(f.buffer_y + buf_h / 2 + r + 2 * r <= head_top);
+    }
+    CHECK(f.toolhead_y + r <= head_top);
+    CHECK(f.toolhead_y - r >= hub_bottom);
+    // The bypass joins the trunk below the hub and buffer, clear of the head.
+    if (bypass) {
+        CHECK(f.bypass_merge_y <= head_top - 2 * r);
+        CHECK(f.bypass_merge_y > (buffer ? f.buffer_y + buf_h / 2 : hub_bottom));
+    }
     // The lanes still come down from the spool box into the hub's top.
     static PathPlan plan;
     plan_linear_hub(f, d, g, plan);
     for (int i = 0; i < 4; i++) {
         CAPTURE(i);
-        check_contiguous(plan.routes[i].path);
-        const pg::PathPoint end = seg_end(plan.routes[i].path.segs[plan.routes[i].path.count - 1]);
+        const pg::FilamentPath& lane = plan.routes[i].path;
+        for (int k = 1; k < lane.count; ++k)
+            CHECK(std::hypot(seg_start(lane.segs[k]).x - seg_end(lane.segs[k - 1]).x,
+                             seg_start(lane.segs[k]).y - seg_end(lane.segs[k - 1]).y) < 0.01);
+        const pg::PathPoint end = seg_end(lane.segs[lane.count - 1]);
         CHECK(end.y == Catch::Approx(f.hub_y - f.hub_h / 2));
         CHECK(end.y >= (float)g.lane_entry_y);
     }

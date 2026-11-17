@@ -733,17 +733,8 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Flow chevrons along the active filament path.
     if (flow_visible(*data) && data->active_slot >= 0) {
-        // The route drops into the toolhead from above; the glyph covers the
-        // run inside it, so the stream ends at the glyph's top.
-        pg::FilamentPath flow_path = path;
-        if (data->feeds_toolhead && flow_path.count > 0) {
-            pg::PathSeg& last = flow_path.segs[flow_path.count - 1];
-            const float top =
-                static_cast<float>(toolhead_top_y(nozzle_y, data->path_cache.tool_scale));
-            if (last.type == pg::PathSeg::LINE && std::fabs(last.p1.x - last.p0.x) < 0.5f &&
-                last.p1.y > top)
-                last.p1.y = std::max(last.p0.y, top);
-        }
+        // The route ends at the head's filament inlet, painted over the head like the tube.
+        const pg::FilamentPath flow_path = path;
         // The hub and buffer boxes are drawn over the tube with their labels.
         pg::PathBox avoid[2];
         int n_avoid = 0;
