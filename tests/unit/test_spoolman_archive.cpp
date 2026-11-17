@@ -169,8 +169,13 @@ TEST_CASE("context menu withholds Archive from the active spool only, and titles
           "[spoolman][archive]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(
-        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "")});
+    // A refresh also learns Spoolman's currency (the mock's EUR) for the price line.
+    panel.init_subjects();
+    panel.refresh_spools();
+    helix::ui::UpdateQueue::instance().drain();
+    SpoolInfo priced = make_spool(41, "Ambrosia Pink");
+    priced.price = 24.5;
+    SpoolmanPanelTestAccess::seed_cached_spools(panel, {priced, make_spool(42, "")});
     SpoolmanPanelTestAccess::set_active_spool_id(panel, 41);
 
     // The menu's subjects outlive each show, so each spool must get its own answer
@@ -198,6 +203,9 @@ TEST_CASE("context menu withholds Archive from the active spool only, and titles
         CHECK(lv_obj_is_hidden(subtitle) == (c.subtitle == nullptr));
         if (c.subtitle) {
             CHECK(std::string(lv_label_get_text(subtitle)) == c.subtitle);
+            lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
+            REQUIRE(price != nullptr);
+            CHECK(std::string(lv_label_get_text(price)) == "Price: €24.50");
         }
 
         SpoolmanPanelTestAccess::hide_context_menu(panel);
