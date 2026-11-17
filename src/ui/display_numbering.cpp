@@ -75,6 +75,9 @@ std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index,
     const std::string code = is_generated_tool_name(name) ? std::string(name) : tool_label(index);
     if (form == ToolLabelForm::Code)
         return code;
+    // Counting from zero, "Tool 0" already says T0; the pair would repeat it.
+    if (is_generated_tool_name(name) && code == tool_label(lane_number(index)))
+        return tool_name_label(noun, name, index);
     return fmt::format(lv_tr("{} ({})"), tool_name_label(noun, name, index), code);
 }
 
