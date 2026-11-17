@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spool editor without a filament system** (#2097) - on a printer with no filament system, the spool editor no longer stays on "Loading lane details" with Save turned off.
 - **OrcaSlicer ids from a custom catalog** (#1908) - a filament from your own catalog entries no longer writes an id that no OrcaSlicer preset can match into the printer's lane record.
 - **Clearer debug bundles when Klipper is down** - a debug bundle taken while Klipper has never reported a state says so instead of calling it a shutdown, and a log read straight from the printer's disk names the file and how old it is.
+- **Screensaver on screens that dim** (#2120) - choosing a screensaver now starts it after the timeout on every screen. On a screen with a dimmable backlight the timeout row is called Screensaver after while a screensaver is chosen, and picking one while that timeout is Never sets it to 10 minutes. Before, a screensaver chosen with Screen Dim set to Never never appeared.
+- **Bypass spool the same size as the others** - on the filament system screens the bypass spool is now drawn the same size as the spools in each unit, instead of smaller.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
