@@ -11,6 +11,7 @@
 #include "screensaver_highfly_sim.h"
 #include "screensaver_hyperspace_sim.h"
 #include "screensaver_maze_sim.h"
+#include "screensaver_nixie_clock_sim.h"
 #include "screensaver_pipes_sim.h"
 #include "screensaver_starfield_sim.h"
 
@@ -46,6 +47,7 @@ using helix::ui::HighFlySim;
 using helix::ui::HyperspaceSim;
 using helix::ui::MazeArt;
 using helix::ui::MazeSim;
+using helix::ui::NixieClockSim;
 using helix::ui::PipesSim;
 using helix::ui::PixelFormat;
 using helix::ui::StarfieldSim;
@@ -120,6 +122,13 @@ template <> void ContractRun<FlipClockSim>::init(size_t level) {
     run.init(level, helix::ui::clock_face(seconds_of_day(), true));
 }
 template <> void ContractRun<FlipClockSim>::step_with_inputs(uint32_t dt_ms) {
+    run.step(dt_ms, helix::ui::clock_face(seconds_of_day(), true));
+}
+
+template <> void ContractRun<NixieClockSim>::init(size_t level) {
+    run.init(level, helix::ui::clock_face(seconds_of_day(), true));
+}
+template <> void ContractRun<NixieClockSim>::step_with_inputs(uint32_t dt_ms) {
     run.step(dt_ms, helix::ui::clock_face(seconds_of_day(), true));
 }
 
@@ -217,7 +226,7 @@ template <typename Sim> void check_heap_contract(ClockMode mode) {
 
 #define HELIX_EVERY_SIM                                                                            \
     StarfieldSim, PipesSim, FireworksSim, MazeSim, HyperspaceSim, FlipClockSim, FirefliesSim,      \
-        AquaSim, HighFlySim
+        AquaSim, HighFlySim, NixieClockSim
 
 /// The sims whose init() and step() take a ClockReading, run again on a print counting down.
 #define HELIX_EVERY_PRINT_SIM                                                                      \

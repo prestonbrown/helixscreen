@@ -205,10 +205,7 @@ float stroke_glyph_distance(char c, float px, float py) {
     return 1e9f;
 }
 
-namespace {
-
-/// Index of `c` in kStrokeGlyphChars, or -1.
-int glyph_index(char c) {
+int stroke_glyph_index(char c) {
     for (int i = 0; kStrokeGlyphChars[i] != '\0'; i++) {
         if (kStrokeGlyphChars[i] == c) {
             return i;
@@ -216,8 +213,6 @@ int glyph_index(char c) {
     }
     return -1;
 }
-
-} // namespace
 
 void StrokeGlyphSet::init(int32_t unit, float stroke) {
     clear();
@@ -229,7 +224,7 @@ void StrokeGlyphSet::init(int32_t unit, float stroke) {
 }
 
 void StrokeGlyphSet::ensure(char c) {
-    const int i = glyph_index(c);
+    const int i = stroke_glyph_index(c);
     if (i < 0 || w <= 0 || !glyphs_[static_cast<size_t>(i)].empty()) {
         return;
     }
@@ -248,7 +243,7 @@ void StrokeGlyphSet::ensure(char c) {
 }
 
 uint8_t StrokeGlyphSet::at(char c, int32_t gx, int32_t gy) const {
-    const int i = glyph_index(c);
+    const int i = stroke_glyph_index(c);
     if (i < 0 || gx < 0 || gy < 0 || gx >= w || gy >= h) {
         return 0;
     }

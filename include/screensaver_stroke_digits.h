@@ -42,6 +42,9 @@ static_assert(kStrokeGlyphChars[24] == kGlyphCheck && kStrokeGlyphChars[25] == k
               "the symbols are stroke glyphs");
 inline constexpr size_t kStrokeGlyphCount = sizeof(kStrokeGlyphChars) - 1;
 
+/// Index of `c` in kStrokeGlyphChars, or -1 for a character with no glyph.
+int stroke_glyph_index(char c);
+
 /// Distance, in glyph units, from (px, py) to `c`'s centre line, in the digits' box; digits as
 /// stroke_digit_distance, and very far for a character with no glyph.
 float stroke_glyph_distance(char c, float px, float py);

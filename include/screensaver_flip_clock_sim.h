@@ -140,11 +140,36 @@ class FlipClockState {
     FlipFace face_;
 };
 
+/**
+ * @brief A card's proportions, in glyph units
+ *
+ * The flip clock's cards and the nixie clock's tubes share one layout: a box around each
+ * glyph, gaps between them, colons between groups and a smaller row under the main one. Only
+ * the proportions differ.
+ */
+struct CardGeometry {
+    float stroke = 0.2f;      ///< glyph stroke width; the glyph box is 1 + stroke wide
+    float pad_x = 0.32f;      ///< glyph inset at each side
+    float pad_top = 0.45f;    ///< glyph inset above
+    float pad_bottom = 0.45f; ///< glyph inset below
+    float card_gap = 0.12f;   ///< between the cards of one group
+    float group_gap = 0.6f;   ///< between groups in a row, where the colon sits
+    float row_gap = 0.3f;     ///< between rows when the groups stack
+    float sub_gap = 0.25f;    ///< between the cards and the small row
+    /// On the small row, between groups with no colon (the time and the percent): wide enough
+    /// to read as two values, not one.
+    float sub_spacer = 1.6f;
+    float sub_scale = kSubCardScale; ///< size of a small card against a main one
+};
+
+/// The flip clock's cards.
+inline constexpr CardGeometry kFlipCardGeometry{};
+
 /// One row of cards' sizes.
 struct FlipRowMetrics {
-    int32_t unit = 0;  ///< glyph scale: pixels per glyph width unit
-    int32_t pad_x = 0; ///< glyph inset in a card
-    int32_t pad_y = 0;
+    int32_t unit = 0;         ///< glyph scale: pixels per glyph width unit
+    int32_t pad_x = 0;        ///< glyph inset in a card
+    int32_t pad_y = 0;        ///< glyph inset from the card's top
     int32_t split_top = 0;    ///< first row of the split line, relative to a card's top
     int32_t split_bottom = 0; ///< first row below the split line
     int32_t corner = 0;       ///< card corner radius
@@ -184,15 +209,17 @@ struct FlipLayout {
 /// Lays out the cards of `shape` as large as fit on a `w` x `h` screen: every group in one
 /// row with a colon between groups, or, when that makes them larger (portrait), one group per
 /// row; the small row of `sub_shape` centred under them (a colon after its first `sub_colons`
-/// groups); centred, then moved by (`dx`, `dy`).
+/// groups); centred, then moved by (`dx`, `dy`). Cards take `geometry`'s proportions.
 FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                              const FlipShape& sub_shape, int32_t dx, int32_t dy,
-                             uint8_t sub_colons = 1);
+                             uint8_t sub_colons = 1,
+                             const CardGeometry& geometry = kFlipCardGeometry);
 
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
-                              const FlipShape& sub_shape, uint8_t sub_colons = 1);
+                              const FlipShape& sub_shape, uint8_t sub_colons = 1,
+                              const CardGeometry& geometry = kFlipCardGeometry);
 
 /**
  * @brief Draws the clock into a frame, redrawing only the cards that change

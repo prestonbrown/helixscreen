@@ -22,6 +22,7 @@
 #include "screensaver_hyperspace.h"
 #include "screensaver_level_store.h"
 #include "screensaver_maze.h"
+#include "screensaver_nixie_clock.h"
 #include "screensaver_pipes.h"
 #include "screensaver_starfield.h"
 
@@ -64,6 +65,7 @@ ScreensaverManager::ScreensaverManager()
     screensavers_.push_back(std::make_unique<helix::ui::FirefliesScreensaver>());
     screensavers_.push_back(std::make_unique<helix::ui::AquaScreensaver>());
     screensavers_.push_back(std::make_unique<helix::ui::HighFlyScreensaver>());
+    screensavers_.push_back(std::make_unique<helix::ui::NixieClockScreensaver>());
     for (auto& saver : screensavers_) {
         if (helix::ui::ClockInputSink* sink = saver->clock_input_sink()) {
             sink->set_input_source([this] { return clock_input(); });

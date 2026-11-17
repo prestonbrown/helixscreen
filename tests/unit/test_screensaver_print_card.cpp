@@ -223,9 +223,9 @@ TEST_CASE("only savers without their own print display show the card",
           "[screensaver][screensaver_print_card]") {
     for (const helix::ui::ScreensaverInfo& info : helix::ui::kScreensavers) {
         CAPTURE(info.name);
-        const bool own = info.type == ScreensaverType::FLIP_CLOCK ||
-                         info.type == ScreensaverType::AQUA ||
-                         info.type == ScreensaverType::HIGHFLY;
+        const bool own =
+            info.type == ScreensaverType::FLIP_CLOCK || info.type == ScreensaverType::AQUA ||
+            info.type == ScreensaverType::HIGHFLY || info.type == ScreensaverType::NIXIE_CLOCK;
         CHECK((info.print_display == helix::ui::PrintDisplay::SCENE) == own);
     }
 }
