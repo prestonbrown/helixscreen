@@ -193,7 +193,7 @@ void PrintControlButtons::handle_primary_button() {
                     return;
                 }
                 spdlog::error("[PrintControl] Pause failed: {}", err.message);
-                helix::ui::notify_error_tr(TR_NOOP("Failed to pause print: {}"), err);
+                helix::notify_error_tr(TR_NOOP("Failed to pause print: {}"), err);
                 PrintControlButtons::instance().clear_pending_action();
             },
             /*timeout_ms=*/0, /*suppress_auto_toast=*/true);

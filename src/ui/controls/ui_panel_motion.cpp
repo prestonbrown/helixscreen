@@ -1354,12 +1354,12 @@ void MotionPanel::home_axes(const std::string& axes) {
         axes,
         [axes]() {
             if (axes.empty()) {
-                helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
+                helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
             } else {
                 if (axes.size() == 1) {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
                 } else {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
                 }
             }
         },

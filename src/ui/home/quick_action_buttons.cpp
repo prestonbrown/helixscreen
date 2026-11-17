@@ -247,7 +247,7 @@ void QuickActionButtons::run(size_t index, IMoonrakerAPI* api,
                 NOTIFY_SUCCESS(lv_tr("{} complete"), name);
             },
             [](const MoonrakerError& err) {
-                helix::ui::notify_error_tr(TR_NOOP("Macro failed: {}"), err);
+                helix::notify_error_tr(TR_NOOP("Macro failed: {}"), err);
             })) {
         NOTIFY_WARNING(lv_tr("{} macro not configured"), info.translated_name());
     }

@@ -1292,7 +1292,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
         api_->set_fan_speed(
             part_fan, static_cast<double>(value), []() { /* Silent success */ },
             [](const MoonrakerError& err) {
-                helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+                helix::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
             });
     }
 }

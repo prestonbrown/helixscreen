@@ -942,7 +942,7 @@ void FanStackWidget::send_carousel_fan_speed(const std::string& object_name, int
     api->set_fan_speed(
         object_name, static_cast<double>(speed_percent), []() {},
         [object_name](const MoonrakerError& err) {
-            helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
         });
 }
 

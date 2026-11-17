@@ -504,9 +504,9 @@ void report_op_error(const MoonrakerError& error, const char* what) {
         return;
     }
     if (std::string(what) == "load") {
-        helix::ui::notify_error_tr(TR_NOOP("Failed to load filament: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Failed to load filament: {}"), error);
     } else {
-        helix::ui::notify_error_tr(TR_NOOP("Failed to unload: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Failed to unload: {}"), error);
     }
 }
 
@@ -945,7 +945,7 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
     const auto purge_failed = [log_tag, ticket](const MoonrakerError& err) {
         heat_failed(ticket);
         spdlog::error("{} Failed to purge: {}", log_tag, err.message);
-        helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
+        helix::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
     };
 
     // Two tiers, not three: no AmsBackend exposes a purge entry point, so there

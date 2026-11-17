@@ -6,6 +6,7 @@
 #include "ui_widget_ref.h"
 
 #include "core/notification_threshold.h"
+#include "core/toast_severity.h"
 #include "lvgl.h"
 
 #include <atomic>
@@ -13,16 +14,6 @@
 #include <functional>
 #include <list>
 #include <string>
-
-/**
- * @brief Toast notification severity levels
- */
-enum class ToastSeverity {
-    INFO,    ///< Informational message (blue)
-    SUCCESS, ///< Success message (green)
-    WARNING, ///< Warning message (orange)
-    ERROR    ///< Error message (red)
-};
 
 /**
  * @brief Callback type for toast action button

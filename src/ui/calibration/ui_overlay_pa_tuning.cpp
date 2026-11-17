@@ -898,7 +898,7 @@ void PaTuningOverlay::save_to_spool() {
         object_lifetime_.bg_cb(
             "PaTuningOverlay::spool_save_failed", [this](const MoonrakerError& err) {
                 lv_subject_set_int(&can_save_spool_, 1);
-                helix::ui::notify_error_tr(TR_NOOP("Failed to save to Spoolman: {}"), err);
+                helix::notify_error_tr(TR_NOOP("Failed to save to Spoolman: {}"), err);
             }));
 }
 

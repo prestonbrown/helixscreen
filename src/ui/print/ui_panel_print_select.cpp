@@ -3179,8 +3179,8 @@ void PrintSelectPanel::copy_usb_file_to_printer(
                               return;
                           }
                           end_usb_copy();
-                          helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
-                                                     req.filename, err);
+                          helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
+                                                 req.filename, err);
                       });
         });
 }
@@ -3206,7 +3206,7 @@ void PrintSelectPanel::upload_usb_copy(UsbCopyRequest req,
             }
             if (space == storage::UploadSpace::TooFull) {
                 end_usb_copy();
-                helix::ui::notify_error_tr(storage::kNoUploadSpaceMessage);
+                helix::notify_error_tr(storage::kNoUploadSpaceMessage);
                 return;
             }
             start_usb_upload(std::move(req), dest);
@@ -3231,8 +3231,8 @@ void PrintSelectPanel::start_usb_upload(UsbCopyRequest req, const std::string& d
             tok.defer("PrintSelectPanel::usb_copy_failed", [this, generation, filename, err]() {
                 if (usb_copy_current(generation)) {
                     end_usb_copy();
-                    helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
-                                               err);
+                    helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
+                                           err);
                 }
             });
         },
