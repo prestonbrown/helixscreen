@@ -8,7 +8,9 @@ import math
 
 from ..head import Drawing, HeadDef, rounded
 
-BODY, MOUNT, EXTRUDER, BLOWER, KNOB, DARK = "#b8242a", "#2f3034", "#3c3d42", "#232427", "#1a1b1e", "#101113"
+BODY, MOUNT, BLOWER, KNOB, DARK = "#b8242a", "#2f3034", "#232427", "#1a1b1e", "#101113"
+# The extruder is all dark, so it reads apart from the red cowl: its plates a shade lighter than its body.
+EXTRUDER_PLATE, EXTRUDER_BODY = "#45464b", "#333438"
 SCREW = "#c6c8cc"
 MM = 0.43 / 55.0
 
@@ -183,11 +185,11 @@ def _extruder(d):
         # The motor's laminations read as a lighter band round its middle.
         _axial_cylinder(d, ax, az, MOTOR_R + 0.3 * MM, 50.0 * MM, 58.0 * MM, "#3a3b40")
     _axial_cylinder(d, ax, az, RING_GEAR_R, *RING_GEAR_Y, "#232427")
-    d.solid(rounded(_mm(REAR_PLATE), 1.0 * MM), *REAR_PLATE_Y, BODY)
-    d.solid(rounded(_mm(MAIN_BODY), 1.0 * MM), *MAIN_BODY_Y, EXTRUDER)
+    d.solid(rounded(_mm(REAR_PLATE), 1.0 * MM), *REAR_PLATE_Y, EXTRUDER_PLATE)
+    d.solid(rounded(_mm(MAIN_BODY), 1.0 * MM), *MAIN_BODY_Y, EXTRUDER_BODY)
     d.collet(0.0, COLLET_Y, G2_TOP, color="#1c2452")
-    d.solid(rounded(_mm(FRONT_PLATE), 1.2 * MM), *FRONT_PLATE_Y, BODY, bevel=0.8 * MM)
-    d.solid(rounded(_mm(TENSIONER_ARM), 0.8 * MM), 11.3 * MM, 28.8 * MM, BODY, bevel=0.6 * MM)
+    d.solid(rounded(_mm(FRONT_PLATE), 1.2 * MM), *FRONT_PLATE_Y, EXTRUDER_PLATE, bevel=0.8 * MM)
+    d.solid(rounded(_mm(TENSIONER_ARM), 0.8 * MM), 11.3 * MM, 28.8 * MM, EXTRUDER_PLATE, bevel=0.6 * MM)
     # The tension spring and its thumb screw, lying across the top right.
     _cylinder_x(d, 18.3 * MM, 105.0 * MM, 3.4 * MM, 13.3 * MM, 23.0 * MM, "#b9bbc0", "#b9bbc0", n=10)
     _cylinder_x(d, 18.3 * MM, 105.0 * MM, 6.0 * MM, 23.0 * MM, 25.8 * MM, KNOB, "#25262a", n=18)
