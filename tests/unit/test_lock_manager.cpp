@@ -146,7 +146,7 @@ TEST_CASE("LockManager: set_pin while locked updates PIN", "[lock]") {
 TEST_CASE_METHOD(LVGLTestFixture, "LockManager: lock_pin_set follows setting and removing the PIN",
                  "[lock]") {
     auto& mgr = helix::LockManager::instance();
-    LockManagerTestAccess::reset(mgr);
+    mgr.remove_pin();
     mgr.init_subjects();
     lv_subject_t* pin_set = lv_xml_get_subject(nullptr, "lock_pin_set");
     REQUIRE(pin_set != nullptr);
