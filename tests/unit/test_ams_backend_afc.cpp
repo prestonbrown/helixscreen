@@ -3313,6 +3313,7 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
 TEST_CASE("AFC retires the stale marking once Moonraker accepts RESET_FAILURE",
           "[ams][afc][recovery][stale_fault]") {
     // The production execute path, over a client that accepts every script.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
     helix::test::WiredBackend<AmsBackendAfc> afc;
     afc.wire().respond_to("printer.gcode.script", "ok");
     afc.set_discovered_lanes({"lane1", "lane2", "lane3"}, {});
@@ -3323,10 +3324,12 @@ TEST_CASE("AFC retires the stale marking once Moonraker accepts RESET_FAILURE",
     REQUIRE(afc.get_slot_info(2).error.has_value());
 
     int changed = 0;
+    const size_t scripts = afc.wire().fake_client().rpc_count("printer.gcode.script");
     afc.set_event_callback([&changed](const std::string& event, const std::string&) {
         changed += event == helix::AmsBackend::EVENT_STATE_CHANGED;
     });
     REQUIRE(afc.clear_fault(2).success());
+    REQUIRE(afc.wire().fake_client().rpc_count("printer.gcode.script") > scripts);
     changed = 0;
     helix::ui::UpdateQueue::instance().drain(); // the acceptance retires the marking
     CHECK(changed == 1);
