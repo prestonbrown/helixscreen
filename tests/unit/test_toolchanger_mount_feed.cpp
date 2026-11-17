@@ -2267,6 +2267,12 @@ TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps an
         listing({0, 2, 3}, rotated);
         CHECK(tc.get_slot_info(2).mapped_tool == 0);
     }
+    SECTION("a listing that arrived before the tool names still numbers them") {
+        helix::test::ToolChangerHelper late(3);
+        late.feed(json{{"toolchanger", {{"tool_numbers", {0, 2, 3}}, {"tool_names", in_order}}}});
+        late.set_discovered_tools({"T0", "T2", "T3"});
+        CHECK(late.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
+    }
     SECTION("a listed number past the tool count can be remapped") {
         listing({0, 2, 3}, in_order);
         REQUIRE(tc.set_tool_mapping(3, 0).success());
