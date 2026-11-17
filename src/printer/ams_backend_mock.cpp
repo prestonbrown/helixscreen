@@ -3572,11 +3572,12 @@ constexpr AfcMockLane kAfcDirectLanes[] = {
     {"lane19", "", 0x000000, "", SlotStatus::EMPTY, 18, "extruder3", 0.0f},
 };
 
-// Routing as AFC reports it: {direct lane, hub-routed lane, lanes, extruders, hubs}.
-constexpr PathTopology kAfcHubUnit4 = helix::printer::afc_unit_topology({false, true, 4, 1, 1});
-constexpr PathTopology kAfcHubUnit2 = helix::printer::afc_unit_topology({false, true, 2, 1, 1});
+// Routing as AFC reports it: {direct lane, hub-routed lane, lanes, extruders, hubs,
+// extruders on the printer}. This rig has four.
+constexpr PathTopology kAfcHubUnit4 = helix::printer::afc_unit_topology({false, true, 4, 1, 1, 4});
+constexpr PathTopology kAfcHubUnit2 = helix::printer::afc_unit_topology({false, true, 2, 1, 1, 4});
 constexpr PathTopology kAfcDirectToolsUnit =
-    helix::printer::afc_unit_topology({true, false, 1, 1, 0});
+    helix::printer::afc_unit_topology({true, false, 1, 1, 0, 4});
 
 constexpr AfcMockUnit kAfcDirectUnits[] = {
     {"Box_Turtle Turtle_1", "Turtle 1", kAfcHubUnit4, true, true, 0, 4},

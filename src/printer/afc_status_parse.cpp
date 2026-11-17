@@ -593,7 +593,7 @@ UnitObjectDelta parse_unit_object(const nlohmann::json& data) {
 }
 
 UnitTopology derive_unit_topology(const std::vector<std::string>& lanes, size_t extruder_count,
-                                  size_t hub_count,
+                                  size_t hub_count, size_t printer_extruder_count,
                                   const std::unordered_map<std::string, std::string>& routing) {
     UnitTopology out;
     bool has_direct = false;
@@ -614,8 +614,9 @@ UnitTopology derive_unit_topology(const std::vector<std::string>& lanes, size_t 
         (is_hub ? has_hub_routed : has_direct) = true;
     }
 
-    out.topology = helix::printer::afc_unit_topology(
-        {has_direct, has_hub_routed, lanes.size(), extruder_count, hub_count});
+    out.topology =
+        helix::printer::afc_unit_topology({has_direct, has_hub_routed, lanes.size(), extruder_count,
+                                           hub_count, printer_extruder_count});
     return out;
 }
 
