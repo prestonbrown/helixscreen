@@ -363,17 +363,14 @@ void PrinterState::update_from_status(const json& state, double eventtime,
 
     // Extract kinematics type (determines if bed moves on Z or gantry moves)
     // This is not part of motion_state_ as it affects printer_bed_moves_ subject
-    if (state.contains("toolhead")) {
-        const auto& toolhead = state["toolhead"];
-        if (toolhead.contains("kinematics") && toolhead["kinematics"].is_string()) {
-            std::string kin = toolhead["kinematics"].get<std::string>();
-            set_kinematics(kin);
+    if (const auto* toolhead = json_util::find_member(state, "toolhead")) {
+        if (const auto kin = json_util::read_field<std::string>(*toolhead, "kinematics")) {
+            set_kinematics(*kin);
         }
 
         // Track active extruder from toolhead (for tool changers and multi-extruder setups)
-        if (toolhead.contains("extruder") && toolhead["extruder"].is_string()) {
-            std::string active_ext = toolhead["extruder"].get<std::string>();
-            temperature_state_.set_active_extruder(active_ext);
+        if (const auto active_ext = json_util::read_field<std::string>(*toolhead, "extruder")) {
+            temperature_state_.set_active_extruder(*active_ext);
         }
     }
 
@@ -389,11 +386,8 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     }
 
     // Track Klipper pause_resume.is_paused (PAUSE/RESUME gcode state)
-    if (state.contains("pause_resume")) {
-        const auto& pr = state["pause_resume"];
-        if (pr.contains("is_paused") && pr["is_paused"].is_boolean()) {
-            is_paused_ = pr["is_paused"].get<bool>();
-        }
+    if (const auto* pr = json_util::find_member(state, "pause_resume")) {
+        is_paused_ = json_util::read_field<bool>(*pr, "is_paused").value_or(is_paused_);
     }
 
     // Delegate calibration updates (manual probe, motor state, firmware retraction)
