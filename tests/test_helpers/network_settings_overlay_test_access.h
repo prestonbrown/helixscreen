@@ -35,10 +35,7 @@ class NetworkSettingsOverlayTestAccess {
     /// names afresh: another instance's destructor withdraws the names it shares with
     /// the process-wide overlay.
     static void republish_subjects(NetworkSettingsOverlay& o) {
-        if (o.subjects_initialized_) {
-            o.subjects_.deinit_all();
-            o.subjects_initialized_ = false;
-        }
+        o.deinit_subjects_base(o.subjects_);
         o.ensure_subjects();
     }
     static std::shared_ptr<helix::WiFiManager>& wifi_manager(NetworkSettingsOverlay& o) {
