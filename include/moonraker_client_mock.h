@@ -2437,7 +2437,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     mutable std::mutex pressure_advance_mutex_;
 
     std::map<std::string, LedColor> led_states_; // LED name -> color
-    mutable std::mutex led_mutex_;               // Protects led_states_
+    /// LED output pins' values by object name ("output_pin Enclosure_LEDs"),
+    /// set by SET_PIN; a pin with no entry reads kMockLedPinValue.
+    std::map<std::string, double> led_pin_values_;
+    /// An LED output pin's value before any SET_PIN: the enclosure at 75%.
+    static constexpr double kMockLedPinValue = 0.75;
+    mutable std::mutex led_mutex_; // Protects led_states_ and led_pin_values_
     /// Klipper object names of the enabled LED effects. SET_LED_EFFECT is
     /// exclusive (enabling one makes the set exactly {that one}); STOP=1
     /// removes one; STOP_LED_EFFECTS clears it. Guarded by led_mutex_.
