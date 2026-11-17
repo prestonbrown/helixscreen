@@ -5933,6 +5933,21 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
                         .success());
         CHECK(helper.captured_gcodes.empty());
     }
+    SECTION("v4: autotune starts from the config, and a reload forgets what was sent") {
+        auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+        fx["configfile_settings"]["mmu_unit_parameters unit0"]["autotune_rotation_distance"] = 1;
+        const auto autotune = [this] {
+            return *std::any_cast<bool>(
+                &v4_control_rows(helper)["sync_feedback_autotune"].current_value);
+        };
+        connect_with_fixture(helper, client, fx);
+        feed_params(helper, {{"mmu", both}});
+        CHECK(autotune());
+        REQUIRE(helper.execute_device_action("sync_feedback_autotune", std::any(false)).success());
+        CHECK_FALSE(autotune());
+        connect_with_fixture(helper, client, fx);
+        CHECK(autotune());
+    }
     SECTION("v4 single unit: each control's command, no UNIT=") {
         const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
         connect_with_fixture(helper, client, fx);
