@@ -36,7 +36,8 @@ Swap commands follow from the same fact. `SELECT_TOOL`/`UNSELECT_TOOL` exist onl
 klipper-toolchanger does; without it the swap is plain `T<n>`, which Klipper maps to
 `ACTIVATE_EXTRUDER` and a changer extra overrides with its own. `toolchanger_addon::
 resolve_tool_commands()` answers this, and the provider table only has to name what
-differs - the unmount, which a machine whose tools are plain extruders does not have.
+differs - the unmount, which a machine whose tools are plain extruders does not have, or a
+`SELECT_TOOL` that takes other arguments than klipper-toolchanger's (Reforge, below).
 
 ### Key Differences from Filament Systems
 
@@ -153,8 +154,29 @@ is what supplies everything below.
 (`src/printer/toolchanger_addon.cpp#zmod_c5_detect`, exported as `zmod_c5_present`). Both
 halves are required: the AD5X Z-Mod also publishes `zmod_color` but has no carriage grab
 buttons, so it cannot match, and `zmod_color` alone would not say which machine this is.
-Reforge, the other C5 Pro firmware, needs none of this: it matches no provider row and
-takes the plain klipper-toolchanger path described above.
+Reforge, the other C5 Pro firmware, has its own row, described next.
+
+## Reforge on the Creator 5 Pro
+
+Reforge ([Klipper4FlashForge/firmware](https://github.com/Klipper4FlashForge/firmware))
+swaps heads with its own `[ff_toolchange]` extra, which publishes `toolchanger` and
+`tool T<n>` as read-only views shaped like klipper-toolchanger's, so discovery sees a plain
+tool changer. Its `SELECT_TOOL` and `UNSELECT_TOOL` are not klipper-toolchanger's, though:
+Reforge's argument parser takes a tool number only (`T=<n>` or `TOOL=T<n>`) and rejects
+the quoted object name the table above sends with "TOOL must be T0..T3"
+(prestonbrown/helixscreen#2027). The Reforge row in
+`src/printer/toolchanger_addon.cpp#providers`, keyed on the `ff_toolchange` object, sends:
+
+| Action | Command |
+|--------|---------|
+| Mount | `SELECT_TOOL T=<n>` (the physical head number; Reforge has no `ASSIGN_TOOL`, so there is no remap for `T=` to follow) |
+| Unmount | `UNSELECT_TOOL` (bare: docks whatever is mounted) |
+
+The row reads no sensor object of its own: `toolchanger.tool_number` is already derived
+from Reforge's dock and grab sensors. Reforge has no `INITIALIZE_TOOLCHANGER`, so the
+backend offers no reset (`initialize_available` is false), and a tool remap is refused as
+on Z-Mod. A Reforge build that runs AFC over its changer publishes AFC objects and is
+driven by the AFC backend, which this row does not touch.
 
 Z-Mod 1.7.4 additionally publishes an **AFC shim** (`zmod_afclite` registering `AFC`,
 `AFC_lane E0..E3`, `AFC_unit C5`) so Fluidd and Mainsail draw their AFC panel for the C5's

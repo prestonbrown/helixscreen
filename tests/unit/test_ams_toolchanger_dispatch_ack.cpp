@@ -38,6 +38,8 @@
 
 #include "ams_backend_toolchanger.h"
 #include "ams_types.h"
+#include "printer_discovery.h"
+#include "toolchanger_addon.h"
 
 #include <algorithm>
 #include <functional>
@@ -264,4 +266,53 @@ TEST_CASE("Toolchanger dispatch failure reverts the optimistic action",
     CHECK(h.sent().empty());
     CHECK(h.action() == helix::AmsAction::IDLE);
     CHECK_FALSE(h.get_system_info().is_busy());
+}
+
+// =============================================================================
+// Which argument form SELECT_TOOL takes
+// =============================================================================
+
+TEST_CASE("A changer whose SELECT_TOOL takes only tool numbers mounts with T=",
+          "[ams][toolchanger][dispatch][commands]") {
+    // [ff_toolchange] publishes klipper-toolchanger's status objects but its
+    // SELECT_TOOL/UNSELECT_TOOL parse only T=<n> or TOOL=T<n>: a quoted
+    // TOOL="tool T0" is rejected before anything moves.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "tool T3",
+                                  "ff_tool 0", "ff_toolchange", "ff_tool_offset", "extruder"}));
+    ToolChangerDispatchHelper h(4);
+    h.set_tool_commands(helix::toolchanger_addon::resolve_tool_commands(hw));
+    h.seat_tool(-1);
+
+    REQUIRE(h.change_tool(0).success());
+    REQUIRE(h.sent().size() == 1);
+    CHECK(h.sent()[0] == "SELECT_TOOL T=0");
+    h.ack(0);
+
+    h.seat_tool(0);
+    REQUIRE(h.park_active_tool().success());
+    REQUIRE(h.sent().size() == 2);
+    CHECK(h.sent()[1] == "UNSELECT_TOOL");
+
+    // No ASSIGN_TOOL and no INITIALIZE_TOOLCHANGER behind that toolchanger object.
+    CHECK_FALSE(h.reset_available());
+}
+
+TEST_CASE("Plain klipper-toolchanger mounts by tool object name",
+          "[ams][toolchanger][dispatch][commands]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "tool T2", "extruder"}));
+    ToolChangerDispatchHelper h(3);
+    h.set_tool_commands(helix::toolchanger_addon::resolve_tool_commands(hw));
+    h.seat_tool(-1);
+
+    REQUIRE(h.change_tool(2).success());
+    REQUIRE(h.sent().size() == 1);
+    CHECK(h.sent()[0] == "SELECT_TOOL TOOL=\"tool T2\"");
+    h.ack(0);
+
+    h.seat_tool(2);
+    REQUIRE(h.park_active_tool().success());
+    CHECK(h.sent().back() == "UNSELECT_TOOL");
+    CHECK(h.reset_available());
 }
