@@ -3255,6 +3255,7 @@
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" zh="请先从热床上取下 PEI 板再重新开始：隔着板材探测会导致结果错误"/>
   <translation tag="Remove the bypass spool from the toolhead first" zh="请先将旁路料盘从工具头中取出"/>
   <translation tag="Remove the filter cover." zh="取下滤网盖。"/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." zh="装载其他料盘前，请手动从工具头取出剩余耗材。"/>
   <translation tag="Remove the spools" zh="取下料盘"/>
   <translation tag="Remove the spools from the bed" zh="从热床上取下料盘"/>
   <translation tag="Remove the spools now?" zh="现在取下料盘吗?"/>
@@ -4267,6 +4268,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." zh="这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"/>
   <translation tag="This resume needs a newer version of HelixScreen." zh="此恢复需要更新版本的 HelixScreen。"/>
   <translation tag="This slot feeds no tool" zh="此槽位不向任何工具供料"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." zh="此料盘已用完，CFS 无法将剩余耗材抽回。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>

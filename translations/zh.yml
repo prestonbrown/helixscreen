@@ -3359,6 +3359,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': '请先从热床上取下 PEI 板再重新开始：隔着板材探测会导致结果错误'
   Remove the bypass spool from the toolhead first: '请先将旁路料盘从工具头中取出'
   Remove the filter cover.: "取下滤网盖。"
+  Remove the leftover filament from the toolhead by hand before loading another spool.: '装载其他料盘前，请手动从工具头取出剩余耗材。'
   Remove the spools: 取下料盘
 
   Remove the spools from the bed: 从热床上取下料盘
@@ -4440,6 +4441,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"
   This resume needs a newer version of HelixScreen.: 此恢复需要更新版本的 HelixScreen。
   This slot feeds no tool: '此槽位不向任何工具供料'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
   This system does not support bypass mode: '此系统不支持旁通模式'
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。

@@ -3255,6 +3255,7 @@
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" en="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results"/>
   <translation tag="Remove the bypass spool from the toolhead first" en="Remove the bypass spool from the toolhead first"/>
   <translation tag="Remove the filter cover." en="Remove the filter cover."/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." en="Remove the leftover filament from the toolhead by hand before loading another spool."/>
   <translation tag="Remove the spools" en="Remove the spools"/>
   <translation tag="Remove the spools from the bed" en="Remove the spools from the bed"/>
   <translation tag="Remove the spools now?" en="Remove the spools now?"/>
@@ -4267,6 +4268,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." en="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen."/>
   <translation tag="This resume needs a newer version of HelixScreen." en="This resume needs a newer version of HelixScreen."/>
   <translation tag="This slot feeds no tool" en="This slot feeds no tool"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." en="This spool ran out, so the CFS cannot pull the leftover filament back."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
   <translation tag="This system does not support bypass mode" en="This system does not support bypass mode"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." en="This tool probes each bed screw and tells you how much to adjust."/>

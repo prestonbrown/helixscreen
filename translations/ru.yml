@@ -3577,6 +3577,7 @@ translations:
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Снимите лист PEI со стола и начните заново: щуп через лист даёт неверные результаты'
   Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Remove the filter cover.: "Снимите крышку фильтра."
+  Remove the leftover filament from the toolhead by hand before loading another spool.: 'Удалите оставшийся филамент из печатающей головки вручную перед загрузкой другой катушки.'
   Remove the spools: Снимите катушки
 
   Remove the spools from the bed: Снимите катушки со стола
@@ -4722,6 +4723,7 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
+  This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент
