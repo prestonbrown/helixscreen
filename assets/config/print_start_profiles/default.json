@@ -17,7 +17,7 @@
     { "pattern": "^(Hotend|Nozzle):\\s*[0-9]+\\s*C?$", "phase": "HEATING_NOZZLE", "message": "Heating Nozzle...", "weight": 20, "narrates": false },
     { "pattern": "QUAD_GANTRY_LEVEL|quad.?gantry.?level|QGL|level(l)?ing.{0,12}gantry|gantry.{0,3}level|Gantry-relative probe points", "phase": "QGL", "message": "Leveling Gantry...", "weight": 15 },
     { "pattern": "Z_TILT_ADJUST|z.?tilt", "phase": "Z_TILT", "message": "Z Tilt Adjust...", "weight": 15 },
-    { "pattern": "BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load|Probing mesh|generating mesh|bed mesh", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
+    { "pattern": "BED_MESH_CALIBRATE|BED_MESH_PROFILE\\s+LOAD=|Loading bed mesh|mesh.*load|Probing mesh|generating mesh|bed mesh|Adapted mesh bounds|Adapted probe count", "phase": "BED_MESH", "message": "Probing Bed Mesh...", "weight": 10 },
     { "pattern": "CLEAN_NOZZLE|NOZZLE_CLEAN|NOZZLE_CLEAR|WIPE_NOZZLE|nozzle.?wipe|clean(ing)?.?nozzle|nozzle.?clear", "phase": "CLEANING", "message": "Cleaning Nozzle...", "weight": 5 },
     { "pattern": "VORON_PURGE|LINE_PURGE|PURGE_LINE|Prime.?Line|Priming|KAMP_.*PURGE|purge.?line|prime.?nozzle|PRIME_LINE|\\bpurging\\b", "phase": "PURGING", "message": "Purging...", "weight": 5 }
   ],

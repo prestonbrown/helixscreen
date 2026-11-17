@@ -5689,6 +5689,38 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     }
 }
 
+TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
+                 "Klipper's adaptive mesh lines start the bed mesh on the default profile",
+                 "[print][collector][bed_mesh][adapted]") {
+    // Klipper echoes nothing a macro runs, so a PRINT_START's
+    // BED_MESH_CALIBRATE ADAPTIVE=1 reaches the console only as the lines
+    // bed_mesh.py prints for the adapted grid.
+    collector().start();
+    drain_async_updates();
+    send_gcode_response("G28");
+    drain_async_updates();
+    REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
+
+    SECTION("bounds, then the probe count") {
+        send_gcode_response("// Adapted mesh bounds: ([30.0, 30.0],[270.0, 270.0])");
+        drain_async_updates();
+        CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
+        send_gcode_response("// Adapted probe count: (7,7)");
+        drain_async_updates();
+    }
+
+    SECTION("the probe count alone") {
+        send_gcode_response("// Adapted probe count: (7,7)");
+        drain_async_updates();
+    }
+
+    CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
+    CHECK(PrintStartCollectorTestAccess::get_mesh_probe_total(collector()) == 49);
+    send_gcode_response("// probe at 30.000,30.000 is z=0.100000");
+    drain_async_updates();
+    CHECK(get_current_message().find("(1/49)") != std::string::npos);
+}
+
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture, "PrintStartCollector - layer advance latch",
                  "[print_start][regression]") {
     // The pre-print phase can only end once layer data is proven to belong to
@@ -8529,7 +8561,8 @@ TEST_CASE_METHOD(LevelingPointsFixture,
     // 49 mesh points: the 4 corners probed by QGL are not among them.
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
     CHECK(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 49);
-    CHECK(get_current_message().rfind("Bed Mesh (49", 0) == 0);
+    // The adaptive mesh lines start the mesh under the profile's own label.
+    CHECK(get_current_message().rfind("Probing Bed Mesh (49/49", 0) == 0);
 }
 
 TEST_CASE_METHOD(LevelingPointsFixture,
@@ -8538,13 +8571,19 @@ TEST_CASE_METHOD(LevelingPointsFixture,
                  "[print][collector][voron][leveling]") {
     // No discovery points: the blanket guard is all there is. With QGL named
     // by the console, every probe line is skipped until the mesh is entered
-    // some other way, so the mesh is never auto-entered from probe lines.
+    // some other way, here by Klipper's adaptive mesh lines, so no QGL probe
+    // enters the mesh or counts in it.
     collector().start();
     drain_async_updates();
     send_gcode_response("QUAD_GANTRY_LEVEL");
     REQUIRE(get_current_phase() == PrintStartPhase::QGL);
-    replay(load_capture(), [](const Line&) {});
-    CHECK(get_current_phase() == PrintStartPhase::QGL);
+    replay(load_capture(), [&](const Line& line) {
+        if (line.s < at_time(20, 2, 57)) {
+            CHECK(get_current_phase() == PrintStartPhase::QGL);
+        }
+    });
+    CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
+    CHECK(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 49);
 }
 
 TEST_CASE_METHOD(LevelingPointsFixture,
@@ -8598,7 +8637,7 @@ TEST_CASE_METHOD(LevelingPointsFixture,
     });
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
     CHECK(PrintStartCollectorTestAccess::get_mesh_probe_current(collector()) == 25);
-    CHECK(get_current_message().rfind("Bed Mesh (25", 0) == 0);
+    CHECK(get_current_message().rfind("Probing Bed Mesh (25/25", 0) == 0);
 }
 
 TEST_CASE_METHOD(LevelingPointsFixture,

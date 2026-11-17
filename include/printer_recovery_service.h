@@ -67,6 +67,9 @@ struct RecoveryTiming {
 ///   3. `machine.services.restart klipper` — last resort. Only works on
 ///      hosts where Moonraker's `[machine] provider` is wired to a real
 ///      service manager (systemd_dbus / systemd_cli / supervisord_cli).
+///      Elsewhere Moonraker refuses it, and on_error carries a translated
+///      message telling the user to power-cycle the printer, never
+///      Moonraker's own text.
 ///
 /// Frontend stays platform-blind: this class never learns platform names.
 /// All platform knowledge lives in the shipped helix-recover.sh.

@@ -241,13 +241,16 @@ class MoonrakerDiscoverySequence {
     void discover_sensors();
 
     /**
-     * @brief Read Moonraker's version from update_manager (fire-and-forget)
+     * @brief Read @p app's version from update_manager (fire-and-forget)
      *
-     * For a server.info that reported a placeholder version: machine.update.status
-     * still knows the checkout's tag or commit. Publishes to hardware_ (for the
-     * discovery snapshot) and PrinterState (for a reply landing after it).
+     * For a placeholder version, Moonraker's from server.info (@p app
+     * "moonraker") or Klipper's from printer.info (@p app "klipper"), as a
+     * checkout without tags or an install outside git reports:
+     * machine.update.status may still know its tag or commit. Publishes to
+     * hardware_ (for the discovery snapshot) and PrinterState (for a reply
+     * landing after it).
      */
-    void fetch_moonraker_version_fallback(uint64_t seq);
+    void fetch_update_manager_version(uint64_t seq, const std::string& app);
 
     /**
      * @brief Record the hardware fields carried by a machine.system_info reply
@@ -364,6 +367,8 @@ class MoonrakerDiscoverySequence {
     std::string reported_machine_name_; // machine.system_info "machine_name"
     std::atomic<bool> identified_{false};
     std::atomic<bool> discovery_completed_{false};
+    /// server.info listed the update_manager component this sequence.
+    std::atomic<bool> update_manager_listed_{false};
 
     // Plugin objects merged into the union subscription. The provider is called while
     // extras_mutex_ is held, so clearing it waits out a call in progress.
