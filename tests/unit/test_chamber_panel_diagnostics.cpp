@@ -208,7 +208,7 @@ class ChamberOverlayFixture : public XMLTestFixture {
         // Chamber mode BEFORE build: the chamber strip's hidden bind and the
         // graph column's width bind both observe it, and the orientation
         // branch is structural, evaluated at view creation.
-        mode_subject_ = helix::test::xml_stand_in_int("temp_graph_mode", 3);
+        mode_subject_ = helix::test::xml_stand_in("temp_graph_mode", 3);
         // A prior test case may have left another mode on the shared static
         // subject: chamber is the default for every section here.
         lv_subject_set_int(mode_subject_, 3);
@@ -217,8 +217,8 @@ class ChamberOverlayFixture : public XMLTestFixture {
         // production; this fixture never runs it, so the card's heater_status
         // bindings need static stand-ins (registered BEFORE the overlay is
         // built, the same stand-in discipline as temp_graph_mode above).
-        helix::test::xml_stand_in_string("chamber_status", "");
-        helix::test::xml_stand_in_int("chamber_status_state", 0);
+        helix::test::xml_stand_in("chamber_status", "");
+        helix::test::xml_stand_in("chamber_status_state", 0);
 
         REQUIRE(register_component("components/nozzle_icon"));
         REQUIRE(register_component("components/heater_icon"));

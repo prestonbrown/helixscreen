@@ -591,7 +591,7 @@ namespace {
 struct DryingNavbarFixture : public NavbarFixture {
     DryingNavbarFixture() {
         const bool published = lv_xml_get_subject(nullptr, "bed_drying_state") != nullptr;
-        drying_state_ = helix::test::xml_stand_in_int("bed_drying_state", 0);
+        drying_state_ = helix::test::xml_stand_in("bed_drying_state", 0);
         if (!published) {
             // The navbar binds at creation, so rebuild it against the stand-in.
             auto& nav = NavigationManager::instance();

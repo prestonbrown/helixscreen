@@ -13,6 +13,7 @@
 #include "../../src/ui/panel_widgets/callout_chip.h"
 #include "../../src/ui/panel_widgets/host_health_layout.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "ams_error.h"
 #include "config.h"
 #include "core/subject.h"
@@ -473,13 +474,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "temperature units: a reading with a unit of its own is never converted",
                  "[temp_units][temp_display]") {
     FahrenheitScope f;
-    // Registered once for the process: the XML scope keeps the name.
-    static helix::Subject raw;
-    if (!lv_xml_get_subject(nullptr, "test_temp_units_raw")) {
-        raw.init_int(0);
-        lv_xml_register_subject(nullptr, "test_temp_units_raw", &raw);
-    }
-    lv_subject_set_int(&raw, 0);
+    lv_subject_t* raw = helix::test::xml_stand_in("test_temp_units_raw", 0);
+    lv_subject_set_int(raw, 0);
     const char* attrs[] = {"show_target", "true", "bind_raw", "test_temp_units_raw", nullptr};
     auto* td = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "temp_display", attrs));
     REQUIRE(td != nullptr);
@@ -488,7 +484,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return std::string(lv_label_get_text(lv_obj_get_child(td, child)));
     };
     REQUIRE(text(0) == "104");
-    lv_subject_set_int(&raw, 1);
+    lv_subject_set_int(raw, 1);
     CHECK(text(0) == "40.0");
     CHECK(text(2) == "50");
 

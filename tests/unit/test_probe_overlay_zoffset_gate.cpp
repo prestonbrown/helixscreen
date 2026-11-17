@@ -12,6 +12,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
@@ -84,13 +85,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the
                  "[probe][xml][2089]") {
     // The XML subject registry is process-global and never forgets an entry, so
     // the subject outlives every test; ProbeOverlay registers the real one.
-    lv_subject_t* known = lv_xml_get_subject(nullptr, "probe_z_offset_known");
-    if (known == nullptr) {
-        static helix::Subject subject;
-        subject.init_int(0);
-        lv_xml_register_subject(nullptr, "probe_z_offset_known", &subject);
-        known = &subject;
-    }
+    lv_subject_t* known = helix::test::xml_stand_in("probe_z_offset_known", 0);
     lv_subject_set_int(known, 0);
     setting_group_register();
     REQUIRE(register_component("header_bar"));

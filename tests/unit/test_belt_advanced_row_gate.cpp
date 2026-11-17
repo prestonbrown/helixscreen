@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
@@ -46,14 +47,14 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
         // entry, so every subject below is a function-local STATIC: a fixture
         // member would dangle after this test and any later consumer of the
         // name dereferences freed memory.
-        ensure_subject("show_beta_features", 0);
-        ensure_subject("printer_has_accelerometer", 1);
-        ensure_subject("printer_supports_belt_compare", 0);
-        ensure_subject("printer_has_tool_offset_cal", 0);
-        ensure_subject("printer_has_probe", 1);
-        ensure_subject("hide_manual_z_calibration", 0);
-        ensure_subject("z_offset_reapplied_per_head", 0);
-        ensure_subject("platform_console_supported", 1);
+        helix::test::xml_stand_in("show_beta_features", 0);
+        helix::test::xml_stand_in("printer_has_accelerometer", 1);
+        helix::test::xml_stand_in("printer_supports_belt_compare", 0);
+        helix::test::xml_stand_in("printer_has_tool_offset_cal", 0);
+        helix::test::xml_stand_in("printer_has_probe", 1);
+        helix::test::xml_stand_in("hide_manual_z_calibration", 0);
+        helix::test::xml_stand_in("z_offset_reapplied_per_head", 0);
+        helix::test::xml_stand_in("platform_console_supported", 1);
         beta_ = subject("show_beta_features");
         beta_before_ = lv_subject_get_int(beta_);
         lv_subject_set_int(beta_, 0);
@@ -95,21 +96,6 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
     lv_obj_t* row_ = nullptr;
     lv_subject_t* beta_ = nullptr;
     int beta_before_ = 0;
-
-  private:
-    /// Registers `name` in the global XML scope at `value` when absent,
-    /// leaving any earlier registration (this test's or another fixture's)
-    /// untouched.
-    static void ensure_subject(const char* name, int value) {
-        if (!lv_xml_get_subject(nullptr, name)) {
-            static helix::Subject subjects[8];
-            static size_t next = 0;
-            REQUIRE(next < 8);
-            subjects[next].init_int(value);
-            lv_xml_register_subject(nullptr, name, &subjects[next]);
-            next++;
-        }
-    }
 };
 
 } // namespace
