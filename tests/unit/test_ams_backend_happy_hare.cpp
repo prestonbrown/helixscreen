@@ -5412,7 +5412,8 @@ TEST_CASE("a Happy Hare 4.2 weight edit stays out of the extras record",
 TEST_CASE("Happy Hare 4.2 takes over the weights a 4.1 record kept, once",
           "[ams][happy_hare][gate_weights]") {
     TuningRig rig;
-    for (const auto& [key, lane, grams] : {std::tuple{"lane1", "0", 640}, {"lane2", "1", 300}}) {
+    for (const auto& [key, lane, grams] :
+         {std::tuple{"lane1", "0", 640}, {"lane2", "1", 300}, {"lane3", "2", 210}}) {
         rig.printer.client.mock_db_set("helix-screen-hh-overrides", key,
                                        {{"lane", lane},
                                         {"writer", "helixscreen"},
@@ -5420,13 +5421,19 @@ TEST_CASE("Happy Hare 4.2 takes over the weights a 4.1 record kept, once",
                                         {"total_weight_g", 1000}});
     }
     rig.connect(happy_hare_fixture_at("4.2.0"));
-    // Gate 1's gate map already holds a weight, which is never overwritten.
-    const nlohmann::json frame{{"gate_remaining_weight", {-1, 450, -1, -1}},
-                               {"gate_initial_weight", {-1, -1, -1, -1}}};
+    // Gate 1's gate map already holds a weight, which is never overwritten. Gate
+    // 2's spool is Spoolman's, and its old weight stays off the gate after unlink.
+    nlohmann::json frame{{"gate_remaining_weight", {-1, 450, -1, -1}},
+                         {"gate_initial_weight", {-1, -1, -1, -1}},
+                         {"gate_spool_id", {-1, -1, 7, -1}}};
     for (int i = 0; i < 2; ++i) {
         rig.reg->feed_mmu_status(frame);
         helix::ui::UpdateQueue::instance().drain();
+        frame["gate_spool_id"][2] = -1;
     }
+    CHECK_FALSE(rig.reg->has_gcode_containing("GATE=2 "));
+    CHECK(rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane3")["total_weight_g"]
+              .is_null());
     const auto& sent = rig.reg->captured_gcodes;
     CHECK(std::count(sent.begin(), sent.end(),
                      "MMU_GATE_MAP GATE=0 WEIGHT=640 INITIAL_WEIGHT=1000 TEMP=0 QUIET=1") == 1);

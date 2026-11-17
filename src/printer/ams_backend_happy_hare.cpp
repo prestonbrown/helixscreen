@@ -3077,20 +3077,24 @@ void AmsBackendHappyHare::on_lane_records_read_locked() {
 }
 
 // Before 4.2 the weights lived only in HelixScreen's extras record, which 4.2's
-// narrowing stops reading. Each one moves to the gate map once, into a slot the
-// gate map leaves unknown, and the record is saved without it.
+// narrowing stops reading. Each gate is decided once, at first sight: its weights
+// move to the gate map, into a slot the gate map leaves unknown, and the record
+// is saved without them. A gate whose weights are Spoolman's (a linked spool, or
+// pull mode) sends nothing but drops them from the record too, so they cannot
+// land on whatever spool the gate holds later.
 void AmsBackendHappyHare::migrate_record_weights_locked() {
-    if (!gate_map_holds_weights_locked() || system_info_.spoolman_mode == SpoolmanMode::PULL ||
-        gate_map_remaining_raw_.empty()) {
+    if (!gate_map_holds_weights_locked() || gate_map_remaining_raw_.empty()) {
         return;
     }
     for (int gate = 0; gate < slots_.slot_count(); ++gate) {
         const nlohmann::json* wire = lane_record_wire(gate);
         const auto* entry = slots_.get(gate);
-        if (!wire || !entry || weights_migrated_.count(gate) > 0 || entry->info.spoolman_id > 0 ||
+        if (!wire || !entry || weights_migrated_.count(gate) > 0 ||
             gate >= static_cast<int>(gate_map_remaining_raw_.size())) {
             continue;
         }
+        const bool spoolman_owned =
+            system_info_.spoolman_mode == SpoolmanMode::PULL || entry->info.spoolman_id > 0;
         const float remaining = helix::json_util::safe_float(*wire, "remaining_weight_g", -1.0F);
         const float total = helix::json_util::safe_float(*wire, "total_weight_g", -1.0F);
         if (remaining < 0.0F && total < 0.0F) {
@@ -3107,7 +3111,7 @@ void AmsBackendHappyHare::migrate_record_weights_locked() {
         if (total >= 0.0F && unknown(gate_map_initial_raw_)) {
             params += fmt::format(" INITIAL_WEIGHT={}", gate_map_grams(total));
         }
-        if (!params.empty()) {
+        if (!params.empty() && !spoolman_owned) {
             spdlog::info("[AMS HappyHare] Moving gate {}'s stored weight to the gate map", gate);
             execute_gcode(fmt::format("MMU_GATE_MAP GATE={}{} TEMP=0 QUIET=1", gate, params));
         }

@@ -191,8 +191,9 @@ lane shows the gate map, filed as the lane's `Firmware` source.
   gate-map edit. Happy Hare cannot see the weights a pre-4.2 extras record kept, so once 4.2, a
   weights frame and a record read are all in, `migrate_record_weights_locked()` sends each one
   once (`MMU_GATE_MAP GATE=n WEIGHT=.. INITIAL_WEIGHT=.. TEMP=0 QUIET=1`, naming only the weights
-  the gate map reports as -1, never on a Spoolman-linked gate or in pull mode) and saves the
-  record without them. The name, and the vendor on v4, are the gate map's alone,
+  the gate map reports as -1) and saves the record without them. Each gate is decided once, at
+  first sight: a Spoolman-linked gate, or any gate in pull mode, sends nothing but still has its
+  record saved without the weights, so they cannot reach a spool the gate holds later. The name, and the vendor on v4, are the gate map's alone,
   so another client clearing them shows as cleared.
 - **Spoolman pull mode** (`printer.mmu.spoolman_support == "pull"`, parsed into
   `AmsSystemInfo::spoolman_mode`): Happy Hare refuses local writes to material, colour, name,
