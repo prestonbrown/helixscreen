@@ -1075,9 +1075,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// the printer's extruder count.
     void refresh_unit_topology(AfcUnitInfo& unit_info);
 
-    /// Re-derive every unit that has lanes; for a change in the printer's
-    /// extruder count, which no unit object re-announces.
+    /// Re-derive every unit that has lanes; for a change in a lane's hub routing
+    /// or the printer's extruder count, which no unit object re-announces.
     void refresh_all_unit_topologies();
+
+    /// Whether a unit object already applied lists this lane.
+    [[nodiscard]] bool lane_in_applied_unit(const std::string& lane_name) const;
 
     /// rebuild_unit_map_from_klipper() once every known unit has lanes.
     void rebuild_unit_map_when_complete();
@@ -1233,6 +1236,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     // Per-lane hub routing: lane_name → hub name ("direct" for direct lanes)
     std::unordered_map<std::string, std::string> lane_hub_routing_;
+    /// An input to unit topology changed after its unit object was applied;
+    /// handle_status() re-derives every unit once the frame's units are in.
+    bool unit_topology_stale_ = false;
 
     // Lanes whose "map" field listed more than one tool (AFC virtual tools, #605)
     // — dedupes the "extras are not tracked" warning so it fires once per lane,

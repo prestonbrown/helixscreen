@@ -1348,6 +1348,15 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             }
         }
 
+        // A unit's topology also depends on its lanes' hub routing and the
+        // printer's extruder count, and AFC does not re-send a unit object when
+        // either changes.
+        if (unit_topology_stale_) {
+            unit_topology_stale_ = false;
+            refresh_all_unit_topologies();
+            state_changed = true;
+        }
+
         // Parse AFC_buffer objects for buffer health and fault data
         for (const auto& buf_name : buffer_names_) {
             if (auto it = frame.buffers.find(buf_name); it != frame.buffers.end()) {
@@ -2150,10 +2159,8 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
         num_extruders_ = *afc.num_extruders;
         spdlog::debug("[AMS AFC] num_extruders: {}", num_extruders_);
     }
-    // A unit's topology depends on the printer's extruder count, and the unit
-    // objects that already arrived are not sent again when it changes.
     if (num_extruders_ != extruders_at_frame_start) {
-        refresh_all_unit_topologies();
+        unit_topology_stale_ = true;
     }
     if (afc.system_extruders) {
         toolhead_led_state_.clear();
@@ -2593,7 +2600,13 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     }
 
     if (data.hub) {
-        lane_hub_routing_[lane_name] = *data.hub;
+        auto [route, inserted] = lane_hub_routing_.try_emplace(lane_name, *data.hub);
+        if (inserted || route->second != *data.hub) {
+            route->second = *data.hub;
+            if (lane_in_applied_unit(lane_name)) {
+                unit_topology_stale_ = true;
+            }
+        }
         spdlog::trace("[AMS AFC] Lane {} hub routing: {}", lane_name, *data.hub);
     }
 
@@ -3016,6 +3029,12 @@ void AmsBackendAfc::refresh_all_unit_topologies() {
     if (any_with_lanes) {
         rebuild_unit_map_when_complete();
     }
+}
+
+bool AmsBackendAfc::lane_in_applied_unit(const std::string& lane_name) const {
+    return std::any_of(unit_infos_.begin(), unit_infos_.end(), [&](const AfcUnitInfo& ui) {
+        return std::find(ui.lanes.begin(), ui.lanes.end(), lane_name) != ui.lanes.end();
+    });
 }
 
 void AmsBackendAfc::rebuild_unit_map_when_complete() {

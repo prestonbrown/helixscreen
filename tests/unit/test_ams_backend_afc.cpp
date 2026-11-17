@@ -3856,6 +3856,17 @@ TEST_CASE("AFC one-lane direct unit beside hub units is PARALLEL, not HUB",
     REQUIRE(unit_infos[0].topology == PathTopology::HUB);
     REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
     REQUIRE(unit_infos[1].topology == PathTopology::PARALLEL);
+
+    // A later frame routes lane3 straight to its extruder; no unit object follows.
+    helper.feed_afc_stepper("lane3", {{"hub", "direct"}});
+    REQUIRE(unit_infos[0].lane_is_hub_routed == std::vector<bool>{true, true, true, false});
+    REQUIRE(unit_infos[0].topology == PathTopology::MIXED);
+    const auto info = helper.get_system_info();
+    const auto turtle = std::find_if(info.units.begin(), info.units.end(), [](const AmsUnit& u) {
+        return u.name == "Box_Turtle Turtle_1";
+    });
+    REQUIRE(turtle != info.units.end());
+    REQUIRE(turtle->topology == PathTopology::MIXED);
 }
 
 TEST_CASE("AFC one-lane direct unit is HUB until the printer reports several extruders",
