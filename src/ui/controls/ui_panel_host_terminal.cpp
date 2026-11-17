@@ -9,6 +9,8 @@
 #include "ui_keyboard_manager.h"
 #include "ui_modal.h"
 
+#include "core/observer_factory.h"
+#include "display_settings_manager.h"
 #include "lvgl.h"
 #include "settings_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -158,7 +160,8 @@ void HostTerminalPanel::register_callbacks() {
          [](lv_event_t*) { get_global_host_terminal_panel().handle_view_clicked(); }},
         {"on_host_terminal_view_resized",
          [](lv_event_t*) {
-             get_global_host_terminal_panel().layout_grid(KeyboardManager::instance().is_visible());
+             get_global_host_terminal_panel().layout_grid(
+                 DisplaySettingsManager::instance().soft_keyboard_visible());
          }},
         {"on_host_terminal_view_scrolled",
          [](lv_event_t*) { get_global_host_terminal_panel().handle_scrolled(); }},
@@ -166,10 +169,6 @@ void HostTerminalPanel::register_callbacks() {
          [](lv_event_t* e) { get_global_host_terminal_panel().handle_insert(e); }},
         {"on_host_terminal_key",
          [](lv_event_t* e) { get_global_host_terminal_panel().handle_key(lv_event_get_key(e)); }},
-        {"on_host_terminal_focus_changed",
-         [](lv_event_t* e) {
-             get_global_host_terminal_panel().layout_grid(lv_event_get_code(e) == LV_EVENT_FOCUSED);
-         }},
         {"on_host_terminal_ready",
          [](lv_event_t*) {
              get_global_host_terminal_panel().handle_special(terminal::Key::Enter);
@@ -215,6 +214,18 @@ lv_obj_t* HostTerminalPanel::create(lv_obj_t* parent) {
 
     measure_cell();
     base_pad_bottom_ = lv_obj_get_style_pad_bottom(view_, LV_PART_MAIN);
+    // The key row shows only while the on-screen keyboard is up (bound in XML);
+    // each change refits the grid to the height it leaves, and an armed Ctrl does
+    // not outlive the keyboard it was armed on.
+    soft_keyboard_observer_ = observe<int>(
+        DisplaySettingsManager::instance().subject_soft_keyboard_visible(), this,
+        [](HostTerminalPanel* self, int up) {
+            if (up == 0 && self->subjects_initialized_) {
+                lv_subject_set_int(&self->ctrl_subject_, 0);
+            }
+            self->layout_grid(up != 0);
+        },
+        DisplaySettingsManager::instance().get_subjects_lifetime());
     reset_capture_field();
     return overlay_root_;
 }
@@ -227,6 +238,11 @@ void HostTerminalPanel::on_activate() {
     }
     follow_output_ = true;
     start_session();
+    // With a hardware keyboard there is no on-screen one to raise and nothing to
+    // tap: the field takes focus at once so typing reaches the shell.
+    if (DisplaySettingsManager::instance().soft_keyboard_suppressed()) {
+        focus_input();
+    }
 }
 
 void HostTerminalPanel::on_deactivating(DeactivateReason reason) {
@@ -239,6 +255,7 @@ void HostTerminalPanel::on_deactivating(DeactivateReason reason) {
 }
 
 void HostTerminalPanel::on_ui_destroyed() {
+    soft_keyboard_observer_.reset();
     view_ = nullptr;
     screen_area_ = nullptr;
     screen_label_ = nullptr;
@@ -257,12 +274,12 @@ void HostTerminalPanel::start_session() {
     if (view_) {
         lv_obj_update_layout(view_);
     }
-    const TerminalGrid grid = view_ ? visible_grid(KeyboardManager::instance().is_visible())
-                                    : TerminalGrid{kMinRows, kMinCols};
+    const TerminalGrid grid =
+        view_ ? visible_grid(keyboard_up()) : TerminalGrid{kMinRows, kMinCols};
     screen_ = std::make_unique<terminal::TerminalScreen>(grid.rows, grid.cols, kScrollbackLines);
     rendered_scrollback_ = UINT64_MAX;
     apply_grid_geometry();
-    layout_grid(KeyboardManager::instance().is_visible());
+    layout_grid(keyboard_up());
 
     const std::string shell =
         terminal::choose_shell(std::getenv("SHELL"), [](const std::string& path) {
@@ -321,9 +338,7 @@ void HostTerminalPanel::drain() {
         dirty_ = true;
     }
     if (dirty_ && !suspended()) {
-        // The keyboard's own close key hides it without a focus change; the next
-        // output is where the grid grows back.
-        layout_grid(KeyboardManager::instance().is_visible());
+        render();
     }
 }
 
@@ -414,10 +429,20 @@ TerminalGrid HostTerminalPanel::visible_grid(bool keyboard_up) const {
     return terminal_grid_for(width, height, cell_w_, cell_h_);
 }
 
+bool HostTerminalPanel::keyboard_up() const {
+    return DisplaySettingsManager::instance().soft_keyboard_visible();
+}
+
+TerminalGrid HostTerminalPanel::grid() const {
+    return screen_ ? TerminalGrid{screen_->rows(), screen_->cols()} : TerminalGrid{};
+}
+
 void HostTerminalPanel::layout_grid(bool keyboard_up) {
     if (!view_ || !screen_) {
         return;
     }
+    // The key row's show or hide is still waiting for a layout pass.
+    lv_obj_update_layout(view_);
     // The grid sits at the end of the scrolled content, so padding the view by what
     // the keyboard covers keeps the grid's last row above the keyboard.
     // DECLARATIVE_OK: the padding is measured from the keyboard's height.

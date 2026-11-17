@@ -6,6 +6,10 @@
 
 #include "ui_panel_host_terminal.h"
 
+#include "../lvgl_ui_test_fixture.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "display_settings_manager.h"
 #include "platform_info.h"
 #include "system/pty_session.h"
 #include "system/terminal_screen.h"
@@ -212,6 +216,11 @@ TEST_CASE("PtySession runs a shell on a terminal and reaps its exit code", "[hos
         return out.find("tty_42") != std::string::npos && out.find("24 80") != std::string::npos;
     }));
 
+    // A new size reaches the child as its terminal's size (TIOCSWINSZ).
+    session.resize(10, 40);
+    REQUIRE(session.write("stty size\n"));
+    CHECK(collector.wait_for(session, out, [&] { return out.find("10 40") != std::string::npos; }));
+
     REQUIRE(session.write("exit 3\n"));
     CHECK(collector.wait_for(session, out, [&] { return session.hung_up(); }));
     CHECK(session.stop() == 3);
@@ -348,4 +357,46 @@ TEST_CASE("Host Terminal is never offered on Android", "[host_terminal][android]
     helix::set_platform_override(1);
     CHECK_FALSE(helix::platform_host_terminal_supported());
     helix::set_platform_override(-1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Host Terminal shows its key row only with the on-screen keyboard up",
+                 "[host_terminal][ui]") {
+    auto& keyboard = helix::DisplaySettingsManager::instance();
+    auto& panel = helix::ui::get_global_host_terminal_panel();
+    panel.ensure_subjects();
+    panel.register_callbacks();
+    lv_obj_t* root = panel.create(lv_screen_active());
+    REQUIRE(root != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(root, "key_row");
+    REQUIRE(row != nullptr);
+    lv_subject_t* ctrl = lv_xml_get_subject(nullptr, "host_terminal_ctrl");
+    REQUIRE(ctrl != nullptr);
+
+    keyboard.set_soft_keyboard_visible(false);
+    panel.on_activate();
+    const auto settle = [&] {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(10);
+    };
+    settle();
+    CHECK(lv_obj_is_hidden(row));
+    const int rows_without_row = panel.grid().rows;
+    REQUIRE(rows_without_row > 0);
+
+    keyboard.set_soft_keyboard_visible(true);
+    settle();
+    CHECK_FALSE(lv_obj_is_hidden(row));
+    // The row takes its height from the terminal, and the grid gives it up.
+    CHECK(panel.grid().rows < rows_without_row);
+
+    lv_subject_set_int(ctrl, 1);
+    keyboard.set_soft_keyboard_visible(false);
+    settle();
+    CHECK(lv_obj_is_hidden(row));
+    CHECK(panel.grid().rows == rows_without_row);
+    CHECK(lv_subject_get_int(ctrl) == 0);
+
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    StaticPanelRegistry::instance().destroy_all();
 }

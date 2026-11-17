@@ -8,6 +8,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "lvgl.h"
@@ -84,6 +85,9 @@ class HostTerminalPanel : public OverlayBase {
         return "Host Terminal";
     }
 
+    /// The grid the shell is drawn in, 0x0 while no shell runs.
+    TerminalGrid grid() const;
+
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
     void on_ui_destroyed() override;
@@ -103,6 +107,7 @@ class HostTerminalPanel : public OverlayBase {
     void measure_cell();
     void set_status(const std::string& text);
     void focus_input();
+    bool keyboard_up() const;
     void reset_capture_field();
 
     void handle_insert(lv_event_t* e);
@@ -129,6 +134,7 @@ class HostTerminalPanel : public OverlayBase {
     WidgetRef cursor_;
     WidgetRef capture_;
 
+    ObserverGuard soft_keyboard_observer_;
     SubjectManager subjects_;
     char status_buf_[192] = {};
     helix::Subject status_subject_{};

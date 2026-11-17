@@ -19,10 +19,13 @@
            keyboard stays up while they are tapped. The row sits above the terminal
            so the on-screen keyboard never has to lift the page to reach the field;
            it covers the bottom of the terminal instead, and the grid shrinks to
-           the rows left in view. -->
+           the rows left in view. The row shows only while the on-screen keyboard
+           is up: with a hardware keyboard the terminal takes its height, and the
+           hidden field keeps the focus that typing goes to. -->
       <lv_obj name="key_row"
               width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_xxs"
               style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <bind_flag_if_eq subject="soft_keyboard_visible" flag="hidden" ref_value="0"/>
         <!-- Ctrl latches for the next key: secondary while off, primary while armed -->
         <ui_button name="key_ctrl" height="#button_height_sm" text="Ctrl" variant="secondary" click_focusable="false">
           <bind_flag_if_eq subject="host_terminal_ctrl" flag="hidden" ref_value="1"/>
@@ -67,8 +70,6 @@
           <event_cb trigger="insert" callback="on_host_terminal_insert"/>
           <event_cb trigger="key" callback="on_host_terminal_key"/>
           <event_cb trigger="ready" callback="on_host_terminal_ready"/>
-          <event_cb trigger="focused" callback="on_host_terminal_focus_changed"/>
-          <event_cb trigger="defocused" callback="on_host_terminal_focus_changed"/>
         </text_input>
       </lv_obj>
       <!-- The terminal: lines that scrolled off above the live grid. A tap opens

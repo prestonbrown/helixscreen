@@ -214,6 +214,18 @@ class DisplaySettingsManager {
     }
 
     /**
+     * @brief Record whether the on-screen keyboard is up.
+     *
+     * KeyboardManager calls this as it raises and lowers the keyboard; the
+     * soft_keyboard_visible subject publishes it for views that lay out around
+     * the keyboard. A keyboard suppressed by a hardware one never counts as up.
+     */
+    void set_soft_keyboard_visible(bool visible);
+
+    /** @brief Whether the on-screen keyboard is up (or rising), per KeyboardManager */
+    bool soft_keyboard_visible() const;
+
+    /**
      * @brief Whether text entry goes to the hardware keyboard alone.
      *
      * True only while the preference is on AND a physical keyboard is attached;
@@ -591,6 +603,11 @@ class DisplaySettingsManager {
         return settings_.subject(Key::HideKeyboardWithHardware);
     }
 
+    /** @brief On-screen keyboard up (integer: 0=down, 1=up) */
+    lv_subject_t* subject_soft_keyboard_visible() {
+        return &soft_keyboard_visible_subject_;
+    }
+
     /** @brief Physical keyboard presence (integer: 0=none, 1=attached) */
     lv_subject_t* subject_hardware_keyboard_present() {
         return &hardware_keyboard_present_subject_;
@@ -698,6 +715,7 @@ class DisplaySettingsManager {
     helix::Subject dim_row_kind_subject_{};
     helix::Subject animations_enabled_subject_{};
     helix::Subject hardware_keyboard_present_subject_{};
+    helix::Subject soft_keyboard_visible_subject_{};
     helix::Subject is_android_subject_{};
     helix::Subject rotation_available_subject_{};
     helix::Subject timezone_subject_{};
