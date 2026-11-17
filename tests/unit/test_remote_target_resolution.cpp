@@ -1136,3 +1136,15 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_ll_get_len(&(&probe)->subs_ll) == 0);
     probe.reset();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl set writes a string subject", "[remote][ctl]") {
+    static char buf[32];
+    static helix::Subject probe;
+    probe.init_string(buf, "before");
+    lv_xml_register_subject(nullptr, "ctl_set_string_probe", &probe);
+    CtlClickRig rig;
+
+    rig.request("set", {{"name", "ctl_set_string_probe"}, {"value", "after"}});
+    CHECK(std::string(lv_subject_get_string(&probe)) == "after");
+    probe.reset();
+}
