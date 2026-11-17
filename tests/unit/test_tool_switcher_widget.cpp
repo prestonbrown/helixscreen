@@ -1127,10 +1127,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[tool_switcher][band]") {
     ToolChangerRig rig(3);
     // A machine whose heads dock, against a shared toolhead whose filament
-    // system errors: only the first has heads that can be out of place.
-    const bool docked_heads = GENERATE(true, false);
-    CAPTURE(docked_heads);
+    // system errors: only the first has heads that can be out of place, and only
+    // when the error is about the changer rather than a lane.
+    const auto [docked_heads, changer_error] =
+        GENERATE(std::pair{true, true}, std::pair{false, false}, std::pair{true, false});
+    CAPTURE(docked_heads, changer_error);
     rig.backend->set_tool_changer_mode(docked_heads);
+    rig.backend->carriage_fault = changer_error;
     REQUIRE(rig.backend->carriage_can_be_empty() == docked_heads);
     PanelWidgetHarness<ToolSwitcherWidget> h(test_screen(), state());
     process_lvgl(30);
@@ -1147,7 +1150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(AmsState::instance().get_ams_action_subject(),
                        static_cast<int>(AmsAction::ERROR));
     process_lvgl(30);
-    const S others = docked_heads ? S::Fault : S::Idle;
+    const S others = changer_error ? S::Fault : S::Idle;
     CHECK(state_of(0) == static_cast<int>(S::Mounted));
     CHECK(state_of(1) == static_cast<int>(others));
     CHECK(state_of(2) == static_cast<int>(others));
@@ -1159,8 +1162,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const uint32_t danger = lv_color_to_u32(theme_manager_get_color("danger"));
     const bool red = lv_obj_get_style_bg_opa(area, LV_PART_MAIN) == LV_OPA_COVER &&
                      lv_color_to_u32(lv_obj_get_style_bg_color(area, LV_PART_MAIN)) == danger;
-    CHECK(red == docked_heads);
-    if (docked_heads) {
+    CHECK(red == changer_error);
+    if (changer_error) {
         CHECK(lv_obj_get_style_border_width(area, LV_PART_MAIN) == 2);
         CHECK(lv_obj_get_style_border_side(area, LV_PART_MAIN) == LV_BORDER_SIDE_BOTTOM);
         CHECK(lv_color_to_u32(lv_obj_get_style_border_color(area, LV_PART_MAIN)) ==
