@@ -77,14 +77,16 @@ void clear_translate(lv_obj_t* obj) {
 
 // Tool changers have no housing around their spools.
 /// The shell for a view; the whole-backend view of a one-unit system counts as that unit.
-const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
-    auto* backend = helix::AmsState::instance().get_backend(0);
-    if (!backend)
-        return nullptr;
-    const helix::AmsSystemInfo info = backend->get_system_info();
+const tray::UnitShell* view_shell(const helix::AmsSystemInfo& info, int unit_index,
+                                  bool has_dryer) {
     if (unit_index < 0 && info.units.size() == 1)
         unit_index = 0;
     return tray::unit_shell_for(info, unit_index, has_dryer);
+}
+
+const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
+    auto* backend = helix::AmsState::instance().get_backend(0);
+    return backend ? view_shell(backend->get_system_info(), unit_index, has_dryer) : nullptr;
 }
 
 bool unit_has_physical_tray() {
@@ -479,8 +481,13 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const int n = std::min(slot_count, kAmsDetailMaxSlots);
 
     const tray::LidMode climate_lid = unit_lid_mode(unit_index);
-    const tray::UnitShell* shell = view_shell(unit_index, climate_lid != tray::LidMode::None);
-    const tray::LidMode lid = shell ? tray::lid_mode(*shell) : climate_lid;
+    const tray::UnitShell* found = view_shell(unit_index, climate_lid != tray::LidMode::None);
+    // A unit that stands in front of loose spools leaves them the plain, open tray.
+    const bool loose = found && found->plain_tray;
+    const tray::UnitShell* shell = loose ? nullptr : found;
+    const tray::LidMode lid = shell   ? tray::lid_mode(*shell)
+                              : loose ? tray::LidMode::None
+                                      : climate_lid;
     show_lane_humidity(slot_widgets, n, lid);
     lv_obj_update_layout(container);
     lv_area_t c;
@@ -502,8 +509,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     box.depth = tray::box_depth(size);
     box.rise = tray::box_rise(box.depth);
     const float shell_scale = size / tray::kShellReferenceSpool;
-    box.back_extra =
-        shell ? shell->back_extra_px * shell_scale : (float)theme_manager_get_spacing("space_md");
+    // The tray under loose spools has a back wall as low as its front, so its ends are level.
+    box.back_extra = shell   ? shell->back_extra_px * shell_scale
+                     : loose ? 0.0f
+                             : (float)theme_manager_get_spacing("space_md");
     const float skew = tray::kDepthSkew * box.depth;
     for (int i = 0; i < n; ++i)
         s_tray.lane_x[i] = cx[i] - skew / 2;
@@ -514,8 +523,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // front-plane centre, whose flange bottom sits the floor gap above FB.
     box.fb = cy_sum / n + flange_ry + tray::spool_floor_gap(shell, shell_scale) + box.rise / 2;
     lv_obj_update_layout(w.slot_grid);
-    const float front_h = shell ? shell->front_wall_px * shell_scale
-                                : std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    // The tray under loose spools stands half the generic box's height.
+    const float generic_h = std::max(20.0f, lv_obj_get_height(w.slot_grid) / 6.0f);
+    const float front_h = shell   ? shell->front_wall_px * shell_scale
+                          : loose ? generic_h / 2.0f
+                                  : generic_h;
     box.ft = box.fb - front_h;
     // A unit with a box per lane ends its base with the outer boxes.
     const float cap = shell && !shell->lid_color ? tray::cap_width(*shell, size, spacing) : half;
@@ -737,8 +749,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
         topo = helix::PathTopology::HUB;
     // Whatever moves inside a unit with a built-in selector, one line leaves its middle.
     // A unit's enclosed and open drawings merge their lanes alike, so no climate lookup.
-    const tray::UnitShell* drawn_unit = tray::unit_shell_for(
-        info, (unit_index < 0 && info.units.size() == 1) ? 0 : unit_index, false);
+    const tray::UnitShell* drawn_unit = view_shell(info, unit_index, false);
     const tray::LaneJoin join = helix::ui::fpath::drawn_lane_join(
         drawn_unit ? drawn_unit->lane_join : tray::LaneJoin::Hub, topo);
     if (join == tray::LaneJoin::Junction || join == tray::LaneJoin::Inside)
@@ -746,10 +757,15 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     ui_filament_path_canvas_set_topology(canvas, static_cast<int>(topo));
     ui_filament_path_canvas_set_hub_on_toolhead(canvas, backend->hub_on_toolhead());
     ui_filament_path_canvas_set_lane_join(canvas, join);
-    // Only the gate counts the rail art exists for trade the bar for a rail.
-    const tray::RailFaceArt* rail = drawn_unit && topo == helix::PathTopology::LINEAR
-                                        ? tray::unit_shell_face_art(*drawn_unit, slot_count)
-                                        : nullptr;
+    // Only the gate counts the art exists for draw it. A sliding selector's art stands in for
+    // the LINEAR bar; a unit with no carriage passes each lane through to its own outlet, so its
+    // art stands above a hub or the separate tools.
+    const bool art_fits =
+        drawn_unit && (drawn_unit->carriage_n > 0 ? topo == helix::PathTopology::LINEAR
+                                                  : topo == helix::PathTopology::HUB ||
+                                                        topo == helix::PathTopology::MIXED);
+    const tray::RailFaceArt* rail =
+        art_fits ? tray::unit_shell_face_art(*drawn_unit, slot_count) : nullptr;
     ui_filament_path_canvas_set_selector_rail(canvas, rail ? drawn_unit->id : nullptr, rail);
     // A unit the overview joins to no nozzle (an unwired hub) ends at its hub
     // here too: the overview's own rule decides both. A hub mounted on the head feeds

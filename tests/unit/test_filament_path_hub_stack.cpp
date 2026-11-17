@@ -355,6 +355,71 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
         (c.data->hits.hub_valid && c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
 }
 
+TEST_CASE_METHOD(HubStackFixture,
+                 "A pass-through unit's art stands above the hub or the tools, a lane per outlet",
+                 "[filament-path][selector-rail]") {
+    auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    const helix::ui::tray::UnitShell* htlf = helix::ui::tray::unit_shell_by_id("htlf");
+    REQUIRE((htlf != nullptr && htlf->carriage_n == 0));
+    const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*htlf, 4);
+    REQUIRE(art != nullptr);
+    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art);
+    render(c);
+
+    // HUB: lanes bend in to their inlets, leave through their own outlets and fan into the hub.
+    LinearHubFrame f{};
+    const PathPlan& plan = plan_of(c, &f);
+    REQUIRE(f.through.w > 0);
+    CHECK((f.rail.w == 0 && !c.data->rail_drawn));
+    CHECK((f.through.y > f.prep_band_y && f.hub_y - f.hub_h / 2 > f.through.y + f.through.h));
+    const float in_y = (float)(f.through.y + (int32_t)std::lround(art->inlet_y * f.through.h));
+    const float out_y = (float)(f.through.y + (int32_t)std::lround(art->outlet_y * f.through.h));
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const float out_x = (float)rail_outlet_x(*art, f.through, i);
+        CHECK((f.hub_fan[i].pts[0].x == out_x && f.hub_fan[i].pts[0].y == out_y));
+        const float gate = (float)rail_gate_x(*art, f.through, i);
+        bool reaches = false;
+        for (int s = 0; s < plan.routes[i].path.count; ++s) {
+            const pg::PathPoint p = seg_end(plan.routes[i].path.segs[s]);
+            reaches = reaches || (std::fabs(p.x - gate) < 0.5f && std::fabs(p.y - in_y) < 0.5f);
+        }
+        CHECK(reaches);
+    }
+
+    // MIXED: the lane sensors move below the art, and each lane returns to its own column.
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::MIXED));
+    ui_filament_path_canvas_set_slot_hub_routed(c.obj, 2, true);
+    ui_filament_path_canvas_set_slot_hub_routed(c.obj, 3, true);
+    const BaseGeometry g = compute_base_geometry(c.obj, c.data);
+    const MixedFrame m = compute_mixed_frame(*c.data, g);
+    REQUIRE(m.through.w > 0);
+    CHECK((m.sensor_y > m.through.y + m.through.h && m.hub_cy > m.sensor_y));
+    PathPlan mixed;
+    plan_mixed(m, *c.data, g, mixed);
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const pg::FilamentPath& path = mixed.routes[i].path;
+        bool at_sensor = false;
+        for (int s = 0; s < path.count; ++s) {
+            const pg::PathPoint p = seg_end(path.segs[s]);
+            at_sensor = at_sensor || (std::fabs(p.x - (float)g.slot_x[i]) < 0.5f &&
+                                      std::fabs(p.y - (float)m.sensor_y) < 0.5f);
+        }
+        CHECK(at_sensor);
+    }
+
+    // LINEAR draws no pass-through art, and art whose images are missing draws none at all.
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::LINEAR));
+    CHECK(through_art_rect(*c.data, g, g.y_off, g.y_off + 200, g.center_x).w == 0);
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::HUB));
+    ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art);
+    render(c);
+    plan_of(c, &f);
+    CHECK(f.through.w == 0);
+}
+
 TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",
                  "[filament-path][hub-stack]") {
     auto c = make(/*buffer=*/false, /*bypass=*/false, /*slots=*/4);

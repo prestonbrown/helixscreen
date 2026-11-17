@@ -71,6 +71,7 @@ struct LinearHubFrame {
     int32_t center_x = 0;
     int32_t output_x = 0; // LINEAR: under the active slot (possibly animating)
     RailArtRect rail;     // LINEAR with rail art: where it is drawn
+    RailArtRect through;  // HUB with a pass-through unit's art: where it is drawn
 
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
@@ -110,6 +111,11 @@ inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell
                : helix::ui::tray::LaneJoin::Hub;
 }
 
+/// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
+/// above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
+int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
+                       int32_t row);
+
 /// Where the lanes leave the unit: the spool box's front edge when it stands clear above the
 /// lane run, else the prep sensors' row.
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
@@ -118,10 +124,30 @@ int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
 /// Empty for a canvas without rail art, and for one too small to show it.
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g);
 
+/// Where a pass-through unit's head-on art goes (HUB and MIXED): a unit whose lanes each leave
+/// through their own outlet, so nothing slides. Between @p top and @p bottom, centred on
+/// @p center_x, as tall as fits. Empty for a canvas without such art, a LINEAR or on-head-hub
+/// layout, and a band too short to show it.
+RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
+                             int32_t bottom, int32_t center_x);
+
+/// The room left above a unit's head-on art for the lanes to bend in to it.
+int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g);
+
 /// Where @p gate's lane goes into the art drawn at @p r.
 inline int32_t rail_gate_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
                            int gate) {
     return r.x + static_cast<int32_t>(std::lround((art.gate0_x + gate * art.gate_step_x) * r.w));
+}
+
+/// The height every lane goes into the art drawn at @p r.
+inline int32_t rail_inlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.inlet_y * r.h));
+}
+
+/// The height the filament leaves the art drawn at @p r.
+inline int32_t rail_outlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.outlet_y * r.h));
 }
 
 /// Where the filament leaves the carriage when it stands at @p gate.
@@ -194,6 +220,7 @@ struct MixedFrame {
     // distinct hub-top entries.
     pg::MergeLaneOut hub_fan[FilamentPathData::kMaxSlots];
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
+    RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
 
     SlotRenderStates states;
 };

@@ -52,8 +52,9 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 `<unit_art>` stacks them back to front, tints each filled lane, and hides a lane that is empty or has a zero colour. A unit with no matching art hides the widget. Variants:
 
 - A unit built in several lane counts sets `lane_variants` and bakes each count to `assets/images/units/<id>/<n>/`. A lane count without baked art keeps the live tray shell and loses only the picture.
-- `stub_art` bakes a second drawing, the body alone with a tube per lane, under `stubs/`. Units that hold no spools (BMCU, MMX, HTLF, 3MS, AD5X IFS) can show either look, chosen by `HELIX_UNIT_ART_FEEDER` (`docs/devel/ENVIRONMENT_VARIABLES.md#helix_unit_art_feeder`).
-- `face_art` bakes a selector rail head-on for the path screen (ERCF and Tradrack), with a `RailFaceArt` row per gate count.
+- `stub_art` bakes a second drawing, the body alone with a tube per lane, under `stubs/`. Units that hold no spools (BMCU, MMX, 3MS, AD5X IFS) can show either look, chosen by `HELIX_UNIT_ART_FEEDER` (`docs/devel/ENVIRONMENT_VARIABLES.md#helix_unit_art_feeder`).
+- A selector that stands in front of the spools (ERCF, Tradrack, HTLF) draws no spools, only its body and a filament stub per gate.
+- `face_art` bakes a selector rail head-on for the path screen (ERCF and Tradrack), with a `RailFaceArt` row per gate count. A unit with face art and no carriage, the HTLF, passes each lane through to its own outlet below its inlet: its cam turns in place. Its art is baked at its one lane count, and on a HUB or MIXED path it stands between the spools and the hub or the lane sensors, with each lane bending in to its inlet and leaving its own outlet (`src/ui/filament/ui_filament_path_plan.cpp#through_art_rect`).
 - The drying glow is a runtime image over the drawing, limited to the chamber around the spools by `unit_art_chamber_mask`. It runs only while the unit dries, and `unit_art_glow_for` turns it off on reduced-effects boards and stops it pulsing when animations are off.
 
 Spools follow the app. The kit reads the flange colours, vent pattern and sizes from the C++ spool values (`spool_constants`), so art cannot drift from the live widget. Every unit draws its spools at one real spool proportion in a common frame (`kSpoolWidth` is 0.294 of the spool size).
