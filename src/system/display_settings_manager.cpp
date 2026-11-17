@@ -276,8 +276,8 @@ void DisplaySettingsManager::init_subjects() {
 
     // Display dim (default: 600 seconds = 10 minutes)
     // Validate against allowed options to catch corrupt config values
-    int dim_sec = config->get<int>("/display/dim_sec", 600);
-    dim_sec = validate_timeout_option(dim_sec, kDimOptions, 600, "dim_sec");
+    int dim_sec = config->get<int>("/display/dim_sec", kDefaultDimSec);
+    dim_sec = validate_timeout_option(dim_sec, kDimOptions, kDefaultDimSec, "dim_sec");
     UI_MANAGED_SUBJECT_INT(display_dim_subject_, dim_sec, "settings_display_dim", subjects_);
 
     // Sync validated dim timeout to DisplayManager (it reads config directly at init,
@@ -982,6 +982,7 @@ void DisplaySettingsManager::set_screensaver_type(int type) {
     type = helix::ui::clamp_screensaver_type(type);
     spdlog::info("[DisplaySettingsManager] set_screensaver_type({})", type);
 
+    const bool was_enabled = screensaver_enabled();
     lv_subject_set_int(&screensaver_type_subject_, type);
     lv_subject_set_int(&dim_row_kind_subject_, static_cast<int>(dim_row_kind(
                                                    has_dimming_control(), screensaver_enabled())));
@@ -990,6 +991,14 @@ void DisplaySettingsManager::set_screensaver_type(int type) {
     config->set<std::string>(helix::ui::kScreensaverSettingPath,
                              helix::ui::screensaver_name(static_cast<ScreensaverType>(type)));
     config->save();
+
+    // The saver starts only at the dim timeout, so turning one on while that is Never
+    // would do nothing. A Never chosen with a saver already on is the user's to keep.
+    if (!was_enabled && screensaver_enabled() && get_display_dim_sec() == 0) {
+        spdlog::info("[DisplaySettingsManager] Screensaver on with no timeout: using {}s",
+                     kDefaultDimSec);
+        set_display_dim_sec(kDefaultDimSec);
+    }
 }
 #endif
 
@@ -1021,10 +1030,12 @@ bool DisplaySettingsManager::get_bed_mesh_show_zero_plane() const {
 
 DisplaySettingsManager::DimRowKind DisplaySettingsManager::dim_row_kind(bool has_dimming,
                                                                         bool screensaver_enabled) {
-    if (has_dimming) {
-        return DimRowKind::ScreenDim;
+    // With a saver selected the timeout starts the saver (decide_idle prefers StartSaver
+    // over Dim), so the row is named for what the user will see.
+    if (screensaver_enabled) {
+        return DimRowKind::ScreensaverAfter;
     }
-    return screensaver_enabled ? DimRowKind::ScreensaverAfter : DimRowKind::Hidden;
+    return has_dimming ? DimRowKind::ScreenDim : DimRowKind::Hidden;
 }
 
 int DisplaySettingsManager::dim_seconds_to_index(int seconds) {

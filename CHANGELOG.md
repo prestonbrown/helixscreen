@@ -7,12 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0-rc.2] - UNRELEASED
 
+### Added
+
+- **Choose a tool on the Filament panel without changing tools** - on tool changers and other multi-head printers, such as the Snapmaker U1 and Medusa HC, the Filament panel's tool selector now only picks which tool the panel works on, without moving the carriage. The temperature card, its mini graph, the material presets, Cool Down and the preheat before Load, Unload, Extrude and Purge all follow that tool. Before, choosing a tool there started a tool change.
+- **Pick up and Park on the Filament panel** - a button beside the tool selector picks up the chosen tool or parks it. Extrude, Retract and Purge pick up the chosen tool first when it is not on the carriage, with the usual tool change confirmation if you have it turned on, and send nothing if the pickup fails.
+- **Heat any tool from Controls** - on multi-head printers the nozzle row in the Controls temperature card has its own tool chooser, its edit button sets that tool's temperature, and tapping the row opens the temperature graph on the tool it shows. The temperature screen also remembers the nozzle you picked until HelixScreen restarts.
+- **Home single axes from Motion** - the Motion panel has a home bar for All, X, Y and Z, like the one on the Controls panel.
+- **All in the Load and Unload picker** - the picker that loads or unloads several tools at once has an All row that checks every tool. It is hidden when the filament system cannot run that many at once.
+
+### Changed
+
+- **Filament system settings in the header** - the Settings button on the filament system screen is now a gear in the header, so the action buttons below it no longer leave one button on its own. On multi-head printers the Currently Loaded card also shows which tool is mounted.
+- **Load picker rows say only what the sensor knows** - a slot is called ready to load only when its sensor sees filament, and empty when the sensor sees none. A slot with no sensor shows only its material.
+- **Tool choosers number tools the way the screen does** - the closed tool choosers on Controls and Filament show the tool's name or number as the rest of the screen counts it, instead of the G-code name, and fit their text without running under the arrow.
+- **Motion shows what the Z keys move** - the Z column on the Motion panel draws your printer's toolhead, or the bed on printers where the bed moves, instead of the words Print Head or Bed.
+
 ### Fixed
 
 - **Timelapse settings show the real values** - the Timelapse Settings screen reads the plugin's settings as Moonraker sends them, so Enable Timelapse, Auto-render and the other options show what is actually set instead of the defaults.
 - **Timelapse frames are captured after setup** - when Klipper has not loaded the timelapse macros, HelixScreen adds them to its own helix_macros.cfg and offers Restart Klipper, on the setup screen and on Timelapse Settings. When it can't, it shows the line to add to printer.cfg. Before this, a new install never captured a frame until printer.cfg was edited by hand.
 - **Timelapse updates after a reinstall** - when HelixScreen runs on the printer, setting up timelapse or opening Timelapse Settings puts an older moonraker-timelapse checkout back on its main branch when that is safe, so Moonraker can update it again.
 - **Timelapse video previews** - Timelapse Videos shows the preview image moonraker-timelapse saves with each video instead of a placeholder.
+- **Reset no longer cancels the print on a CFS** - the Reset button and dismissing a filament error dialog sent a cancel on Creality printers with a CFS, even in the middle of a print, and unloaded the lane on an Anycubic ACE. Clearing an error now sends nothing to those systems, and an error the filament system still reports stays on screen instead of closing and reopening.
+- **No Cancel during a CFS load** - a CFS load cannot be stopped once it starts, so the Cancel button that did nothing until the load finished is no longer offered.
+- **CFS chute calibration errors** (#2007) - a failed step shows one message in plain words instead of two, one of them raw firmware text, and a Klipper disconnect during calibration is now reported. If the toolhead cannot return to park after a good save, the screen keeps the saved position and says the head may still be at the chute.
+- **CFS on Jacobean's K2 Plus firmware** - the spool editor opens on the product the box reports and saves its name, Reset, Recover and Clean Nozzle send the commands that firmware has, and Refresh RFID is no longer offered because the firmware has no such command. When that firmware is set not to unload after a print, the warning about an empty toolhead before a print is kept.
+- **Clearing a filament error on the AD5X IFS** - clearing an error on the IFS now unlocks it once, so a timed out operation no longer leaves it locked. On Forge-X, a driver fault the module still reports stays on screen until Recover clears it.
+- **Spaghetti detection switch on the Snapmaker U1** - the Spaghetti Detection switch and the alert's Turn off detection button now turn the U1's own detection off and on. The first connect after updating keeps whatever the printer is already set to, and after that HelixScreen sends the setting only when it differs from the printer's.
+- **Recovery when Klipper never starts** - when HelixScreen connects while Klipper is not running at all, the recovery dialog now opens instead of leaving the screen half loaded, and its Restart Klipper and Firmware Restart buttons restart the Klipper service. Restart Klipper elsewhere, such as on the Advanced screen, now does the same instead of failing.
+- **Settings crash with plugins installed** (#2103) - opening Settings no longer crashes after the plugin list changes, as happened on a Snapmaker U1.
+- **Spool editor without a filament system** (#2097) - on a printer with no filament system, the spool editor no longer stays on "Loading lane details" with Save turned off.
+- **OrcaSlicer ids from a custom catalog** (#1908) - a filament from your own catalog entries no longer writes an id that no OrcaSlicer preset can match into the printer's lane record.
+- **Clearer debug bundles when Klipper is down** - a debug bundle taken while Klipper has never reported a state says so instead of calling it a shutdown, and a log read straight from the printer's disk names the file and how old it is.
+- **Screensaver on screens that dim** (#2120) - choosing a screensaver now starts it after the timeout on every screen. On a screen with a dimmable backlight the timeout row is called Screensaver after while a screensaver is chosen, and picking one while that timeout is Never sets it to 10 minutes. Before, a screensaver chosen with Screen Dim set to Never never appeared.
+- **Bypass spool the same size as the others** - on the filament system screens the bypass spool is now drawn the same size as the spools in each unit, instead of smaller.
 
 ## [1.1.0-rc.1] - 2026-11-10
 

@@ -14,9 +14,11 @@
  * pair that keeps panel refreshes from restyling on every tick.
  */
 
+#include "ui_ams_lane_spool.h"
 #include "ui_bypass_spool_widget.h"
 
 #include "../test_fixtures.h"
+#include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
 #include "../catch_amalgamated.hpp"
@@ -76,6 +78,23 @@ TEST_CASE_METHOD(LVGLTestFixture, "bypass ring applies on the first call even wh
     bypass_spool_set_active(w, true);
     CHECK(w.cached_active);
     CHECK(lv_obj_get_style_border_width(w.box, LV_PART_MAIN) == ams_draw::kActiveRingBorderWidth);
+
+    helix::ui::bypass_spool_destroy(w);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "bypass spool is drawn the size of the lane spools beside it",
+                 "[ams][bypass][spool_widget]") {
+    // The bypass node sits on the same path as the lanes; a spool smaller than
+    // theirs reads as a different kind of thing.
+    BypassSpoolWidgets w = bypass_spool_create(lv_screen_active(), nullptr, nullptr);
+    REQUIRE(w.valid());
+    lv_obj_update_layout(w.box);
+
+    const int32_t lane = helix::ui::ams_slot_spool_size();
+    REQUIRE(lane == theme_manager_get_spacing("ams_slot_spool_size"));
+    CHECK(lv_obj_get_width(w.spool_canvas) == lane);
+    CHECK(lv_obj_get_height(w.spool_canvas) == lane);
+    CHECK(lv_obj_get_width(w.box) > lane);
 
     helix::ui::bypass_spool_destroy(w);
 }

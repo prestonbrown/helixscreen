@@ -844,7 +844,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   the Android app, and any screen whose brightness HelixScreen can't change, has nothing to
   dim, so the dim timer is what starts the screensaver. Settings > Display now offers it there
   as Screensaver after, with the same choices as Screen Dim, instead of hiding it and always
-  waiting 10 minutes. The row is hidden while the screensaver is Off.
+  waiting 10 minutes. The row is hidden while the screensaver is Off. On a screen that can
+  dim, choosing a screensaver turns Screen Dim into Screensaver after too, and a timer left at
+  Never becomes 10 minutes, so the screensaver you picked actually starts.
 - **The AD5X buzzer plays chords and music** - UI sounds play as chords, tracker music plays
   in four voices, and `M300` beeps from your macros take the buzzer when Klipper holds it.
 - **On-screen keyboard keys look like keys** - each key has a raised edge in its own colour

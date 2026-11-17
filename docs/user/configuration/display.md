@@ -18,7 +18,7 @@ Display keys live in the `display` section unless the table says otherwise.
 | `sleep_sec` | `1200` | `0`, `60`, `300`, `600`, `1200`, `1800`, `3600` | Seconds of inactivity before the screen turns off. `0` never sleeps. Set it at **Settings > Display > Display Sleep**. A value that is not on this list snaps to the nearest one. |
 | `sleep_while_printing` | `true` | `true` or `false` | Whether the screen may dim and sleep during a print. Set `false` to keep it lit for the whole print. **Settings > Display > Sleep While Printing**. |
 
-Dimming starts the screensaver at the same moment, so on a screen with no backlight control the screensaver is the only idle sign. On such a screen (an Android phone, for example) the **Screen Dim** row is called **Screensaver after** and appears only while a screensaver is selected.
+Dimming starts the screensaver at the same moment, so while a screensaver is selected the **Screen Dim** row is called **Screensaver after**. On a screen with no backlight control (an Android phone, for example) the screensaver is the only idle sign, and the row appears only while a screensaver is selected.
 
 ### Backlight behaviour on unusual panels
 
