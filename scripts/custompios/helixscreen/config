@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# HelixScreen CustomPiOS module settings. CustomPiOS exports every HELIXSCREEN_*
+# variable set here or in the distribution's config to start_chroot_script,
+# which holds the defaults; set only what you change. README.md describes each.
+#
+# HELIXSCREEN_VERSION="latest"   # a release tag such as v1.2.0
+# HELIXSCREEN_PLATFORM=""        # pi or pi32; empty: from the image's architecture
+# HELIXSCREEN_ARCHIVE=""         # a release archive inside the image; nothing is downloaded
+# HELIXSCREEN_SHA256=""          # the archive's sha256, checked before installing
+# HELIXSCREEN_USER=""            # Klipper's user; empty: BASE_USER, else found in the image
+# HELIXSCREEN_OWN_DISPLAY="0"    # 1: turn KlipperScreen off so HelixScreen owns the screen
+# HELIXSCREEN_INSTALL_ARGS=""    # more install.sh options, e.g. --skip-kiauh-registration
