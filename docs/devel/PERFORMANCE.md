@@ -115,6 +115,22 @@ Mock print at `--sim-speed 3` on the print status panel, a 1.2-dev build.
 `-O2` on the draw code adds 116 KB and only helps with animations on. A 1.40x
 AD5X-against-K1C render factor measured earlier did not show up here.
 
+### LVGL style cache, K1C and AD5M, 2026-11-16
+
+`LV_OBJ_STYLE_CACHE` 1 against 0 on the same source, mock print at `--sim-speed 3`, three
+interleaved rounds of three samples each (prestonbrown/helixscreen#2109). Medians:
+
+| Phase | K1C off | K1C on | AD5M off | AD5M on |
+|---|---:|---:|---:|---:|
+| Idle | 3.1 | 3.0 | 2.5 | 2.5 |
+| Print, animations on | 24.6 | 24.0 | 21.2 | 20.8 |
+| Print, animations off | 9.4 | 9.2 | 8.2 | 8.1 |
+
+A small, consistent win on both boards. On the AD5M two cache-on launches read far lower
+than the rest (16.9 with animations on, 4.0 with them off); they look like the mock print
+in a different state and are left out of the medians. The AD5M runs in Forge-X's chroot,
+which `perf-farm-check.sh` reaches through the row's `chroot` field.
+
 ### For comparison
 
 GrumpyScreen, as its users quote it: about 5% at idle and 0.7% with the screen off, 5 MB
