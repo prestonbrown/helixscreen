@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "operation_timeout_guard.h"
+#include "core/operation_timeout_guard.h"
 
 #include "subject_managed_panel.h"
 

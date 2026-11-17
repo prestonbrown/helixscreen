@@ -461,7 +461,7 @@ src/ui/modals/ui_hidden_network_modal.cpp
 src/ui/modals/macro_param_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
 src/core/observer_factory.cpp
-src/ui/operation_timeout_guard.cpp
+src/core/operation_timeout_guard.cpp
 src/ui/overlay_base.cpp
 src/ui/home/page_scroll_auto_inject.cpp
 src/ui/home/page_scroll_controller.cpp
