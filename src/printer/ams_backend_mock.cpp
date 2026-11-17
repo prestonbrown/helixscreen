@@ -3576,6 +3576,52 @@ constexpr AfcMockUnit kStealthUnits[] = {
     {"Bambu Bambu_2", "Bambu 2", PathTopology::HUB, true, false, 16, 2},
 };
 
+// A toolchanger with five hub units and a one-lane "Tools" unit whose lane
+// runs straight to its own extruder. Each unit's topology comes from the same
+// rule the AFC backend applies to the routing a real rig reports.
+constexpr AfcMockLane kAfcDirectLanes[] = {
+    // Box Turtle Turtle_1 -> extruder
+    {"lane1", "PLA", 0xD2C3C3, "Bone", SlotStatus::LOADED, 0, "extruder", 612.0f},
+    {"lane2", "PLA", 0x0004FF, "Blue", SlotStatus::AVAILABLE, 1, "extruder", 415.0f},
+    {"lane3", "PLA", 0x9000FF, "Violet", SlotStatus::AVAILABLE, 2, "extruder", 780.0f},
+    {"lane4", "PLA", 0x0084FF, "Azure", SlotStatus::AVAILABLE, 3, "extruder", 233.0f},
+    // Toolchanger Tools -> extruder1, direct (no hub)
+    {"lane5", "PLA", 0x9E9E9E, "Silver", SlotStatus::AVAILABLE, 4, "extruder1", 500.0f},
+    // ViViD Vivid_1 -> extruder2
+    {"lane6", "PLA", 0xFFFFFF, "White", SlotStatus::AVAILABLE, 5, "extruder2", 640.0f},
+    {"lane7", "", 0x000000, "", SlotStatus::EMPTY, 6, "extruder2", 0.0f},
+    {"lane8", "", 0x000000, "", SlotStatus::EMPTY, 7, "extruder2", 0.0f},
+    {"lane9", "", 0x000000, "", SlotStatus::EMPTY, 8, "extruder2", 0.0f},
+    // EMU EMU_1 -> extruder2 as well
+    {"lane10", "", 0x000000, "", SlotStatus::EMPTY, 9, "extruder2", 0.0f},
+    {"lane11", "PLA", 0xF8F8F8, "White", SlotStatus::AVAILABLE, 10, "extruder2", 388.0f},
+    // OpenAMS AMS_1 -> extruder3
+    {"lane12", "PETG", 0xFF7043, "Orange", SlotStatus::AVAILABLE, 11, "extruder3", 520.0f},
+    {"lane13", "", 0x000000, "", SlotStatus::EMPTY, 12, "extruder3", 0.0f},
+    {"lane14", "", 0x000000, "", SlotStatus::EMPTY, 13, "extruder3", 0.0f},
+    {"lane15", "", 0x000000, "", SlotStatus::EMPTY, 14, "extruder3", 0.0f},
+    // Ace Ace2_1 -> extruder3 as well
+    {"lane16", "PLA", 0xEEEEEE, "White", SlotStatus::AVAILABLE, 15, "extruder3", 300.0f},
+    {"lane17", "", 0x000000, "", SlotStatus::EMPTY, 16, "extruder3", 0.0f},
+    {"lane18", "", 0x000000, "", SlotStatus::EMPTY, 17, "extruder3", 0.0f},
+    {"lane19", "", 0x000000, "", SlotStatus::EMPTY, 18, "extruder3", 0.0f},
+};
+
+// Routing as AFC reports it: {direct lane, hub-routed lane, lanes, extruders, hubs}.
+constexpr PathTopology kAfcHubUnit4 = helix::printer::afc_unit_topology({false, true, 4, 1, 1});
+constexpr PathTopology kAfcHubUnit2 = helix::printer::afc_unit_topology({false, true, 2, 1, 1});
+constexpr PathTopology kAfcDirectToolsUnit =
+    helix::printer::afc_unit_topology({true, false, 1, 1, 0});
+
+constexpr AfcMockUnit kAfcDirectUnits[] = {
+    {"Box_Turtle Turtle_1", "Turtle 1", kAfcHubUnit4, true, true, 0, 4},
+    {"Toolchanger Tools", "Tools", kAfcDirectToolsUnit, false, false, 4, 1},
+    {"ViViD Vivid_1", "Vivid 1", kAfcHubUnit4, true, false, 5, 4},
+    {"EMU EMU_1", "EMU 1", kAfcHubUnit2, true, false, 9, 2},
+    {"OpenAMS AMS_1", "AMS 1", kAfcHubUnit4, true, false, 11, 4},
+    {"Ace Ace2_1", "Ace2 1", kAfcHubUnit4, true, false, 15, 4},
+};
+
 } // namespace
 
 void AmsBackendMock::set_torture_mode(bool enabled) {
@@ -3599,6 +3645,18 @@ void AmsBackendMock::set_stealth_mode(bool enabled) {
         apply_afc_profile_locked(kStealthLanes, static_cast<int>(std::size(kStealthLanes)),
                                  kStealthUnits, static_cast<int>(std::size(kStealthUnits)),
                                  "AFC (Mock Stealth)", 0);
+        return;
+    }
+    disable_afc_profile_locked();
+}
+
+void AmsBackendMock::set_afc_direct_mode(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    torture_mode_ = enabled;
+    if (enabled) {
+        apply_afc_profile_locked(kAfcDirectLanes, static_cast<int>(std::size(kAfcDirectLanes)),
+                                 kAfcDirectUnits, static_cast<int>(std::size(kAfcDirectUnits)),
+                                 "AFC (Mock Direct Tools)", 0);
         return;
     }
     disable_afc_profile_locked();

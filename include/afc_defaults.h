@@ -5,6 +5,7 @@
 
 #include "ams_types.h"
 
+#include <cstddef>
 #include <vector>
 
 namespace helix::printer {
@@ -57,5 +58,54 @@ void afc_add_toolhead_calibration_action(std::vector<DeviceAction>& actions);
  * @return AfcCapabilities with standard AFC values
  */
 AfcCapabilities afc_default_capabilities();
+
+/**
+ * @brief What an AFC unit reports about where its lanes go
+ *
+ * The lane flags come from each lane's `hub` field: "direct" / "direct_load"
+ * is a direct lane, any other value names the hub it runs through. A lane whose
+ * routing has not arrived yet sets neither. The counts are the unit object's
+ * own `lanes`, `extruders` and `hubs` lists.
+ */
+struct AfcUnitRouting {
+    bool has_direct_lane = false;
+    bool has_hub_routed_lane = false;
+    size_t lane_count = 0;
+    size_t extruder_count = 0;
+    size_t hub_count = 0;
+};
+
+/**
+ * @brief The path topology an AFC unit's routing describes
+ *
+ * Per-lane routing decides first; the extruder and hub counts decide only
+ * while no lane routing is known. A unit whose known lanes are all direct is
+ * PARALLEL when every lane can have an extruder of its own (several extruders,
+ * or one per lane, as on a one-lane "Tools" unit): no hub sits on any route.
+ */
+constexpr PathTopology afc_unit_topology(const AfcUnitRouting& r) {
+    if (r.has_direct_lane && r.has_hub_routed_lane) {
+        return PathTopology::MIXED;
+    }
+    if (r.has_hub_routed_lane && r.extruder_count > 1 && r.extruder_count == r.lane_count) {
+        // Each lane has its own hub AND its own extruder: independent paths
+        // with hub sensors on them (an ACE Pro as lane loader through AFC:
+        // 4 lanes, 4 hubs, 4 extruders, 1 unit).
+        return PathTopology::PARALLEL;
+    }
+    if (r.has_hub_routed_lane) {
+        return PathTopology::HUB;
+    }
+    if (r.has_direct_lane && (r.extruder_count > 1 || r.extruder_count == r.lane_count)) {
+        return PathTopology::PARALLEL;
+    }
+    if (r.hub_count > 0 && r.extruder_count <= 1) {
+        return PathTopology::HUB;
+    }
+    if (r.extruder_count > 1) {
+        return PathTopology::PARALLEL;
+    }
+    return PathTopology::HUB;
+}
 
 } // namespace helix::printer

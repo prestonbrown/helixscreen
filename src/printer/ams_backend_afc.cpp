@@ -3668,25 +3668,9 @@ void AmsBackendAfc::parse_afc_unit_object(AfcUnitInfo& unit_info, const nlohmann
         }
     }
 
-    if (has_direct && has_hub_routed) {
-        unit_info.topology = PathTopology::MIXED;
-    } else if (has_hub_routed && unit_info.extruders.size() > 1 &&
-               unit_info.extruders.size() == unit_info.lanes.size()) {
-        // Each lane has its own hub AND its own extruder — parallel topology
-        // with hub sensors along independent filament paths (e.g., ACE Pro as
-        // lane loader through AFC: 4 lanes, 4 hubs, 4 extruders, 1 unit).
-        unit_info.topology = PathTopology::PARALLEL;
-    } else if (has_hub_routed) {
-        unit_info.topology = PathTopology::HUB;
-    } else if (has_direct && unit_info.extruders.size() > 1) {
-        unit_info.topology = PathTopology::PARALLEL;
-    } else if (!unit_info.hubs.empty() && unit_info.extruders.size() <= 1) {
-        unit_info.topology = PathTopology::HUB;
-    } else if (unit_info.extruders.size() > 1) {
-        unit_info.topology = PathTopology::PARALLEL;
-    } else {
-        unit_info.topology = PathTopology::HUB; // default
-    }
+    unit_info.topology =
+        helix::printer::afc_unit_topology({has_direct, has_hub_routed, unit_info.lanes.size(),
+                                           unit_info.extruders.size(), unit_info.hubs.size()});
 
     spdlog::debug("[AMS AFC] Unit object '{}': {} lanes, {} extruders, {} hubs, {} buffers → {}",
                   unit_info.klipper_key, unit_info.lanes.size(), unit_info.extruders.size(),

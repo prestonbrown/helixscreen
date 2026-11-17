@@ -673,6 +673,17 @@ class AmsBackendMock : public AmsBackend {
     void set_stealth_mode(bool enabled);
 
     /**
+     * @brief Enable the direct-tool AFC toolchanger profile
+     * (HELIX_MOCK_AMS=afc_direct).
+     *
+     * Six units / 19 lanes / 4 extruders: five hub units plus a one-lane
+     * "Tools" unit wired straight to its own extruder. Unit topologies come
+     * from helix::printer::afc_unit_topology(), the rule the AFC backend
+     * applies, so the overview draws what a real rig of this shape gets.
+     */
+    void set_afc_direct_mode(bool enabled);
+
+    /**
      * @brief Check if multi-unit mode is active
      */
     [[nodiscard]] bool is_multi_unit_mode() const;
