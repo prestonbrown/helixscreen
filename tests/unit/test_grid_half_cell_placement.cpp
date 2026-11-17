@@ -192,7 +192,7 @@ nlohmann::json entry(const char* id, int col, int row, int colspan, int rowspan)
 class HalfCellPlacementFixture : public XMLTestFixture {
   public:
     HalfCellPlacementFixture() {
-        init_widget_registrations();
+        PanelWidgetManager::instance().init_widget_subjects();
         lv_xml_register_component_from_data(
             "test_half_cell_stub",
             "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");

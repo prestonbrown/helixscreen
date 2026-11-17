@@ -47,10 +47,6 @@ using helix::ui::observe;
 // STATIC STATE
 // ============================================================================
 
-// State subject (0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR)
-static helix::Subject s_zoffset_cal_state;
-// Warm bed toggle subject (0=off, 1=on)
-static helix::Subject s_zoffset_warm_bed;
 static bool s_callbacks_registered = false;
 
 /// Default bed temperature for calibration warm-up (°C)
@@ -87,10 +83,9 @@ void ZOffsetCalibrationPanel::init_subjects() {
 
     spdlog::debug("[ZOffsetCal] Initializing subjects");
 
-    // Register state subject (shared across all instances)
-    UI_MANAGED_SUBJECT_INT(s_zoffset_cal_state, 0, "zoffset_cal_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(cal_state_subject_, 0, "zoffset_cal_state", subjects_);
     // Warm bed toggle (default off)
-    UI_MANAGED_SUBJECT_INT(s_zoffset_warm_bed, 0, "zoffset_warm_bed", subjects_);
+    UI_MANAGED_SUBJECT_INT(warm_bed_subject_, 0, "zoffset_warm_bed", subjects_);
     UI_MANAGED_SUBJECT_STRING(saved_text_subject_, saved_text_buf_, "", "zoffset_saved_text",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(z_text_subject_, z_text_buf_, "Z: 0.000", "zoffset_z_text",
@@ -163,7 +158,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     // A rebuild mid-run keeps the run, its timeout and its readouts: the probe is
     // still going on the printer.
     if (run_in_progress()) {
-        lv_subject_set_int(&s_zoffset_cal_state, static_cast<int>(state_));
+        lv_subject_set_int(&cal_state_subject_, static_cast<int>(state_));
         if (state_ == State::ADJUSTING) {
             show_saved_z_offset();
         }
@@ -407,7 +402,7 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     }
 
     // Update subject - XML bindings handle visibility automatically
-    lv_subject_set_int(&s_zoffset_cal_state, static_cast<int>(new_state));
+    lv_subject_set_int(&cal_state_subject_, static_cast<int>(new_state));
 }
 
 void ZOffsetCalibrationPanel::begin_saving_restart_watch() {
@@ -602,7 +597,7 @@ void ZOffsetCalibrationPanel::close_tool_confirm() {
 
 void ZOffsetCalibrationPanel::begin_calibration() {
     // Check if warm bed is requested
-    bool warm_bed = lv_subject_get_int(&s_zoffset_warm_bed) == 1;
+    bool warm_bed = lv_subject_get_int(&warm_bed_subject_) == 1;
     if (warm_bed) {
         auto* cfg = Config::get_instance();
         int temp = cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp);
@@ -1059,9 +1054,9 @@ void ZOffsetCalibrationPanel::handle_retry_clicked() {
 }
 
 void ZOffsetCalibrationPanel::handle_warm_bed_toggled() {
-    int current = lv_subject_get_int(&s_zoffset_warm_bed);
+    int current = lv_subject_get_int(&warm_bed_subject_);
     int toggled = current ? 0 : 1;
-    lv_subject_set_int(&s_zoffset_warm_bed, toggled);
+    lv_subject_set_int(&warm_bed_subject_, toggled);
     spdlog::info("[ZOffsetCal] Warm bed toggled: {}", toggled ? "on" : "off");
 }
 
