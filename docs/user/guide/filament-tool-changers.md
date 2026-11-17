@@ -10,7 +10,7 @@ Which tool the Filament panel acts on, the **Pick up** and **Park** button, and 
 
 ## Other tool changers
 
-A klipper-toolchanger printer with no feed command has no Load and Unload: filament goes in and out of each tool by hand, and the sidebar offers **Mount...** and **Park** instead. A Creator 5 with its own filament feed loads filament into the tool through Load, while Unload stays a cut by hand. Both are covered under [The sidebar](filament-ams-panel.md#sidebar), and the Creator 5's tool offset prompt is in [Calibration](calibration.md).
+A klipper-toolchanger printer with no feed command has no Load and Unload: filament goes in and out of each tool by hand, and the sidebar offers **Pick up...** and **Park** instead. A Creator 5 with its own filament feed loads filament into the tool through Load, while Unload stays a cut by hand. Both are covered under [The sidebar](filament-ams-panel.md#sidebar), and the Creator 5's tool offset prompt is in [Calibration](calibration.md).
 
 ---
 

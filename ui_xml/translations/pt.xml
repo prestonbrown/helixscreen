@@ -2271,10 +2271,6 @@
   <translation tag="Motors disable failed: {}" pt="Falha ao desativar motores: {}"/>
   <translation tag="Motors disabled" pt="Motores desativados"/>
   <translation tag="Motors stay on while a print is active" pt="Os motores permanecem ativos durante uma impressão"/>
-  <translation tag="Mount" pt="Montar"/>
-  <translation tag="Mount tool" pt="Montar ferramenta"/>
-  <translation tag="Mount which tool?" pt="Montar qual ferramenta?"/>
-  <translation tag="Mount..." pt="Montar..."/>
   <translation tag="Mounted: {}" pt="Montada: {}"/>
   <translation tag="Move" pt="Mover"/>
   <translation tag="Move here" pt="Mover aqui"/>
@@ -2695,6 +2691,8 @@
   <translation tag="Pick up and park each tool in turn" pt="Pegar e estacionar cada ferramenta por vez"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" pt="Pegue a ferramenta, aqueça-a e puxe o filamento para fora"/>
   <translation tag="Pick up tool" pt="Pegar ferramenta"/>
+  <translation tag="Pick up which tool?" pt="Qual ferramenta montar?"/>
+  <translation tag="Pick up..." pt="Montar..."/>
   <translation tag="Pick-up step cancelled; nothing was sent" pt="Etapa de coleta cancelada; nada foi enviado"/>
   <translation tag="Picking up tool" pt="Pegando ferramenta"/>
   <translation tag="Pill" pt="Pílula"/>

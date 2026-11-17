@@ -2350,10 +2350,6 @@ translations:
   'Motors disable failed: {}': '禁用电机失败: {}'
   Motors disabled: 电机已禁用
   Motors stay on while a print is active: 打印期间电机保持开启
-  Mount: 装上
-  Mount tool: '装上工具'
-  Mount which tool?: '装上哪个工具？'
-  Mount...: '装上...'
   'Mounted: {}': '已装上: {}'
   Move: 移动
   Move here: 移动到此处
@@ -2788,6 +2784,8 @@ translations:
   Pick up and park each tool in turn: 依次装上并停放每个工具
   Pick up the tool, heat it, and pull the filament out: "装上工具，加热后抽出耗材"
   Pick up tool: 取出工具
+  Pick up which tool?: '装上哪个工具？'
+  Pick up...: '装上...'
   Pick-up step cancelled; nothing was sent: '装上后的步骤已取消；未发送任何指令'
   Picking up tool: 正在取用工具
   Pill: 胶囊

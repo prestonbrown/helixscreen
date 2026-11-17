@@ -2271,10 +2271,6 @@
   <translation tag="Motors disable failed: {}" zh="禁用电机失败: {}"/>
   <translation tag="Motors disabled" zh="电机已禁用"/>
   <translation tag="Motors stay on while a print is active" zh="打印期间电机保持开启"/>
-  <translation tag="Mount" zh="装上"/>
-  <translation tag="Mount tool" zh="装上工具"/>
-  <translation tag="Mount which tool?" zh="装上哪个工具？"/>
-  <translation tag="Mount..." zh="装上..."/>
   <translation tag="Mounted: {}" zh="已装上: {}"/>
   <translation tag="Move" zh="移动"/>
   <translation tag="Move here" zh="移动到此处"/>
@@ -2695,6 +2691,8 @@
   <translation tag="Pick up and park each tool in turn" zh="依次装上并停放每个工具"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" zh="装上工具，加热后抽出耗材"/>
   <translation tag="Pick up tool" zh="取出工具"/>
+  <translation tag="Pick up which tool?" zh="装上哪个工具？"/>
+  <translation tag="Pick up..." zh="装上..."/>
   <translation tag="Pick-up step cancelled; nothing was sent" zh="装上后的步骤已取消；未发送任何指令"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>

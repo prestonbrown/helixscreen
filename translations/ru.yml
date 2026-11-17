@@ -2521,10 +2521,6 @@ translations:
   'Motors disable failed: {}': 'Ошибка отключения моторов: {}'
   Motors disabled: Моторы отключены
   Motors stay on while a print is active: Моторы остаются включены во время печати
-  Mount: Установить
-  Mount tool: 'Установить инструмент'
-  Mount which tool?: 'Какой инструмент установить?'
-  Mount...: 'Установить...'
   'Mounted: {}': 'Установлен: {}'
   Move: Двигать
   Move here: Переместить сюда
@@ -2970,6 +2966,8 @@ translations:
   Pick up and park each tool in turn: Взять и поставить на место каждый инструмент по очереди
   Pick up the tool, heat it, and pull the filament out: "Возьмите инструмент, нагрейте его и вытяните филамент"
   Pick up tool: Забрать инструмент
+  Pick up which tool?: 'Какой инструмент установить?'
+  Pick up...: 'Установить...'
   Pick-up step cancelled; nothing was sent: 'Шаг после установки отменён; ничего не отправлено'
   Picking up tool: Захват инструмента
   Pill: Овал

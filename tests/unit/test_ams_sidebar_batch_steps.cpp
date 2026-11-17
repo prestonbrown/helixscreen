@@ -188,7 +188,7 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::UNLOAD);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/false, 6).size());
-    CHECK(shown.front() == "Tool 1 (1/6): Mount tool");
+    CHECK(shown.front() == "Tool 1 (1/6): Pick up tool");
     CHECK(shown[2] == "Tool 1 (1/6): Retract filament");
     CHECK(shown.back() == "Tool 6 (6/6): Restore tool");
 }
@@ -249,7 +249,7 @@ TEST_CASE_METHOD(BatchStepsFixture,
     CHECK(AmsState::instance().get_active_step_operation() == StepOperationType::UNLOAD);
     const auto shown = labels();
     REQUIRE(shown.size() == helix::mount_feed::bar_rows(/*load=*/false, 3).size());
-    CHECK(shown.front() == "Tool 1 (1/3): Mount tool");
+    CHECK(shown.front() == "Tool 1 (1/3): Pick up tool");
     CHECK(shown[2] == "Tool 1 (1/3): Retract filament");
 }
 

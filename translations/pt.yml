@@ -2483,10 +2483,6 @@ translations:
   'Motors disable failed: {}': 'Falha ao desativar motores: {}'
   Motors disabled: Motores desativados
   Motors stay on while a print is active: Os motores permanecem ativos durante uma impressão
-  Mount: Montar
-  Mount tool: 'Montar ferramenta'
-  Mount which tool?: 'Montar qual ferramenta?'
-  Mount...: 'Montar...'
   'Mounted: {}': 'Montada: {}'
   Move: Mover
   Move here: Mover aqui
@@ -2934,6 +2930,8 @@ translations:
   Pick up and park each tool in turn: Pegar e estacionar cada ferramenta por vez
   Pick up the tool, heat it, and pull the filament out: "Pegue a ferramenta, aqueça-a e puxe o filamento para fora"
   Pick up tool: Pegar ferramenta
+  Pick up which tool?: 'Qual ferramenta montar?'
+  Pick up...: 'Montar...'
   Pick-up step cancelled; nothing was sent: 'Etapa de coleta cancelada; nada foi enviado'
   Picking up tool: Pegando ferramenta
   Pill: Pílula
