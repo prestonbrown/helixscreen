@@ -10,6 +10,7 @@
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -169,23 +170,11 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
         spdlog::debug("[TimelapseState] New frame captured");
 
     } else if (action == "render") {
-        std::string status;
-        int progress = 0;
-        std::string error_msg;
-        std::string filename;
-
-        if (event.contains("status") && event["status"].is_string()) {
-            status = event["status"].get<std::string>();
-        }
-        if (event.contains("progress") && event["progress"].is_number()) {
-            progress = event["progress"].get<int>();
-        }
-        if (event.contains("msg") && event["msg"].is_string()) {
-            error_msg = event["msg"].get<std::string>();
-        }
-        if (event.contains("filename") && event["filename"].is_string()) {
-            filename = event["filename"].get<std::string>();
-        }
+        const std::string status = json_util::read_field<std::string>(event, "status").value_or("");
+        const int progress = json_util::read_field<int>(event, "progress").value_or(0);
+        const std::string error_msg = json_util::read_field<std::string>(event, "msg").value_or("");
+        const std::string filename =
+            json_util::read_field<std::string>(event, "filename").value_or("");
 
         if (status == "running") {
             if (last_notified_progress_ < 0) {
