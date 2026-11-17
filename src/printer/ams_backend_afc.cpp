@@ -3,6 +3,7 @@
 
 #include "ams_backend_afc.h"
 
+#include "ace_slot_parse.h"
 #include "action_prompt_manager.h"
 #include "afc_defaults.h"
 #include "ams_bypass_policy.h"
@@ -1344,6 +1345,9 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
         for (auto& unit_info : unit_infos_) {
             if (auto it = frame.units.find(unit_info.klipper_key); it != frame.units.end()) {
                 apply_unit_object(unit_info, it->second);
+                if (it->second.ace) {
+                    apply_ace_unit(unit_info, *it->second.ace);
+                }
                 state_changed = true;
             }
         }
@@ -2777,6 +2781,110 @@ bool AmsBackendAfc::apply_oams_environment(
     return true;
 }
 
+void AmsBackendAfc::apply_ace_unit(const AfcUnitInfo& unit_info, const afc::AceUnitDelta& data) {
+    AfcAceUnit& ace = ace_units_[unit_info.type + " " + unit_info.name];
+    if (ace.name.empty()) {
+        ace.name = unit_info.name;
+        ace.dryer = helix::ace::ace_pro_dryer_info();
+    }
+    if (data.dryer_status) {
+        ace.has_dryer = true;
+        ace.dryer.active = afc::ace_dryer_running(*data.dryer_status);
+    }
+    if (data.dryer_target_c) {
+        ace.dryer.target_temp_c = *data.dryer_target_c;
+    }
+    if (data.dryer_duration_min) {
+        ace.dryer.duration_min = *data.dryer_duration_min;
+    }
+    if (data.dryer_remaining_min) {
+        ace.dryer.remaining_min = *data.dryer_remaining_min;
+    }
+    if (data.temperature_c || data.humidity_pct) {
+        EnvironmentData env = ace.environment.value_or(EnvironmentData{});
+        if (data.temperature_c) {
+            env.temperature_c = *data.temperature_c;
+            ace.dryer.current_temp_c = *data.temperature_c;
+        }
+        if (data.humidity_pct) {
+            env.humidity_pct = *data.humidity_pct;
+            env.has_humidity = true;
+        }
+        ace.environment = env;
+    }
+    apply_unit_environment();
+}
+
+const AmsBackendAfc::AfcAceUnit* AmsBackendAfc::ace_unit_locked(int unit) const {
+    if (unit < 0 || static_cast<size_t>(unit) >= system_info_.units.size()) {
+        return nullptr;
+    }
+    const auto it = ace_units_.find(system_info_.units[static_cast<size_t>(unit)].name);
+    return it != ace_units_.end() && it->second.has_dryer ? &it->second : nullptr;
+}
+
+DryerInfo AmsBackendAfc::get_dryer_info(int unit) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const AfcAceUnit* ace = ace_unit_locked(unit);
+    return ace ? ace->dryer : DryerInfo{};
+}
+
+AmsError AmsBackendAfc::start_drying(float temp_c, int duration_min, int fan_pct, int unit) {
+    (void)fan_pct;
+    auto err = check_preconditions();
+    if (!err.success()) {
+        return err;
+    }
+    std::string name;
+    DryerInfo dryer;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AfcAceUnit* ace = ace_unit_locked(unit);
+        if (!ace) {
+            return AmsErrorHelper::not_supported("Dryer");
+        }
+        name = ace->name;
+        dryer = ace->dryer;
+    }
+    if (!IMoonrakerAPI::is_safe_gcode_param(name)) {
+        return AmsErrorHelper::invalid_parameter("unit name " + name);
+    }
+    if (auto refusal = helix::ace::check_dryer_request(dryer, temp_c, duration_min)) {
+        return *refusal;
+    }
+    spdlog::info("[AMS AFC] Starting ACE dryer on {}: {}°C for {} minutes", name, temp_c,
+                 duration_min);
+    return execute_gcode(fmt::format("AFC_ACE_DRY UNIT={} TEMP={} DURATION={}", name,
+                                     static_cast<int>(temp_c), duration_min));
+}
+
+AmsError AmsBackendAfc::stop_drying(int unit) {
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        const AfcAceUnit* ace = ace_unit_locked(unit);
+        if (!ace) {
+            return AmsErrorHelper::not_supported("Dryer");
+        }
+        name = ace->name;
+    }
+    if (!IMoonrakerAPI::is_safe_gcode_param(name)) {
+        return AmsErrorHelper::invalid_parameter("unit name " + name);
+    }
+    spdlog::info("[AMS AFC] Stopping ACE dryer on {}", name);
+    return execute_gcode("AFC_ACE_DRY_STOP UNIT=" + name);
+}
+
+AmsError AmsBackendAfc::update_drying(float temp_c, int duration_min, int fan_pct, int unit) {
+    auto err = stop_drying(unit);
+    if (!err.success()) {
+        return err;
+    }
+    const auto [target_temp, target_duration] =
+        helix::ace::restart_request(get_dryer_info(unit), temp_c, duration_min);
+    return start_drying(target_temp, target_duration, fan_pct, unit);
+}
+
 bool AmsBackendAfc::has_toolchanger_unit_locked() const {
     return std::any_of(unit_infos_.begin(), unit_infos_.end(),
                        [](const AfcUnitInfo& u) { return u.type == "Toolchanger"; });
@@ -2798,6 +2906,13 @@ bool AmsBackendAfc::head_is_mountable_locked(const std::string& klipper_name) co
 }
 
 void AmsBackendAfc::apply_unit_environment() {
+    for (auto& unit : system_info_.units) {
+        const auto ace = ace_units_.find(unit.name);
+        if (ace != ace_units_.end() && ace->second.environment) {
+            unit.environment = ace->second.environment;
+            has_unit_environment_ = true;
+        }
+    }
     if (oams_env_.empty()) {
         return;
     }

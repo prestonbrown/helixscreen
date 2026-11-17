@@ -5,10 +5,10 @@
  * @file ams_dryer.h
  * @brief Capability of a filament system that can drive a dryer
  *
- * Reached with AmsBackend::as<IDryer>(). ACE Pro, MultiACE, OpenAMS, the QIDI box, Happy Hare
- * and the mock implement it. Having the interface does not mean this machine has the hardware:
- * get_dryer_info(unit).supported answers that, per unit. dryer_info() asks that of any backend,
- * so a caller reading state needs no branch of its own.
+ * Reached with AmsBackend::as<IDryer>(). ACE Pro, MultiACE, OpenAMS, the QIDI box, Happy Hare,
+ * AFC (for its ACE units) and the mock implement it. Having the interface does not mean this
+ * machine has the hardware: get_dryer_info(unit).supported answers that, per unit. dryer_info()
+ * asks that of any backend, so a caller reading state needs no branch of its own.
  *
  * A unit's environment zones stay on AmsBackend, since a passive sensor makes a zone with no
  * dryer behind it.

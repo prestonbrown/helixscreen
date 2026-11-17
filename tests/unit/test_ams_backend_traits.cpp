@@ -203,7 +203,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
         {.backend = &indx, .feeder = &indx, .steps = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
-        {.backend = &afc, .recovery = &afc, .narration = &afc},
+        {.backend = &afc, .recovery = &afc, .narration = &afc, .dryer = &afc},
         {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
         {.backend = &happy_hare, .gates = &happy_hare, .dryer = &happy_hare},
         {.backend = &mock, .gates = &mock, .dryer = &mock, .routing = &mock},

@@ -586,9 +586,51 @@ ExtruderObjectDelta parse_extruder_object(const nlohmann::json& data) {
     return d;
 }
 
+bool ace_dryer_running(const std::string& status) {
+    const std::string word = text_io::to_lower(status);
+    static constexpr const char* kIdle[] = {"",     "stop", "stopped", "stopping",
+                                            "idle", "off",  "none"};
+    return std::none_of(std::begin(kIdle), std::end(kIdle),
+                        [&word](const char* idle) { return word == idle; });
+}
+
+namespace {
+
+std::optional<int> read_whole_minutes(const nlohmann::json& data, const char* key) {
+    const auto v = ams::read_field<float>(data, key);
+    if (!v) {
+        return std::nullopt;
+    }
+    return static_cast<int>(std::lround(*v));
+}
+
+std::optional<AceUnitDelta> parse_ace_unit(const nlohmann::json& data) {
+    static constexpr const char* kAceKeys[] = {"ace_dryer",        "ace_dryer_target",
+                                               "ace_dryer_remain", "ace_dryer_duration",
+                                               "ace_temp",         "ace_humidity"};
+    if (std::none_of(std::begin(kAceKeys), std::end(kAceKeys),
+                     [&data](const char* key) { return data.contains(key); })) {
+        return std::nullopt;
+    }
+    AceUnitDelta ace;
+    ace.dryer_status = ams::read_field<std::string>(data, "ace_dryer");
+    ace.dryer_target_c = ams::read_field<float>(data, "ace_dryer_target");
+    ace.dryer_remaining_min = read_whole_minutes(data, "ace_dryer_remain");
+    ace.dryer_duration_min = read_whole_minutes(data, "ace_dryer_duration");
+    ace.temperature_c = ams::read_field<float>(data, "ace_temp");
+    ace.humidity_pct = ams::read_field<float>(data, "ace_humidity");
+    return ace;
+}
+
+} // namespace
+
 UnitObjectDelta parse_unit_object(const nlohmann::json& data) {
-    return UnitObjectDelta{read_string_list(data, "lanes"), read_string_list(data, "extruders"),
-                           read_string_list(data, "hubs"), read_string_list(data, "buffers")};
+    UnitObjectDelta d{read_string_list(data, "lanes"), read_string_list(data, "extruders"),
+                      read_string_list(data, "hubs"), read_string_list(data, "buffers")};
+    if (data.is_object()) {
+        d.ace = parse_ace_unit(data);
+    }
+    return d;
 }
 
 UnitTopology derive_unit_topology(const std::vector<std::string>& lanes, size_t extruder_count,

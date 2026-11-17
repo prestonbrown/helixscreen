@@ -19,14 +19,9 @@ using namespace helix::printer;
 namespace {
 
 /// AFC has no per-gate heater lists, so it exercises the generic default.
-class ZoneSourceHelper : public AmsBackendAfc, public IDryer {
+class ZoneSourceHelper : public AmsBackendAfc {
   public:
     ZoneSourceHelper() : AmsBackendAfc(nullptr, nullptr) {}
-
-    void* capability(helix::TypeTag tag) override {
-        return tag == helix::type_tag<IDryer>() ? static_cast<IDryer*>(this)
-                                                : AmsBackendAfc::capability(tag);
-    }
 
     AmsSystemInfo& mutable_info() {
         return system_info_;

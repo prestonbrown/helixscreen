@@ -2783,6 +2783,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     std::vector<AfcLane> afc_lanes_;
     int afc_loaded_ = -1; ///< lane index in the toolhead, -1 = none
     std::string afc_state_ = "Idle";
+    /// The ACE dryer under HELIX_MOCK_AMS=afc_ace, mid cycle at start.
+    struct AfcAceDryer {
+        std::string status = "drying";
+        int target_c = 50;
+        int duration_min = 240;
+        int remain_min = 205;
+    };
+    AfcAceDryer afc_ace_dryer_;
     /// @p lanes is HELIX_AMS_GATES, clamped to the lanes the mock has spools for.
     void init_afc_boxturtle(int lanes);
     void append_afc_boxturtle_objects(nlohmann::json& objects) const;
@@ -3025,6 +3033,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // --- AFC on one Box Turtle (HELIX_MOCK_AMS=afc; public for the mock tests) ---
     bool is_mock_afc_boxturtle() const;
+    /// The AFC mock runs an ACE Pro unit instead (HELIX_MOCK_AMS=afc_ace).
+    bool is_mock_afc_ace() const;
     /// Every AFC object the Box Turtle mock publishes, keyed as Klipper names them.
     [[nodiscard]] nlohmann::json afc_boxturtle_status_json() const;
     /// The AFC objects of whichever AFC mock hardware runs (Box Turtle or Reforge), else {}.

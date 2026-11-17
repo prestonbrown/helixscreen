@@ -266,12 +266,33 @@ struct ExtruderObjectDelta {
 
 [[nodiscard]] ExtruderObjectDelta parse_extruder_object(const nlohmann::json& data);
 
-/// One unit-level object (AFC_BoxTurtle, AFC_OpenAMS, AFC_vivid).
+/// The live hardware state an ACE Pro unit run through AFC publishes on its
+/// `AFC_ACE <name>` / `AFC_ACE2 <name>` object (AFC DEV, AFC_ACE.py get_status).
+/// A null value states nothing, the same as an absent key.
+struct AceUnitDelta {
+    /// `ace_dryer`: the dryer's status word ("drying", "heater_err", or one of
+    /// AFC's idle words such as "stop"). Its key is what says the unit has a
+    /// dryer AFC drives.
+    std::optional<std::string> dryer_status;
+    std::optional<float> dryer_target_c;    ///< `ace_dryer_target`
+    std::optional<int> dryer_remaining_min; ///< `ace_dryer_remain`
+    std::optional<int> dryer_duration_min;  ///< `ace_dryer_duration`
+    std::optional<float> temperature_c;     ///< `ace_temp`, the box's ambient reading
+    std::optional<float> humidity_pct;      ///< `ace_humidity` (ACE 2 only)
+};
+
+/// Whether an ACE dryer status word means a cycle is running. The idle words
+/// are AFC_ACE.py's `_DRYER_IDLE`.
+[[nodiscard]] bool ace_dryer_running(const std::string& status);
+
+/// One unit-level object (AFC_BoxTurtle, AFC_OpenAMS, AFC_vivid, AFC_ACE, ...).
 struct UnitObjectDelta {
     std::optional<std::vector<std::string>> lanes;
     std::optional<std::vector<std::string>> extruders;
     std::optional<std::vector<std::string>> hubs;
     std::optional<std::vector<std::string>> buffers;
+    /// Set when the object carries any `ace_` hardware field.
+    std::optional<AceUnitDelta> ace;
 };
 
 [[nodiscard]] UnitObjectDelta parse_unit_object(const nlohmann::json& data);

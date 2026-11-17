@@ -865,7 +865,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |
-| Dryer | No | -- |
+| Dryer | ACE units only | `AFC_ACE_DRY` (see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
@@ -880,6 +880,43 @@ loaded), and all three home-first prompt sites — the AMS sidebar, the
 filament panel, and `ensure_homed_then()` — skip both the prompt and the
 synthesized G28. Distinct from `filament_ops_self_home()`, which governs
 paused-print refusal.
+
+### AFC DEV unit and lane fields
+
+AFC's DEV branch adds unit types and lane commands that v1.2.0 lacks. Each one below is
+read or sent only where the firmware shows it has it, so a v1.2.0 install sees no change:
+a status field counts once its key is published, a command once `printer.gcode.help`
+lists it (`AmsBackendAfc::detect_afc_commands`).
+
+#### ACE Pro units (`AFC_ACE <name>`, `AFC_ACE2 <name>`)
+
+An ACE Pro run through AFC (AFC_ACE.py, AFC DEV c2103dc) is a unit of type `ACE` or `ACE2`
+whose lanes are `AFC_lane` objects. Its unit object adds the hub's own readings on top of
+the usual `lanes` / `extruders` / `hubs` / `buffers`:
+
+| Field | Meaning | Lands on |
+|-------|---------|----------|
+| `ace_dryer` | Dryer status word. `""`, `stop`, `stopped`, `stopping`, `idle`, `off` and `none` mean no cycle (AFC_ACE.py `_DRYER_IDLE`) | `DryerInfo::active`; its presence makes `DryerInfo::supported` |
+| `ace_dryer_target` | Setpoint, °C | `DryerInfo::target_temp_c` |
+| `ace_dryer_duration` / `ace_dryer_remain` | Cycle length and time left, minutes, as the ACE backend reads the same firmware fields | `DryerInfo::duration_min` / `remaining_min` |
+| `ace_temp` | The box's temperature | `AmsUnit::environment` and `DryerInfo::current_temp_c` |
+| `ace_humidity` | Relative humidity (the ACE 2 always; the ACE Pro when its status carries it) | `AmsUnit::environment` |
+
+`afc::parse_unit_object` reads them into `afc::AceUnitDelta`, and
+`AmsBackendAfc::apply_ace_unit` keeps them per unit across deltas and reorganizes. The
+backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that have published
+`ace_dryer` and reports no dryer for every other unit. Its limits are the ACE Pro's
+(`helix::ace::ace_pro_dryer_info`); AFC also caps `TEMP` at the unit's `max_dryer_temperature`
+(55 °C by default).
+
+| Action | Command |
+|--------|---------|
+| Start | `AFC_ACE_DRY UNIT=<name> TEMP=<°C> DURATION=<minutes>`. `FAN` is left at AFC's default: the ACE Pro firmware ignores it and runs its fan at 7000 rpm. `ROTATE=1` is not offered |
+| Stop | `AFC_ACE_DRY_STOP UNIT=<name>` |
+| Change temp or time | Stop, then start again with what is left (`helix::ace::restart_request`) |
+
+AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
+a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
 
 ### AFC Version Reporting
 

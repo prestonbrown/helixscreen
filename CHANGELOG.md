@@ -35,6 +35,7 @@ is out.
 - **Tap the loaded card to open its spool** (#2094) - on the AMS panel, tapping the loaded card opens the spool in the loaded lane.
 - **Tool Numbers** (#2014) - Settings > Appearance can number tools the way your printer does, 1, 2, 3 or T0, T1, T2. Auto uses T0 style on a klipper-toolchanger printer whose tools are named T plus a number, and every screen that names a tool follows the choice at once.
 - **AD5X with Z-Mod: more than four IFS ports** (#2039) - an AD5X with Z-Mod follows Z-Mod's color limit past four IFS ports and keeps a lane seated past four across restarts.
+- **ACE Pro dryer through AFC** - an Anycubic ACE Pro run by AFC (its development branch) shows the box temperature and humidity and its dryer on the dryer page, which can start and stop a drying cycle.
 
 **Home screen and display**
 
