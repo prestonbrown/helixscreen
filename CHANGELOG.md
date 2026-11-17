@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bypass spool the same size as the others** - on the filament system screens the bypass spool is now drawn the same size as the spools in each unit, instead of smaller.
 - **Direct AFC units drawn without a hub** - on the Multi-Filament overview, an AFC unit whose lane runs straight to its own toolhead, such as a toolchanger's one-lane Tools unit, is now drawn going directly to that toolhead instead of through a hub box it does not have.
 - **Part Fan slider sets the part fan** - on printers whose part cooling fan is a named fan rather than the plain fan, the Controls slider now changes that fan instead of a different one.
+- **One dialog on a Happy Hare 4.2 pause** - when Happy Hare 4.2 pauses a print, HelixScreen now closes Happy Hare's own Pause Notice when its recovery dialog opens, as it already did with the Error Notice of earlier versions. Before, both dialogs stayed on screen.
 - **Part Fan slider knob shows whole** - the slider knob on the Controls Cooling card is no longer cut off at its ends or along its top and bottom on small screens.
 - **Nozzle Temps rows open their own tool** - on multi-head printers, tapping a tool in the home screen Nozzle Temps widget opens the temperature graph on that tool instead of the one on the carriage.
 

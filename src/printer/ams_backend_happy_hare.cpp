@@ -1451,8 +1451,10 @@ AmsBackendHappyHare::classify_error(const std::string& raw_line,
 }
 
 bool AmsBackendHappyHare::duplicates_firmware_prompt(const std::string& title) const {
-    // HH's _MMU_ERROR_DIALOG, shown for the same pause the recovery popup covers.
-    return title == "Happy Hare Error Notice";
+    // HH's own pause dialog, shown for the same pause the recovery popup covers.
+    // v3 to v4.1 title it from the _MMU_ERROR_DIALOG macro; v4.2 builds it in
+    // Python (mmu_dialog.py ERROR_DIALOG_TITLE) under a fixed new title.
+    return title == "Happy Hare Error Notice" || title == "Happy Hare Pause Notice";
 }
 
 std::vector<AmsBackend::ToolchangePhase>

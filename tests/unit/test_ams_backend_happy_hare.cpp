@@ -5525,7 +5525,11 @@ TEST_CASE("Happy Hare claims its own error notice prompt as a duplicate of the f
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
     AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    // v3 to v4.1 title the pause dialog "Error Notice"; v4.2 builds it in Python
+    // as "Pause Notice" (mmu_dialog.py ERROR_DIALOG_TITLE).
     CHECK(hh.duplicates_firmware_prompt("Happy Hare Error Notice"));
+    CHECK(hh.duplicates_firmware_prompt("Happy Hare Pause Notice"));
+    CHECK_FALSE(hh.duplicates_firmware_prompt("Happy Hare"));
     CHECK_FALSE(hh.duplicates_firmware_prompt("Filament Change"));
 }
 
@@ -5541,6 +5545,36 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // _MMU_ERROR_DIALOG runs ahead of the `!!` line, so its prompt is up first.
     prompts.process_line("// action:prompt_begin Happy Hare Error Notice");
     prompts.process_line("// action:prompt_text Reason: Gate 2 is empty!");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK_FALSE(helix::ActionPromptManager::is_showing());
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare v4.2's pause notice closes when the HH recovery popup shows",
+                 "[ams][happy_hare][error-center][1323]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    // mmu_dialog.py shows the prompt ahead of the `!!` line, so it is up first.
+    prompts.process_line("// action:prompt_begin Happy Hare Pause Notice");
+    prompts.process_line("// action:prompt_text Gate 2 is empty.");
     prompts.process_line("// action:prompt_show");
     REQUIRE(helix::ActionPromptManager::is_showing());
 
