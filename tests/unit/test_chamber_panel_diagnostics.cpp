@@ -26,6 +26,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
 #include "chamber_heater_backend.h"
 #include "core/subject.h"
@@ -199,23 +200,15 @@ nlohmann::json faulted_dragonbreath_status() {
 
 /// Builds the real temp_graph_overlay.xml with its component dependencies,
 /// in the same shape production's xml_registration.cpp uses. temp_graph_mode
-/// is a TempGraphOverlay-owned subject in production; the fixture registers a
-/// static stand-in (the XML subject registry is process-global and never
-/// forgets an entry, so a fixture member would dangle after this test: same
-/// reasoning as AdvancedPowerGroupFixture's host-power subject).
+/// is a TempGraphOverlay-owned subject in production; the fixture publishes a
+/// stand-in (xml_stand_in_subject.h) when no overlay does.
 class ChamberOverlayFixture : public XMLTestFixture {
   public:
     ChamberOverlayFixture() : XMLTestFixture() {
         // Chamber mode BEFORE build: the chamber strip's hidden bind and the
         // graph column's width bind both observe it, and the orientation
         // branch is structural, evaluated at view creation.
-        mode_subject_ = lv_xml_get_subject(nullptr, "temp_graph_mode");
-        if (!mode_subject_) {
-            static helix::Subject mode_subject;
-            mode_subject.init_int(3); // TempGraphOverlay::Mode::Chamber
-            lv_xml_register_subject(nullptr, "temp_graph_mode", &mode_subject);
-            mode_subject_ = &mode_subject;
-        }
+        mode_subject_ = helix::test::xml_stand_in_int("temp_graph_mode", 3);
         // A prior test case may have left another mode on the shared static
         // subject: chamber is the default for every section here.
         lv_subject_set_int(mode_subject_, 3);
@@ -224,17 +217,8 @@ class ChamberOverlayFixture : public XMLTestFixture {
         // production; this fixture never runs it, so the card's heater_status
         // bindings need static stand-ins (registered BEFORE the overlay is
         // built, the same stand-in discipline as temp_graph_mode above).
-        if (!lv_xml_get_subject(nullptr, "chamber_status")) {
-            static helix::Subject chamber_status;
-            static char chamber_status_buf[32];
-            chamber_status.init_string(chamber_status_buf, nullptr, sizeof(chamber_status_buf), "");
-            lv_xml_register_subject(nullptr, "chamber_status", &chamber_status);
-        }
-        if (!lv_xml_get_subject(nullptr, "chamber_status_state")) {
-            static helix::Subject chamber_status_state;
-            chamber_status_state.init_int(0);
-            lv_xml_register_subject(nullptr, "chamber_status_state", &chamber_status_state);
-        }
+        helix::test::xml_stand_in_string("chamber_status", "");
+        helix::test::xml_stand_in_int("chamber_status_state", 0);
 
         REQUIRE(register_component("components/nozzle_icon"));
         REQUIRE(register_component("components/heater_icon"));
