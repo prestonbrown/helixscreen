@@ -82,6 +82,10 @@ struct TempDisplayData {
     // their separators at one x whatever the digits are.
     bool align_current = false;
 
+    // target_only: the target alone, for a chip that sits beside a separate
+    // reading. The current, separator and unit labels are built and kept hidden.
+    bool target_only = false;
+
     // Child label pointers for efficient updates
     lv_obj_t* current_label = nullptr;
     lv_obj_t* separator_label = nullptr;
@@ -135,7 +139,7 @@ static void apply_target_visibility(TempDisplayData* data) {
                           data->current_bp < data->hide_target_below_bp;
     bool hide = size_hides || bp_hides || (data->hide_target_when_off && data->target_temp == 0);
     if (data->separator_label) {
-        if (hide)
+        if (hide || data->target_only)
             lv_obj_add_flag(data->separator_label, LV_OBJ_FLAG_HIDDEN);
         else
             lv_obj_remove_flag(data->separator_label, LV_OBJ_FLAG_HIDDEN);
@@ -481,6 +485,11 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         data_ptr->hide_target_when_off = true;
     }
 
+    const char* target_only_str = lv_xml_get_value_of(attrs, "target_only");
+    if (target_only_str && strcmp(target_only_str, "true") == 0) {
+        data_ptr->target_only = true;
+    }
+
     const char* align_current_str = lv_xml_get_value_of(attrs, "align_current");
     if (align_current_str && strcmp(align_current_str, "true") == 0) {
         data_ptr->align_current = true;
@@ -589,6 +598,11 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         apply_current_width(registered);
         lv_obj_add_event_cb(registered->current_label, on_current_style_changed,
                             LV_EVENT_STYLE_CHANGED, container);
+    }
+
+    if (registered->target_only) {
+        lv_obj_add_flag(registered->current_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(registered->unit_label, LV_OBJ_FLAG_HIDDEN);
     }
 
     // Seed visibility from the initial state — with hide_target_when_off that

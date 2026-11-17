@@ -1788,6 +1788,9 @@
         "hide_target_when_off": {
           "type": "bool"
         },
+        "target_only": {
+          "type": "string"
+        },
         "align_current": {
           "type": "string"
         },
