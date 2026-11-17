@@ -141,6 +141,7 @@ class CalibrationSendFixture : public LVGLUITestFixture {
         MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
         MoonrakerAPI api(client, state());
         ZOffsetCalibrationPanel panel;
+        panel.init_subjects();
         panel.set_api(&api);
         ZOffsetCalibrationTestAccess::set_cumulative_delta(panel, -0.15f);
         send_accept_of(panel);
@@ -203,6 +204,7 @@ std::vector<std::string> probe_accept_scripts(
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     send_accept_of(panel);
     for (int i = 0; i < 20; ++i) {
@@ -282,6 +284,7 @@ std::string abort_sends_for(DeactivateReason reason) {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, get_printer_state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::PROBING);
     panel.on_deactivate(reason);
@@ -336,6 +339,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     panel.on_calibration_result(true, "");
     REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
@@ -381,6 +385,7 @@ TEST_CASE_METHOD(
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     ManualProbeActive session(open);
 
@@ -415,6 +420,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     // A session Mainsail or Fluidd opened while this panel sat idle is not ours to end.
     ManualProbeActive session(true);
@@ -457,6 +463,7 @@ StartOutcome start_calibration(ZOffsetCalibrationStrategy strategy, helix::Print
     MoonrakerAPI api(client, ps);
     api.hardware() = std::move(hw);
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -569,6 +576,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -609,6 +617,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, ps);
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     begin_probe_sequence_of(panel);
     helix::ui::UpdateQueue::instance().drain_until_empty();
@@ -655,6 +664,7 @@ class ToolGateFixture : public CalibrationSendFixture {
   public:
     ToolGateFixture() {
         helix::ui::modal_init_subjects();
+        panel.init_subjects();
         const json objects = json::array(
             {"gcode_move", "toolhead", "extruder", "toolchanger", "tool T0", "tool T1"});
         use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE, objects);
@@ -984,6 +994,7 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     MoonrakerAPI api(client, state());
     ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
     panel.set_api(&api);
     panel.init_subjects();
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);

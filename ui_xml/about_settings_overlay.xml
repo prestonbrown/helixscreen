@@ -108,7 +108,7 @@
       </lv_obj>
       <!-- Credits -->
       <text_tiny width="100%"
-                 text="Space Debris mod by Markus 'Captain' Kaarlonen" style_text_color="#text_muted"
+                 text="Pole Position Nights · V10 engine sound by Edvvc (CC BY-SA 3.0)" style_text_color="#text_muted"
                  style_text_align="center" style_pad_top="#space_sm"/>
       <!-- Bottom padding for scroll -->
       <lv_obj width="100%" height="#space_lg" scrollable="false"/>

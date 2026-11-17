@@ -13,9 +13,13 @@
 #include "ui_panel_controls.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/controls_panel_subjects.h"
 #include "../test_helpers/log_capture.h"
 #include "core/update_queue.h"
+#include "led/led_controller.h"
 #include "lvgl_log_handler.h"
+#include "temperature_sensor_manager.h"
+#include "tool_state.h"
 
 #include <spdlog/sinks/ringbuffer_sink.h>
 #include <spdlog/spdlog.h>
@@ -65,7 +69,7 @@ class CheckFailureCapture {
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Rendering the controls panel fails no LVGL argument check",
                  "[lvgl][check_arg]") {
-    ControlsPanel panel(state(), nullptr);
+    ControlsPanel panel(helix::test::init_controls_panel_subjects(state()), nullptr);
     panel.init_subjects();
     lv_obj_t* root =
         static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "controls_panel", nullptr));

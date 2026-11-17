@@ -356,6 +356,15 @@ class OverlayBase : public ViewLifecycleBase, public helix::FullPageContent {
         return subjects_initialized_;
     }
 
+    /// Runs init_subjects() unless it already ran: what show() does, for code that
+    /// needs the subjects before the overlay is shown.
+    void ensure_subjects() {
+        if (!subjects_initialized_) {
+            init_subjects();
+            subjects_initialized_ = true;
+        }
+    }
+
   protected:
     /**
      * @brief Default constructor (protected - use derived classes)

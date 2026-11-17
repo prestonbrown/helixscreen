@@ -3,6 +3,7 @@
 
 #include "core/subject.h"
 
+#include "core/observer_guard.h"
 #include "core/update_queue.h"
 #include "helix_lvgl_anomaly.h"
 
@@ -108,6 +109,7 @@ void release_node(lv_subject_t* node, uint32_t generation) {
                   "release tag literal and kSubjectReleaseTag differ");
     helix::ui::queue_update("helix::Subject::release_node", [node, generation]() {
         if (lv_is_initialized() && generation == current_generation()) {
+            ObserverGuard::forget_subject_teardown_exempt(node);
             lv_subject_delete(node);
         }
     });
@@ -117,6 +119,7 @@ void release_node(lv_subject_t* node, uint32_t generation) {
 
 void subjects_note_lvgl_deinit() noexcept {
     g_generation.fetch_add(1, std::memory_order_acq_rel);
+    ObserverGuard::forget_all_teardown_exempt_subjects();
 }
 
 Subject::Subject() noexcept {
@@ -306,6 +309,28 @@ void subject_reset(lv_subject_t* subject) {
         return;
     }
     report("subject_reset_unowned", "helix::subject_reset on a subject no helix::Subject owns");
+}
+
+bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* observer) {
+    if (!subject || !observer) {
+        return false;
+    }
+    auto* list = const_cast<lv_ll_t*>(&subject->subs_ll);
+    for (auto* it = static_cast<lv_observer_t*>(lv_ll_get_head(list)); it;
+         it = static_cast<lv_observer_t*>(lv_ll_get_next(list, it))) {
+        if (it == observer) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Subject::publish_int(int32_t value) {
+    if (live_ && node_usable()) {
+        lv_subject_set_int(handle_, value);
+    } else {
+        init_int(value);
+    }
 }
 
 void subject_init_int(Subject& subject, int32_t value) {

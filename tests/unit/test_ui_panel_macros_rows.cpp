@@ -65,7 +65,7 @@ class MacrosRowsFixture : public XMLTestFixture {
         REQUIRE(register_component("macro_card"));
         REQUIRE(register_component("macro_panel"));
         panel.deinit_subjects();
-        panel.init_subjects();
+        panel.ensure_subjects();
         panel.register_callbacks();
     }
 

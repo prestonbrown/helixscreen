@@ -235,6 +235,10 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// The result texts a freshly built overlay shows
     void reset_result_texts();
 
+    /// 0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR
+    helix::Subject cal_state_subject_{};
+    /// Warm bed toggle: 0=off, 1=on
+    helix::Subject warm_bed_subject_{};
     helix::Subject saved_text_subject_{};
     helix::Subject z_text_subject_{};
     helix::Subject final_text_subject_{};

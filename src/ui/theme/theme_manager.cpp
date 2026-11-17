@@ -147,11 +147,7 @@ static helix::ThemeData theme_manager_load_active_theme() {
 /// outlives widget teardown, so observer guards on it are exempt; a non-null
 /// `xml_name` makes it bindable from XML.
 static void publish_int_subject(helix::Subject& subject, int32_t value, const char* xml_name) {
-    if (!subject.is_live()) {
-        subject.init_int(value);
-    } else {
-        lv_subject_set_int(&subject, value);
-    }
+    subject.publish_int(value);
     ObserverGuard::mark_subject_teardown_exempt(&subject);
     if (xml_name) {
         lv_xml_register_subject(nullptr, xml_name, &subject);

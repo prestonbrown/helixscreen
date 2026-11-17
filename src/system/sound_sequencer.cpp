@@ -66,6 +66,13 @@ bool SoundSequencer::is_playing() const {
     return playing_.load();
 }
 
+bool SoundSequencer::is_idle() const {
+    // The sequencer thread pops a request and sets playing_ under this lock, so
+    // the two reads never fall between them.
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    return request_queue_.empty() && !playing_.load();
+}
+
 void SoundSequencer::start() {
     if (running_.load())
         return;

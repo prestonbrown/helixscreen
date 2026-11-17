@@ -470,7 +470,8 @@ bool DisplayManager::init(const Config& config) {
     DisplaySleepConfig sleep_config;
     sleep_config.use_hardware_blank = use_hardware_blank;
     sleep_config.use_power_off = use_power_off;
-    sleep_config.dim_timeout_sec = cfg->get<int>("/display/dim_sec", 600);
+    sleep_config.dim_timeout_sec =
+        cfg->get<int>("/display/dim_sec", DisplaySettingsManager::kDefaultDimSec);
     sleep_config.dim_brightness_percent =
         std::clamp(cfg->get<int>("/display/dim_brightness", 30), 1, 100);
     spdlog::debug("[DisplayManager] Display dim: {}s timeout, {}% brightness",

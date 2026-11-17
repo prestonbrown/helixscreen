@@ -59,6 +59,7 @@
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
+#include "thermal_rate_model.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -397,6 +398,10 @@ void HelixTestFixture::reset_all() {
     // derived fixture did, which is what the scattered clear_path() calls in
     // individual tests were working around.
     helix::test::reset_config_singleton();
+    // The heating rates are process-wide and price every pre-print phase and
+    // its fallback timeout, so a rate one test set would stretch or shorten
+    // the next test's deadlines.
+    ThermalRateManager::instance().reset();
     // A backend's start reads this cache to pick its firmware's command dialect.
     helix::MacroParamCache::instance().clear();
     // StandardMacros holds each slot's user-configured macro, and reset() keeps

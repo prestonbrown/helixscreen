@@ -673,6 +673,9 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "ercf" || ams_type == "tradrack") {
             mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
             spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
+        } else if (ams_type == "kms") {
+            mock->set_unit_model("KMS", PathTopology::HUB);
+            spdlog::info("[AMS Backend] Mock KMS unit");
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");

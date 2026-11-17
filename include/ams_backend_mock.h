@@ -618,8 +618,9 @@ class AmsBackendMock : public AmsBackend,
     /// Report unit 0 under @p name, as AFC reports "<type> <instance>".
     void set_afc_unit_name(const std::string& name);
 
-    /// Set the hardware model the first unit reports, as a real Happy Hare vendor would.
-    void set_unit_model(const std::string& model);
+    /// Set the hardware model the first unit reports, as a real Happy Hare vendor would, and
+    /// the path that unit's lanes take.
+    void set_unit_model(const std::string& model, PathTopology topology = PathTopology::LINEAR);
 
     /**
      * @brief Check if AFC mode is enabled

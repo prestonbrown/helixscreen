@@ -326,6 +326,9 @@ void DisplaySettingsOverlay::handle_screensaver_changed(int index) {
     DisplaySettingsManager::instance().set_screensaver_type(static_cast<int>(*type));
     // A choice can change what the list offers: Off drops a too-slow stored saver.
     init_screensaver_dropdown();
+    // Turning a saver on can seed the dim timeout, and that can raise sleep to match.
+    init_dim_dropdown();
+    init_sleep_dropdown();
 #endif
 }
 

@@ -372,7 +372,7 @@ class BeltPanelFixture : public XMLTestFixture {
     /// tests never register; provide the name the panel looks up.
     static void set_accel_subject(int value) {
         static helix::Subject s;
-        s.init_int(value);
+        s.publish_int(value);
         lv_xml_register_subject(nullptr, "printer_has_accelerometer", &s);
     }
 

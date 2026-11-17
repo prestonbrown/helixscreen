@@ -591,6 +591,9 @@ struct ScopedHome {
         lv_obj_t* host = lv_obj_create(root);
         lv_obj_set_name(host, "carousel_host");
         lv_obj_set_size(host, LV_PCT(100), LV_PCT(100));
+        // The home panel's widgets publish to their own subjects, which the app
+        // initializes at startup.
+        helix::PanelWidgetManager::instance().init_widget_subjects();
         HomePanel& home = get_global_home_panel();
         if (!home.are_subjects_initialized()) {
             home.init_subjects();

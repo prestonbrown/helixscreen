@@ -156,7 +156,7 @@ TEST_CASE_METHOD(
 
     {
         TempGraphOverlay overlay;
-        overlay.init_subjects();
+        overlay.ensure_subjects();
         REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + published.size());
         REQUIRE(present() == published.size());
         // Destructor runs here.
@@ -169,7 +169,7 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects does not crash",
                  "[temp_graph_overlay]") {
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
 
     overlay.cleanup();
 
@@ -349,7 +349,7 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     helix::ToolState::instance().update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
 
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
     seed_two_tools();
 
     TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
@@ -401,7 +401,7 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
                  "TempGraphOverlay: a pick whose extruder vanishes on rediscovery falls back",
                  "[temp_graph_overlay][active-extruder]") {
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
     seed_two_tools();
 
     TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
@@ -429,7 +429,7 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     using helix::ui::temperature::HeaterStatusState;
 
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
 
     // Machine tool = tool 1, at temp and idle. Picked tool 2 heating from
     // cold at full power, so which tool the status answers from is observable.
@@ -470,7 +470,7 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
     // the overlay is up. Arm, pick, drain three times, then demand a quiet
     // queue.
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
     seed_two_tools();
 
     TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
@@ -648,7 +648,7 @@ TEST_CASE_METHOD(
     helix::ui::UpdateQueue::instance().drain();
 
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
 
     // The caller names the nozzle (the Controls nozzle row): that tool shows
     // even though another is mounted.

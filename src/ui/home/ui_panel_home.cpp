@@ -313,8 +313,10 @@ void HomePanel::build_carousel(int initial_page) {
         return;
     }
 
-    // Init page subject and connect to carousel
-    page_subject_.init_int(0);
+    // The page subject outlives a rebuild. Drop the previous build's observer
+    // before the reset to page 0, or it would act on the old carousel.
+    page_observer_.reset();
+    page_subject_.publish_int(0);
     subjects_.register_subject(&page_subject_);
 
     CarouselState* cstate = ui_carousel_get_state(carousel_);

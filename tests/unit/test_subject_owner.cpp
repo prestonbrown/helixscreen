@@ -337,6 +337,30 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(observer_count(&s) == 0);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "subject_has_observer stops finding an observer the reset freed",
+                 "[subject][raii]") {
+    Subject s;
+    s.init_int(0);
+    lv_observer_t* obs = lv_subject_add_observer(&s, [](lv_observer_t*, lv_subject_t*) {}, nullptr);
+    REQUIRE(helix::subject_has_observer(&s, obs));
+    s.reset();
+    CHECK_FALSE(helix::subject_has_observer(&s, obs));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "Subject publish_int keeps its observers when already live",
+                 "[subject][raii][2116]") {
+    Subject s;
+    s.publish_int(1);
+    REQUIRE(s.is_live());
+    ObserverGuard guard(&s, count_cb, nullptr);
+    const uint32_t reported = Subject::anomalies_reported();
+
+    s.publish_int(9);
+    CHECK(Subject::anomalies_reported() == reported);
+    CHECK(observer_count(&s) == 1);
+    CHECK(lv_subject_get_int(&s) == 9);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Subject re-init after reset drops a min clamp and resets the previous value",
                  "[subject][raii]") {

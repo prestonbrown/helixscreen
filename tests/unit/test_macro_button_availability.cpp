@@ -16,11 +16,15 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/controls_panel_subjects.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "filament_op_dispatch.h"
+#include "led/led_controller.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"
+#include "temperature_sensor_manager.h"
+#include "tool_state.h"
 
 #include <string>
 
@@ -239,7 +243,7 @@ namespace {
 /// widget's own state, i.e. on the XML bindings as well as the C++ subjects.
 class ControlsMacroFixture : public LVGLUITestFixture {
   public:
-    ControlsMacroFixture() : panel(state(), nullptr) {}
+    ControlsMacroFixture() : panel(helix::test::init_controls_panel_subjects(state()), nullptr) {}
 
     ~ControlsMacroFixture() override {
         if (panel_obj) {

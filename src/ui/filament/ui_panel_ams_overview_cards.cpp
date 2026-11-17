@@ -203,10 +203,14 @@ void AmsOverviewPanel::layout_unit_row() {
         return;
     laid_out_row_width_ = row_width;
 
+    // A bars tile holds its compact width, so that width is its floor: counting it as zero
+    // lets a row that overflows look as if it fits, and flex then crushes the art beside it.
     std::vector<int32_t> min_widths;
     for (const auto& uc : unit_cards_) {
         if (uc.card)
-            min_widths.push_back(lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
+            min_widths.push_back(uc.compact_width > 0
+                                     ? uc.compact_width
+                                     : lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
     }
     const int32_t peek_width = helix::ui::overview_peek_card_width(
         row_width, lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN), min_widths);

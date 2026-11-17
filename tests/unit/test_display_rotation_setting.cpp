@@ -330,6 +330,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: Screensaver after follows the scree
         config->set<std::string>("/display/screensaver_type", stored_name);
     }
 }
+
+// Turning a saver on while the timeout is Never seeds the default timeout; the open
+// overlay's timeout row shows it at once rather than a stale Never.
+TEST_CASE_METHOD(LVGLUITestFixture, "DimRow: choosing a saver shows the seeded timeout",
+                 "[display_settings][dim_row][ui]") {
+    DisplaySettingsManager& mgr = DisplaySettingsManager::instance();
+    Config* config = Config::get_instance();
+    const std::string stored_name = config->get<std::string>("/display/screensaver_type", "");
+    const int before = mgr.get_screensaver_type();
+    const int stored_dim = mgr.get_display_dim_sec();
+    const int stored_sleep = mgr.get_display_sleep_sec();
+
+    mgr.set_screensaver_type(static_cast<int>(ScreensaverType::OFF));
+    mgr.set_display_dim_sec(0);
+
+    helix::settings::DisplaySettingsOverlay overlay;
+    lv_obj_t* root = overlay.create(lv_screen_active());
+    REQUIRE(root != nullptr);
+    overlay.init_screensaver_dropdown();
+    lv_obj_t* saver_after =
+        lv_obj_find_by_name(lv_obj_find_by_name(root, "row_screensaver_after"), "dropdown");
+    REQUIRE(saver_after != nullptr);
+
+    overlay.handle_screensaver_changed(1); // the first saver after Off
+    REQUIRE(mgr.get_screensaver_type() != static_cast<int>(ScreensaverType::OFF));
+    CHECK(mgr.get_display_dim_sec() == DisplaySettingsManager::kDefaultDimSec);
+    CHECK(lv_dropdown_get_selected(saver_after) ==
+          static_cast<uint32_t>(DisplaySettingsManager::dim_seconds_to_index(
+              DisplaySettingsManager::kDefaultDimSec)));
+
+    lv_obj_delete(root);
+    mgr.set_screensaver_type(before);
+    mgr.set_display_dim_sec(stored_dim);
+    mgr.set_display_sleep_sec(stored_sleep);
+    if (stored_name.empty()) {
+        config->get_json("/display").erase("screensaver_type");
+    } else {
+        config->set<std::string>("/display/screensaver_type", stored_name);
+    }
+}
 #endif
 
 // The picker and its Test button follow the build's screensaver support and the chosen

@@ -45,11 +45,8 @@ TEST_CASE_METHOD(
     "ObserverGuard removes observer from a teardown-exempt subject after invalidate_all",
     "[observer][raii][crash_hardening]") {
     // Standalone subject the registry never deinits — the shape of the theme
-    // globals, reseeded in place, declared exempt by their owner. Like them it
-    // is never freed: the exempt set keys on the node address, and a freed
-    // node's address reused by a later test's subject would make that subject
-    // exempt too.
-    static helix::Subject& subject = *new helix::Subject;
+    // globals, reseeded in place, declared exempt by their owner.
+    helix::Subject subject;
     subject.init_int(0);
     ObserverGuard::mark_subject_teardown_exempt(&subject);
     REQUIRE(lv_ll_get_len(&subject.get()->subs_ll) == 0);
@@ -202,4 +199,23 @@ TEST_CASE("HelixTestFixture rolls back an invalidate_all() made inside a test",
         REQUIRE(ObserverGuard::invalidation_epoch() == before + 1);
     }
     CHECK(ObserverGuard::invalidation_epoch() == before);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "A freed subject node is no longer teardown-exempt",
+                 "[observer][raii][crash_hardening][2118]") {
+    // The exempt set keys on the node address. A node freed while still listed
+    // would hand its exemption to the next subject allocated at that address,
+    // and a guard on that subject would then delete an observer its subject's
+    // reset already freed.
+    const lv_subject_t* node = nullptr;
+    {
+        helix::Subject subject;
+        subject.init_int(0);
+        ObserverGuard::mark_subject_teardown_exempt(&subject);
+        node = subject.get();
+        REQUIRE(ObserverGuard::subject_is_teardown_exempt(node));
+    }
+    // ~Subject queues the node's free; the exemption ends when it runs.
+    drain();
+    CHECK_FALSE(ObserverGuard::subject_is_teardown_exempt(node));
 }

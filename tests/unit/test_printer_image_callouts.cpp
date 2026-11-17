@@ -677,7 +677,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     settle();
 
     TempGraphOverlayScope overlay_scope;
-    get_global_temp_graph_overlay().init_subjects();
+    get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode);
     lv_subject_set_int(mode, static_cast<int>(TempGraphOverlay::Mode::GraphOnly));
@@ -959,7 +959,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::set_event_bubble_recursive(h.root());
 
     TempGraphOverlayScope overlay_scope;
-    get_global_temp_graph_overlay().init_subjects();
+    get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode);
     lv_subject_set_int(mode, static_cast<int>(TempGraphOverlay::Mode::GraphOnly));

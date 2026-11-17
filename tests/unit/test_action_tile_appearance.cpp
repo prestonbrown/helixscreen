@@ -24,6 +24,7 @@
 #include "../test_helpers/scoped_shared_resource.h"
 #include "core/update_queue.h"
 #include "helix/ui/shared_font_style.h"
+#include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "theme_manager.h"
 
@@ -71,7 +72,7 @@ TEST_CASE("all seven action tiles share one glyph size", "[action_tile][1559]") 
     // of the seven draws at the rung its tile publishes, firmware_restart
     // included (prestonbrown/helixscreen#1559).
     LVGLUITestFixture fixture;
-    init_widget_registrations();
+    PanelWidgetManager::instance().init_widget_subjects();
 
     const lv_font_t* shared = nullptr;
     int checked = 0;
@@ -110,7 +111,7 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
     get_runtime_config()->test_mode = true;
     get_runtime_config()->use_real_wifi = false;
     LVGLUITestFixture fixture;
-    init_widget_registrations();
+    PanelWidgetManager::instance().init_widget_subjects();
     helix::ui::destroy_static_panels();
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels) {
@@ -164,7 +165,7 @@ TEST_CASE("a tap on a home tile reaches the widget that owns it", "[action_tile]
 TEST_CASE("a pressed tile area dims and an idle one does not", "[action_tile][1142]") {
     // The dim is an XML style on the pressed state; nothing in C++ sets it.
     LVGLUITestFixture fixture;
-    init_widget_registrations();
+    PanelWidgetManager::instance().init_widget_subjects();
     const std::vector<std::pair<std::string, std::string>> kAreas = {
         {"printer_image", "printer_container"},   {"tips", "tip_container"},
         {"temp_stack", "temp_stack_nozzle_row"},  {"temp_stack", "temp_stack_bed_row"},

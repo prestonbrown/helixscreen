@@ -763,12 +763,16 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     lv_xml_register_event_cb(nullptr, "on_catalog_search_changed", on_search_changed);
 
     // Search subjects. Registered before the overlay XML is parsed so its
-    // bind_flag_* elements resolve them, and re-initialized per open: entries
-    // from the previous open's widgets removed themselves when those widgets
-    // were deleted, and the next open must not see their values.
-    UI_SUBJECT_INIT_AND_REGISTER_INT(g_catalog_state.view, kCatalogViewBrowse,
-                                     "widget_catalog_view");
-    UI_SUBJECT_INIT_AND_REGISTER_INT(g_catalog_state.match_count, 0, "widget_catalog_match_count");
+    // bind_flag_* elements resolve them, and reset per open: the next open must
+    // not see the previous one's values.
+    g_catalog_state.view.publish_int(kCatalogViewBrowse);
+    helix::xml::register_subject_in_current_scope("widget_catalog_view", &g_catalog_state.view);
+    HELIX_SUBJECT_DEBUG_REGISTER(&g_catalog_state.view, "widget_catalog_view", LV_SUBJECT_TYPE_INT);
+    g_catalog_state.match_count.publish_int(0);
+    helix::xml::register_subject_in_current_scope("widget_catalog_match_count",
+                                                  &g_catalog_state.match_count);
+    HELIX_SUBJECT_DEBUG_REGISTER(&g_catalog_state.match_count, "widget_catalog_match_count",
+                                 LV_SUBJECT_TYPE_INT);
 
     // Create a semi-transparent dark backdrop so the home panel shows through.
     // Uses the same modal_backdrop_opacity constant as Modal dialogs (DRY).

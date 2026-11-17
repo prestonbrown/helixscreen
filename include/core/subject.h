@@ -41,6 +41,9 @@ class Subject {
     Subject& operator=(Subject&& other) noexcept;
 
     void init_int(int32_t value);
+    /// init_int() the first time, then a plain set: for owners that re-publish a value
+    /// (each open, each theme load) without orphaning the observers bound to it.
+    void publish_int(int32_t value);
     void init_float(float value);
     void init_pointer(void* value);
     void init_color(lv_color_t value);
@@ -104,6 +107,10 @@ void subjects_note_lvgl_deinit() noexcept;
 /// Subject owns is reported as the anomaly `subject_reset_unowned` and left alone: the only
 /// subjects without an owner are helix-xml's, which free themselves.
 void subject_reset(lv_subject_t* subject);
+
+/// Whether @p observer is still on @p subject's observer list. A subject's reset frees
+/// every observer on it, so a holder of a raw observer pointer asks this before deleting.
+[[nodiscard]] bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* observer);
 
 /// The managed macros' entry points.
 void subject_init_int(Subject& subject, int32_t value);

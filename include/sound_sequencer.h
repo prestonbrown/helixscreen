@@ -31,6 +31,10 @@ class SoundSequencer {
     /// Check if currently playing
     bool is_playing() const;
 
+    /// Nothing queued and nothing playing. Unlike is_playing(), a sound that
+    /// play() has queued but the sequencer thread has not picked up yet counts.
+    bool is_idle() const;
+
     /// Start the sequencer thread
     void start();
 
@@ -110,7 +114,7 @@ class SoundSequencer {
     bool device_active_ = false;
 
     // Queue protected by mutex + condvar for efficient wakeup
-    std::mutex queue_mutex_;
+    mutable std::mutex queue_mutex_;
     std::condition_variable queue_cv_;
     std::queue<PlayRequest> request_queue_;
 

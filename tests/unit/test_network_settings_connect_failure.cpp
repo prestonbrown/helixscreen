@@ -92,7 +92,7 @@ TEST_CASE_METHOD(ConnectFailureFixture, "Tapping a network that fails to join te
     auto wm = make_manager();
     auto previous = Access::wifi_manager(overlay);
     Access::wifi_manager(overlay) = wm;
-    overlay.init_subjects();
+    Access::republish_subjects(overlay);
     overlay.register_callbacks();
     REQUIRE(overlay.create(test_screen()) != nullptr);
 

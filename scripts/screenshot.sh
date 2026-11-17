@@ -408,6 +408,9 @@ if [ "$REAL_MODE" = "1" ]; then
     [ -f config/helixscreen.env ] && cp config/helixscreen.env "$CONFIG_DIR/helixscreen.env"
 else
     cp config/settings.json.template "$CONFIG_DIR/settings-test.json"
+    if [ -z "$INLINE_RECIPE" ]; then
+        screenshot_recipe_seed "$TOKEN" "$CONFIG_DIR/settings-test.json"
+    fi
 fi
 
 # Mock printer identity. Exported only when asked for: setting it at all makes
@@ -503,6 +506,13 @@ if [ "$WIZARD_MODE" = "0" ]; then
             # trim leading/trailing whitespace
             step="$(echo "$step" | sed 's/^ *//;s/ *$//')"
             [ -z "$step" ] && continue
+            # `sleep <secs>` is the driver's own step, never sent to ctl: a
+            # printer switch freezes and then discards the UpdateQueue, so a
+            # ctl request that lands inside that window is never answered.
+            if [[ "$step" =~ ^sleep\ +([0-9.]+)$ ]]; then
+                sleep "${BASH_REMATCH[1]}"
+                continue
+            fi
             # Surface the control server's error text — a silently-skipped step
             # produces a screenshot of the wrong screen, which is worse than a fail.
             if ! STEP_ERR=$("${HELIXCTL[@]}" -s "$SOCK" $step 2>&1 >/dev/null); then

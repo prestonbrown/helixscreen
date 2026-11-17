@@ -5,6 +5,7 @@
 
 #include "ui_system_path_plan.h"
 
+#include "ui_bypass_spool_widget.h"
 #include "ui_toolhead_badge.h"
 
 #include "sort_small.h"
@@ -31,11 +32,6 @@ namespace {
 // bypass spool at the same horizontal fraction — keeps a long visible tube
 // segment instead of cramming the spool right next to the hub.
 constexpr float kBypassXRatio = 0.85f;
-
-// Half-extent of the panel's BypassSpoolWidgets overlay (box is 48 + 4*2 = 56px
-// wide; mirror it here so the canvas can guarantee the spool clears the
-// rightmost toolhead). Kept in lockstep with kBoxSize in ui_bypass_spool_widget.cpp.
-constexpr int32_t kBypassSpoolHalf = 28;
 
 // Merge fans: the outermost entries sit this far in from the hub-top ends, and
 // the per-side slope is capped so tall hubs don't run near-vertical.
@@ -959,6 +955,9 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
     int32_t center_x = x_off + width / 2 - width / 10;
 
     const SysLayout L = compute_sys_layout(data, obj_coords);
+    // Half the bypass card the panel floats over this point: the spool must clear
+    // the rightmost toolhead and the canvas edges by that much.
+    const int32_t spool_half = helix::ui::bypass_spool_box_size() / 2;
     const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
     const int32_t nozzle_y = L.nozzle_y;
     int32_t merge_y = hub_bottom + (nozzle_y - hub_bottom) / 3;
@@ -967,8 +966,8 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
     int32_t comfort = LV_MAX(data.space_md, 8);
     // Right boundary the spool centre must stay inside (leave room for its half
     // width + a small margin from the canvas edge).
-    int32_t right_limit = x_off + width - kBypassSpoolHalf - 4;
-    int32_t left_limit = x_off + kBypassSpoolHalf + 4;
+    int32_t right_limit = x_off + width - spool_half - 4;
+    int32_t left_limit = x_off + spool_half + 4;
 
     // Default horizontal position (single-tool / no toolhead row): a long
     // visible tube run from the hub.
@@ -982,7 +981,7 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
         int32_t scale = small_tool_scale(data);
         int32_t tool_right_edge = rightmost_tool_x + scale * 2;
 
-        int32_t want_x = tool_right_edge + comfort + kBypassSpoolHalf;
+        int32_t want_x = tool_right_edge + comfort + spool_half;
         if (want_x > bypass_x) {
             bypass_x = want_x;
         }
@@ -992,8 +991,8 @@ BypassGeometry compute_bypass_geometry(const SystemPathData& data, const lv_area
             // the toolhead row, centred over the rightmost toolhead, clamped so
             // its lower edge stays on the canvas.
             bypass_x = clamp_span(left_limit, rightmost_tool_x, right_limit);
-            merge_y = nozzle_y + scale * 4 + kBypassSpoolHalf + comfort;
-            merge_y = LV_MIN(merge_y, y_off + height - kBypassSpoolHalf - 4);
+            merge_y = nozzle_y + scale * 4 + spool_half + comfort;
+            merge_y = LV_MIN(merge_y, y_off + height - spool_half - 4);
         }
     }
 
