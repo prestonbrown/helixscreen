@@ -2796,6 +2796,28 @@ AmsError AmsBackendCfs::do_unload_filament(int slot_index) {
     const bool bypass =
         slot_index == helix::ui::kExternalSpoolSlot && macro_variant_ != CfsMacroVariant::Fork;
 
+    // A used-up spool (box.filament_useup) whose tail still crosses the toolhead
+    // switch has left the box: BOX_RETRUDE_MATERIAL / CR_BOX_RETRUDE retract
+    // through the box, which no longer holds the strand, so the cut-and-retract
+    // ends with filament at the switch and the box records the failure rather
+    // than raising it. Nothing the box can send removes that strand, so the user
+    // is told to instead of being sent a fault after the fact. With the switch
+    // already clear the script runs as usual: the firmware's own runout refill
+    // cuts and retrudes in that state. Fork's BOX_UNLOAD decides for itself.
+    if (!bypass && macro_variant_ != CfsMacroVariant::Fork && leftover_strand_without_spool()) {
+        spdlog::warn("[AMS CFS] Unload refused for slot {}: the box reports its spool used up "
+                     "and filament still crosses the toolhead switch",
+                     slot_index);
+        return AmsError(AmsResult::UNLOAD_FAILED,
+                        "spool used up with filament at the toolhead switch; the box cannot "
+                        "retract a strand it no longer holds",
+                        lv_tr("This spool ran out, so the CFS cannot pull the leftover filament "
+                              "back."),
+                        lv_tr("Remove the leftover filament from the toolhead by hand before "
+                              "loading another spool."),
+                        slot_index);
+    }
+
     std::string gcode;
     if (bypass) {
         const bool has_quit_material =
@@ -2816,6 +2838,11 @@ AmsError AmsBackendCfs::do_unload_filament(int slot_index) {
         apply_synthesized_action_locked();
     }
     return dispatch_action_script(std::move(gcode));
+}
+
+bool AmsBackendCfs::leftover_strand_without_spool() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return system_info_.filament_runout && filament_sensor_seen_ && last_filament_detected_;
 }
 
 AmsError AmsBackendCfs::do_select_slot(int) {
