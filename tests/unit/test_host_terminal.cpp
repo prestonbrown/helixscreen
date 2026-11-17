@@ -274,6 +274,53 @@ TEST_CASE("PtySession stop ends a busy child and every process on its terminal",
     CHECK(gone);
 }
 
+TEST_CASE("PtySession write never blocks on a child that does not read", "[host_terminal]") {
+    OutputCollector collector;
+    PtySession session;
+    std::string error;
+    // Non-canonical, like a full-screen program: the tty then holds input for the
+    // reader instead of discarding what overflows a line.
+    REQUIRE(session.start({"/bin/sh", "-c", "stty -icanon -echo; echo ready; sleep 30"}, {}, 24, 80,
+                          collector.wake_fn(), error));
+    std::string out;
+    REQUIRE(
+        collector.wait_for(session, out, [&] { return out.find("ready") != std::string::npos; }));
+
+    // Far more than a tty's input queue holds, with nothing reading it.
+    const std::string flood(PtySession::kMaxPendingInput * 4, 'x');
+    std::atomic<bool> returned{false};
+    std::atomic<bool> accepted{true};
+    std::thread writer([&] {
+        accepted = session.write(flood);
+        returned = true;
+    });
+    for (int i = 0; i < 100 && !returned; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(returned.load());
+    // The bytes past the cap were dropped, and the write says so.
+    CHECK_FALSE(accepted.load());
+    session.stop(); // a writer still blocked in write() is released by the hangup
+    writer.join();
+}
+
+TEST_CASE("PtySession delivers waiting input as the child reads it", "[host_terminal]") {
+    OutputCollector collector;
+    PtySession session;
+    std::string error;
+    REQUIRE(session.start(
+        {"/bin/sh", "-c", "stty -icanon -echo; echo ready; sleep 0.3; head -c 10000 | wc -c"}, {},
+        24, 80, collector.wake_fn(), error));
+    std::string out;
+    REQUIRE(
+        collector.wait_for(session, out, [&] { return out.find("ready") != std::string::npos; }));
+
+    // More than the tty queue takes at once, less than the pending cap.
+    CHECK(session.write(std::string(10000, 'y')));
+    CHECK(collector.wait_for(session, out, [&] { return out.find("10000") != std::string::npos; }));
+    session.stop();
+}
+
 TEST_CASE("PtySession refuses a second start and reports a failed exec", "[host_terminal]") {
     OutputCollector collector;
     PtySession session;
