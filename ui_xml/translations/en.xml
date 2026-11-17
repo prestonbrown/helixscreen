@@ -1703,6 +1703,7 @@
   <translation tag="HelixScreen Crashed" en="HelixScreen Crashed"/>
   <translation tag="HelixScreen Macros" en="HelixScreen Macros"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." en="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect."/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." en="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it."/>
   <translation tag="HelixScreen is detecting your display orientation" en="HelixScreen is detecting your display orientation"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." en="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile."/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." en="HelixScreen will integrate with your filament changer for multi-spool/color print operations."/>
@@ -2297,6 +2298,7 @@
   <translation tag="Multi-Filament System is busy: {}" en="Multi-Filament System is busy: {}"/>
   <translation tag="Multi-Filament System not available" en="Multi-Filament System not available"/>
   <translation tag="Multi-filament system not ready" en="Multi-filament system not ready"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" en="Multiple tool mapping is on in AFC, so tools are assigned there"/>
   <translation tag="Must home axes first" en="Must home axes first"/>
   <translation tag="Muted" en="Muted"/>
   <translation tag="My Custom Theme" en="My Custom Theme"/>
@@ -3077,6 +3079,7 @@
   <translation tag="Remove the PEI Sheet" en="Remove the PEI Sheet"/>
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" en="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results"/>
   <translation tag="Remove the bypass spool from the toolhead first" en="Remove the bypass spool from the toolhead first"/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." en="Remove the leftover filament from the toolhead by hand before loading another spool."/>
   <translation tag="Remove the spools" en="Remove the spools"/>
   <translation tag="Remove the spools from the bed" en="Remove the spools from the bed"/>
   <translation tag="Remove the spools now?" en="Remove the spools now?"/>
@@ -3994,6 +3997,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." en="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen."/>
   <translation tag="This resume needs a newer version of HelixScreen." en="This resume needs a newer version of HelixScreen."/>
   <translation tag="This slot feeds no tool" en="This slot feeds no tool"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." en="This spool ran out, so the CFS cannot pull the leftover filament back."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
   <translation tag="This system does not support bypass mode" en="This system does not support bypass mode"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." en="This tool probes each bed screw and tells you how much to adjust."/>
@@ -4240,6 +4244,7 @@
   <translation tag="Upload unavailable in this build" en="Upload unavailable in this build"/>
   <translation tag="Upper belt" en="Upper belt"/>
   <translation tag="Uptime" en="Uptime"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" en="Use AFC&apos;s mapping commands to add or move a tool"/>
   <translation tag="Use Android native keyboard for text input" en="Use Android native keyboard for text input"/>
   <translation tag="Use G10/G11 firmware retraction" en="Use G10/G11 firmware retraction"/>
   <translation tag="Use New Address" en="Use New Address"/>

@@ -1703,6 +1703,7 @@
   <translation tag="HelixScreen Crashed" ja="HelixScreen がクラッシュしました"/>
   <translation tag="HelixScreen Macros" ja="HelixScreenマクロ"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." ja="HelixScreen は printer.cfg に [include helix-plr/*.cfg] を追加し、再開時に印刷開始時のメッシュを読み込み直せるようにします。printer.cfg の横にバックアップが保存され、反映には Klipper の再起動が必要です。"/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." ja="HelixScreenはこのプリンターのKlipperを再起動できません。プリンターの電源を一度切ってから入れ直して再起動してください。"/>
   <translation tag="HelixScreen is detecting your display orientation" ja="HelixScreenがディスプレイの向きを検出しています"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." ja="HelixScreen は printer.cfg から [include helix-plr/*.cfg] の行を削除します。printer.cfg の横にバックアップが保存され、反映には Klipper の再起動が必要です。再開時にはプリンターのデフォルトのメッシュプロファイルが使われます。"/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." ja="HelixScreen はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。"/>
@@ -2297,6 +2298,7 @@
   <translation tag="Multi-Filament System is busy: {}" ja="マルチフィラメントシステムがビジー状態: {}"/>
   <translation tag="Multi-Filament System not available" ja="マルチフィラメントシステムが利用できません"/>
   <translation tag="Multi-filament system not ready" ja="マルチフィラメントシステムの準備ができていません"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" ja="AFC で複数ツール割り当てが有効なため、ツールは AFC で割り当てます"/>
   <translation tag="Must home axes first" ja="先にホーミングしてください"/>
   <translation tag="Muted" ja="ミュート"/>
   <translation tag="My Custom Theme" ja="マイカスタムテーマ"/>
@@ -3077,6 +3079,7 @@
   <translation tag="Remove the PEI Sheet" ja="PEIシートを外す"/>
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" ja="PEIシートをベッドから取り外してから再開してください：シート越しの計測は誤った結果になります"/>
   <translation tag="Remove the bypass spool from the toolhead first" ja="先にバイパススプールをツールヘッドから取り外してください"/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." ja="別のスプールを装填する前に、ツールヘッドに残ったフィラメントを手で取り除いてください。"/>
   <translation tag="Remove the spools" ja="スプールを取り出す"/>
   <translation tag="Remove the spools from the bed" ja="ベッドからスプールを取り出す"/>
   <translation tag="Remove the spools now?" ja="今スプールを取り出しますか?"/>
@@ -3994,6 +3997,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ja="この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"/>
   <translation tag="This resume needs a newer version of HelixScreen." ja="この再開には新しいバージョンのHelixScreenが必要です。"/>
   <translation tag="This slot feeds no tool" ja="このスロットはどのツールにも供給しません"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ja="このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ja="このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。"/>
   <translation tag="This system does not support bypass mode" ja="このシステムはバイパスモードに対応していません"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
@@ -4240,6 +4244,7 @@
   <translation tag="Upload unavailable in this build" ja="このビルドではアップロードできません"/>
   <translation tag="Upper belt" ja="上ベルト"/>
   <translation tag="Uptime" ja="稼働時間"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ja="ツールの追加や移動には AFC の割り当てコマンドを使用してください"/>
   <translation tag="Use Android native keyboard for text input" ja="テキスト入力に Android ネイティブキーボードを使用"/>
   <translation tag="Use G10/G11 firmware retraction" ja="G10/G11 ファームウェアリトラクションを使用"/>
   <translation tag="Use New Address" ja="新しいアドレスを使用"/>

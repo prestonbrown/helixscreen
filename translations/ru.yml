@@ -1909,7 +1909,7 @@ translations:
   HelixScreen Macros: 'Макросы HelixScreen'
   ? HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect.
   : HelixScreen добавляет [include helix-plr/*.cfg] в printer.cfg, чтобы при возобновлении снова загружалась сетка, с которой началась печать. Рядом с printer.cfg хранится резервная копия, а чтобы изменение вступило в силу, нужно перезапустить Klipper.
-  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: ''
+  HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.: 'HelixScreen не может перезапустить Klipper на этом принтере. Выключите и снова включите принтер, чтобы перезапустить его.'
   HelixScreen is detecting your display orientation: HelixScreen определяет ориентацию
     дисплея
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.

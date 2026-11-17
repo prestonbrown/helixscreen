@@ -1703,6 +1703,7 @@
   <translation tag="HelixScreen Crashed" pt="HelixScreen Travou"/>
   <translation tag="HelixScreen Macros" pt="Macros do HelixScreen"/>
   <translation tag="HelixScreen adds [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect." pt="O HelixScreen adiciona [include helix-plr/*.cfg] ao printer.cfg para que uma retomada recarregue a malha com que a impressão começou. Uma cópia de segurança é mantida ao lado do printer.cfg, e o Klipper precisa ser reiniciado para a mudança ter efeito."/>
+  <translation tag="HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it." pt="O HelixScreen não pode reiniciar o Klipper nesta impressora. Desligue e ligue novamente a impressora para reiniciá-lo."/>
   <translation tag="HelixScreen is detecting your display orientation" pt="HelixScreen está detectando a orientação do seu ecrã"/>
   <translation tag="HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer&apos;s default mesh profile." pt="O HelixScreen remove suas linhas [include helix-plr/*.cfg] do printer.cfg. Uma cópia de segurança é mantida ao lado do printer.cfg, e o Klipper precisa ser reiniciado para a mudança ter efeito. Uma retomada usará então o perfil de malha padrão da impressora."/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." pt="HelixScreen se integrará com seu trocador de filamento para operações de impressão com múltiplos carretéis/cores."/>
@@ -2297,6 +2298,7 @@
   <translation tag="Multi-Filament System is busy: {}" pt="Sistema multi-filamento ocupado: {}"/>
   <translation tag="Multi-Filament System not available" pt="Sistema multi-filamento não disponível"/>
   <translation tag="Multi-filament system not ready" pt="Sistema multifilamento não está pronto"/>
+  <translation tag="Multiple tool mapping is on in AFC, so tools are assigned there" pt="O mapeamento múltiplo de ferramentas está ativado no AFC, então as ferramentas são atribuídas lá"/>
   <translation tag="Must home axes first" pt="Deve referenciar os eixos primeiro"/>
   <translation tag="Muted" pt="Sem som"/>
   <translation tag="My Custom Theme" pt="Meu Tema Personalizado"/>
@@ -3077,6 +3079,7 @@
   <translation tag="Remove the PEI Sheet" pt="Retirar a folha PEI"/>
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" pt="Remova a folha PEI da mesa e comece de novo: sondar através da folha dá resultados errados"/>
   <translation tag="Remove the bypass spool from the toolhead first" pt="Remova primeiro o carretel de bypass do cabeçote"/>
+  <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." pt="Remova à mão o filamento restante do cabeçote antes de carregar outro carretel."/>
   <translation tag="Remove the spools" pt="Retire os carretéis"/>
   <translation tag="Remove the spools from the bed" pt="Retire os carretéis da mesa"/>
   <translation tag="Remove the spools now?" pt="Retirar os carretéis agora?"/>
@@ -3994,6 +3997,7 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." pt="Isso substitui o layout da tela inicial desta tela para esta impressora pelo layout da tela da própria impressora."/>
   <translation tag="This resume needs a newer version of HelixScreen." pt="Esta retomada precisa de uma versão mais nova do HelixScreen."/>
   <translation tag="This slot feeds no tool" pt="Este slot não alimenta nenhuma ferramenta"/>
+  <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." pt="Este carretel acabou, então o CFS não consegue recolher o filamento restante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." pt="Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente."/>
   <translation tag="This system does not support bypass mode" pt="Este sistema não oferece suporte ao modo bypass"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." pt="Esta ferramenta sonda cada parafuso da mesa e informa quanto ajustar."/>
@@ -4240,6 +4244,7 @@
   <translation tag="Upload unavailable in this build" pt="Envio indisponível nesta compilação"/>
   <translation tag="Upper belt" pt="Correia superior"/>
   <translation tag="Uptime" pt="Tempo Ativo"/>
+  <translation tag="Use AFC&apos;s mapping commands to add or move a tool" pt="Use os comandos de mapeamento do AFC para adicionar ou mover uma ferramenta"/>
   <translation tag="Use Android native keyboard for text input" pt="Usar teclado nativo do Android para entrada de texto"/>
   <translation tag="Use G10/G11 firmware retraction" pt="Usar retração de firmware G10/G11"/>
   <translation tag="Use New Address" pt="Usar novo endereço"/>
