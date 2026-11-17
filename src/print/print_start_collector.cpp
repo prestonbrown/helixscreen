@@ -275,12 +275,12 @@ void PrintStartCollector::start() {
         if (!self->active_.load())
             return;
 
-        if (!notification.contains("params") || !notification["params"].is_array() ||
-            notification["params"].empty()) {
+        const json* params = json_util::find_array(notification, "params");
+        if (!params || params->empty()) {
             return;
         }
 
-        const auto& status = notification["params"][0];
+        const auto& status = (*params)[0];
 
         // Profile-declared phase object: a status object whose field carries
         // structured phase state, mapped through the profile's state patterns.
@@ -295,37 +295,31 @@ void PrintStartCollector::start() {
         // on is the step running. No-op unless the profile says so.
         self->handle_start_block_position(status);
 
+        // A macro's boolean field, true only when it is a JSON true.
+        const auto macro_flag = [&status](const char* object, const char* field) {
+            const json* macro = json_util::find_member(status, object);
+            return macro && json_util::read_field<bool>(*macro, field).value_or(false);
+        };
+
         // Check _START_PRINT.print_started (AD5M KAMP macro)
-        if (status.contains("gcode_macro _START_PRINT")) {
-            const auto& macro = status["gcode_macro _START_PRINT"];
-            if (macro.contains("print_started") && macro["print_started"].is_boolean() &&
-                macro["print_started"].get<bool>()) {
-                spdlog::info("[PrintStartCollector] Macro signal: print_started=true");
-                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
-                return;
-            }
+        if (macro_flag("gcode_macro _START_PRINT", "print_started")) {
+            spdlog::info("[PrintStartCollector] Macro signal: print_started=true");
+            self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
+            return;
         }
 
         // Check START_PRINT.preparation_done
-        if (status.contains("gcode_macro START_PRINT")) {
-            const auto& macro = status["gcode_macro START_PRINT"];
-            if (macro.contains("preparation_done") && macro["preparation_done"].is_boolean() &&
-                macro["preparation_done"].get<bool>()) {
-                spdlog::info("[PrintStartCollector] Macro signal: preparation_done=true");
-                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
-                return;
-            }
+        if (macro_flag("gcode_macro START_PRINT", "preparation_done")) {
+            spdlog::info("[PrintStartCollector] Macro signal: preparation_done=true");
+            self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
+            return;
         }
 
         // Check _HELIX_STATE.print_started (our custom macro)
-        if (status.contains("gcode_macro _HELIX_STATE")) {
-            const auto& macro = status["gcode_macro _HELIX_STATE"];
-            if (macro.contains("print_started") && macro["print_started"].is_boolean() &&
-                macro["print_started"].get<bool>()) {
-                spdlog::info("[PrintStartCollector] Helix macro signal: print_started=true");
-                self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
-                return;
-            }
+        if (macro_flag("gcode_macro _HELIX_STATE", "print_started")) {
+            spdlog::info("[PrintStartCollector] Helix macro signal: print_started=true");
+            self->update_phase(PrintStartPhase::COMPLETE, lv_tr("Starting Print..."));
+            return;
         }
     });
 
@@ -1246,8 +1240,8 @@ bool PrintStartCollector::is_own_pre_start_echo_locked(const std::string& line) 
 }
 
 void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-        !msg["params"][0].is_string()) {
+    const json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty() || !(*params)[0].is_string()) {
         return;
     }
     std::shared_ptr<PrintStartProfile> profile;
@@ -1255,8 +1249,7 @@ void PrintStartCollector::arm_if_printer_announces_start(const json& msg) {
         std::lock_guard<std::mutex> lock(state_mutex_);
         profile = profile_;
     }
-    if (!profile ||
-        !profile->announces_print_start(msg["params"][0].get_ref<const std::string&>())) {
+    if (!profile || !profile->announces_print_start((*params)[0].get_ref<const std::string&>())) {
         return;
     }
     auto self = shared_from_this();
@@ -1329,15 +1322,16 @@ void PrintStartCollector::on_gcode_response(const json& msg) {
     }
 
     // Parse notify_gcode_response format: {"method": "...", "params": ["line"]}
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty()) {
         return;
     }
 
     // I4: Type-check params[0] before extracting string reference
-    if (!msg["params"][0].is_string()) {
+    if (!(*params)[0].is_string()) {
         return;
     }
-    const std::string& line = msg["params"][0].get_ref<const std::string&>();
+    const std::string& line = (*params)[0].get_ref<const std::string&>();
 
     // Skip empty lines and common noise
     if (line.empty() || line == "ok") {
@@ -2213,19 +2207,19 @@ void PrintStartCollector::query_stored_plan() {
             if (run != self->run_generation_.load()) {
                 return;
             }
-            const auto result = response.find("result");
-            if (result == response.end() || !result->contains("status")) {
+            const json* status = json_util::find_path(response, "result", "status");
+            if (!status) {
                 return;
             }
-            const auto macro = (*result)["status"].find(kStateObject);
-            if (macro == (*result)["status"].end()) {
+            const auto macro = status->find(kStateObject);
+            if (macro == status->end()) {
                 return;
             }
             // An aborted start clears nothing, so a stored plan belongs to this print
             // only when the app joined a start already under way.
             constexpr double kFreshPrintSeconds = 60.0;
-            const auto stats = (*result)["status"].find("print_stats");
-            if (stats == (*result)["status"].end() ||
+            const auto stats = status->find("print_stats");
+            if (stats == status->end() ||
                 json_util::safe_double(*stats, "total_duration", 0.0) <= kFreshPrintSeconds) {
                 return;
             }
@@ -3608,13 +3602,11 @@ void PrintStartCollector::query_mesh_probe_count() {
             // printers only). probe_count config overstates on adaptive printers.
             // A missing or wrong-typed result/status chain leaves total at 0 and
             // falls through to the configfile probe_count fallback below.
-            const json* result = json_util::find_member(response, "result");
-            const json* status =
-                result != nullptr ? json_util::find_member(*result, "status") : nullptr;
+            const json* status = json_util::find_path(response, "result", "status");
             if (!adaptive && status != nullptr) {
-                if (status->contains("bed_mesh") &&
-                    (*status)["bed_mesh"].contains("probed_matrix")) {
-                    const auto& pm = (*status)["bed_mesh"]["probed_matrix"];
+                if (const json* probed_matrix =
+                        json_util::find_path(*status, "bed_mesh", "probed_matrix")) {
+                    const auto& pm = *probed_matrix;
                     if (pm.is_array() && !pm.empty() && pm[0].is_array()) {
                         int rows = static_cast<int>(pm.size());
                         int cols = static_cast<int>(pm[0].size());
@@ -3633,13 +3625,9 @@ void PrintStartCollector::query_mesh_probe_count() {
             // than "Bed Mesh (5/169)" lying.
             const bool skip_config_fallback = adaptive;
             if (total == 0 && !skip_config_fallback && status != nullptr) {
-                const json* configfile = json_util::find_member(*status, "configfile");
-                const json* settings = configfile != nullptr
-                                           ? json_util::find_member(*configfile, "settings")
-                                           : nullptr;
-                if (settings != nullptr && settings->contains("bed_mesh") &&
-                    (*settings)["bed_mesh"].contains("probe_count")) {
-                    const auto& pc = (*settings)["bed_mesh"]["probe_count"];
+                if (const json* probe_count = json_util::find_path(
+                        *status, "configfile", "settings", "bed_mesh", "probe_count")) {
+                    const auto& pc = *probe_count;
                     if (pc.is_array() && pc.size() >= 2) {
                         total = json_util::as_int(pc[0], 0) * json_util::as_int(pc[1], 0);
                     } else if (pc.is_number_integer()) {
