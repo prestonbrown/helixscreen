@@ -8,11 +8,11 @@ from ..kit import TrayShellDef, UnitDef
 
 # 368 x 283 x 224 mm closed, from Bambu Lab's dimension drawing.
 W, D, H = 1.0, 0.77, 0.61
-ZR = 0.30
+ZR = 0.34
 BODY, END, EDGE, LID = "#36383c", "#55585d", "#7a7d83", "#7d8187"
 FEEDER, FEEDER_CAP, FUNNEL = "#b9bbbe", "#2a2b2e", "#eef0f2"
 CENTERS = [0.165, 0.39, 0.61, 0.835]
-SPOOL_Y, SPOOL_Z, SPOOL_R = D / 2, ZR, 0.27
+SPOOL_Y, SPOOL_Z, SPOOL_R = D / 2, ZR - 0.02, 0.27
 END_W = 0.035
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
@@ -31,10 +31,10 @@ def _lid_profile():
 def _feeder(sc, xc, y, detail):
     """One lane's first-stage feeder, seen through the smoked front."""
     half = 0.05
-    sc.poly(kit.rrect_front(xc - half, xc + half, 0.035, 0.16, 0.02, y), kit.shade(sc.camera, FEEDER, (0, -1, 0), amb=0.7, dif=0.4, spec=0), 0.85)
-    sc.poly(kit.rrect_front(xc - half + 0.004, xc + half - 0.004, 0.16, 0.235, 0.012, y - 0.001), FEEDER_CAP, 0.9)
+    sc.poly(kit.rrect_front(xc - half, xc + half, 0.04, 0.185, 0.02, y), kit.shade(sc.camera, FEEDER, (0, -1, 0), amb=0.7, dif=0.4, spec=0), 0.85)
+    sc.poly(kit.rrect_front(xc - half + 0.004, xc + half - 0.004, 0.185, 0.27, 0.012, y - 0.001), FEEDER_CAP, 0.9)
     if detail:
-        sc.poly(kit.rrect_front(xc - half + 0.016, xc + half - 0.016, 0.175, 0.222, 0.006, y - 0.002), "#5d5f63", 0.8)
+        sc.poly(kit.rrect_front(xc - half + 0.016, xc + half - 0.016, 0.2, 0.255, 0.006, y - 0.002), "#5d5f63", 0.8)
 
 
 def draw_art(sc, colors, tier):

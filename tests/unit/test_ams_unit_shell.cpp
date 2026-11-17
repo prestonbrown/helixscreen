@@ -49,7 +49,8 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
     CHECK(id(AmsType::AFC, "Night_Owl Turtle_1") == "night_owl");
-    CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
+    // klipper_openams reports no family; its four-bay units are OpenAMS 1 boards in an AMS.
+    CHECK(id(AmsType::OPENAMS, "oams1") == "ams");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
     REQUIRE(unit_shell_for(single, 0) != nullptr);
