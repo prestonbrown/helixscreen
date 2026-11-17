@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """YAMMU: a tall 2020-extrusion cabinet with a glass door, two stacked drawers of four spools.
 
-Happy Hare reports each drawer as a unit of four gates, so one drawing shows one drawer's lanes.
+Happy Hare reports each drawer as a unit of four gates, so each unit draws as its drawer's
+slice of the cabinet.
 
 Each drawer holds two coaxial spools across by two deep. The cabinet stands on a skirt with
 hex grills that houses the electronics. Proportions from the project's manual (extrusions
@@ -17,19 +18,18 @@ S = 1 / 400  # world units per millimetre: a 200 mm spool draws at the shared 0.
 EX = 20 * S  # 2020 extrusion
 W, D = 240 * S, 460 * S
 SKIRT = 55 * S
-TOP = SKIRT + 540 * S
-SHELF = SKIRT + 253 * S  # the upper drawer's support rails, 233 mm up the uprights
+TOP = SKIRT + 500 * S  # the uprights run the full height, the rails sit between them
+SHELF = SKIRT + 223 * S  # the upper drawer's support rails, centred 233 mm up the uprights
 SPOOL_R = 100 * S
 CENTERS_X = [80 * S, 160 * S]
 FRONT_Y, BACK_Y = 132 * S, 330 * S
-LOWER_Z = SKIRT + EX + 115 * S
-UPPER_Z = SHELF + EX + 115 * S
+LOWER_Z = SKIRT + EX + 101 * S
+UPPER_Z = SHELF + EX + 105 * S
 FRAME, FRAME_EDGE = "#1c1d20", "#3a3c41"
 PANEL, GLASS = "#8d939b", "#a9b2bc"
 SKIRT_C, GRILL = "#202124", "#4b4e54"
 ACCENT = "#d8432f"
 CARRIER = "#2b2d31"
-OTHER_DRAWER = "#55585e"
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -72,26 +72,16 @@ def _carrier(sc, z):
 
 
 def _drawer(sc, z_floor, zc, colors, c, detail):
-    """One drawer: back row first, then front, left to right. colors None draws the other
-    Happy Hare unit's drawer in a neutral grey, outside every lane."""
+    """One drawer of four: back row first, then front, left to right."""
     _carrier(sc, z_floor)
     for y, row in ((BACK_Y, 2), (FRONT_Y, 0)):
         for i, xc in enumerate(CENTERS_X):
-            if colors is None:
-                spool.draw_spool(sc, (xc, y, zc), SPOOL_R, OTHER_DRAWER, c, None, detail=detail)
-            else:
-                lane = row + i
-                spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
+            lane = row + i
+            spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
 
 
-def _draw(sc, colors, tier, upper):
-    detail = tier == "full"
-    thick = 1 if detail else 3
-    c = spool.spool_constants(_REPO)
-    cam = sc.camera
-    sc.poly([(0, 0.02, 0), (W + 0.04, 0.02, 0), (W + 0.04, D + 0.04, 0), (0, D + 0.04, 0)], "#000", 0.5, blur=True)
-
-    # Everything stands above the skirt, so it goes first. The skirt: hex grills front and side over the electronics bay, rubber feet under it.
+def _skirt(sc, detail):
+    """Hex grills front and side over the electronics bay, rubber feet under it."""
     for fx, fy in ((6 * S, 6 * S), (W - 30 * S, 6 * S), (W - 30 * S, D - 30 * S)):
         _bar(sc, fx, fx + 24 * S, fy, fy + 24 * S, 0, 8 * S, "#111214")
     _bar(sc, 0, W, 0, D, 8 * S, SKIRT, SKIRT_C)
@@ -99,52 +89,70 @@ def _draw(sc, colors, tier, upper):
     _hex_grill(sc, 0, W, 8 * S, SKIRT, lambda u, v: (u, -0.001, v), cell)
     _hex_grill(sc, 0, D, 8 * S, SKIRT, lambda u, v: (W + 0.001, u, v), cell)
 
-    # Inside the cabinet: the far panels and the far frame members.
-    sc.poly([(0, D, SKIRT), (W, D, SKIRT), (W, D, TOP), (0, D, TOP)], kit.shift(PANEL, -45))
-    sc.poly([(0, 0, SKIRT), (0, D, SKIRT), (0, D, TOP), (0, 0, TOP)], kit.shift(PANEL, -55))
-    sc.poly([(0, 0, SKIRT), (W, 0, SKIRT), (W, D, SKIRT), (0, D, SKIRT)], "#16171a")
-    _bar(sc, 0, EX, D - EX, D, SKIRT, TOP)
-    _bar(sc, 0, W, D - EX, D, SKIRT, SKIRT + EX)
-    _bar(sc, 0, EX, 0, D, SKIRT, SKIRT + EX)
-    _bar(sc, 0, EX, 0, D, SHELF, SHELF + EX)
 
-    # Happy Hare reports each drawer as its own unit: this unit's four lanes fill one of them.
-    _drawer(sc, SKIRT + EX, LOWER_Z, None if upper else colors, c, detail)
-    _drawer(sc, SHELF + EX, UPPER_Z, colors if upper else None, c, detail)
+def _draw(sc, colors, tier, upper):
+    """One drawer's slice of the cabinet, cut at the shelf between the drawers.
+
+    The upper slice runs from the shelf to the roof; the lower one from the floor through the
+    skirt, open at the shelf. Stacked, the two make the whole cabinet.
+    """
+    detail = tier == "full"
+    thick = 1 if detail else 3
+    c = spool.spool_constants(_REPO)
+    cam = sc.camera
+    zb, zt = (SHELF, TOP) if upper else (SKIRT, SHELF)
+    ground = zb if upper else 0
+    sc.poly([(0, 0.02, ground), (W + 0.04, 0.02, ground), (W + 0.04, D + 0.04, ground), (0, D + 0.04, ground)], "#000", 0.5, blur=True)
+    if not upper:
+        _skirt(sc, detail)
+
+    # Inside the slice: the far panels, the floor and the far frame members.
+    sc.poly([(0, D, zb), (W, D, zb), (W, D, zt), (0, D, zt)], kit.shift(PANEL, -45))
+    sc.poly([(0, 0, zb), (0, D, zb), (0, D, zt), (0, 0, zt)], kit.shift(PANEL, -55))
+    sc.poly([(0, 0, zb), (W, 0, zb), (W, D, zb), (0, D, zb)], "#16171a")
+    _bar(sc, 0, EX, D - EX, D, zb, zt)
+    _bar(sc, 0, W, D - EX, D, zb, zb + EX)
+    _bar(sc, 0, EX, 0, D, zb, zb + EX)
+    _drawer(sc, zb + EX, UPPER_Z if upper else LOWER_Z, colors, c, detail)
 
     sc.layer = "front"
-    # The near frame members: the right side's rails, both front uprights and the roof frame.
-    _bar(sc, W - EX, W, 0, D, SKIRT, SKIRT + EX)
-    _bar(sc, W - EX, W, 0, D, SHELF, SHELF + EX)
-    _bar(sc, EX, W - EX, 0, EX, SKIRT, SKIRT + EX)
-    _bar(sc, W - EX, W, D - EX, D, SKIRT, TOP)
-    _bar(sc, 0, EX, 0, EX, SKIRT, TOP)
-    _bar(sc, W - EX, W, 0, EX, SKIRT, TOP)
-    _bar(sc, 0, EX, 0, D, TOP - EX, TOP)
-    _bar(sc, W - EX, W, 0, D, TOP - EX, TOP)
-    _bar(sc, EX, W - EX, 0, EX, TOP - EX, TOP)
-    _bar(sc, EX, W - EX, D - EX, D, TOP - EX, TOP)
+    # The near frame members: the right side's rail, the front sill and the uprights, which
+    # run to the cut; the upper slice also carries the roof frame.
+    _bar(sc, W - EX, W, 0, D, zb, zb + EX)
+    _bar(sc, EX, W - EX, 0, EX, zb, zb + EX)
+    _bar(sc, W - EX, W, D - EX, D, zb, zt)
+    _bar(sc, 0, EX, 0, EX, zb, zt)
+    _bar(sc, W - EX, W, 0, EX, zb, zt)
+    if upper:
+        _bar(sc, 0, EX, 0, D, TOP - EX, TOP)
+        _bar(sc, W - EX, W, 0, D, TOP - EX, TOP)
+        _bar(sc, EX, W - EX, 0, EX, TOP - EX, TOP)
+        _bar(sc, EX, W - EX, D - EX, D, TOP - EX, TOP)
 
     # Panels: polycarbonate sides and roof, a glass door on the front.
-    side = [(W + 0.0015, EX, SKIRT + EX), (W + 0.0015, D - EX, SKIRT + EX), (W + 0.0015, D - EX, TOP - EX), (W + 0.0015, EX, TOP - EX)]
+    panel_top = zt - EX if upper else zt
+    side = [(W + 0.0015, EX, zb + EX), (W + 0.0015, D - EX, zb + EX), (W + 0.0015, D - EX, panel_top), (W + 0.0015, EX, panel_top)]
     sc.poly(side, kit.shade(cam, PANEL, (1, 0, 0), amb=0.8, dif=0.3, spec=0), 0.42 if detail else 0.5)
-    roof = [(EX, EX, TOP + 0.001), (W - EX, EX, TOP + 0.001), (W - EX, D - EX, TOP + 0.001), (EX, D - EX, TOP + 0.001)]
-    sc.poly(roof, kit.shade(cam, PANEL, (0, 0, 1), amb=0.8, dif=0.3, spec=0), 0.55)
-    door = [(EX, -0.002, SKIRT + EX), (W - EX, -0.002, SKIRT + EX), (W - EX, -0.002, TOP - EX), (EX, -0.002, TOP - EX)]
+    if upper:
+        roof = [(EX, EX, TOP + 0.001), (W - EX, EX, TOP + 0.001), (W - EX, D - EX, TOP + 0.001), (EX, D - EX, TOP + 0.001)]
+        sc.poly(roof, kit.shade(cam, PANEL, (0, 0, 1), amb=0.8, dif=0.3, spec=0), 0.55)
+    door = [(EX, -0.002, zb + EX), (W - EX, -0.002, zb + EX), (W - EX, -0.002, panel_top), (EX, -0.002, panel_top)]
     sc.poly(door, GLASS, 0.16 if detail else 0.12)
     if detail:
-        sc.line([(EX + 30 * S, -0.003, TOP - 60 * S), (EX + 110 * S, -0.003, TOP - 220 * S)], "#ffffff", 0.004, 0.18)
-        sc.line([(EX + 50 * S, -0.003, TOP - 50 * S), (EX + 170 * S, -0.003, TOP - 290 * S)], "#ffffff", 0.0025, 0.12)
-    sc.line([(W + 0.002, 0, TOP), (W + 0.002, D, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
-    sc.line([(0, -0.002, TOP), (W, -0.002, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
-    sc.line([(W + 0.002, -0.002, SKIRT), (W + 0.002, -0.002, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
+        sc.line([(EX + 30 * S, -0.003, panel_top - 30 * S), (EX + 90 * S, -0.003, panel_top - 150 * S)], "#ffffff", 0.004, 0.18)
+        sc.line([(EX + 60 * S, -0.003, panel_top - 25 * S), (EX + 150 * S, -0.003, panel_top - 205 * S)], "#ffffff", 0.0025, 0.12)
+    if upper:
+        sc.line([(W + 0.002, 0, TOP), (W + 0.002, D, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
+        sc.line([(0, -0.002, TOP), (W, -0.002, TOP)], FRAME_EDGE, 0.003 * thick, 0.9)
+    sc.line([(W + 0.002, -0.002, zb), (W + 0.002, -0.002, zt)], FRAME_EDGE, 0.003 * thick, 0.9)
 
-    # Door hardware in the accent colour: a handle on each upright and a latch top and bottom.
-    zmid = (SKIRT + TOP) / 2
-    for x0 in (2 * S, W - 18 * S):
-        _bar(sc, x0, x0 + 16 * S, -9 * S, -1 * S, zmid - 45 * S, zmid + 45 * S, ACCENT)
-    for z0 in (SKIRT + 4 * S, TOP - 16 * S):
-        _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, z0, z0 + 12 * S, ACCENT)
+    # Door hardware in the accent colour: a latch at the slice's outer end, and on the upper
+    # slice a handle on each upright, rising from the shelf as on the real door.
+    if upper:
+        for x0 in (2 * S, W - 18 * S):
+            _bar(sc, x0, x0 + 16 * S, -9 * S, -1 * S, SHELF + 8 * S, SHELF + 98 * S, ACCENT)
+    z0 = TOP - 16 * S if upper else SKIRT + 4 * S
+    _bar(sc, W / 2 - 14 * S, W / 2 + 14 * S, -7 * S, -1 * S, z0, z0 + 12 * S, ACCENT)
 
 
 def draw_art(sc, colors, tier):
