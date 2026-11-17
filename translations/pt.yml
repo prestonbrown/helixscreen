@@ -842,6 +842,7 @@ translations:
   : Escolha o modelo que corresponde à sua impressora. Isso define as macros de impressão, as funções das ventoinhas e o comportamento de calibração que o HelixScreen usa.
   Choose the order of day, month and year: Escolha a ordem de dia, mês e ano
   Choose what to power off or restart.: Escolha o que desligar ou reiniciar.
+  Choose which releases to get, and whether to share anonymous statistics.: 'Escolha quais versões receber e se deseja compartilhar estatísticas anônimas.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Posição da calha de purga: X {:.1f}, Y {:.1f}'
 
   Clean Brush: 'Limpar escova'
@@ -3816,6 +3817,7 @@ translations:
   'Score: {}': 'Pontuação: {}'
   'Score: {}  |  Best: {}': 'Pontuação: {}  |  Melhor: {}'
   Screen: 'Tela'
+  Screen & Power: 'Tela e energia'
   Screen Blank: Tela Apagada
   Screen Dim: Escurecimento da Tela
   Screen Rotation: Rotação da tela
@@ -3828,6 +3830,7 @@ translations:
   Screen shutdown failed: Falha ao desligar a tela
   Screen sleeps after the selected period of inactivity: A tela escurecerá após o
     período selecionado de inatividade
+  ScreenPower: ScreenPower
   Screensaver: Protetor de Tela
   Screensaver after: Protetor de Tela após
   Screensaver disabled: Protetor de tela desativado
@@ -3933,6 +3936,7 @@ translations:
   Set and watch the chamber temperature: Ajustar e acompanhar a temperatura da câmara
   Set and watch the nozzle temperature: Ajustar e acompanhar a temperatura do bico
   Set duration between 1 and {} minutes: 'Defina uma duração entre 1 e {} minutos'
+  Set how bright the screen is and when it rests. You can change any of these later in Settings.: 'Defina o brilho da tela e quando ela descansa. Você pode mudar tudo depois em Configurações.'
   Set local timezone for time display: Definir fuso horário local para exibição
   Set logging verbosity for troubleshooting: Definir nível de detalhe do log para
     solução de problemas
@@ -4962,6 +4966,7 @@ translations:
   Update your security PIN: Atualize seu PIN de segurança
     nesta instalação.
   Updates: Atualizações
+  Updates & Data: 'Atualizações e dados'
   Updating Configuration...: Atualizando Configuração...
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Atualize para o AFC 1.2.0 ou mais recente para ter carretéis multicolor. Ele também adiciona nomes de filamento, que sem isso precisam do Spoolman.
   Upload: Enviar

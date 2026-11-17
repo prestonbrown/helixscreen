@@ -15,6 +15,7 @@ enum class StepId {
     TouchCalibration = 0,
     Language,
     Appearance,
+    ScreenPower,
     Wifi,
     Connection,
     PrinterIdentify,
@@ -28,7 +29,7 @@ enum class StepId {
     Summary,
     Telemetry,
 };
-inline constexpr int STEP_COUNT = 15;
+inline constexpr int STEP_COUNT = 16;
 
 // Plain data needed to decide skips — no LVGL, constructible in tests.
 struct StepContext {

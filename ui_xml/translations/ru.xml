@@ -812,6 +812,7 @@
   <translation tag="Choose the order of day, month and year" ru="Выберите порядок дня, месяца и года"/>
   <translation tag="Choose what to power off or restart." ru="Выберите, что выключить или перезагрузить."/>
   <translation tag="Choose which lane is in the toolhead to unload it" ru="Выберите, какая дорожка в печатающей головке, чтобы выгрузить её"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." ru="Выберите, какие выпуски получать и делиться ли анонимной статистикой."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция жёлоба продувки: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" ru="Очистить щётку"/>
   <translation tag="Clean Nozzle" ru="Очистить сопло"/>
@@ -3574,6 +3575,7 @@
   <translation tag="Score: {}" ru="Счёт: {}"/>
   <translation tag="Score: {}  |  Best: {}" ru="Счёт: {}  |  Рекорд: {}"/>
   <translation tag="Screen" ru="Экран"/>
+  <translation tag="Screen &amp; Power" ru="Экран и питание"/>
   <translation tag="Screen Blank" ru="Гашение экрана"/>
   <translation tag="Screen Dim" ru="Затемнение экрана"/>
   <translation tag="Screen Rotation" ru="Поворот экрана"/>
@@ -3584,6 +3586,7 @@
   <translation tag="Screen reboot failed" ru="Ошибка перезагрузки экрана"/>
   <translation tag="Screen shutdown failed" ru="Ошибка выключения экрана"/>
   <translation tag="Screen sleeps after the selected period of inactivity" ru="Экран затемнится после выбранного периода простоя"/>
+  <translation tag="ScreenPower" ru="ScreenPower"/>
   <translation tag="Screensaver" ru="Заставка"/>
   <translation tag="Screensaver after" ru="Заставка через"/>
   <translation tag="Screensaver disabled" ru="Заставка отключена"/>
@@ -3681,6 +3684,7 @@
   <translation tag="Set and watch the chamber temperature" ru="Установка и контроль температуры камеры"/>
   <translation tag="Set and watch the nozzle temperature" ru="Установка и контроль температуры сопла"/>
   <translation tag="Set duration between 1 and {} minutes" ru="Установите длительность от 1 до {} минут"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ru="Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set local timezone for time display" ru="Установить часовой пояс для отображения времени"/>
   <translation tag="Set logging verbosity for troubleshooting" ru="Установить уровень детализации журнала для устранения неполадок"/>
   <translation tag="Set temperature between {} and {}" ru="Установите температуру от {} до {}"/>
@@ -4591,6 +4595,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ru="Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}."/>
   <translation tag="Update your security PIN" ru="Обновите ваш PIN-код"/>
   <translation tag="Updates" ru="Обновления"/>
+  <translation tag="Updates &amp; Data" ru="Обновления и данные"/>
   <translation tag="Updating Configuration..." ru="Обновление конфигурации..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." ru="Обновите AFC до 1.2.0 или новее для многоцветных катушек. Также добавляются названия филаментов, для которых иначе требуется Spoolman."/>
   <translation tag="Upload" ru="Отправить"/>

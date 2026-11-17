@@ -15,14 +15,16 @@
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "display_settings_manager.h"
-#include "format_utils.h"
 #include "lvgl.h"
 #include "screensaver.h"
+#include "theme_manager.h" // UI_SCREEN_MICRO_W/H
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <optional>
 #include <string>
 
@@ -40,16 +42,32 @@ static_assert(kUiScalePercents[0] == helix::DisplayMetrics::kMinScaleSettingPerc
 static_assert(kUiScalePercents[std::size(kUiScalePercents) - 1] ==
               helix::DisplayMetrics::kMaxScaleSettingPercent);
 
+constexpr const char* kOwner = "DisplaySettings";
+
+lv_obj_t* row_dropdown(lv_obj_t* root, const char* row_name) {
+    lv_obj_t* row = helix::ui::find_required(root, row_name, kOwner);
+    return row ? helix::ui::find_required(row, "dropdown", kOwner) : nullptr;
+}
+
+/// The container holding row_screensaver and its sibling rows, from any widget inside it.
+lv_obj_t* screensaver_rows_root(lv_obj_t* obj) {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        const char* name = lv_obj_get_name(o);
+        if (name && std::strcmp(name, "row_screensaver") == 0) {
+            return lv_obj_get_parent(o);
+        }
+    }
+    return nullptr;
+}
+
+int display_auto_percent() {
+    return static_cast<int>(std::lround(helix::DisplayMetrics::auto_scale() * 100.0));
+}
+
 } // namespace
 
 using helix::ui::event_checked;
 using helix::ui::event_selected;
-
-void DisplaySettingsOverlay::init_subjects() {
-    snprintf(brightness_value_buf_, sizeof(brightness_value_buf_), "100%%");
-    UI_MANAGED_SUBJECT_STRING(brightness_value_subject_, brightness_value_buf_,
-                              brightness_value_buf_, "brightness_value", subjects_);
-}
 
 void DisplaySettingsOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -63,9 +81,11 @@ void DisplaySettingsOverlay::register_callbacks() {
                  get_global_settings_panel().show_restart_prompt();
              }
          }},
+        // Per drag tick: the backlight and the settings_brightness readout, not saved.
+        // on_brightness_commit saves once, on release.
         {"on_brightness_changed",
          [](lv_event_t* e) {
-             get_display_settings_overlay().handle_brightness_changed(
+             DisplaySettingsManager::instance().preview_brightness(
                  lv_slider_get_value(lv_event_get_current_target_obj(e)));
          }},
         {"on_brightness_commit",
@@ -73,22 +93,7 @@ void DisplaySettingsOverlay::register_callbacks() {
              DisplaySettingsManager::instance().set_brightness(
                  lv_slider_get_value(lv_event_get_current_target_obj(e)));
          }},
-        {"on_ui_scale_changed",
-         [](lv_event_t* e) {
-             const int index = event_selected(e);
-             const int percent =
-                 (index >= 1 && index <= static_cast<int>(std::size(kUiScalePercents)))
-                     ? kUiScalePercents[index - 1]
-                     : helix::DisplayMetrics::kScaleSettingAutomatic;
-             DisplaySettingsManager::instance().set_ui_scale_percent(percent);
-
-             // Applying live would need every screen to re-tier, and AssetManager only
-             // ever registers font tiers upward (register_fonts_for_tier() early-returns
-             // on a lower tier), so a downward change cannot un-register the faces it
-             // already handed out.
-             ToastManager::instance().show(ToastSeverity::INFO,
-                                           lv_tr("UI scale applies after restart"));
-         }},
+        {"on_ui_scale_changed", [](lv_event_t* e) { apply_ui_scale_pick(event_selected(e)); }},
         {"on_dim_changed",
          [](lv_event_t* e) {
              DisplaySettingsManager::instance().set_display_dim_sec(
@@ -110,7 +115,8 @@ void DisplaySettingsOverlay::register_callbacks() {
 #if HELIX_ENABLE_SCREENSAVER
         {"on_screensaver_changed",
          [](lv_event_t* e) {
-             get_display_settings_overlay().handle_screensaver_changed(event_selected(e));
+             lv_obj_t* dropdown = lv_event_get_current_target_obj(e);
+             apply_screensaver_pick(screensaver_rows_root(dropdown), event_selected(e));
          }},
         {"on_test_screensaver",
          [](lv_event_t*) {
@@ -137,22 +143,26 @@ void DisplaySettingsOverlay::on_activate() {
     OverlayBase::on_activate();
 
     init_display_rotation_dropdown();
-    init_brightness_controls();
-    init_dim_dropdown();
-    init_sleep_dropdown();
-    init_ui_scale_dropdown();
+    select_brightness_slider(overlay_root_);
+    select_dim_rows(overlay_root_);
+    select_sleep_row(overlay_root_);
+    populate_ui_scale_row(overlay_root_, UiScaleOffer::All);
+    populate_screensaver_row(overlay_root_);
+}
 
-#if HELIX_ENABLE_SCREENSAVER
-    init_screensaver_dropdown();
-#endif
+void DisplaySettingsOverlay::init_screensaver_dropdown() {
+    populate_screensaver_row(overlay_root_);
+}
+
+void DisplaySettingsOverlay::handle_screensaver_changed(int index) {
+    apply_screensaver_pick(overlay_root_, index);
 }
 
 // Rows whose widget index is not the stored value (rotation degrees, dim and
 // sleep seconds, UI scale percent, screensaver type) are selected here; the
 // toggle rows bind to their subjects in XML.
 void DisplaySettingsOverlay::init_display_rotation_dropdown() {
-    lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_display_rotation", get_name());
-    if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name())) {
+    if (lv_obj_t* dropdown = row_dropdown(overlay_root_, "row_display_rotation")) {
         int degrees = DisplaySettingsManager::instance().get_display_rotation();
         int index = DisplaySettingsManager::rotation_degrees_to_index(degrees);
         lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
@@ -162,50 +172,73 @@ void DisplaySettingsOverlay::init_display_rotation_dropdown() {
     }
 }
 
-void DisplaySettingsOverlay::init_brightness_controls() {
-    lv_obj_t* brightness_slider =
-        helix::ui::find_required(overlay_root_, "brightness_slider", get_name());
-    if (brightness_slider) {
-        int brightness = DisplaySettingsManager::instance().get_brightness();
-        lv_slider_set_value(brightness_slider, brightness, LV_ANIM_OFF);
-
-        helix::format::format_percent(brightness, brightness_value_buf_,
-                                      sizeof(brightness_value_buf_));
-        lv_subject_set_string(&brightness_value_subject_, brightness_value_buf_);
-
-        spdlog::debug("[{}] Brightness initialized to {}%", get_name(), brightness);
+// The slider takes its static XML value at construction; the readout binds
+// settings_brightness.
+void select_brightness_slider(lv_obj_t* root) {
+    lv_obj_t* row = helix::ui::find_required(root, "row_brightness", kOwner);
+    if (lv_obj_t* slider = row ? helix::ui::find_required(row, "slider", kOwner) : nullptr) {
+        lv_slider_set_value(slider, DisplaySettingsManager::instance().get_brightness(),
+                            LV_ANIM_OFF);
     }
 }
 
 // Both rows edit the dim timeout; settings_dim_row_kind shows at most one of them.
-void DisplaySettingsOverlay::init_dim_dropdown() {
-    int current_sec = DisplaySettingsManager::instance().get_display_dim_sec();
-    int index = DisplaySettingsManager::dim_seconds_to_index(current_sec);
+void select_dim_rows(lv_obj_t* root) {
+    const int current_sec = DisplaySettingsManager::instance().get_display_dim_sec();
+    const int index = DisplaySettingsManager::dim_seconds_to_index(current_sec);
     for (const char* row_name : {"row_display_dim", "row_screensaver_after"}) {
-        lv_obj_t* row = helix::ui::find_required(overlay_root_, row_name, get_name());
-        if (lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name())) {
-            lv_dropdown_set_selected(dropdown, index);
+        if (lv_obj_t* dropdown = row_dropdown(root, row_name)) {
+            lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
         }
     }
-    spdlog::debug("[{}] Dim dropdowns initialized to index {} ({}s)", get_name(), index,
-                  current_sec);
+    spdlog::debug("[{}] Dim rows at index {} ({}s)", kOwner, index, current_sec);
 }
 
-void DisplaySettingsOverlay::init_sleep_dropdown() {
-    lv_obj_t* sleep_row = helix::ui::find_required(overlay_root_, "row_display_sleep", get_name());
-    if (lv_obj_t* sleep_dropdown = helix::ui::find_required(sleep_row, "dropdown", get_name())) {
-        int current_sec = DisplaySettingsManager::instance().get_display_sleep_sec();
-        int index = DisplaySettingsManager::sleep_seconds_to_index(current_sec);
-        lv_dropdown_set_selected(sleep_dropdown, index);
-
-        spdlog::debug("[{}] Sleep dropdown initialized to index {} ({}s)", get_name(), index,
-                      current_sec);
+void select_sleep_row(lv_obj_t* root) {
+    if (lv_obj_t* dropdown = row_dropdown(root, "row_display_sleep")) {
+        const int current_sec = DisplaySettingsManager::instance().get_display_sleep_sec();
+        const int index = DisplaySettingsManager::sleep_seconds_to_index(current_sec);
+        lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
+        spdlog::debug("[{}] Sleep row at index {} ({}s)", kOwner, index, current_sec);
     }
 }
 
-void DisplaySettingsOverlay::init_ui_scale_dropdown() {
-    lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_ui_scale", get_name());
-    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
+std::vector<int> fitting_ui_scale_percents(int width, int height) {
+    const int long_side = std::max(width, height);
+    const int short_side = std::min(width, height);
+    std::vector<int> out;
+    for (int percent : kUiScalePercents) {
+        if (long_side * 100 >= UI_SCREEN_MICRO_W * percent &&
+            short_side * 100 >= UI_SCREEN_MICRO_H * percent) {
+            out.push_back(percent);
+        }
+    }
+    return out;
+}
+
+bool ui_scale_has_choice(const std::vector<int>& fitting, int auto_percent) {
+    return std::any_of(fitting.begin(), fitting.end(),
+                       [auto_percent](int percent) { return percent != auto_percent; });
+}
+
+bool fitting_ui_scale_has_choice() {
+    return ui_scale_has_choice(ui_scale_percents(UiScaleOffer::Fitting), display_auto_percent());
+}
+
+std::vector<int> ui_scale_percents(UiScaleOffer offer) {
+    if (offer == UiScaleOffer::All) {
+        return {std::begin(kUiScalePercents), std::end(kUiScalePercents)};
+    }
+    lv_display_t* display = lv_display_get_default();
+    if (!display) {
+        return {};
+    }
+    return fitting_ui_scale_percents(lv_display_get_horizontal_resolution(display),
+                                     lv_display_get_vertical_resolution(display));
+}
+
+void populate_ui_scale_row(lv_obj_t* root, UiScaleOffer offer) {
+    lv_obj_t* dropdown = row_dropdown(root, "row_ui_scale");
     if (!dropdown)
         return;
 
@@ -213,40 +246,56 @@ void DisplaySettingsOverlay::init_ui_scale_dropdown() {
     // a user on a phone-class screen can see what it chose before deciding to
     // override it. Every shipping printer sits in the DPI deadband and reads
     // "Automatic (100%)".
-    const int auto_percent =
-        static_cast<int>(std::lround(helix::DisplayMetrics::auto_scale() * 100.0));
+    const int auto_percent = display_auto_percent();
+    const std::vector<int> percents = ui_scale_percents(offer);
     std::string options =
         std::string(lv_tr("Automatic")) + " (" + std::to_string(auto_percent) + "%)";
-    for (int percent : kUiScalePercents) {
+    for (int percent : percents) {
         options += "\n" + std::to_string(percent) + "%";
     }
     lv_dropdown_set_options(dropdown, options.c_str());
 
-    // Index 0 is Automatic; the explicit steps follow in kUiScalePercents
-    // order. A stored value that is not one of the offered steps (hand-edited,
-    // or a step we later drop) selects Automatic, which is what it will
-    // actually behave as on the next start.
+    // Index 0 is Automatic; the explicit steps follow in list order. A stored
+    // value that is not one of the offered steps (hand-edited, or a step we
+    // later drop) selects Automatic, which is what it will actually behave as on
+    // the next start.
     const int stored = DisplaySettingsManager::instance().get_ui_scale_percent();
     uint32_t selected = 0;
-    for (size_t i = 0; i < std::size(kUiScalePercents); ++i) {
-        if (kUiScalePercents[i] == stored) {
+    for (size_t i = 0; i < percents.size(); ++i) {
+        if (percents[i] == stored) {
             selected = static_cast<uint32_t>(i + 1);
             break;
         }
     }
     lv_dropdown_set_selected(dropdown, selected);
 
-    spdlog::debug("[{}] UI scale dropdown initialized: stored={} auto={}%", get_name(), stored,
-                  auto_percent);
+    spdlog::debug("[{}] UI scale row: stored={} auto={}% offered={}", kOwner, stored, auto_percent,
+                  percents.size());
+}
+
+void apply_ui_scale_pick(int index) {
+    // A Fitting list is a prefix of the full one (a bigger scale never fits where a
+    // smaller one does not), so one index-to-percent mapping serves both rows.
+    const std::vector<int> percents = ui_scale_percents(UiScaleOffer::All);
+    const int percent = (index >= 1 && index <= static_cast<int>(percents.size()))
+                            ? percents[static_cast<size_t>(index - 1)]
+                            : helix::DisplayMetrics::kScaleSettingAutomatic;
+    DisplaySettingsManager::instance().set_ui_scale_percent(percent);
+
+    // Applying live would need every screen to re-tier, and AssetManager only
+    // ever registers font tiers upward (register_fonts_for_tier() early-returns
+    // on a lower tier), so a downward change cannot un-register the faces it
+    // already handed out.
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("UI scale applies after restart"));
 }
 
 #if HELIX_ENABLE_SCREENSAVER
 namespace {
 
 // The row's options_tag puts the full XML list back on a language change; this runs after it
-// and rebuilds the list the overlay maps positions with.
+// and rebuilds the list the pick handler maps positions with.
 void screensaver_language_changed_cb(lv_event_t* e) {
-    static_cast<DisplaySettingsOverlay*>(lv_event_get_user_data(e))->init_screensaver_dropdown();
+    populate_screensaver_row(screensaver_rows_root(lv_event_get_current_target_obj(e)));
 }
 
 bool has_language_rebuild(lv_obj_t* dropdown) {
@@ -263,82 +312,75 @@ bool has_language_rebuild(lv_obj_t* dropdown) {
 } // namespace
 #endif
 
-void DisplaySettingsOverlay::init_screensaver_dropdown() {
-#if HELIX_ENABLE_SCREENSAVER
-    lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_screensaver", get_name());
-    lv_obj_t* dropdown = helix::ui::find_required(row, "dropdown", get_name());
+void populate_screensaver_row(lv_obj_t* root) {
+#if !HELIX_ENABLE_SCREENSAVER
+    (void)root;
+#else
+    if (!root)
+        return;
+    lv_obj_t* dropdown = row_dropdown(root, "row_screensaver");
     if (!dropdown)
         return;
     if (!has_language_rebuild(dropdown)) {
         // DECLARATIVE_OK: rebuilds C++-built options after the engine's options_tag reset.
         lv_obj_add_event_cb(dropdown, screensaver_language_changed_cb,
-                            LV_EVENT_TRANSLATION_LANGUAGE_CHANGED, this);
+                            LV_EVENT_TRANSLATION_LANGUAGE_CHANGED, nullptr);
     }
 
     const ScreensaverType configured = ScreensaverManager::configured_type();
     const ScreensaverManager::SettingsDropdown listed =
         ScreensaverManager::settings_dropdown(configured);
-    const std::vector<ScreensaverType>& choices = listed.choices;
-    const ScreensaverType runs = listed.runs;
-    const bool runs_too_heavy = listed.runs_too_heavy;
-    screensaver_choices_.clear();
     std::string options;
     // The closed field shows the plain label: the marked one runs under the arrow at 800x480.
     std::string closed_text;
-    for (ScreensaverType type : choices) {
+    for (ScreensaverType type : listed.choices) {
         if (!options.empty()) {
             options += "\n";
         }
         const char* label = lv_tr(helix::ui::screensaver_label_key(type));
         options += label;
-        if (type == runs && runs_too_heavy) {
+        if (type == listed.runs && listed.runs_too_heavy) {
             options += std::string(" (") + lv_tr("too slow") + ")";
             closed_text = label;
         }
-        screensaver_choices_.push_back(helix::ui::screensaver_name(type));
     }
     lv_dropdown_set_options(dropdown, options.c_str());
     lv_dropdown_set_text(dropdown, closed_text.empty() ? nullptr : closed_text.c_str());
 
-    const size_t index = helix::ui::screensaver_choice_index(choices, runs);
+    const size_t index = helix::ui::screensaver_choice_index(listed.choices, listed.runs);
     lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
 
-    spdlog::debug("[{}] Screensaver dropdown: {} of {} savers offered, stored type {} runs as {}",
-                  get_name(), screensaver_choices_.size() - 1, helix::ui::kScreensaverCount,
-                  static_cast<int>(configured), static_cast<int>(runs));
+    spdlog::debug("[{}] Screensaver row: {} of {} savers offered, stored type {} runs as {}",
+                  kOwner, listed.choices.size() - 1, helix::ui::kScreensaverCount,
+                  static_cast<int>(configured), static_cast<int>(listed.runs));
 #endif
 }
 
-void DisplaySettingsOverlay::handle_screensaver_changed(int index) {
+void apply_screensaver_pick(lv_obj_t* root, int index) {
 #if !HELIX_ENABLE_SCREENSAVER
+    (void)root;
     (void)index;
 #else
-    if (index < 0 || static_cast<size_t>(index) >= screensaver_choices_.size()) {
-        spdlog::warn("[{}] Screensaver dropdown index {} is outside the {} offered", get_name(),
-                     index, screensaver_choices_.size());
+    // The row lists what settings_dropdown() gives for the stored type, and only a pick
+    // changes that type, so the list is the same one the row was built from.
+    const std::vector<ScreensaverType> choices =
+        ScreensaverManager::settings_dropdown(ScreensaverManager::configured_type()).choices;
+    if (index < 0 || static_cast<size_t>(index) >= choices.size()) {
+        spdlog::warn("[{}] Screensaver dropdown index {} is outside the {} offered", kOwner, index,
+                     choices.size());
         return;
     }
-    const char* name = screensaver_choices_[static_cast<size_t>(index)];
-    const std::optional<ScreensaverType> type = helix::ui::screensaver_from_name(name);
-    if (!type) {
+    DisplaySettingsManager::instance().set_screensaver_type(
+        static_cast<int>(choices[static_cast<size_t>(index)]));
+    if (!root) {
         return;
     }
-    DisplaySettingsManager::instance().set_screensaver_type(static_cast<int>(*type));
     // A choice can change what the list offers: Off drops a too-slow stored saver.
-    init_screensaver_dropdown();
+    populate_screensaver_row(root);
     // Turning a saver on can seed the dim timeout, and that can raise sleep to match.
-    init_dim_dropdown();
-    init_sleep_dropdown();
+    select_dim_rows(root);
+    select_sleep_row(root);
 #endif
-}
-
-// Per drag tick: apply to the backlight and update the readout, but do NOT
-// persist. on_brightness_commit saves once, on release.
-void DisplaySettingsOverlay::handle_brightness_changed(int value) {
-    DisplaySettingsManager::instance().preview_brightness(value);
-
-    helix::format::format_percent(value, brightness_value_buf_, sizeof(brightness_value_buf_));
-    lv_subject_set_string(&brightness_value_subject_, brightness_value_buf_);
 }
 
 } // namespace helix::settings

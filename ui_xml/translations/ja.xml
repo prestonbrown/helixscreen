@@ -770,6 +770,7 @@
   <translation tag="Choose the order of day, month and year" ja="日・月・年の並び順を選択"/>
   <translation tag="Choose what to power off or restart." ja="電源オフまたは再起動する対象を選択してください。"/>
   <translation tag="Choose which lane is in the toolhead to unload it" ja="取り出すには、ツールヘッドに入っているレーンを選んでください"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." ja="受け取るリリースと、匿名の統計を共有するかどうかを選択します。"/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ja="パージシュート位置: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" ja="ブラシを清掃"/>
   <translation tag="Clean Nozzle" ja="ノズル清掃"/>
@@ -3517,6 +3518,7 @@
   <translation tag="Score: {}" ja="スコア: {}"/>
   <translation tag="Score: {}  |  Best: {}" ja="スコア: {}  |  ベスト: {}"/>
   <translation tag="Screen" ja="画面"/>
+  <translation tag="Screen &amp; Power" ja="画面と電源"/>
   <translation tag="Screen Blank" ja="画面消灯"/>
   <translation tag="Screen Dim" ja="画面減光"/>
   <translation tag="Screen Rotation" ja="画面の回転"/>
@@ -3527,6 +3529,7 @@
   <translation tag="Screen reboot failed" ja="画面の再起動に失敗しました"/>
   <translation tag="Screen shutdown failed" ja="画面のシャットダウンに失敗しました"/>
   <translation tag="Screen sleeps after the selected period of inactivity" ja="選択した時間操作がないと画面が減光します"/>
+  <translation tag="ScreenPower" ja="ScreenPower"/>
   <translation tag="Screensaver" ja="スクリーンセーバー"/>
   <translation tag="Screensaver after" ja="スクリーンセーバー開始"/>
   <translation tag="Screensaver disabled" ja="スクリーンセーバーを無効化しました"/>
@@ -3624,6 +3627,7 @@
   <translation tag="Set and watch the chamber temperature" ja="チャンバー温度の設定と監視"/>
   <translation tag="Set and watch the nozzle temperature" ja="ノズル温度の設定と監視"/>
   <translation tag="Set duration between 1 and {} minutes" ja="時間は 1〜{} 分にしてください"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." ja="画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。"/>
   <translation tag="Set local timezone for time display" ja="時刻表示用のローカルタイムゾーンを設定"/>
   <translation tag="Set logging verbosity for troubleshooting" ja="トラブルシューティング用のログの詳細レベルを設定"/>
   <translation tag="Set temperature between {} and {}" ja="温度は {}〜{} にしてください"/>
@@ -4528,6 +4532,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ja="INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。"/>
   <translation tag="Update your security PIN" ja="セキュリティ PIN を更新"/>
   <translation tag="Updates" ja="更新"/>
+  <translation tag="Updates &amp; Data" ja="更新とデータ"/>
   <translation tag="Updating Configuration..." ja="設定を更新中..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." ja="マルチカラースプールにはAFC 1.2.0以降へのアップグレードが必要です。フィラメント名にも対応し、これまではSpoolmanが別途必要でした。"/>
   <translation tag="Upload" ja="アップロード"/>

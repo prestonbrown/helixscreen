@@ -790,6 +790,7 @@ translations:
   : お使いのプリンターに一致するモデルを選択してください。これにより、HelixScreenが使用する印刷マクロ、ファンの役割、キャリブレーション動作が設定されます。
   Choose the order of day, month and year: 日・月・年の並び順を選択
   Choose what to power off or restart.: 電源オフまたは再起動する対象を選択してください。
+  Choose which releases to get, and whether to share anonymous statistics.: '受け取るリリースと、匿名の統計を共有するかどうかを選択します。'
   'Chute position: X {:.1f}, Y {:.1f}': 'パージシュート位置: X {:.1f}, Y {:.1f}'
 
   Clean Brush: 'ブラシを清掃'
@@ -3642,6 +3643,7 @@ translations:
   'Score: {}': 'スコア: {}'
   'Score: {}  |  Best: {}': 'スコア: {}  |  ベスト: {}'
   Screen: '画面'
+  Screen & Power: '画面と電源'
   Screen Blank: 画面消灯
   Screen Dim: 画面減光
   Screen Rotation: 画面の回転
@@ -3652,6 +3654,7 @@ translations:
   Screen reboot failed: 画面の再起動に失敗しました
   Screen shutdown failed: 画面のシャットダウンに失敗しました
   Screen sleeps after the selected period of inactivity: 選択した時間操作がないと画面が減光します
+  ScreenPower: ScreenPower
   Screensaver: スクリーンセーバー
   Screensaver after: スクリーンセーバー開始
   Screensaver disabled: スクリーンセーバーを無効化しました
@@ -3750,6 +3753,7 @@ translations:
   Set and watch the chamber temperature: チャンバー温度の設定と監視
   Set and watch the nozzle temperature: ノズル温度の設定と監視
   Set duration between 1 and {} minutes: '時間は 1〜{} 分にしてください'
+  Set how bright the screen is and when it rests. You can change any of these later in Settings.: '画面の明るさと休止するタイミングを設定します。すべて後で「設定」から変更できます。'
   Set local timezone for time display: 時刻表示用のローカルタイムゾーンを設定
   Set logging verbosity for troubleshooting: トラブルシューティング用のログの詳細レベルを設定
   Set temperature between {} and {}: 温度は {}〜{} にしてください
@@ -4717,6 +4721,7 @@ translations:
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。
   Update your security PIN: セキュリティ PIN を更新
   Updates: 更新
+  Updates & Data: '更新とデータ'
   Updating Configuration...: 設定を更新中...
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: マルチカラースプールにはAFC 1.2.0以降へのアップグレードが必要です。フィラメント名にも対応し、これまではSpoolmanが別途必要でした。
   Upload: アップロード

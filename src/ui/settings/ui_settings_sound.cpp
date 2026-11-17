@@ -67,7 +67,7 @@ void SoundSettingsOverlay::register_callbacks() {
 void SoundSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
 
-    init_volume_slider();
+    select_volume_slider(overlay_root_);
     init_sound_theme_dropdown();
     init_audio_device_dropdown();
 }
@@ -77,10 +77,10 @@ void SoundSettingsOverlay::on_activate() {
 // ============================================================================
 
 // The slider takes its static XML value at construction, so the persisted
-// volume is pushed on every open. The readout binds settings_volume.
-void SoundSettingsOverlay::init_volume_slider() {
-    lv_obj_t* row = find_required(overlay_root_, "row_volume", get_name());
-    if (lv_obj_t* slider = find_required(row, "slider", get_name())) {
+// volume is pushed on every open.
+void select_volume_slider(lv_obj_t* root) {
+    lv_obj_t* row = find_required(root, "row_volume", "SoundSettings");
+    if (lv_obj_t* slider = row ? find_required(row, "slider", "SoundSettings") : nullptr) {
         lv_slider_set_value(slider, AudioSettingsManager::instance().get_volume(), LV_ANIM_OFF);
     }
 }

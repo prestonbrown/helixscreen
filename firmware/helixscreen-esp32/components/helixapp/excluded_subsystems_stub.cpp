@@ -54,6 +54,7 @@
 #include "ui_toast_manager.h"
 #include "ui_wizard_appearance.h"
 #include "ui_wizard_preferences.h"
+#include "ui_wizard_screen_power.h"
 
 #include "esp_attr.h"
 #include "esp_log.h"
@@ -336,13 +337,16 @@ void MacroManager::remove_skips(SuccessCallback, ErrorCallback) {}
 
 } // namespace helix
 
-// The firmware runs no first-run wizard, so the registry's Appearance and Preferences
-// steps never run; the accessors only have to resolve.
+// The firmware runs no first-run wizard, so the registry's Appearance, Screen & Power and
+// Preferences steps never run; the accessors only have to resolve.
 namespace helix::wizard {
 WizardAppearanceStep* get_wizard_appearance_step() {
     return nullptr;
 }
 WizardPreferencesStep* get_wizard_preferences_step() {
+    return nullptr;
+}
+WizardScreenPowerStep* get_wizard_screen_power_step() {
     return nullptr;
 }
 } // namespace helix::wizard

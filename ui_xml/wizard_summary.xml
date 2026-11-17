@@ -40,6 +40,12 @@
           <event_cb trigger="value_changed" callback="on_wizard_summary_telemetry_changed"/>
         </ui_switch>
       </lv_obj>
+      <!-- The update channel is asked beside the telemetry opt-in, once, on the first printer -->
+      <lv_obj name="summary_update_channel"
+              width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false">
+        <bind_flag_if_eq subject="summary_telemetry_visible" flag="hidden" ref_value="0"/>
+        <update_channel_rows/>
+      </lv_obj>
       <!-- Divider between telemetry and config summary -->
       <divider_horizontal name="telemetry_divider">
         <bind_flag_if_eq subject="summary_telemetry_visible" flag="hidden" ref_value="0"/>

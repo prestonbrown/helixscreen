@@ -789,6 +789,7 @@ translations:
   : 选择与您的打印机相符的型号。这将决定 HelixScreen 使用的打印宏、风扇角色和校准行为。
   Choose the order of day, month and year: 选择日、月、年的顺序
   Choose what to power off or restart.: 选择要关闭或重启的对象。
+  Choose which releases to get, and whether to share anonymous statistics.: '选择要获取的版本，以及是否共享匿名统计数据。'
   'Chute position: X {:.1f}, Y {:.1f}': '排料口位置: X {:.1f}, Y {:.1f}'
 
   Clean Brush: '清洁刷子'
@@ -3633,6 +3634,7 @@ translations:
   'Score: {}': '得分：{}'
   'Score: {}  |  Best: {}': '得分：{}  |  最佳：{}'
   Screen: '屏幕'
+  Screen & Power: '屏幕与电源'
   Screen Blank: 屏幕熄灭
   Screen Dim: 屏幕变暗
   Screen Rotation: 屏幕旋转
@@ -3643,6 +3645,7 @@ translations:
   Screen reboot failed: 屏幕重启失败
   Screen shutdown failed: 屏幕关机失败
   Screen sleeps after the selected period of inactivity: 在选定的不活动时间后屏幕将变暗
+  ScreenPower: ScreenPower
   Screensaver: 屏保
   Screensaver after: 屏保启动时间
   Screensaver disabled: 屏保已禁用
@@ -3741,6 +3744,7 @@ translations:
   Set and watch the chamber temperature: 设置并监控腔体温度
   Set and watch the nozzle temperature: 设置并监控喷嘴温度
   Set duration between 1 and {} minutes: '请设置 1 到 {} 分钟之间的时长'
+  Set how bright the screen is and when it rests. You can change any of these later in Settings.: '设置屏幕亮度以及何时休眠。以后可在“设置”中更改。'
   Set local timezone for time display: 设置本地时区以显示时间
   Set logging verbosity for troubleshooting: 设置日志详细级别以便故障排除
   Set temperature between {} and {}: 请设置 {} 到 {} 之间的温度
@@ -4708,6 +4712,7 @@ translations:
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
   Update your security PIN: 更新您的安全 PIN
   Updates: 更新
+  Updates & Data: '更新与数据'
   Updating Configuration...: 正在更新配置...
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: 升级到 AFC 1.2.0 或更高版本即可使用多色料盘。它还会添加耗材名称，否则需要 Spoolman 提供。
   Upload: 上传

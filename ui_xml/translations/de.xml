@@ -770,6 +770,7 @@
   <translation tag="Choose the order of day, month and year" de="Reihenfolge von Tag, Monat und Jahr wählen"/>
   <translation tag="Choose what to power off or restart." de="Wählen Sie, was ausgeschaltet oder neu gestartet werden soll."/>
   <translation tag="Choose which lane is in the toolhead to unload it" de="Wähle, welche Spur im Druckkopf steckt, um sie zu entladen"/>
+  <translation tag="Choose which releases to get, and whether to share anonymous statistics." de="Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" de="Position der Entlüftungsrinne: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" de="Bürste reinigen"/>
   <translation tag="Clean Nozzle" de="Düse reinigen"/>
@@ -3517,6 +3518,7 @@
   <translation tag="Score: {}" de="Punkte: {}"/>
   <translation tag="Score: {}  |  Best: {}" de="Punkte: {}  |  Bestwert: {}"/>
   <translation tag="Screen" de="Bildschirm"/>
+  <translation tag="Screen &amp; Power" de="Bildschirm &amp; Energie"/>
   <translation tag="Screen Blank" de="Bildschirm aus"/>
   <translation tag="Screen Dim" de="Bildschirm dimmen"/>
   <translation tag="Screen Rotation" de="Bildschirmdrehung"/>
@@ -3527,6 +3529,7 @@
   <translation tag="Screen reboot failed" de="Neustart des Bildschirms fehlgeschlagen"/>
   <translation tag="Screen shutdown failed" de="Herunterfahren des Bildschirms fehlgeschlagen"/>
   <translation tag="Screen sleeps after the selected period of inactivity" de="Bildschirm dimmt nach dem gewählten Inaktivitätszeitraum"/>
+  <translation tag="ScreenPower" de="ScreenPower"/>
   <translation tag="Screensaver" de="Bildschirmschoner"/>
   <translation tag="Screensaver after" de="Bildschirmschoner nach"/>
   <translation tag="Screensaver disabled" de="Bildschirmschoner deaktiviert"/>
@@ -3624,6 +3627,7 @@
   <translation tag="Set and watch the chamber temperature" de="Kammertemperatur setzen und verfolgen"/>
   <translation tag="Set and watch the nozzle temperature" de="Düsentemperatur setzen und verfolgen"/>
   <translation tag="Set duration between 1 and {} minutes" de="Stellen Sie eine Dauer zwischen 1 und {} Minuten ein"/>
+  <translation tag="Set how bright the screen is and when it rests. You can change any of these later in Settings." de="Lege fest, wie hell der Bildschirm ist und wann er ruht. Du kannst alles später in den Einstellungen ändern."/>
   <translation tag="Set local timezone for time display" de="Lokale Zeitzone für Zeitanzeige festlegen"/>
   <translation tag="Set logging verbosity for troubleshooting" de="Protokollierungsdetailgrad für Fehlerbehebung festlegen"/>
   <translation tag="Set temperature between {} and {}" de="Stellen Sie eine Temperatur zwischen {} und {} ein"/>
@@ -4528,6 +4532,7 @@
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." de="Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}."/>
   <translation tag="Update your security PIN" de="Sicherheits-PIN aktualisieren nicht verfügbar."/>
   <translation tag="Updates" de="Updates"/>
+  <translation tag="Updates &amp; Data" de="Updates &amp; Daten"/>
   <translation tag="Updating Configuration..." de="Konfiguration wird aktualisiert..."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." de="Aktualisieren Sie auf AFC 1.2.0 oder neuer für mehrfarbige Spulen. Es fügt außerdem Filamentnamen hinzu, die ansonsten Spoolman erfordern."/>
   <translation tag="Upload" de="Hochladen"/>

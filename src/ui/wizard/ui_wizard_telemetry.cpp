@@ -4,6 +4,7 @@
 
 #include "ui_event_safety.h"
 #include "ui_modal.h"
+#include "ui_settings_updates.h"
 #include "ui_subject_registry.h"
 #include "ui_telemetry_info_modal.h"
 #include "ui_toast_manager.h"
@@ -11,6 +12,7 @@
 
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
+#include "system/update_checker.h"
 #include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -83,6 +85,9 @@ void WizardTelemetryStep::register_callbacks() {
                              WizardTelemetryStep::on_wizard_telemetry_changed);
     lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_info",
                              WizardTelemetryStep::on_wizard_telemetry_info);
+    // The update channel row reuses Settings > Updates' callback, registered there only
+    // when that overlay first opens.
+    helix::settings::get_updates_settings_overlay().register_callbacks();
 }
 
 // ============================================================================
@@ -106,6 +111,8 @@ lv_obj_t* WizardTelemetryStep::create(lv_obj_t* parent) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
     }
+    helix::settings::UpdatesSettingsOverlay::sync_update_channel_rows(
+        root_, static_cast<int>(UpdateChecker::instance().get_channel()));
 
     spdlog::debug("[{}] Screen created successfully", get_name());
     return root_;

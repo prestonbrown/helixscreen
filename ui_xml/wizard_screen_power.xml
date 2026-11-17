@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- First-Run Wizard: the screen itself. Every row is the Settings > Display row, with
+       its subject, callback and options. The screensaver sits above the timeout because
+       a selected saver turns Screen Dim into "Screensaver after": one timeout starts it. -->
+  <consts>
+    <str name="step_title" value="Screen &amp; Power" value_tag="Screen &amp; Power"/>
+    <str name="step_subtitle"
+         value="Set how bright the screen is and when it rests. You can change any of these later in Settings."
+         value_tag="Set how bright the screen is and when it rests. You can change any of these later in Settings."/>
+  </consts>
+  <view name="wizard_screen_power_root"
+        extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
+    <ui_card width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" scrollable="true">
+      <display_brightness_row/>
+      <display_screensaver_row/>
+      <display_dim_row/>
+      <display_screensaver_after_row/>
+      <display_sleep_row/>
+      <!-- Options are Automatic and the sizes that fit this screen, filled in C++ -->
+      <setting_dropdown_row name="row_ui_scale"
+                            label="UI Scale" icon="magnify" description="Interface size. Applies after restart."
+                            options="" callback="on_ui_scale_changed">
+        <bind_flag_if_eq subject="wizard_screen_show_ui_scale" flag="hidden" ref_value="0"/>
+      </setting_dropdown_row>
+    </ui_card>
+  </view>
+</component>

@@ -19,9 +19,9 @@
 using helix::TimeFormat;
 using helix::wizard::StepId;
 
-TEST_CASE("Appearance step follows Language and precedes Wifi", "[wizard][appearance]") {
+TEST_CASE("Appearance step follows Language and precedes Screen & Power", "[wizard][appearance]") {
     CHECK(static_cast<int>(StepId::Appearance) == static_cast<int>(StepId::Language) + 1);
-    CHECK(static_cast<int>(StepId::Wifi) == static_cast<int>(StepId::Appearance) + 1);
+    CHECK(static_cast<int>(StepId::ScreenPower) == static_cast<int>(StepId::Appearance) + 1);
 
     helix::wizard::Step* step = helix::wizard::step_by_id(StepId::Appearance);
     REQUIRE(step != nullptr);
