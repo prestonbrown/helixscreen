@@ -91,7 +91,7 @@ is out.
 - **Job queue and Spoolman screens** (#1140, #1141) - the job queue says it is empty while the printer is disconnected, and Spoolman settings always open on the configured state.
 - **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
-- **Hubs on the overview only where lines meet** - the Multi-Filament overview now draws a hub only where two or more units feed the same toolhead, as one box where their lines join. A unit that feeds a toolhead on its own goes straight to it, and its hub sensor shows on that line. A hub with a buffer is drawn as one Hub+BUF box.
+- **Hubs on the overview only where lines meet** - the Multi-Filament overview now draws a hub only where two or more units feed the same toolhead, as one box where their lines join. A unit that feeds a toolhead on its own goes straight to it, and its hub sensor shows on that line. A hub with a buffer is drawn as one Hub+BUF box. Lines no longer cross or touch each other unless their ends are swapped, and units whose cards are scrolled off the same side keep separate lines.
 - **Debug bundles explain a Klipper that stopped** - a debug bundle now includes the kernel's out-of-memory and crash records, so it can show whether Klipper was killed for lack of memory or crashed. When Klipper writes its log somewhere other than the file Moonraker serves, the bundle reads the log Klipper is actually writing, and it marks a Klipper log that is older than Klipper's latest start. It also includes the HelixScreen launcher log, which records every time the screen app exited and why.
 
 ## [1.1.0-rc.2] - UNRELEASED
