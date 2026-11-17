@@ -12,6 +12,7 @@
 
 #include "app_globals.h"
 #include "core/http_executor.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "demo_overlays.h"
 #include "display_manager.h"
@@ -976,6 +977,7 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
         std::condition_variable cv;
         bool matched = false;
         bool cancelled = false;
+        lv_subject_t* subject = nullptr;
         lv_observer_t* observer = nullptr;
         // Target values (set once during setup, read-only after)
         int target_int = 0;
@@ -1033,7 +1035,7 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
 
         // Create observer — callback runs on UI thread so reads are safe.
         // Capture shared_ptr to keep WaitState alive as long as observer exists.
-        auto captured_state = state;
+        state->subject = subject;
         state->observer = lv_subject_add_observer(
             subject,
             [](lv_observer_t* obs, lv_subject_t* sub) {
@@ -1089,13 +1091,19 @@ nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params
         auto cleanup_promise = std::make_shared<std::promise<void>>();
         auto cleanup_future = cleanup_promise->get_future();
 
-        helix::ui::queue_update("RemoteControlServer::handle_wait_for", [state, cleanup_promise]() {
-            if (state->observer) {
-                lv_observer_delete(state->observer);
-                state->observer = nullptr;
-            }
-            cleanup_promise->set_value();
-        });
+        helix::ui::queue_update("RemoteControlServer::handle_wait_for",
+                                [name, state, cleanup_promise]() {
+                                    // A printer switch resets the subject while we wait, which
+                                    // frees the observer; only one still on the subject the name
+                                    // resolves to is ours.
+                                    lv_subject_t* subject = find_subject_by_name(name);
+                                    if (subject == state->subject &&
+                                        helix::subject_has_observer(subject, state->observer)) {
+                                        lv_observer_delete(state->observer);
+                                    }
+                                    state->observer = nullptr;
+                                    cleanup_promise->set_value();
+                                });
 
         // Block until cleanup completes — don't let state die with observer still attached
         cleanup_future.wait_for(std::chrono::seconds(10));

@@ -311,6 +311,20 @@ void subject_reset(lv_subject_t* subject) {
     report("subject_reset_unowned", "helix::subject_reset on a subject no helix::Subject owns");
 }
 
+bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* observer) {
+    if (!subject || !observer) {
+        return false;
+    }
+    auto* list = const_cast<lv_ll_t*>(&subject->subs_ll);
+    for (auto* it = static_cast<lv_observer_t*>(lv_ll_get_head(list)); it;
+         it = static_cast<lv_observer_t*>(lv_ll_get_next(list, it))) {
+        if (it == observer) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void Subject::publish_int(int32_t value) {
     if (live_) {
         lv_subject_set_int(handle_, value);

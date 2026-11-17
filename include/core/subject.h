@@ -108,6 +108,10 @@ void subjects_note_lvgl_deinit() noexcept;
 /// subjects without an owner are helix-xml's, which free themselves.
 void subject_reset(lv_subject_t* subject);
 
+/// Whether @p observer is still on @p subject's observer list. A subject's reset frees
+/// every observer on it, so a holder of a raw observer pointer asks this before deleting.
+[[nodiscard]] bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* observer);
+
 /// The managed macros' entry points.
 void subject_init_int(Subject& subject, int32_t value);
 void subject_init_pointer(Subject& subject, void* value);
