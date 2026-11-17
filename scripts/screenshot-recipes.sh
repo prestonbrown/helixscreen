@@ -133,6 +133,15 @@ safety             navigate settings; click row_safety
 connection         navigate settings; click row_connection
 network            navigate settings; click row_connection; click row_network
 printers           navigate settings; click row_connection; click row_printers
+# Switches to a second printer and back, ending idle on Home: a switch tears down
+# and rebuilds every per-printer subject and panel, so this is the sanitizer
+# drive for that path (scripts/test-host-run.sh asan-app printer-switch). The
+# second printer comes from screenshot_recipe_seed below, and the list rows are
+# named by printer id. The switch freezes and then discards the UpdateQueue, so
+# a ctl request sent during it goes unanswered: the drive sleeps past it before
+# wait_idle. It never uses wait_for, whose observer sits on a subject the switch
+# deinits.
+printer-switch     navigate settings; click row_connection; click row_printers; click second; sleep 5; wait_idle; navigate settings; click row_connection; click row_printers; click default; sleep 5; wait_idle
 language-time      navigate settings; click row_language_time
 system             navigate settings; click row_system
 system-2           navigate settings; click row_system; wait_idle; scroll overlay_content 0 -124
@@ -178,6 +187,23 @@ screenshot_recipe_for() {
     else
         printf 'navigate %s' "$token"
     fi
+}
+
+# Adjust the seeded mock settings file ($2) for a token ($1) that needs more
+# than the shipped template, before the app boots. Tokens with no entry leave
+# the file untouched.
+screenshot_recipe_seed() {
+    local token="$1" settings="$2"
+    case "$token" in
+        printer-switch)
+            # The template's one printer becomes Printer-A, and a second mock
+            # printer, id "second", is added ahead of it.
+            sed -i \
+                -e 's/"name": "Unnamed Printer"/"name": "Printer-A"/' \
+                -e 's/^  "printers": {$/  "printers": {\n    "second": {"name": "Printer-B", "type": "Unknown", "moonraker_host": "127.0.0.1", "moonraker_port": 7125},/' \
+                "$settings"
+            ;;
+    esac
 }
 
 # Every token in the table, one per line, in file order.
