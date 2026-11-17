@@ -96,6 +96,15 @@ void append_fan(Route& r, const pg::MergeLaneOut& lane, fpath::SpanStyle s) {
     route_append(r, fan, s);
 }
 
+// The fan with its first leg reaching back up its stem to @p from_y, so its
+// first bend has a leg to round off even when the fan itself starts bending
+// at once.
+void append_fan_from(Route& r, const pg::MergeLaneOut& lane, float from_y, fpath::SpanStyle s) {
+    pg::MergeLaneOut longer = lane;
+    longer.pts[0].y = std::min(from_y, lane.pts[0].y);
+    append_fan(r, longer, s);
+}
+
 // X where the route currently ends.
 float seg_end_x(const Route& r) {
     const pg::PathSeg& s = r.path.segs[r.path.count - 1];
@@ -277,8 +286,10 @@ int32_t row_pitch(const HubRow& row, int i, int32_t gap) {
 struct HubRowSpace {
     int32_t left, right; // box edges must stay inside [left, right]
     int32_t gap;         // clear space between neighbors
-    int32_t obstacle_half;
+    // Each drop and the half width it is drawn at: a haloed tube, or the
+    // sensor band across it when it carries one.
     int32_t obstacles[SystemPathData::kMaxTools];
+    int32_t obstacle_half[SystemPathData::kMaxTools];
     int obstacle_count = 0;
 };
 
@@ -286,7 +297,7 @@ struct HubRowSpace {
 bool hits_obstacle(const HubRowSpace& sp, int32_t x, int32_t w, int32_t* clear_right,
                    int32_t* clear_left) {
     for (int k = 0; k < sp.obstacle_count; ++k) {
-        const int32_t reach = w / 2 + sp.obstacle_half;
+        const int32_t reach = w / 2 + sp.obstacle_half[k];
         if (LV_ABS(x - sp.obstacles[k]) < reach) {
             *clear_right = sp.obstacles[k] + reach;
             *clear_left = sp.obstacles[k] - reach;
@@ -391,10 +402,16 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const Nozzl
     sp.left = L.x_off;
     sp.right = L.x_off + L.width;
     sp.gap = hub_box_gap(data);
-    sp.obstacle_half = (data.tube_gauge + kHaloWidthExtra) / 2 + sp.gap / 2;
-    for (int r = 0; r < n && sp.obstacle_count < SystemPathData::kMaxTools; ++r)
-        if (!routes[r].junction)
-            sp.obstacles[sp.obstacle_count++] = routes[r].end_x;
+    // Rounded up: a box must clear the drawn edge, not the pixel before it.
+    const int32_t tube_half = (data.tube_gauge + kHaloWidthExtra + 1) / 2;
+    const int32_t band_half = LV_MAX(tube_half, (data.tube_gauge + fpath::kBandExtra + 1) / 2);
+    for (int r = 0; r < n && sp.obstacle_count < SystemPathData::kMaxTools; ++r) {
+        if (routes[r].junction)
+            continue;
+        const bool band = routes[r].hub_lane && data.unit_has_hub_sensor[routes[r].unit_idx];
+        sp.obstacles[sp.obstacle_count] = routes[r].end_x;
+        sp.obstacle_half[sp.obstacle_count++] = (band ? band_half : tube_half) + (sp.gap + 1) / 2;
+    }
 
     // Width tiers: full, then narrower caps; a box keeps room for its lanes.
     const int32_t tier_cap[] = {INT32_MAX, data.hub_width / 2, data.hub_width * 2 / 5};
@@ -434,25 +451,31 @@ int32_t route_gap(const SystemPathData& data) {
     return data.tube_gauge + kHaloWidthExtra;
 }
 
-// Cable-harness route: drop from (sx, sy), bend at run_y, run level across to
-// ex, drop into (ex, ey).
+// Cable-harness route: down from (sx, sy), across at run_y, down into
+// (ex, ey). Both bends are arcs of one radius, kFanFillet or as large as the
+// jog and the two drops leave room for, so a short jog reads as a smooth S
+// rather than a corner. A drop too short for any bend runs straight across.
 void append_harness(Route& r, int32_t sx, int32_t sy, int32_t ex, int32_t ey, int32_t run_y,
                     fpath::SpanStyle s) {
-    // Clamp the bend so it leaves room for both fillets.
-    const int32_t lo = sy + 4;
-    const int32_t hi = ey - 6;
     pg::FilamentPath path;
-    if (hi < lo) {
-        pg::route_orthogonal(path, (float)sx, (float)sy, (float)ex, (float)ey, kFilletRadius);
+    const float dx = (float)(ex - sx);
+    if (ey - sy < 4 || dx == 0.0f) {
+        path.add_line((float)sx, (float)sy, (float)ex, (float)ey);
         route_append(r, path, s);
         return;
     }
-    run_y = LV_CLAMP(lo, run_y, hi);
-    pg::PathPoint pts[4] = {{(float)sx, (float)sy},
-                            {(float)sx, (float)run_y},
-                            {(float)ex, (float)run_y},
-                            {(float)ex, (float)ey}};
-    pg::route_polyline_filleted(path, pts, 4, kFanFillet);
+    run_y = clamp_span(sy + 2, run_y, ey - 2);
+    const float dir = dx > 0 ? 1.0f : -1.0f;
+    const float rad =
+        std::min({kFanFillet, std::fabs(dx) / 2.0f, (float)(run_y - sy), (float)(ey - run_y)});
+    constexpr float kQuarter = 1.5707963f;
+    const float y = (float)run_y;
+    path.add_line((float)sx, (float)sy, (float)sx, y - rad);
+    path.add_arc((float)sx + dir * rad, y - rad, rad, dir > 0 ? 2 * kQuarter : 0.0f,
+                 dir > 0 ? -kQuarter : kQuarter);
+    path.add_line((float)sx + dir * rad, y, (float)ex - dir * rad, y);
+    path.add_arc((float)ex - dir * rad, y + rad, rad, -kQuarter, dir > 0 ? kQuarter : -kQuarter);
+    path.add_line((float)ex, y + rad, (float)ex, (float)ey);
     route_append(r, path, s);
 }
 
@@ -811,16 +834,17 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
         Route* r = try_new_route(plan);
         if (!r)
             break;
+        // The stem down to the sensor's band, or to two fillets above the merge
+        // line; the fan's first leg starts there.
+        float fan_from = (float)LV_MAX(L.entry_y, L.merge_y - 2 * (int32_t)kFanFillet);
         if (data.unit_has_hub_sensor[u]) {
             append_line(*r, x, (float)L.entry_y, x, (float)sensor_y, lane.style(PathSegment::LANE));
             add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT), lane.color);
-            append_line(*r, x, (float)sensor_y, x, (float)L.merge_y,
-                        lane.style(PathSegment::OUTPUT));
+            fan_from = (float)sensor_y;
         } else {
-            append_line(*r, x, (float)L.entry_y, x, (float)L.merge_y,
-                        lane.style(PathSegment::LANE));
+            append_line(*r, x, (float)L.entry_y, x, fan_from, lane.style(PathSegment::LANE));
         }
-        append_fan(*r, fan[k], lane.style(PathSegment::OUTPUT));
+        append_fan_from(*r, fan[k], fan_from, lane.style(PathSegment::OUTPUT));
         if (!feed.junction) {
             append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
                         lane.style(PathSegment::HUB));
