@@ -20,11 +20,11 @@ Your printer's touchscreen should show you more than temperatures and a progress
 
 | Sidebar Icon | Panel | What You'll Do There |
 |--------------|-------|----------------------|
-| Home | Home | Monitor status, start prints, view temperatures |
-| Tune | Controls | Move axes, set temperatures, control fans |
-| Spool | Filament | Load/unload filament, manage AMS slots |
-| Gear | Settings | Configure display, sound, LED, network, sensors |
-| More | Advanced | Calibration, history, macros, system tools |
+| Home | [Home](guide/home-panel.md) | [Monitor status](guide/home-panel.md), [start prints](guide/printing.md), [view temperatures](guide/temperature.md) |
+| Tune | [Controls](guide/motion.md) | [Move axes](guide/motion.md), [set temperatures](guide/temperature.md), [control fans](guide/fans.md) |
+| Spool | [Filament](guide/filament.md) | [Load/unload filament](guide/filament.md#load--unload--purge), [manage AMS slots](guide/filament-ams-panel.md) |
+| Gear | [Settings](guide/settings.md) | Configure [display](guide/settings/display.md), [sound](guide/settings/sound.md), [LED](guide/settings/led-settings.md), [network](guide/settings/connection.md), [sensors](guide/sensors.md) |
+| More | [Advanced](guide/advanced.md) | [Calibration](guide/calibration.md), [history](guide/print-history.md), [macros](guide/advanced.md#macro-execution), [system tools](guide/advanced.md) |
 
 ---
 
