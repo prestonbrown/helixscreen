@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
+from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms, yammu  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -212,9 +212,11 @@ def test_manifest_lists_every_lane_mask(tmp_path):
 
 # Selectors that stand in front of the spools draw none: the rails and the HTLF.
 SPOOL_UNITS = [u for u in build.UNITS if u.carriage_step is None and u.id != htlf.UNIT.id]
+# Cabinets taller than the shared frame grow it, so their spools draw smaller.
+TALL_UNITS = [yammu.UNIT]
 
 
-@pytest.mark.parametrize("unit", SPOOL_UNITS, ids=lambda u: u.id)
+@pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u not in TALL_UNITS], ids=lambda u: u.id)
 def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     scene = kit.Scene(kit.ART_CAMERA)
     unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
@@ -285,6 +287,17 @@ def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
     xs = [p[0] for i in scene.items for p in i.points]
     assert vx <= min(xs) and max(xs) <= vx + vw
+
+
+@pytest.mark.parametrize("unit", TALL_UNITS, ids=lambda u: u.id)
+def test_a_unit_taller_than_the_frame_grows_it_and_keeps_its_shape(unit):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * unit.lanes, "full")
+    vx, vy, vw, vh = scene._viewbox()
+    assert vh / scene.spool_radius > kit.ART_FRAME[1] / kit.ART_SPOOL_R
+    assert vw / vh == pytest.approx(kit.ART_FRAME[0] / kit.ART_FRAME[1])
+    ys = [p[1] for i in scene.items for p in i.points]
+    assert vy <= min(ys) and max(ys) <= vy + vh
 
 
 FEEDERS = [bmcu.UNIT, mmx.UNIT, three_ms.UNIT, ad5x_ifs.UNIT, elegoo_canvas.UNIT]
