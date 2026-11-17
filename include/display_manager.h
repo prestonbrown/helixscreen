@@ -641,6 +641,8 @@ class DisplayManager : public helix::ICalibrationSink {
     std::unique_ptr<DisplayBackend> m_backend;
     lv_display_t* m_display = nullptr;
     lv_indev_t* m_pointer = nullptr;
+    /// Where debug_touch_tick() last drew a ripple; a press within 5px of it draws none.
+    lv_point_t m_debug_touch_last{-100, -100};
     lv_indev_t* m_keyboard = nullptr;
     lv_group_t* m_input_group = nullptr;
     // Clears m_pointer/m_keyboard the moment LVGL deletes the indev underneath
