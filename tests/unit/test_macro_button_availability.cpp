@@ -19,8 +19,11 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "filament_op_dispatch.h"
+#include "led/led_controller.h"
 #include "printer_discovery.h"
 #include "standard_macros.h"
+#include "temperature_sensor_manager.h"
+#include "tool_state.h"
 
 #include <string>
 
@@ -239,7 +242,17 @@ namespace {
 /// widget's own state, i.e. on the XML bindings as well as the C++ subjects.
 class ControlsMacroFixture : public LVGLUITestFixture {
   public:
-    ControlsMacroFixture() : panel(state(), nullptr) {}
+    ControlsMacroFixture() : panel(initialized_state(), nullptr) {}
+
+    /// The panel observes these subjects from its constructor on, so they are
+    /// initialized first.
+    PrinterState& initialized_state() {
+        state().init_subjects(false);
+        helix::ToolState::instance().init_subjects(false);
+        helix::sensors::TemperatureSensorManager::instance().init_subjects();
+        helix::led::LedController::instance().init(nullptr, nullptr);
+        return state();
+    }
 
     ~ControlsMacroFixture() override {
         if (panel_obj) {
