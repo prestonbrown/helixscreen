@@ -225,7 +225,7 @@ class AmsContextMenu : public ContextMenu {
     static helix::Subject slot_mount_subject_;
     static helix::Subject slot_park_subject_;
     // Clear error for a fault that outlived its dialog
-    // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
+    // (ILaneFaults::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
     static helix::Subject slot_clear_error_subject_;
     // Mark Available for a gate the firmware marked empty
     // (IGateSelector::gate_marked_empty()): 0 hidden, 1 disabled, 2 enabled.

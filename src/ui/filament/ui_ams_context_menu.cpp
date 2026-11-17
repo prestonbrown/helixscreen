@@ -16,6 +16,7 @@
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
 #include "ams_gate_selector.h"
+#include "ams_lane_faults.h"
 #include "ams_lane_recovery.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -450,7 +451,8 @@ void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
 
     // Bookkeeping only, so no print gate: the error dialog's dismissal sends the
     // same clear mid-pause.
-    if (backend_ && backend_->has_clearable_fault(slot_index)) {
+    if (const auto* lane_faults = backend_ ? backend_->as<ILaneFaults>() : nullptr;
+        lane_faults && lane_faults->has_clearable_fault(slot_index)) {
         lv_subject_set_int(&slot_clear_error_subject_, system_busy ? 1 : 2);
     }
 

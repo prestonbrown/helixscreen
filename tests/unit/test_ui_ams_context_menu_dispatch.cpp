@@ -26,6 +26,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_lane_faults.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "filament_op_slot_resolver.h"
@@ -456,11 +457,23 @@ namespace {
 
 /// A backend latching a fault on one lane, the way AFC keeps error_state after
 /// the recovery that closed its dialog.
-class LatchedFaultMock : public helix::AmsBackendMock {
+class LatchedFaultMock : public helix::AmsBackendMock, public helix::ILaneFaults {
   public:
     using helix::AmsBackendMock::AmsBackendMock;
+    void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::ILaneFaults>()) {
+            return static_cast<helix::ILaneFaults*>(this);
+        }
+        return helix::AmsBackendMock::capability(tag);
+    }
     bool has_clearable_fault(int slot_index) const override {
         return slot_index == faulted_slot;
+    }
+    std::optional<helix::ErrorEvent> current_error_with_cause(const std::string&) const override {
+        return std::nullopt;
+    }
+    bool fault_concerns_carriage() const override {
+        return false;
     }
     helix::AmsError clear_fault(int slot_index) override {
         cleared_slots.push_back(slot_index);

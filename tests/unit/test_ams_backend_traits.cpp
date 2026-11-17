@@ -193,6 +193,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IClogDetectionConfig* clog = nullptr;
         const IFirmwarePromptDedup* prompt_dedup = nullptr;
         const ISharedSpoolLanes* shared_spools = nullptr;
+        const ILaneFaults* lane_faults = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -208,7 +209,12 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
         {.backend = &indx, .feeder = &indx, .steps = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
-        {.backend = &afc, .recovery = &afc, .narration = &afc, .dryer = &afc, .retention = &afc},
+        {.backend = &afc,
+         .recovery = &afc,
+         .narration = &afc,
+         .dryer = &afc,
+         .retention = &afc,
+         .lane_faults = &afc},
         {.backend = &cfs, .calibration = &cfs, .routing = &cfs},
         {.backend = &happy_hare,
          .gates = &happy_hare,
@@ -233,6 +239,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IClogDetectionConfig>() == row.clog);
         CHECK(row.backend->as<IFirmwarePromptDedup>() == row.prompt_dedup);
         CHECK(row.backend->as<ISharedSpoolLanes>() == row.shared_spools);
+        CHECK(row.backend->as<ILaneFaults>() == row.lane_faults);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);

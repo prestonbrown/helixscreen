@@ -632,20 +632,6 @@ class AmsBackend : public AmsCapabilityHost {
         return std::nullopt;
     }
 
-    /// current_error() told by @p cause: why the print paused
-    /// (print_stop_reason), or the newest recent `!!` line, empty when nothing
-    /// said. A non-empty cause is the detail, since a backend's own status text
-    /// can belong to an earlier fault. Overridden by a backend that reads more
-    /// from the cause, such as which lane faulted.
-    [[nodiscard]] virtual std::optional<helix::ErrorEvent>
-    current_error_with_cause(const std::string& cause) const {
-        auto e = current_error();
-        if (e && !cause.empty()) {
-            e->detail = cause;
-        }
-        return e;
-    }
-
   protected:
     /**
      * @brief The recovery buttons this backend offers for its current fault.
@@ -710,19 +696,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] bool carriage_can_be_empty() const {
         return traits().carriage_can_be_empty;
-    }
-
-    /**
-     * @brief True when the backend's current ERROR is about the carriage or the
-     *        changer, so a docked head may not be where the changer thinks.
-     *
-     * Asked only while the action reads ERROR. A backend whose every error is a
-     * changer error (a tool changer, the Snapmaker U1) answers with
-     * carriage_can_be_empty(), the default. One that also reports lane faults on
-     * a machine with docking heads answers true only for the carriage's own.
-     */
-    [[nodiscard]] virtual bool fault_concerns_carriage() const {
-        return carriage_can_be_empty();
     }
 
     /**
@@ -1599,22 +1572,6 @@ class AmsBackend : public AmsCapabilityHost {
     /// @return true if recover_with_state() is implemented
     [[nodiscard]] bool supports_recover_with_state() const {
         return traits().supports_recover_with_state;
-    }
-
-    /**
-     * @brief Whether this slot carries a latched fault that clear_fault() clears
-     *
-     * A fault can outlive both the operation that raised it and the error dialog
-     * whose dismissal clears it: a recovery action that closes the dialog leaves
-     * the firmware still reporting the error, with nothing else on screen able to
-     * reach clear_fault(). The lane menu offers "Clear error" on this.
-     *
-     * False while an operation that may clear the fault itself is still running.
-     * Default false.
-     */
-    [[nodiscard]] virtual bool has_clearable_fault(int slot_index) const {
-        (void)slot_index;
-        return false;
     }
 
     /**
@@ -2659,25 +2616,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool owns_tool_mapping_table() const {
         return false;
-    }
-
-    /**
-     * @brief Clear the backend's persistent message/error queue.
-     *
-     * AFC keeps a persistent message queue that will not clear until
-     * AFC_CLEAR_MESSAGE is sent; without it the error dialog re-fires immediately
-     * because AFC keeps reporting ERROR (#497). Default is a no-op
-     * (NOT_SUPPORTED); backends with such a queue override it.
-     *
-     * Callers do not need to ask whether a backend has a queue first — the
-     * default is already a harmless no-op, which is why the former
-     * supports_clear_message_queue() capability query was removed once
-     * clear_fault() took over the dismiss path.
-     *
-     * @return AmsError indicating success/failure
-     */
-    virtual AmsError clear_message_queue() {
-        return AmsErrorHelper::not_supported("Clear message queue");
     }
 
     /**

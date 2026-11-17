@@ -6,6 +6,7 @@
 #include "afc_config_manager.h"
 #include "afc_status_parse.h"
 #include "ams_dryer.h"
+#include "ams_lane_faults.h"
 #include "ams_lane_recovery.h"
 #include "ams_narration_matcher.h"
 #include "ams_spool_retention.h"
@@ -161,7 +162,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
                       public helix::ILaneRecovery,
                       public helix::INarrationMatcher,
                       public helix::IDryer,
-                      public helix::ISpoolRetention {
+                      public helix::ISpoolRetention,
+                      public helix::ILaneFaults {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IDryer>()) {
@@ -175,6 +177,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::ISpoolRetention>()) {
             return static_cast<helix::ISpoolRetention*>(this);
+        }
+        if (tag == helix::type_tag<helix::ILaneFaults>()) {
+            return static_cast<helix::ILaneFaults*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
@@ -333,7 +338,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
                            int unit = 0) override;
 
-    AmsError clear_message_queue() override;
+    /// AFC_CLEAR_MESSAGE. AFC keeps a persistent message queue that will not
+    /// clear until it is sent; without it the error dialog re-fires at once
+    /// because AFC keeps reporting ERROR (#497). clear_fault() sends it.
+    AmsError clear_message_queue();
     [[nodiscard]] bool manages_active_spool() const override {
         return true;
     }
