@@ -2206,3 +2206,105 @@ TEST_CASE("DebugBundleCollector: a printer's Moonraker API key never reaches a b
     CHECK(out["printers"]["default"]["moonraker_api_key"].get<std::string>() == "[REDACTED]");
     CHECK(out.dump().find("0123456789abcdef0123456789abcdef") == std::string::npos);
 }
+
+// ============================================================================
+// kernel_log [debug-bundle]
+// ============================================================================
+
+TEST_CASE("DebugBundleCollector: kernel_log keeps kill and crash lines only", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string text =
+        "[    1.000000] Booting Linux on physical CPU 0x0\n"
+        "[  100.000000] usb 1-1: new high-speed USB device number 2\n"
+        "[ 5000.100000] python3 invoked oom-killer: gfp_mask=0x100cca, order=0\n"
+        "[ 5000.200000] Out of memory: Killed process 812 (python3) total-vm:200000kB\n"
+        "[ 5000.300000] oom_reaper: reaped process 812 (python3), now anon-rss:0kB\n"
+        "[ 6000.000000] helix-screen[901]: segfault at 0 ip 00400000 sp 7fff0000 error 4\n"
+        "[ 6001.000000] eth0: link up, 100Mbps\n";
+
+    const json section = DebugBundleCollector::filter_kernel_log(text, "dmesg");
+    CHECK(section["source"] == "dmesg");
+    REQUIRE(section["lines"].size() == 4);
+    CHECK(section["matched"] == 4);
+    CHECK(section["truncated"] == false);
+    for (const auto& l : section["lines"]) {
+        const std::string s = l.get<std::string>();
+        CHECK(s.find("Booting") == std::string::npos);
+        CHECK(s.find("usb 1-1") == std::string::npos);
+        CHECK(s.find("link up") == std::string::npos);
+    }
+    CHECK(section["lines"][1].get<std::string>().find("Killed process 812") != std::string::npos);
+    CHECK(section["lines"][3].get<std::string>().find("segfault") != std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log recognises each kill and fault spelling",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    CHECK(
+        DebugBundleCollector::is_kernel_kill_line("Memory cgroup out of memory: Killed process 5"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line(
+        "oom-kill:constraint=CONSTRAINT_NONE,task=python3,pid=812"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("traps: a[1] general protection fault ip:1"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line(
+        "do_page_fault(): sending SIGSEGV to python3 for invalid read access"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("python3[3]: unhandled level 2 translation "
+                                                    "fault (11) at 0x0"));
+    CHECK(DebugBundleCollector::is_kernel_kill_line("Unhandled fault: page domain fault (0x01b)"));
+    CHECK_FALSE(DebugBundleCollector::is_kernel_kill_line("mmc0: new high speed SDHC card"));
+    CHECK_FALSE(DebugBundleCollector::is_kernel_kill_line(""));
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log keeps only the newest lines up to its cap",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    std::string text;
+    for (int i = 0; i < 50; ++i)
+        text += "Out of memory: Killed process " + std::to_string(1000 + i) + " (x)\n";
+    std::string padding;
+    for (int i = 0; i < 400; ++i)
+        padding += "word ";
+    text += "segfault " + padding + "\n";
+
+    const json capped = DebugBundleCollector::filter_kernel_log(text, "dmesg", 5);
+    REQUIRE(capped["lines"].size() == 5);
+    CHECK(capped["matched"] == 51);
+    CHECK(capped["truncated"] == true);
+    CHECK(capped["lines"][0].get<std::string>().find("1046") != std::string::npos);
+    CHECK(capped["lines"][4].get<std::string>().size() ==
+          DebugBundleCollector::kKernelLogMaxLineBytes);
+
+    const json dflt = DebugBundleCollector::filter_kernel_log(text, "dmesg");
+    CHECK(dflt["lines"].size() == DebugBundleCollector::kKernelLogMaxLines);
+}
+
+TEST_CASE("DebugBundleCollector: kernel_log lines pass through the bundle scrubber",
+          "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    const std::string text = "Killed process 4 (python3) by admin@example.com via 8.8.8.8 on "
+                             "aa:bb:cc:dd:ee:ff\n";
+    const json section = DebugBundleCollector::filter_kernel_log(text, "/dev/kmsg");
+    REQUIRE(section["lines"].size() == 1);
+    const std::string line = section["lines"][0].get<std::string>();
+    CHECK(line.find("admin@example.com") == std::string::npos);
+    CHECK(line.find("8.8.8.8") == std::string::npos);
+    CHECK(line.find("aa:bb:cc:dd:ee:ff") == std::string::npos);
+    CHECK(line.find("Killed process 4") != std::string::npos);
+}
+
+TEST_CASE("DebugBundleCollector: a /dev/kmsg record reads as a dmesg line", "[debug-bundle]") {
+    using helix::DebugBundleCollector;
+    CHECK(DebugBundleCollector::kmsg_record_to_line(
+              "3,812,5000200000,-;Out of memory: Killed process 812 (python3)\n") ==
+          "[ 5000.200000] Out of memory: Killed process 812 (python3)");
+    CHECK(DebugBundleCollector::kmsg_record_to_line(" SUBSYSTEM=usb").empty());
+    CHECK(DebugBundleCollector::kmsg_record_to_line("garbage without separator").empty());
+}
+
+TEST_CASE("DebugBundleCollector: collect() always carries a kernel_log section", "[debug-bundle]") {
+    const json bundle = helix::DebugBundleCollector::collect();
+    REQUIRE(bundle.contains("kernel_log"));
+    CHECK(bundle["kernel_log"].contains("source"));
+    CHECK(bundle["kernel_log"].contains("uptime_s"));
+    if (bundle["kernel_log"]["source"] == "none")
+        CHECK(bundle["kernel_log"].contains("note"));
+}
