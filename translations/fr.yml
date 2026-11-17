@@ -12,9 +12,18 @@ translations:
   '"%s" failed to load': '"%s" n''a pas pu se charger'
   '%d additional fan': '%d ventilateur supplémentaire'
   '%d additional fans': '%d ventilateurs supplémentaires'
-  '%d feeders': '%d alimentateurs'
-  '%d gates': '%d Gates'
-  '%d lanes': '%d voies'
+  '%d feeder': '%d alimentateur'
+  '%d feeders':
+    one: '%d alimentateur'
+    other: '%d alimentateurs'
+  '%d gate': '%d Gate'
+  '%d gates':
+    one: '%d Gate'
+    other: '%d Gates'
+  '%d lane': '%d voie'
+  '%d lanes':
+    one: '%d voie'
+    other: '%d voies'
   '%d min': '%d min'
   '%d min left': '%d min restantes'
   '%d mm/s': '%d mm/s'
@@ -23,9 +32,18 @@ translations:
   '%d of %d printing': '%d sur %d en impression'
   '%d skipped': '%d ignorés'
   '%d profiles': '%d profils'
-  '%d slots': '%d emplacements'
-  '%d toolheads': '%d têtes d''outil'
-  '%d tools': '%d outils'
+  '%d slot': '%d emplacement'
+  '%d slots':
+    one: '%d emplacement'
+    other: '%d emplacements'
+  '%d tool': '%d outil'
+  '%d toolhead': '%d tête d''outil'
+  '%d toolheads':
+    one: '%d tête d''outil'
+    other: '%d têtes d''outil'
+  '%d tools':
+    one: '%d outil'
+    other: '%d outils'
   '%d units': '%d unités'
   '%d:%02d left': '%d:%02d restantes'
   '%dd %dh': '%d j %d h'
