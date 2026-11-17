@@ -678,6 +678,19 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
+    const auto glyph_top_of = [&] {
+        return toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
+    };
+    // A selector whose art has no carriage is its face over the hub its outlets feed, or the
+    // plain bar when the two do not fit.
+    data->topology = data->requested_topology;
+    if (data->topology == static_cast<int>(PathTopology::LINEAR) && data->rail_art &&
+        !data->rail_carriage) {
+        data->topology = static_cast<int>(PathTopology::HUB);
+        const LinearHubFrame face = compute_linear_hub_frame(*data, ctx.geo, glyph_top_of());
+        if (face.through.w == 0 || drop_unloadable_art(*data, face.through))
+            data->topology = static_cast<int>(PathTopology::LINEAR);
+    }
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
     drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo));
 
@@ -689,8 +702,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
         data->anim.output_x_target = data->anim.output_x_current;
     }
 
-    const int32_t glyph_top =
-        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
+    const int32_t glyph_top = glyph_top_of();
     LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     if (drop_unloadable_art(*data, f.through))
         f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
@@ -713,7 +725,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     draw_hub_section(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f, plan);
-    else if (feeds && f.rail.w > 0 && data->buffer_present) // the rail's outlet band
+    else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer
         record_buffer_hit(data, f, f.output_x, f.output_y);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);

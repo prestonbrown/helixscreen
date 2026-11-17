@@ -76,6 +76,8 @@ struct LinearHubFrame {
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
+    // The buffer box gave way to the art: the selector's or hub's outlet band shows its reading.
+    bool sync_on_output = false;
 
     lv_color_t idle_color, active_color, hub_bg, hub_border;
     lv_color_t error_color; // error token blended with the pulse phase
@@ -111,11 +113,11 @@ inline helix::ui::tray::LaneJoin drawn_lane_join(helix::ui::tray::LaneJoin shell
                : helix::ui::tray::LaneJoin::Hub;
 }
 
-/// Whether a unit view draws a unit's head-on art over the path it reports. LINEAR puts any art
-/// in the selector bar's place: a sliding selector's carriage rides it, and a unit without one
-/// takes each lane in at its inlet and sends the selected lane out of its own outlet. A unit
-/// without a carriage also stands above a hub, or above MIXED's hub and tools. Lanes on a
-/// PARALLEL path each run to their own tool, past no unit worth drawing.
+/// Whether a unit view draws a unit's head-on art over the path it reports. A sliding selector's
+/// art takes LINEAR's bar, its carriage riding to the active gate. A unit without a carriage
+/// sends each lane out of its own outlet into a hub, on LINEAR as on HUB and MIXED; LINEAR shows
+/// the plain bar where the face and that hub do not fit. Lanes on a PARALLEL path each run to
+/// their own tool, past no unit worth drawing.
 inline bool unit_art_drawn(helix::PathTopology topology, bool has_carriage) {
     using helix::PathTopology;
     if (topology == PathTopology::LINEAR)
@@ -132,8 +134,9 @@ int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int3
 /// lane run, else the prep sensors' row.
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
 
-/// The art's place: between the lanes' sensors and the buffer, centred, as tall as fits.
-/// Empty for a canvas without rail art, and for one too small to show it.
+/// A sliding selector's art in the LINEAR bar's place: between the lanes' sensors and the
+/// buffer, centred, as tall as fits. Empty for a canvas without such art, and for one too small
+/// to show it.
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g);
 
 /// Where a pass-through unit's head-on art goes (HUB and MIXED): a unit whose lanes each leave

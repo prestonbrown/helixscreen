@@ -397,27 +397,36 @@ TEST_CASE_METHOD(HubStackFixture,
         CHECK(passes(mixed.routes[i].path, (float)g.slot_x[i], (float)m.sensor_y));
     }
 
-    // Only a unit without a carriage stands above a hub; any art takes LINEAR's bar.
+    // A carriage rides LINEAR's bar; a unit without one feeds a hub from its outlets.
     using helix::PathTopology;
-    CHECK((unit_art_drawn(PathTopology::LINEAR, true) &&
-           unit_art_drawn(PathTopology::LINEAR, false) &&
-           unit_art_drawn(PathTopology::HUB, false) && unit_art_drawn(PathTopology::MIXED, false)));
-    CHECK_FALSE((unit_art_drawn(PathTopology::HUB, true) ||
-                 unit_art_drawn(PathTopology::MIXED, true) ||
-                 unit_art_drawn(PathTopology::PARALLEL, false)));
-    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::LINEAR));
+    for (bool carriage : {false, true})
+        CHECK((unit_art_drawn(PathTopology::LINEAR, carriage) &&
+               unit_art_drawn(PathTopology::HUB, carriage) != carriage &&
+               unit_art_drawn(PathTopology::MIXED, carriage) != carriage &&
+               !unit_art_drawn(PathTopology::PARALLEL, carriage)));
+    // Reported LINEAR, beside a buffer and the bypass: the face takes the selector's slot, its
+    // outlets fan into a hub below it, and the hub's outlet band carries the buffer's reading.
     ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
     ui_filament_path_canvas_set_show_bypass(c.obj, true);
-    render(c);
-    const PathPlan& linear = plan_of(c, &f); // no carriage layer; lane 1 leaves its own outlet
-    REQUIRE((c.data->rail_drawn && f.output_x == rail_outlet_x(*art, f.rail, 0)));
-    CHECK(passes(linear.routes[0].path, (float)rail_gate_x(*art, f.rail, 0),
-                 (float)(f.rail.y + (int32_t)std::lround(art->inlet_y * f.rail.h))));
-    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::HUB));
+    for (PathTopology reported : {PathTopology::LINEAR, PathTopology::HUB}) {
+        ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(reported));
+        render(c);
+        plan_of(c, &f);
+        REQUIRE((c.data->topology == 1 && f.through.w > 0 && !c.data->rail_drawn));
+        CHECK((f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
+               f.output_y < f.bypass_merge_y));
+        CHECK(f.hub_fan[0].pts[0].x == (float)rail_outlet_x(*art, f.through, 0));
+    }
+    // No room for the face and its hub, or no images: a selector is the plain bar again.
+    ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::LINEAR));
     ui_filament_path_canvas_set_selector_rail(c.obj, "no_such_unit", art, false);
     render(c);
+    CHECK(c.data->topology == 0);
+    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art, false);
+    lv_obj_set_height(c.obj, 160);
+    render(c);
     plan_of(c, &f);
-    CHECK(f.through.w == 0);
+    CHECK((c.data->topology == 0 && f.through.w == 0 && f.rail.w == 0));
 }
 
 TEST_CASE_METHOD(HubStackFixture, "A unit that merges inside keeps every sensor and has no box",

@@ -437,11 +437,9 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
         const char* value = attrs[i + 1];
 
         if (strcmp(name, "topology") == 0) {
-            if (strcmp(value, "linear") == 0 || strcmp(value, "0") == 0) {
-                data->topology = 0;
-            } else {
-                data->topology = 1; // default to hub
-            }
+            // Anything but linear is a hub.
+            data->topology = strcmp(value, "linear") == 0 || strcmp(value, "0") == 0 ? 0 : 1;
+            data->requested_topology = data->topology;
             needs_redraw = true;
         } else if (strcmp(name, "slot_count") == 0) {
             data->slot_count = LV_CLAMP(1, atoi(value), FilamentPathData::kMaxSlots);
@@ -515,8 +513,9 @@ lv_obj_t* ui_filament_path_canvas_create(lv_obj_t* parent) {
 
 void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     auto* data = get_data(obj);
-    if (!data || data->topology == topology)
+    if (!data || data->requested_topology == topology)
         return;
+    data->requested_topology = topology;
     data->topology = topology;
     layered_mark_dirty(obj);
 }

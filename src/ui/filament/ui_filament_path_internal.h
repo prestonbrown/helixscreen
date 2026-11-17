@@ -277,7 +277,8 @@ struct PathCache {
 // subsystem-owned state.
 struct FilamentPathData {
     // --- Configuration ---
-    int topology = 1;                   // 0=LINEAR, 1=HUB (PathTopology values)
+    int topology = 1;                   // drawn: 0=LINEAR, 1=HUB (PathTopology values)
+    int requested_topology = 1;         // as set; a selector face may draw it as HUB
     int slot_count = kDefaultSlotCount; // Number of slots
     int active_slot = -1;               // Currently active slot (-1=none)
     int filament_segment = 0;           // PathSegment enum value (target)

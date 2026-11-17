@@ -231,11 +231,10 @@ int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g) {
     return LV_MAX(4 * data.theme.sensor_radius, (int32_t)(g.height * kRailFanRatio));
 }
 
-RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
-    if (!data.rail_art || data.rail_art_failed ||
-        data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
-        data.rail_art->aspect <= 0)
-        return {};
+namespace {
+// The selector's slot, between the lanes' sensors and the buffer, centred, as tall as fits: the
+// art sits on the band's bottom. Empty when it is too short to show the art.
+RailArtRect selector_slot_rect(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t sensor_r = data.theme.sensor_radius;
     const int32_t buffer_box_h = LV_MAX(16, (int32_t)(g.height * kHubHeightRatio));
     const int32_t top = lanes_leave_y(data, g) + art_fan_room(data, g);
@@ -244,18 +243,33 @@ RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t bottom =
         (data.buffer_present ? buffer_y - buffer_box_h : buffer_y - buffer_box_h / 2) -
         2 * sensor_r;
-    // The rail hangs above the buffer: it sits on the band's bottom.
     const RailArtRect size = fit_art(data, g, bottom - top);
     return size.w > 0 ? RailArtRect{g.center_x - size.w / 2, bottom - size.h, size.w, size.h}
                       : RailArtRect{};
 }
+} // namespace
+
+RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
+    if (!data.rail_art || data.rail_art_failed || !data.rail_carriage ||
+        data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
+        data.rail_art->aspect <= 0)
+        return {};
+    return selector_slot_rect(data, g);
+}
+
+namespace {
+// The canvas has a pass-through unit's art to draw: HUB or MIXED, art that loads, no head hub.
+bool has_through_art(const FilamentPathData& data) {
+    const bool spread = data.topology == static_cast<int>(PathTopology::HUB) ||
+                        data.topology == static_cast<int>(PathTopology::MIXED);
+    return data.rail_art && !data.rail_art_failed && spread && !data.hub_on_toolhead &&
+           data.rail_art->aspect > 0;
+}
+} // namespace
 
 RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
                              int32_t bottom, int32_t center_x) {
-    const bool spread = data.topology == static_cast<int>(PathTopology::HUB) ||
-                        data.topology == static_cast<int>(PathTopology::MIXED);
-    if (!data.rail_art || data.rail_art_failed || !spread || data.hub_on_toolhead ||
-        data.rail_art->aspect <= 0)
+    if (!has_through_art(data))
         return {};
     // The lanes come in just above a pass-through unit: it sits on the band's top.
     const RailArtRect size = fit_art(data, g, bottom - top);
@@ -348,6 +362,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         // rail has no buffer: its sync sensor is that outlet's band.
         f.output_y = rail_outlet_y(*data.rail_art, f.rail);
         f.has_buffer = false;
+        f.sync_on_output = data.buffer_present;
     }
 
     f.idle_color = theme.color_idle;
@@ -388,9 +403,23 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         f.through = through_art_rect(data, g, top, bottom, f.center_x);
         if (f.through.w > 0) {
             hub_top = LV_MAX(hub_top, f.through.y + f.through.h + 2 * fan);
-            f.hub_y = hub_top + f.hub_h / 2;
-            f.output_y = f.hub_y + f.hub_h / 2;
+        } else if (has_through_art(data)) {
+            // No room above the hub's place: the art takes the selector's slot and the hub
+            // hangs below it, clear of the bypass merge. The buffer box gives way, and its
+            // sync reading moves to the hub's outlet band.
+            const RailArtRect slot = selector_slot_rect(data, g);
+            const int32_t below = slot.y + slot.h + fan;
+            const int32_t limit =
+                (data.show_bypass ? f.bypass_merge_y : glyph_top) - 2 * f.sensor_r;
+            if (slot.w > 0 && below + f.hub_h <= limit) {
+                f.through = slot;
+                hub_top = below;
+                f.has_buffer = false;
+                f.sync_on_output = data.buffer_present;
+            }
         }
+        f.hub_y = hub_top + f.hub_h / 2;
+        f.output_y = f.hub_y + f.hub_h / 2;
     }
     pg::MergeLaneIn fan_in[FilamentPathData::kMaxSlots];
     const int fan_n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
@@ -769,11 +798,12 @@ SpanStyle unpainted(SpanStyle s) {
 
 namespace {
 
-// The hub's output sensor, on the hub box's bottom edge. A rail's outlet carries its sync
-// sensor instead, banded in the buffer's colour while there is a reading to judge.
+// The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
+// outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
+// to judge.
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
-    const bool sync = f.rail.w > 0 && data.buffer_present;
+    const bool sync = f.sync_on_output;
     if (!sync && (data.hub_on_toolhead || !data.has_hub_sensor))
         return;
     BandState state = lane.band(PathSegment::OUTPUT);
