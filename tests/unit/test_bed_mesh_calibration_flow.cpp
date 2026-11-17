@@ -504,6 +504,12 @@ class BedMeshHeatFixture : public BedMeshPanelFlowFixture {
     }
 };
 
+TEST_CASE_METHOD(BedMeshHeatFixture, "the preheat waits on each heater it turned on",
+                 "[bed_mesh_flow]") {
+    CHECK(any_sent(sent(), "TEMPERATURE_WAIT SENSOR=extruder"));
+    CHECK(any_sent(sent(), "TEMPERATURE_WAIT SENSOR=heater_bed"));
+}
+
 TEST_CASE_METHOD(BedMeshHeatFixture, "a preheating mesh holds SIGTERM for its heat",
                  "[bed_mesh_flow][heater_hold]") {
     REQUIRE(panel->holds_owned_heat());
