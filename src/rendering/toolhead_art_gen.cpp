@@ -9,7 +9,7 @@ namespace helix::ui {
 const ToolheadArt kToolheadArt[] = {
     {ToolheadStyle::STEALTHBURNER, "stealthburner", 0.6364f, 0.3326f, 0.9602f, 0.9775f, 0.4625f, 0.0876f},
     {ToolheadStyle::MINI_STEALTHBURNER, "mini_stealthburner", 0.6717f, 0.4089f, 0.9290f, 0.9498f, 0.4692f, 0.0986f},
-    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.6027f, 0.4035f, 0.9614f, 0.9813f, 0.4949f, 0.0304f},
+    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.5791f, 0.4846f, 0.9593f, 1.0024f, 0.5114f, 0.0197f},
     {ToolheadStyle::A4T, "a4t", 0.6192f, 0.4110f, 0.9589f, 0.9310f, 0.4542f, 0.0161f},
     {ToolheadStyle::ANTHEAD, "anthead", 0.5389f, 0.3964f, 0.9392f, 1.0422f, 0.5033f, 0.0038f},
     {ToolheadStyle::JABBERWOCKY, "jabberwocky", 0.4592f, 0.3736f, 0.9809f, 1.2387f, 0.4547f, 0.2839f},
