@@ -2931,6 +2931,7 @@
   <translation tag="Previous IPv4 settings restored" es="Configuración IPv4 anterior restaurada"/>
   <translation tag="Price" es="Precio"/>
   <translation tag="Price, location, lot, notes" es="Precio, ubicación, lote, notas"/>
+  <translation tag="Price: {}" es="Precio: {}"/>
   <translation tag="Primary" es="Primario"/>
   <translation tag="Priming nozzle..." es="Cebando boquilla..."/>
   <translation tag="Priming..." es="Cebando..."/>

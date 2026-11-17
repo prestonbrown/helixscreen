@@ -3226,6 +3226,7 @@ translations:
   Previous: Прежняя
   Previous IPv4 settings restored: 'Прежние настройки IPv4 восстановлены'
   Price: Цена
+  'Price: {}': 'Цена: {}'
   Primary: Основной
   Priming nozzle...: Подготовка сопла...
   Priming...: Грунтование...

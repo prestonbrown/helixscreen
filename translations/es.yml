@@ -3180,6 +3180,7 @@ translations:
   Previous: Anterior
   Previous IPv4 settings restored: 'Configuración IPv4 anterior restaurada'
   Price: Precio
+  'Price: {}': 'Precio: {}'
   Primary: Primario
   Priming nozzle...: Cebando boquilla...
   Priming...: Cebando...

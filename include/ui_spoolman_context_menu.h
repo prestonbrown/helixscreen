@@ -70,10 +70,12 @@ class SpoolmanContextMenu : public ContextMenu {
      * @param allow_archive Offer the Archive action. The panel passes false for
      *        the currently active spool — archiving it makes no sense while it
      *        feeds the printer.
+     * @param currency Spoolman's currency code for the price line; the line is
+     *        hidden when the spool and its filament carry no price.
      * @return true if menu was shown successfully
      */
     bool show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, lv_obj_t* near_widget,
-                        bool allow_archive = true);
+                        bool allow_archive = true, const std::string& currency = {});
 
     /**
      * @brief Get spool ID the menu is currently shown for
@@ -98,6 +100,7 @@ class SpoolmanContextMenu : public ContextMenu {
     ActionCallback action_callback_;
     SpoolInfo pending_spool_;     ///< Spool info stored between show and on_created
     bool archive_allowed_ = true; ///< show_for_spool's allow_archive, consumed in on_created
+    std::string currency_;        ///< show_for_spool's currency, consumed in on_created
 
     /**
      * @brief Common dispatch: hide, then invoke the callback with the spool id

@@ -3117,6 +3117,7 @@ translations:
   Previous IPv4 settings restored: Previous IPv4 settings restored
   Price: Price
   Price, location, lot, notes: Price, location, lot, notes
+  'Price: {}': 'Price: {}'
   Primary: Primary
   'Priming nozzle...': 'Priming nozzle...'
   Priming...: Priming...

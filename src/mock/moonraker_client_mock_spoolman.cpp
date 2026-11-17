@@ -567,6 +567,12 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
         return true;
     }
 
+    if (method == "GET" && path == "/v1/setting/currency") {
+        // Spoolman's default currency, with the value JSON-encoded as Spoolman sends it.
+        result = {{"value", "\"EUR\""}, {"is_set", false}, {"type", "string"}};
+        return true;
+    }
+
     if (method == "GET" && path == "/v1/vendor") {
         result = json::array();
         for (const auto& v : vendor_list()) {

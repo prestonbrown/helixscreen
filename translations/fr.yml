@@ -3196,6 +3196,7 @@ translations:
   Previous: Précédent
   Previous IPv4 settings restored: 'Paramètres IPv4 précédents restaurés'
   Price: Prix
+  'Price: {}': 'Prix : {}'
   Primary: Principal
   Priming nozzle...: Amorçage de la buse...
   Priming...: Amorçage...

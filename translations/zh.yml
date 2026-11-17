@@ -3032,6 +3032,7 @@ translations:
   Previous: 上一步
   Previous IPv4 settings restored: '已恢复之前的 IPv4 设置'
   Price: 价格
+  'Price: {}': '价格：{}'
   Primary: 主要
   Priming nozzle...: 正在预挤喷嘴...
   Priming...: 正在预挤...

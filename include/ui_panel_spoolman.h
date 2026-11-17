@@ -91,6 +91,7 @@ class SpoolmanPanel : public OverlayBase {
     std::vector<SpoolInfo> cached_spools_;
     std::vector<SpoolInfo> filtered_spools_; ///< Filtered view of cached_spools_
     int active_spool_id_ = -1;
+    std::string currency_; ///< Spoolman's currency code, for the spool menu's price line
 
     // ========== Search ==========
     std::string search_query_;

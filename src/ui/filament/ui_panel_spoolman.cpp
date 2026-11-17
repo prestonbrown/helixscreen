@@ -280,6 +280,14 @@ void SpoolmanPanel::refresh_spools() {
 
     std::string name = get_name();
 
+    api->spoolman().get_spoolman_currency(
+        [this, tok](const std::string& currency) {
+            tok.defer([this, currency]() { currency_ = currency; });
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[{}] No Spoolman currency: {}", name, err.message);
+        });
+
     api->spoolman().get_spoolman_spools(
         [name, apply_spools, tok](const std::vector<SpoolInfo>& spools) {
             // L081_OK: skips the active-spool RPC for a dead panel; apply_spools defers.
@@ -519,7 +527,8 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
 
     // Show the context menu around the row. Archive is withheld for the
     // active spool — it is feeding the printer.
-    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_);
+    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_,
+                                 currency_);
 }
 
 void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action,

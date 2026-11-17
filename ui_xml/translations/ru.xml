@@ -2982,6 +2982,7 @@
   <translation tag="Previous IPv4 settings restored" ru="Прежние настройки IPv4 восстановлены"/>
   <translation tag="Price" ru="Цена"/>
   <translation tag="Price, location, lot, notes" ru="Цена, место, партия, заметки"/>
+  <translation tag="Price: {}" ru="Цена: {}"/>
   <translation tag="Primary" ru="Основной"/>
   <translation tag="Priming nozzle..." ru="Подготовка сопла..."/>
   <translation tag="Priming..." ru="Грунтование..."/>

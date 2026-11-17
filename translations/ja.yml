@@ -3040,6 +3040,7 @@ translations:
   Previous: 前回
   Previous IPv4 settings restored: '以前のIPv4設定を復元しました'
   Price: 価格
+  'Price: {}': '価格: {}'
   Primary: プライマリ
   Priming nozzle...: ノズルをプライム中...
   Priming...: プライミング中...

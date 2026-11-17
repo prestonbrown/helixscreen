@@ -18,6 +18,11 @@
                   width="100%" bind_text="spoolman_menu_filament" long_mode="dots" style_text_color="#text_muted">
         <bind_flag_if_eq subject="spoolman_menu_filament_shown" flag="hidden" ref_value="0"/>
       </text_small>
+      <!-- Price in Spoolman's currency (e.g., "Price: €24.99"), hidden when there is none -->
+      <text_small name="spool_price_label"
+                  width="100%" bind_text="spoolman_menu_price" long_mode="dots" style_text_color="#text_muted">
+        <bind_flag_if_eq subject="spoolman_menu_price_shown" flag="hidden" ref_value="0"/>
+      </text_small>
       <!-- Header Divider -->
       <lv_obj width="100%"
               height="1" style_bg_color="#text_muted" style_bg_opa="38" style_pad_all="0" scrollable="false"/>

@@ -644,6 +644,10 @@ class ISpoolmanAPI {
                                                     SuccessCallback on_success,
                                                     ErrorCallback on_error) = 0;
 
+    /// The ISO 4217 code Spoolman's prices are in; empty when Spoolman has none set.
+    virtual void get_spoolman_currency(std::function<void(const std::string& currency)> on_success,
+                                       ErrorCallback on_error) = 0;
+
     virtual void get_spoolman_vendors(helix::VendorListCallback on_success,
                                       ErrorCallback on_error) = 0;
 

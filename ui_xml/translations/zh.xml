@@ -2931,6 +2931,7 @@
   <translation tag="Previous IPv4 settings restored" zh="已恢复之前的 IPv4 设置"/>
   <translation tag="Price" zh="价格"/>
   <translation tag="Price, location, lot, notes" zh="价格、位置、批次、备注"/>
+  <translation tag="Price: {}" zh="价格：{}"/>
   <translation tag="Primary" zh="主要"/>
   <translation tag="Priming nozzle..." zh="正在预挤喷嘴..."/>
   <translation tag="Priming..." zh="正在预挤..."/>

@@ -2931,6 +2931,7 @@
   <translation tag="Previous IPv4 settings restored" ja="以前のIPv4設定を復元しました"/>
   <translation tag="Price" ja="価格"/>
   <translation tag="Price, location, lot, notes" ja="価格、場所、ロット、メモ"/>
+  <translation tag="Price: {}" ja="価格: {}"/>
   <translation tag="Primary" ja="プライマリ"/>
   <translation tag="Priming nozzle..." ja="ノズルをプライム中..."/>
   <translation tag="Priming..." ja="プライミング中..."/>
