@@ -71,9 +71,10 @@ constexpr float kColonRows[] = {0.34f, 0.66f};
 constexpr Rgb kGlassInside{9, 8, 11};
 constexpr Rgb kGlassRim{64, 60, 68};
 constexpr Rgb kGlassStreak{46, 46, 54};
-/// The tip's thin glass, lighter than the tube's thick wall, and the glints on it.
-constexpr Rgb kTipInside{34, 34, 40};
+/// The glints on the tip.
 constexpr Rgb kTipGlint{150, 150, 162};
+/// The concave fillet where the crown's glass necks up into the tip.
+constexpr float kTipFillet = 0.05f;
 constexpr Rgb kMesh{46, 42, 40};
 /// The mesh at the cylinder's sides, where it turns away.
 constexpr Rgb kMeshSide{20, 18, 18};
@@ -182,10 +183,10 @@ struct GlassTip {
 
     float inside(float fx, float fy) const {
         const float dx = std::fabs(fx - cx);
-        const float overlap = 2.0f;
         float best = bulb_r - std::hypot(fx - cx, fy - bulb_cy);
-        if (fy >= bulb_cy && fy <= crown + overlap) {
-            best = std::max(best, std::min({neck_at(fy) - dx, fy - bulb_cy, crown + overlap - fy}));
+        // The neck runs on down into the crown, so the two are one piece of glass.
+        if (fy >= bulb_cy) {
+            best = std::max(best, std::min(neck_at(fy) - dx, fy - bulb_cy));
         }
         if (fy >= top && fy <= bulb_cy) {
             const float hw = 0.7f * bulb_r * (fy - top) / std::max(1.0f, bulb_cy - top);
@@ -212,11 +213,15 @@ Rgb glass_at(float inside, float rim) {
     return mix_rgb(kGlassInside, kGlassRim, std::clamp(1.0f - inside / rim, 0.0f, 1.0f));
 }
 
-/// The tip's thin, clear glass: lighter than the tube's, with a glint on its bulb and a second
-/// highlight down the left of its neck.
-Rgb tip_at(const GlassTip& tip, float inside, float rim, float fx, float fy) {
-    const Rgb t = mix_rgb(kTipInside, kGlassRim,
-                          std::clamp(1.0f - inside / std::max(1.0f, 0.5f * rim), 0.0f, 1.0f));
+/// The tube's glass and its tip as one piece: the larger of the two distances inside, blended
+/// over `fillet` px so the crown necks up into the tip with no seam.
+float glass_with_tip(float body, float tip, float fillet) {
+    const float h = std::clamp(0.5f + 0.5f * (body - tip) / fillet, 0.0f, 1.0f);
+    return tip + (body - tip) * h + fillet * h * (1.0f - h);
+}
+
+/// `c` with the tip's highlights: a glint on its bulb and a streak down the left of its neck.
+Rgb tip_highlights(Rgb c, const GlassTip& tip, float fx, float fy) {
     const float gr = std::max(0.8f, 0.4f * tip.bulb_r);
     const float glint = edge_coverage(gr - std::hypot(fx - (tip.cx - 0.35f * tip.bulb_r),
                                                       fy - (tip.bulb_cy - 0.35f * tip.bulb_r)));
@@ -226,7 +231,7 @@ Rgb tip_at(const GlassTip& tip, float inside, float rim, float fx, float fy) {
         const float across = (fx - (tip.cx - 0.45f * hw)) / std::max(0.6f, 0.3f * hw);
         neck_light = 0.7f * std::exp(-across * across);
     }
-    return add_glow(t, kTipGlint, to_amount(std::max(glint, neck_light)));
+    return add_glow(c, kTipGlint, to_amount(std::max(glint, neck_light)));
 }
 
 /// The glass's highlights: a soft streak down the left and a fainter edge reflection on the
@@ -321,6 +326,7 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
     const GlassTip nub(cx, tip_top, crown, u, 1.0f);
     tip = nub.box();
     const float rim = std::max(1.5f, kRimWidth * u);
+    const float fillet = std::max(1.5f, kTipFillet * u);
 
     // The scaffolding: the mesh cylinder between the discs, its rods, posts and pins.
     const float margin = kMeshMargin * u;
@@ -344,16 +350,19 @@ void NixieTubeArt::build(const FlipRowMetrics& row, int32_t card_w, int32_t card
             const float fx = static_cast<float>(x) + 0.5f;
             const float body = glass.inside(fx, fy);
             const float nub_in = nub.inside(fx, fy);
-            const float cov = edge_coverage(std::max(body, nub_in));
+            const float in = glass_with_tip(body, nub_in, fillet);
+            const float cov = edge_coverage(in);
             if (cov <= 0.0f) {
                 continue;
             }
             const size_t at = static_cast<size_t>(y) * w + x;
+            Rgb c = glass_at(in, rim);
             if (nub_in > body) {
-                base[at] = mix_rgb(Rgb{}, tip_at(nub, nub_in, rim, fx, fy), cov);
+                c = glass_highlights(tip_highlights(c, nub, fx, fy), glass, fx, fy,
+                                     static_cast<float>(socket_y));
+                base[at] = mix_rgb(Rgb{}, c, cov);
                 continue;
             }
-            Rgb c = glass_at(body, rim);
             const float dx = fx - cx;
             // The anode mesh, wrapped round the stack: cells narrow and darken toward the sides.
             if (fx >= mesh_x1 && fx <= mesh_x2 && fy >= top_disc && fy <= bottom_disc) {
@@ -482,6 +491,7 @@ void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_
     const GlassTip nub(cx, tip_top, crown, u, 0.8f);
     tip = nub.box();
     const float rim = std::max(1.2f, kRimWidth * u);
+    const float fillet = std::max(1.2f, kTipFillet * u);
     const float bulb_w = std::max(1.0f, kColonBulbHalfW * u);
     const float bulb_h = std::max(1.5f, kColonBulbHalfH * u);
     const float reach = std::max(2.0f, kHaloReach * u * 0.8f);
@@ -503,15 +513,18 @@ void NixieColonArt::build(const FlipRowMetrics& row, int32_t gap_w, int32_t gap_
             glow[at] = unit_to_u8(glow_at(d + 1.0f, 1.0f, reach, falloff));
             const float body = glass.inside(fx, fy);
             const float nub_in = nub.inside(fx, fy);
-            const float cov = edge_coverage(std::max(body, nub_in));
+            const float in = glass_with_tip(body, nub_in, fillet);
+            const float cov = edge_coverage(in);
             if (cov <= 0.0f) {
                 continue;
             }
+            Rgb c = glass_at(in, rim);
             if (nub_in > body) {
-                base[at] = mix_rgb(Rgb{}, tip_at(nub, nub_in, rim, fx, fy), cov);
+                c = glass_highlights(tip_highlights(c, nub, fx, fy), glass, fx, fy,
+                                     static_cast<float>(socket_y));
+                base[at] = mix_rgb(Rgb{}, c, cov);
                 continue;
             }
-            Rgb c = glass_at(body, rim);
             // Two leads from the lower bulb down to the socket.
             const float low = pad_y + gh * kColonRows[1];
             if (fy > low) {
