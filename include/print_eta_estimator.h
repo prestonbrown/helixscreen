@@ -79,6 +79,9 @@ class PrintEtaEstimator {
     double prior_excluded_share_ = 0.0;
     int anchor_progress_pct_ = 0;
     int anchor_duration_s_ = 0;
+    /// A sample with progress has been seen, so a later change in the
+    /// excluded share happened while this estimator was watching.
+    bool seen_progress_ = false;
 };
 
 } // namespace helix

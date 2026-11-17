@@ -14,6 +14,7 @@ void PrintEtaEstimator::reset() {
     prior_excluded_share_ = 0.0;
     anchor_progress_pct_ = 0;
     anchor_duration_s_ = 0;
+    seen_progress_ = false;
 }
 
 void PrintEtaEstimator::note_excluded_share(const PrintEtaInputs& in) {
@@ -23,8 +24,16 @@ void PrintEtaEstimator::note_excluded_share(const PrintEtaInputs& in) {
     }
     prior_excluded_share_ = excluded_share_;
     excluded_share_ = share;
-    anchor_progress_pct_ = in.progress_pct;
-    anchor_duration_s_ = in.print_duration_s;
+    if (!seen_progress_) {
+        // First sight of this print, mid-way through after a start or a
+        // reconnect: when the parts were excluded is unknown, so the exclusion
+        // is taken to cover the whole observed rate rather than rescale it.
+        anchor_progress_pct_ = 0;
+        anchor_duration_s_ = 0;
+    } else {
+        anchor_progress_pct_ = in.progress_pct;
+        anchor_duration_s_ = in.print_duration_s;
+    }
     // The work left just changed size. Smoothing toward the new answer would
     // leave the old one on screen for minutes after the user excluded a part.
     has_smoothed_ = false;
@@ -66,6 +75,9 @@ double PrintEtaEstimator::rate_remaining(const PrintEtaInputs& in) const {
 int PrintEtaEstimator::remaining_seconds(const PrintEtaInputs& in) {
     const int progress = in.progress_pct;
     note_excluded_share(in);
+    if (progress >= 1) {
+        seen_progress_ = true;
+    }
     const double kept = 1.0 - excluded_share_;
     const double slicer_job_s = in.slicer_estimate_s * kept;
 

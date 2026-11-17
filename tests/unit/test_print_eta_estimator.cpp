@@ -204,3 +204,15 @@ TEST_CASE("ETA: parts excluded before printing leave the observed rate alone",
             PrintEtaEstimator::kNoEstimate);
     CHECK(est.remaining_seconds(excluded(job(50, 600, 1000), 0.5)) == 600);
 }
+
+TEST_CASE(
+    "ETA: parts already excluded when the estimator first sees the print leave the rate alone",
+    "[print][eta][exclude_object]") {
+    // Started or reconnected mid-print: when the parts were excluded is
+    // unknown, so the rate observed so far stands for the work still left.
+    PrintEtaEstimator est;
+    CHECK(est.remaining_seconds(excluded(job(50, 600, 0), 0.5)) == 600);
+    // Still 12s per percent ten points on, so 40% left is 480s. Smoothed from
+    // 600s at alpha 0.3: 0.3*480 + 0.7*600.
+    CHECK(est.remaining_seconds(excluded(job(60, 720, 0), 0.5)) == 564);
+}
