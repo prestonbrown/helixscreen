@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer adds HelixScreen to Moonraker's list of services it may manage, it now restarts Moonraker so the list takes effect. Before, a reinstall that only added HelixScreen to that list left it out until Moonraker next restarted.
 - **Clear message when Klipper cannot be restarted** - on a printer where Moonraker cannot restart services and HelixScreen has no recovery script of its own, such as a Snapmaker U1 running the extended firmware, Restart Klipper and Firmware Restart now say that the printer must be turned off and on again, instead of showing Moonraker's "not allowed" error.
 - **Klipper version on printers without a git install** - when Klipper reports no version of its own, as it does when it is not installed from git, such as on FlashForge printers running Z-Mod, the Printer Manager and About screens now show the version Moonraker's update manager knows for it instead of Unknown.
+- **Bed mesh shows in the pre-print checklist during an adaptive mesh** - on printers without a dedicated start profile, the checklist now marks Bed mesh active when Klipper starts an adaptive mesh inside the start macro, and counts its probe points against the adapted grid. Before, Klipper's adaptive mesh messages were not recognized, so the step was never shown as running.
 
 ## [1.1.0-rc.1] - 2026-11-10
 
