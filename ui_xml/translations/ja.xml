@@ -363,6 +363,7 @@
   <translation tag="Authentication failed" ja="認証に失敗しました"/>
   <translation tag="Auto" ja="自動"/>
   <translation tag="Auto Bed Mesh" ja="自動ベッドメッシュ"/>
+  <translation tag="Auto Belt Tension" ja="ベルト自動張り調整"/>
   <translation tag="Auto Cal" ja="自動キャリブレーション"/>
   <translation tag="Auto Fans" ja="自動ファン"/>
   <translation tag="Auto loading" ja="自動ロード"/>
@@ -487,6 +488,7 @@
   <translation tag="Border Width" ja="境界線の幅"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" ja="境界線の透明度 (0 = 透明、255 = 不透明)"/>
   <translation tag="Both" ja="両方"/>
+  <translation tag="Both belts" ja="両方のベルト"/>
   <translation tag="Bouncing Logo" ja="バウンドロゴ"/>
   <translation tag="Bouncing Printer" ja="バウンドプリンター"/>
   <translation tag="Bowden" ja="ボーデン"/>
@@ -1040,6 +1042,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ja="引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"/>
   <translation tag="Cut position saved: {}" ja="切断位置を保存しました: {}"/>
   <translation tag="Cut tip" ja="先端をカット"/>
+  <translation tag="Cutter Calibration" ja="カッターのキャリブレーション"/>
   <translation tag="Cutter Enabled" ja="カッター有効"/>
   <translation tag="Cutter and purge chute calibration" ja="カッターとパージシュートのキャリブレーション"/>
   <translation tag="Cutter blade didn&apos;t sever filament" ja="カッターの刃がフィラメントを切断できませんでした"/>
@@ -1607,6 +1610,7 @@
   <translation tag="Filename" ja="ファイル名"/>
   <translation tag="Filter" ja="フィルター"/>
   <translation tag="Filter Fan" ja="フィルターファン"/>
+  <translation tag="Find the filament cutter&apos;s position" ja="フィラメントカッターの位置を検出します"/>
   <translation tag="Find the print speeds that shake the printer" ja="プリンターを揺らす印刷速度を見つけます"/>
   <translation tag="Finding where the print stopped..." ja="印刷が止まった位置を探しています..."/>
   <translation tag="Fine" ja="微動"/>
@@ -2132,6 +2136,7 @@
   <translation tag="Length of the cooling tube section" ja="冷却チューブ区間の長さ"/>
   <translation tag="Length:" ja="長さ:"/>
   <translation tag="Let a browser tap and drag on this screen" ja="ブラウザからこの画面のタップとドラッグを許可"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" ja="プリンターのテンショナーでベルトを調整します"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." ja="機能をすぐに見つけられるよう、簡単なツアーを始めましょう。"/>
   <translation tag="Level" ja="レベル"/>
   <translation tag="Leveling Gantry..." ja="ガントリーレベリング中..."/>
@@ -4094,6 +4099,8 @@
   <translation tag="The printer has not reported its axis limits yet." ja="プリンターがまだ軸の範囲を報告していません。"/>
   <translation tag="The printer has not reported its maximum velocity yet." ja="プリンターがまだ最大速度を報告していません。"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ja="プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ja="プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." ja="プリンターが原点復帰してカッターを走査します（約1分）。フィラメントの経路を空けてください。"/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." ja="プリンターが必要に応じて原点復帰し、カッターの位置を検出します。フィラメントの経路を空けてください。"/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." ja="プリンターはホームに戻ってから、ベッドをノズルからできるだけ離します。耐熱性が足りずに変形するスプールもあります。スプールをベッドから取り出したことを確認するまで、この画面からは何も動きません。Mainsail、マクロ、スライサーから送られた印刷はブロックされません。"/>
@@ -4664,6 +4671,7 @@
   <translation tag="X axis applied, but Y axis failed" ja="X軸は適用されましたが、Y軸は失敗しました"/>
   <translation tag="X axis done, starting Y..." ja="X軸が完了しました。Y軸を開始します..."/>
   <translation tag="X axis limit reached" ja="X軸のリミットに達しました"/>
+  <translation tag="X belt" ja="Xベルト"/>
   <translation tag="X is at its limit ({}mm)" ja="X軸は限界に達しています ({}mm)"/>
   <translation tag="X motor" ja="X モーター"/>
   <translation tag="X:" ja="X:"/>
@@ -4673,6 +4681,7 @@
   <translation tag="Y Axis" ja="Y軸"/>
   <translation tag="Y Offset" ja="Yオフセット"/>
   <translation tag="Y axis limit reached" ja="Y軸のリミットに達しました"/>
+  <translation tag="Y belt" ja="Yベルト"/>
   <translation tag="Y is at its limit ({}mm)" ja="Y軸は限界に達しています ({}mm)"/>
   <translation tag="Y motor" ja="Y モーター"/>
   <translation tag="Y:" ja="Y:"/>

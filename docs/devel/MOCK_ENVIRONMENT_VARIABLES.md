@@ -1898,6 +1898,16 @@ Make the mock report Kalico-style MPC heater control instead of Klipper's PID. T
 HELIX_MOCK_KALICO=1 ./build/bin/helix-screen --test -vv
 ```
 
+With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
+`belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
+`CALIBRATE_CUT_POS` macro (the port registers it as a Python command). Advanced >
+Calibration then shows Auto Belt Tension; add `HELIX_MOCK_AMS=cfs` for the `box` object
+that Cutter Calibration also needs.
+
+```bash
+HELIX_MOCK_KALICO=1 HELIX_MOCK_PRINTER=k2 HELIX_MOCK_AMS=cfs ./build/bin/helix-screen --test -vv
+```
+
 **Strict equality:** the check is `std::string(env) == "1"`. `true`, `yes` and `on` do *not* work here, unlike most other mock flags.
 
 ### `HELIX_MOCK_REMAP`

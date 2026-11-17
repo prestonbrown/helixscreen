@@ -363,6 +363,7 @@
   <translation tag="Authentication failed" es="Error de autenticación"/>
   <translation tag="Auto" es="Automático"/>
   <translation tag="Auto Bed Mesh" es="Malla de Cama Automática"/>
+  <translation tag="Auto Belt Tension" es="Tensado automático de correas"/>
   <translation tag="Auto Cal" es="Auto Cal"/>
   <translation tag="Auto Fans" es="Ventiladores automáticos"/>
   <translation tag="Auto loading" es="Carga automática"/>
@@ -487,6 +488,7 @@
   <translation tag="Border Width" es="Ancho del Borde"/>
   <translation tag="Border transparency (0 = invisible, 255 = solid)" es="Transparencia del borde (0 = invisible, 255 = sólido)"/>
   <translation tag="Both" es="Ambos"/>
+  <translation tag="Both belts" es="Ambas correas"/>
   <translation tag="Bouncing Logo" es="Bouncing Logo"/>
   <translation tag="Bouncing Printer" es="Bouncing Printer"/>
   <translation tag="Bowden" es="Bowden"/>
@@ -1040,6 +1042,7 @@
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." es="Corta la punta extraída y empuja el filamento de nuevo dentro del extrusor hasta que se detenga; luego pulsa Extruir."/>
   <translation tag="Cut position saved: {}" es="Posición de corte guardada: {}"/>
   <translation tag="Cut tip" es="Cortar la punta"/>
+  <translation tag="Cutter Calibration" es="Calibración del cortador"/>
   <translation tag="Cutter Enabled" es="Cortador activado"/>
   <translation tag="Cutter and purge chute calibration" es="Calibración del cortador y del conducto de purga"/>
   <translation tag="Cutter blade didn&apos;t sever filament" es="La cuchilla no cortó el filamento"/>
@@ -1607,6 +1610,7 @@
   <translation tag="Filename" es="Nombre de Archivo"/>
   <translation tag="Filter" es="Filtro"/>
   <translation tag="Filter Fan" es="Ventilador de filtro"/>
+  <translation tag="Find the filament cutter&apos;s position" es="Localiza la posición del cortador de filamento"/>
   <translation tag="Find the print speeds that shake the printer" es="Encuentra las velocidades de impresión que hacen vibrar la impresora"/>
   <translation tag="Finding where the print stopped..." es="Buscando dónde se detuvo la impresión..."/>
   <translation tag="Fine" es="Fino"/>
@@ -2132,6 +2136,7 @@
   <translation tag="Length of the cooling tube section" es="Longitud de la sección del tubo de enfriamiento"/>
   <translation tag="Length:" es="Longitud:"/>
   <translation tag="Let a browser tap and drag on this screen" es="Permitir que un navegador toque y arrastre en esta pantalla"/>
+  <translation tag="Let the printer&apos;s tensioners set the belts" es="Deja que los tensores de la impresora ajusten las correas"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." es="Hagamos un recorrido rápido para que encuentres las cosas fácilmente."/>
   <translation tag="Level" es="Nivel"/>
   <translation tag="Leveling Gantry..." es="Nivelando pórtico..."/>
@@ -4094,6 +4099,8 @@
   <translation tag="The printer has not reported its axis limits yet." es="La impresora aún no ha informado los límites de sus ejes."/>
   <translation tag="The printer has not reported its maximum velocity yet." es="La impresora aún no ha informado su velocidad máxima."/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." es="La impresora calienta la boquilla, hace unos movimientos de prueba cortos en una esquina de la placa y los mide ella misma. Repite hasta que las lecturas coinciden y luego informa de un número."/>
+  <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." es="La impresora referencia X e Y si hace falta y luego lleva el cabezal contra el cortador para localizar su posición. Descargue antes el filamento."/>
+  <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." es="La impresora referencia X e Y, lleva el cabezal al centro de la cama y ajusta cada correa con su tensor. Al terminar, los motores quedan liberados, así que haga home antes de mover la impresora."/>
   <translation tag="The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear." es="La impresora referencia y barre el cortador (unos 60 segundos). Mantenga despejada la ruta del filamento."/>
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." es="La impresora referencia si hace falta y luego localiza la posición del cortador. Mantenga despejada la ruta del filamento."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." es="La impresora hace home y luego aleja la cama de la boquilla todo lo posible. Algunas bobinas no resisten suficiente calor y pueden deformarse. Nada se mueve desde esta pantalla hasta que confirmes que las bobinas no están en la cama; Mainsail, las macros y las impresiones enviadas desde un slicer no se bloquean."/>
@@ -4664,6 +4671,7 @@
   <translation tag="X axis applied, but Y axis failed" es="Eje X aplicado, pero eje Y falló"/>
   <translation tag="X axis done, starting Y..." es="Eje X terminado, empezando con Y..."/>
   <translation tag="X axis limit reached" es="Límite del eje X alcanzado"/>
+  <translation tag="X belt" es="Correa X"/>
   <translation tag="X is at its limit ({}mm)" es="X está en su límite ({}mm)"/>
   <translation tag="X motor" es="Motor X"/>
   <translation tag="X:" es="X:"/>
@@ -4673,6 +4681,7 @@
   <translation tag="Y Axis" es="Eje Y"/>
   <translation tag="Y Offset" es="Desfase Y"/>
   <translation tag="Y axis limit reached" es="Límite del eje Y alcanzado"/>
+  <translation tag="Y belt" es="Correa Y"/>
   <translation tag="Y is at its limit ({}mm)" es="Y está en su límite ({}mm)"/>
   <translation tag="Y motor" es="Motor Y"/>
   <translation tag="Y:" es="Y:"/>

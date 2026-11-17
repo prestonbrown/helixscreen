@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u 层'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  "Auto Belt Tension": "自动皮带张紧"
+  "Both belts": "两条皮带"
+  "Cutter Calibration": "切刀校准"
+  "Find the filament cutter's position": "确定耗材切刀的位置"
+  "Let the printer's tensioners set the belts": "由打印机的张紧器调整皮带"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"
+  "X belt": "X 皮带"
+  "Y belt": "Y 皮带"
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' 和 '{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）

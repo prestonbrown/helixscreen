@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u camadas'
   '%zu events queued': '%zu eventos na fila'
   '%zu plugins failed to load': '%zu plugins falharam ao carregar'
+  "Auto Belt Tension": "Tensionamento automático das correias"
+  "Both belts": "Ambas as correias"
+  "Cutter Calibration": "Calibração do cortador"
+  "Find the filament cutter's position": "Localiza a posição do cortador de filamento"
+  "Let the printer's tensioners set the belts": "Deixe os tensores da impressora ajustarem as correias"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "A impressora faz home de X e Y se necessário e depois leva o cabeçote contra o cortador para localizar sua posição. Descarregue o filamento antes."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "A impressora faz home de X e Y, leva o cabeçote ao centro da mesa e ajusta cada correia com seu tensor. Ao terminar, os motores ficam liberados, então faça home antes de mover a impressora."
+  "X belt": "Correia X"
+  "Y belt": "Correia Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' já existe. Substituir a malha salva?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' já existem. Substituir as malhas salvas?"
   (different grade): (grau diferente)

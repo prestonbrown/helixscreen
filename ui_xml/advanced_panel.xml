@@ -222,6 +222,21 @@
       <!-- ================================================================== -->
       <setting_group name="group_calibration">
         <setting_group_header title="CALIBRATION" icon="tune" hide_icon="false"/>
+        <!-- Motorized belt tensioning and cutter calibration: printers whose
+             firmware runs them on its own (helix::belt_cutter_cal decides).
+             First in the list, ahead of the resonance-based Belt Tension check. -->
+        <setting_action_row name="row_belt_tension_auto"
+                            label="Auto Belt Tension" icon="vibrate"
+                            description="Let the printer's tensioners set the belts">
+          <bind_flag_if_eq subject="printer_can_tension_belts" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_belt_tension_auto_clicked"/>
+        </setting_action_row>
+        <setting_action_row name="row_cutter_calibration"
+                            label="Cutter Calibration" icon="content_cut"
+                            description="Find the filament cutter's position">
+          <bind_flag_if_eq subject="printer_can_calibrate_cutter" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_cutter_calibration_clicked"/>
+        </setting_action_row>
         <!-- Bed Leveling (hidden if screws_tilt_adjust not configured) -->
         <lv_obj name="container_bed_leveling" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>

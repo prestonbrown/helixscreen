@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u couches'
   '%zu events queued': '%zu événements en file'
   '%zu plugins failed to load': '%zu plugins n''ont pas pu se charger'
+  "Auto Belt Tension": "Tension automatique des courroies"
+  "Both belts": "Les deux courroies"
+  "Cutter Calibration": "Calibrage du coupeur"
+  "Find the filament cutter's position": "Trouver la position du coupe-filament"
+  "Let the printer's tensioners set the belts": "Laisser les tendeurs de l'imprimante régler les courroies"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "L'imprimante prend l'origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d'abord le filament."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "L'imprimante prend l'origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l'origine avant de déplacer l'imprimante."
+  "X belt": "Courroie X"
+  "Y belt": "Courroie Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' et '{}' existent déjà. Remplacer les maillages enregistrés ?"
   (different grade): (grade différent)

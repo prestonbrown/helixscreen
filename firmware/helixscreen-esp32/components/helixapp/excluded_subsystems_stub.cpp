@@ -37,6 +37,7 @@
 // their portable, platform-free real .cpp files to app_srcs.txt instead. See
 // the report for details.
 
+#include "ui_belt_cutter_cal.h"
 #include "ui_overlay_timelapse_install.h"
 #include "ui_overlay_timelapse_settings.h"
 #include "ui_overlay_timelapse_videos.h"
@@ -258,6 +259,14 @@ void init_tool_offset_row_handler() {
 void init_stepper_resonance_cal_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_stepper_resonance_cal_clicked",
                              esp32_staged_feature_row_cb);
+}
+
+// src/ui/calibration/ui_belt_cutter_cal.cpp: the same staged-row treatment. The rows
+// track printer_can_tension_belts and printer_can_calibrate_cutter, written by the
+// KEPT belt_cutter_cal module.
+void init_belt_cutter_cal_row_handlers() {
+    lv_xml_register_event_cb(nullptr, "on_belt_tension_auto_clicked", esp32_staged_feature_row_cb);
+    lv_xml_register_event_cb(nullptr, "on_cutter_calibration_clicked", esp32_staged_feature_row_cb);
 }
 
 // src/ui/calibration/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the

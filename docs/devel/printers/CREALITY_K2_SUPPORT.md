@@ -259,6 +259,28 @@ frame is on the K1 page
 [#2048](https://github.com/prestonbrown/helixscreen/issues/2048)). Whether the K2's `web-server`
 on 9999 accepts the same frame is unchecked.
 
+## Belt tensioning and cutter calibration
+
+Advanced > Calibration offers **Auto Belt Tension** and **Cutter Calibration** on printers
+whose firmware runs them itself. `helix::belt_cutter_cal`
+(`src/printer/belt_cutter_calibration.cpp`) owns which firmwares and which commands; the
+rows bind `printer_can_tension_belts` and `printer_can_calibrate_cutter`.
+
+| Firmware | Belt tension | Cutter |
+|----------|--------------|--------|
+| Kalico port (`printer.info` app `Kalico`) | `BELT_TENSION`, or `BELT_TENSION AXES=X` / `AXES=Y` for one belt. Needs a `belt_mdl` object and the macro | `CALIBRATE_CUT_POS`, a Python command of `motor_control`. Needs `motor_control` and `box` |
+| Stock K2 | none yet: its command is unconfirmed on hardware | none yet |
+
+The Kalico commands come from the port's own source
+([`Jacob10383/k2-plus-custom-firmware`](https://github.com/Jacob10383/k2-plus-custom-firmware)):
+[belt_mdl.py](https://github.com/Jacob10383/k2-plus-custom-firmware/blob/main/extras/belt_mdl.py) registers `BELT_TENSION_SET AXIS=X|Y`, which runs `G28 X Y`, settles
+the belt around the bed centre, adjusts it and releases the motors; the port's
+`macros.cfg` (in its rootfs image, not the repo; read from a debug bundle's config) `BELT_TENSION` calls it at 140 for each axis in `AXES` (default `XY`).
+[motor_control.py](https://github.com/Jacob10383/k2-plus-custom-firmware/blob/main/extras/motor_control.py)'s `CALIBRATE_CUT_POS` runs `HOME_IF_NEEDED AXIS=XY`, refuses with
+filament loaded, and stores `cut_pos_x` under `[box]`. Neither needs HelixScreen to home
+first. The CFS device section's own cutter and belt buttons are separate
+(`FILAMENT_BACKEND_CFS.md` § "Calibration section").
+
 ## Z-offset calibration
 
 The K2's Klipper shares the K1's `Z_OFFSET_APPLY_PROBE`, whose zero-offset guard is commented

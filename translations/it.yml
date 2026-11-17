@@ -49,6 +49,15 @@ translations:
   '%u layers': '%u strati'
   '%zu events queued': '%zu eventi in coda'
   '%zu plugins failed to load': Caricamento di %zu plugin non riuscito
+  "Auto Belt Tension": "Tensionamento automatico cinghie"
+  "Both belts": "Entrambe le cinghie"
+  "Cutter Calibration": "Calibrazione taglierina"
+  "Find the filament cutter's position": "Trova la posizione della taglierina del filamento"
+  "Let the printer's tensioners set the belts": "Lascia che i tenditori della stampante regolino le cinghie"
+  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "La stampante esegue l'homing di X e Y se serve, poi porta la testina contro la taglierina per trovarne la posizione. Scaricare prima il filamento."
+  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "La stampante esegue l'homing di X e Y, porta la testina al centro del piano e regola ogni cinghia con il suo tenditore. Alla fine i motori vengono rilasciati, quindi eseguire l'homing prima di muovere la stampante."
+  "X belt": "Cinghia X"
+  "Y belt": "Cinghia Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' esiste già. Sostituire la mesh salvata?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' esistono già. Sostituire le mesh salvate?"
   (different grade): (grado diverso)
