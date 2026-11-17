@@ -144,17 +144,18 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
 }
 
 std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const nlohmann::json& j) {
-    if (!j.is_object() || !j.contains("lane"))
+    const auto* lane = helix::json_util::find_member(j, "lane");
+    if (!lane)
         return std::nullopt;
     int slot_index = 0;
-    if (j["lane"].is_string()) {
-        const auto parsed = helix::text_io::parse_leading<int>(j["lane"].get<std::string>());
+    if (lane->is_string()) {
+        const auto parsed = helix::text_io::parse_leading<int>(lane->get<std::string>());
         if (!parsed) {
             return std::nullopt;
         }
         slot_index = *parsed;
-    } else if (j["lane"].is_number_integer()) {
-        slot_index = j["lane"].get<int>();
+    } else if (lane->is_number_integer()) {
+        slot_index = lane->get<int>();
     } else {
         return std::nullopt;
     }
@@ -163,8 +164,8 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
         return std::nullopt;
 
     FilamentSlotOverride o;
-    if (j.contains("color") && j["color"].is_string()) {
-        const ColorReading color = read_lane_color(j["color"].get<std::string>());
+    if (const auto color_text = helix::json_util::read_field<std::string>(j, "color")) {
+        const ColorReading color = read_lane_color(*color_text);
         if (color.kind == ColorReadingKind::Observed) {
             o.color_rgb = color.rgb;
             o.color_set = true;
@@ -185,9 +186,9 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     // 0001 §7); a string one is Orca's.
     o.spoolman_filament_id =
         int_with_alias(j, "spoolman_filament_id", "helix_spoolman_filament_id");
-    if (o.spoolman_filament_id <= 0 && j.contains("filament_id") &&
-        j["filament_id"].is_number_integer())
-        o.spoolman_filament_id = j["filament_id"].get<int>();
+    if (o.spoolman_filament_id <= 0)
+        o.spoolman_filament_id =
+            helix::json_util::read_integer_field(j, "filament_id").value_or(o.spoolman_filament_id);
     // Only an id our own record says came from Spoolman: a catalog-derived one
     // is recomputed on emit, and another tool's `filament_id` is not ours.
     if (helix::json_util::safe_string(j, "helix_filament_id_source") == kFilamentIdSourceSpoolman) {
@@ -204,8 +205,8 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     // helix_external marks the bypass records 1.1 betas wrote.
     o.external_mirror = helix::json_util::safe_string(j, "lane_name") == kBypassLaneName ||
                         helix::json_util::safe_bool(j, "helix_external", false);
-    if (j.contains("loaded") && j["loaded"].is_boolean())
-        o.loaded = j["loaded"].get<bool>();
+    if (const auto loaded = helix::json_util::read_field<bool>(j, "loaded"))
+        o.loaded = *loaded;
     return std::make_pair(slot_index, o);
 }
 

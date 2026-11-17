@@ -538,8 +538,8 @@ int execute_heuristic(const json& heuristic, const PrinterHardwareData& hardware
     } else if (type == "fan_combo") {
         // Multiple patterns must all be present
         auto field_data = get_field_data(hardware, field);
-        if (heuristic.contains("patterns") && heuristic["patterns"].is_array()) {
-            if (has_all_patterns(field_data, heuristic["patterns"])) {
+        if (const json* patterns = helix::json_util::find_array(heuristic, "patterns")) {
+            if (has_all_patterns(field_data, *patterns)) {
                 spdlog::debug("[PrinterDetector] Matched fan combo (confidence: {})", confidence);
                 return confidence;
             }
@@ -722,7 +722,8 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
     std::string printer_id = helix::json_util::safe_string(printer, "id");
     std::string printer_name = helix::json_util::safe_string(printer, "name");
 
-    if (!printer.contains("heuristics") || !printer["heuristics"].is_array()) {
+    const json* heuristics = helix::json_util::find_array(printer, "heuristics");
+    if (!heuristics) {
         return {"", 0, "", 0};
     }
 
@@ -738,7 +739,7 @@ PrinterDetectionResult execute_printer_heuristics(const json& printer,
     bool declares_kinematics = false;
     bool kinematics_matched = false;
 
-    for (const auto& heuristic : printer["heuristics"]) {
+    for (const auto& heuristic : *heuristics) {
         const bool is_kinematics =
             helix::json_util::safe_string(heuristic, "type") == "kinematics_match";
         declares_kinematics = declares_kinematics || is_kinematics;
@@ -1078,12 +1079,13 @@ void collect_filter_set(const json* sets, const std::string& set_name,
         spdlog::warn("[PrinterDetector] Unknown console filter set '{}', ignoring", set_name);
         return;
     }
-    if (!it->is_object() || !it->contains("patterns") || !(*it)["patterns"].is_array()) {
+    const json* patterns = helix::json_util::find_array(*it, "patterns");
+    if (!patterns) {
         spdlog::warn("[PrinterDetector] Console filter set '{}' has no 'patterns' array, ignoring",
                      set_name);
         return;
     }
-    for (const auto& spec : (*it)["patterns"]) {
+    for (const auto& spec : *patterns) {
         if (spec.is_string()) {
             append_unique_spec(out, spec.get<std::string>());
         } else {
