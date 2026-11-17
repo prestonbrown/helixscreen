@@ -24,6 +24,7 @@
 #include "width_sensor_manager.h"
 
 #include <fstream>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -261,6 +262,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "sensor discovery golden: every mock persona",
 
             check_against_golden(kGoldenDir, std::string(persona.id),
                                  snapshot(client.hardware(), &configfile));
+        }
+    }
+}
+
+// Klipper lists each object once, so every list discovery derives from it holds
+// each name once too. A persona that repeats an inherited default (a chamber
+// sensor, a chamber fan, a macro) must not show it twice anywhere.
+TEST_CASE_METHOD(LVGLTestFixture, "every mock persona lists each object once",
+                 "[sensor_golden][mock][persona]") {
+    for (const auto& persona : helix::mock::kPersonas) {
+        DYNAMIC_SECTION(persona.id) {
+            helix::test::PersonaEnv env(persona.id);
+            MoonrakerClientMock client(persona.type);
+            const json buckets = buckets_of(client.hardware());
+            for (const auto& [bucket, names] : buckets.items()) {
+                if (!names.is_array()) {
+                    continue;
+                }
+                std::set<std::string> seen;
+                for (const auto& name : names) {
+                    INFO(bucket << " lists " << name.get<std::string>() << " twice");
+                    CHECK(seen.insert(name.get<std::string>()).second);
+                }
+            }
         }
     }
 }

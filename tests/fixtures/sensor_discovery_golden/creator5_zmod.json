@@ -4,7 +4,10 @@
       "heater_fan heat_fan",
       "fan_generic fanM106",
       "fan_generic chamber_fan",
-      "fan_generic chamber_loop_fan"
+      "fan_generic chamber_loop_fan",
+      "heater_fan heat_fan1",
+      "heater_fan heat_fan2",
+      "heater_fan heat_fan3"
     ],
     "filament_sensor_names": [
       "filament_switch_sensor fd_ex0",
@@ -14,14 +17,6 @@
       "filament_switch_sensor fd_ex2",
       "filament_motion_sensor fm_ex2",
       "filament_switch_sensor fd_ex3",
-      "filament_motion_sensor fm_ex3",
-      "filament_switch_sensor fd_ex0",
-      "filament_switch_sensor fd_ex1",
-      "filament_switch_sensor fd_ex2",
-      "filament_switch_sensor fd_ex3",
-      "filament_motion_sensor fm_ex0",
-      "filament_motion_sensor fm_ex1",
-      "filament_motion_sensor fm_ex2",
       "filament_motion_sensor fm_ex3"
     ],
     "has_accelerometer": true,
@@ -59,6 +54,9 @@
       "fan_generic fanM106",
       "fan_generic chamber_fan",
       "fan_generic chamber_loop_fan",
+      "heater_fan heat_fan1",
+      "heater_fan heat_fan2",
+      "heater_fan heat_fan3",
       "temperature_sensor mcu_temp",
       "led chamber_led",
       "zmod",
@@ -585,6 +583,18 @@
       "power"
     ],
     "heater_fan heat_fan": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan heat_fan1": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan heat_fan2": [
+      "speed",
+      "rpm"
+    ],
+    "heater_fan heat_fan3": [
       "speed",
       "rpm"
     ],

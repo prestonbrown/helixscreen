@@ -61,7 +61,6 @@
       "filament_switch_sensor head_switch_sensor"
     ],
     "sensors": [
-      "temperature_sensor chamber",
       "temperature_sensor chamber"
     ],
     "width_sensor_objects": []

@@ -267,10 +267,10 @@ def ams_error_app(request, tmp_path):
             app.wait_for("nav_buttons_enabled", 1, timeout=30)
             app.navigate("filament")
             app.wait_idle()
-            app.click("ams_mini_status")
+            app.click("ams_manage_row")
             app.wait_idle()
             assert "ams_panel" in app.current().get("overlays", []), (
-                "clicking the mini AMS status did not open the AMS panel")
+                "tapping the spool card's AMS row did not open the AMS panel")
 
             # Racing the mock's next state push: set, freeze, confirm, retry.
             for _ in range(5):

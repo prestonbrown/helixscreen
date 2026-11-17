@@ -84,7 +84,6 @@
     ],
     "sensors": [
       "temperature_sensor chamber",
-      "temperature_sensor chamber",
       "temperature_sensor raspberry_pi",
       "temperature_sensor mcu_temp",
       "temperature_sensor z_thermal_adjust",

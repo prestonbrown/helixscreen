@@ -89,7 +89,6 @@
     ],
     "sensors": [
       "temperature_sensor chamber",
-      "temperature_sensor chamber",
       "temperature_sensor raspberry_pi",
       "temperature_sensor mcu_temp",
       "tmc2240 stepper_x",

@@ -17,7 +17,8 @@
 //
 //     python3 scripts/scan_double_binds.py --emit-cpp
 //
-// The count assertion at the bottom is what notices that you did not.
+// qc_double_binds (scripts/scan_double_binds.py --check) fails a commit that
+// leaves the table behind ui_xml/.
 
 #include "ui_update_queue.h"
 
@@ -317,13 +318,4 @@ TEST_CASE("every ui_xml widget with two bindings on one property composes them",
                  << std::size(kDoubleBindWidgets) << ";" << unreachable_names);
     REQUIRE(unreachable == 0);
     REQUIRE(checked == static_cast<int>(std::size(kDoubleBindWidgets)));
-}
-
-TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
-          "[ui][xml][bind_compose][inventory]") {
-    // The table is generated, so it can only go stale silently. Pin the totals it
-    // was generated from: adding a widget with two bindings on one property, or
-    // removing one, moves these and forces a regeneration and a re-run.
-    REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
-    REQUIRE(kTotalGroups == 108);
 }

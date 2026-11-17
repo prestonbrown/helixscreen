@@ -1634,6 +1634,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     bool is_mock_toolchanger() const;
 
+    /// The toolchanger mock with its per-tool fans (`fan_generic T<n>_part_fan`,
+    /// `heater_fan T<n>_hotend_fan`): is_mock_toolchanger() on a persona that does
+    /// not omit kToolchangerToolFans. Otherwise the persona's own fans stand.
+    bool has_toolchanger_tool_fans() const;
+
     /**
      * @brief Which MedusaHC shipping configuration the mock emulates.
      *

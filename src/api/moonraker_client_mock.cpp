@@ -132,6 +132,23 @@ constexpr const char* kM112ShutdownMessage =
     "config, and restart the host software.\n"
     "Printer is shutdown\n";
 
+/// @p objects with each name kept once, at its first position. Klipper lists every
+/// object once; a persona's own lists repeat inherited defaults (a chamber sensor, a
+/// chamber fan, a per-head runout switch), and both object lists the mock assembles
+/// pass through here before discovery parses them.
+std::vector<std::string> first_listed(const json& objects) {
+    std::vector<std::string> out;
+    out.reserve(objects.size());
+    std::unordered_set<std::string> listed;
+    for (const auto& obj : objects) {
+        std::string name = obj.get<std::string>();
+        if (listed.insert(name).second) {
+            out.push_back(std::move(name));
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 // Delegating constructor - uses default speedup of 1.0
@@ -1638,9 +1655,10 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     append_skip_wrapper_objects(mock_objects);
+    const std::vector<std::string> all_objects = first_listed(mock_objects);
 
     // Parse objects into hardware discovery (unified hardware access)
-    discovery_.modify_hardware([&](PrinterDiscovery& hw) { hw.parse_objects(mock_objects); });
+    discovery_.modify_hardware([&](PrinterDiscovery& hw) { hw.parse_objects(json(all_objects)); });
 
     // Mock accelerometer configuration for input shaper wizard testing
     // Real Klipper doesn't expose accelerometers in objects list (no get_status()),
@@ -1695,17 +1713,7 @@ void MoonrakerClientMock::populate_capabilities() {
     spdlog::debug("[MoonrakerClientMock] Mock config: adxl345, resonance_tester, kinematics={}",
                   kinematics());
 
-    // Populate printer objects for hardware discovery. Klipper lists each object
-    // once; a persona's own lists can repeat an inherited default (a chamber
-    // sensor, a chamber heater, a macro), so keep only the first.
-    std::vector<std::string> all_objects;
-    std::unordered_set<std::string> listed;
-    for (const auto& obj : mock_objects) {
-        std::string name = obj.get<std::string>();
-        if (listed.insert(name).second) {
-            all_objects.push_back(std::move(name));
-        }
-    }
+    // Populate printer objects for hardware discovery.
     discovery_.modify_hardware([&](PrinterDiscovery& hw) { hw.set_printer_objects(all_objects); });
     update_cached_chamber_key();
 
@@ -1725,8 +1733,7 @@ void MoonrakerClientMock::populate_capabilities() {
 
     // Also populate filament_sensors vector for subscription (same as real parse_objects)
     discovery_.filament_sensors().clear();
-    for (const auto& obj : mock_objects) {
-        std::string name = obj.get<std::string>();
+    for (const auto& name : all_objects) {
         if (name.rfind("filament_switch_sensor ", 0) == 0 ||
             name.rfind("filament_motion_sensor ", 0) == 0) {
             discovery_.filament_sensors().push_back(name);
@@ -1803,18 +1810,14 @@ void MoonrakerClientMock::rebuild_hardware_from_lists() {
         }
     }
 
+    const std::vector<std::string> all_objects = first_listed(objects);
     discovery_.modify_hardware([&](PrinterDiscovery& hw) {
-        hw.parse_objects(objects);
+        hw.parse_objects(json(all_objects));
         // parse_objects() clears printer_objects_; repopulate from the same
-        // array the way populate_capabilities() does (and the real discovery
+        // list the way populate_capabilities() does (and the real discovery
         // sequence does at moonraker_discovery_sequence.cpp), or
         // objects.list and the chamber-backend status helpers go dark after
         // a rebuild.
-        std::vector<std::string> all_objects;
-        all_objects.reserve(objects.size());
-        for (const auto& obj : objects) {
-            all_objects.push_back(obj.get<std::string>());
-        }
         hw.set_printer_objects(all_objects);
     });
     update_cached_chamber_key();
@@ -1883,6 +1886,11 @@ bool MoonrakerClientMock::mock_toolchanger_selected() {
 
 bool MoonrakerClientMock::is_mock_toolchanger() const {
     return mock_toolchanger_selected();
+}
+
+bool MoonrakerClientMock::has_toolchanger_tool_fans() const {
+    return is_mock_toolchanger() && (helix::mock::descriptor(printer_type_).omit &
+                                     helix::mock::default_object::kToolchangerToolFans) == 0;
 }
 
 MoonrakerClientMock::MedusaVariant MoonrakerClientMock::mock_medusa_variant() {
@@ -3027,7 +3035,7 @@ double MoonrakerClientMock::secondary_extruder_temp(int index) const {
 
 json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
     json out = json::object();
-    if (!is_mock_toolchanger()) {
+    if (!has_toolchanger_tool_fans()) {
         return out;
     }
     const int mounted = toolchanger_tool_.load();
@@ -3716,8 +3724,11 @@ void MoonrakerClientMock::populate_hardware() {
                                 "extruder3",
                                 "heater_generic chamber_heater",
                                 "temperature_sensor mcu_temp"};
-        discovery_.fans() = {"heater_fan heat_fan", "fan_generic fanM106",
-                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan"};
+        // One part fan, the one M106 drives, and a heater_fan per head.
+        discovery_.fans() = {"heater_fan heat_fan",     "fan_generic fanM106",
+                             "fan_generic chamber_fan", "fan_generic chamber_loop_fan",
+                             "heater_fan heat_fan1",    "heater_fan heat_fan2",
+                             "heater_fan heat_fan3"};
         discovery_.leds() = {"led chamber_led"};
         break;
 
@@ -3862,7 +3873,7 @@ void MoonrakerClientMock::populate_hardware() {
     }
     // klipper-toolchanger refuses a [fan] beside tool fans: each tool carries a
     // fan_generic part fan and a heater_fan on its own extruder instead.
-    if (is_mock_toolchanger()) {
+    if (has_toolchanger_tool_fans()) {
         auto& fans = discovery_.fans();
         fans.erase(std::remove_if(fans.begin(), fans.end(),
                                   [](const std::string& f) {
@@ -3873,6 +3884,8 @@ void MoonrakerClientMock::populate_hardware() {
             fans.push_back("fan_generic " + mock_internal::toolchanger_part_fan(t));
             fans.push_back("heater_fan " + mock_internal::toolchanger_hotend_fan(t));
         }
+    }
+    if (is_mock_toolchanger()) {
         toolchanger_tool_.store(
             helix::mock::toolchanger_start_tool(std::getenv("HELIX_MOCK_TOOLCHANGER_TOOL"), 4));
     }
@@ -6171,7 +6184,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         {
             std::lock_guard<std::mutex> lock(fan_mutex_);
             for (const auto& [name, spd] : fan_speeds_) {
-                if (name == "fan" && is_mock_toolchanger()) {
+                if (name == "fan" && has_toolchanger_tool_fans()) {
                     status_obj.merge_patch(toolchanger_fan_status(spd));
                 } else if (name == "fan") {
                     status_obj["fan"] = mock_internal::part_fan_status(spd);

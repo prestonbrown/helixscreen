@@ -78,10 +78,10 @@ constexpr double kMockPartFanMaxRpm = 6800.0;
 /// Toolchanger mock: tool @p t's part fan, as its [tool] `fan:` names it (a
 /// fan_generic name), and its hotend [heater_fan] name.
 [[nodiscard]] inline std::string toolchanger_part_fan(int t) {
-    return "T" + std::to_string(t) + "_part_fan";
+    return "T" + std::to_string(t) + "_part_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
 }
 [[nodiscard]] inline std::string toolchanger_hotend_fan(int t) {
-    return "T" + std::to_string(t) + "_hotend_fan";
+    return "T" + std::to_string(t) + "_hotend_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
 }
 
 /// Toolchanger mock: tool @p t's hotend fan `fan_speed`, a step lower per tool so
