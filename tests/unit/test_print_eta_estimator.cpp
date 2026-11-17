@@ -161,6 +161,11 @@ TEST_CASE("ETA: excluded work comes out of the slicer's estimate", "[print][eta]
         PrintEtaEstimator est;
         CHECK(est.remaining_seconds(excluded(job(4, 1, 1000), 0.5)) == 480);
     }
+    SECTION("before the print clock starts") {
+        // 500s of a 1000s job kept, 60% of it still to print.
+        PrintEtaEstimator est;
+        CHECK(est.remaining_seconds(excluded(job(40, 0, 1000), 0.5)) == 300);
+    }
     SECTION("while preparing") {
         // Parts excluded before the start shrink the job, not the prep.
         PrintEtaEstimator est;
@@ -250,4 +255,30 @@ TEST_CASE_METHOD(HelixTestFixture,
     state.update_from_status(
         nlohmann::json{{"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}});
     CHECK(lv_subject_get_int(time_left) == 600);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "ETA: a part excluded mid-print shortens the time left at once",
+                 "[print][eta][exclude_object][printer_state]") {
+    lv_init_safe();
+    helix::PrinterState& state = get_printer_state();
+    state.init_subjects(false);
+    state.update_from_status(nlohmann::json{{"print_stats", {{"state", "standby"}}}});
+    const nlohmann::json tick = {
+        {"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}};
+    state.update_from_status(nlohmann::json{
+        {"print_stats",
+         {{"state", "printing"}, {"print_duration", 600.0}, {"total_duration", 620.0}}},
+        {"virtual_sdcard", {{"progress", 0.5}}},
+        {"exclude_object",
+         {{"objects", {{{"name", "a"}}, {{"name", "b"}}}},
+          {"excluded_objects", nlohmann::json::array()},
+          {"current_object", "b"}}}});
+    state.update_from_status(tick);
+    auto* time_left = state.print_state().get_print_time_left_subject();
+    REQUIRE(lv_subject_get_int(time_left) == 600);
+
+    // One of two parts gone halves the 12s per percent seen so far.
+    state.update_from_status(nlohmann::json{{"exclude_object", {{"excluded_objects", {"a"}}}}});
+    state.update_from_status(tick);
+    CHECK(lv_subject_get_int(time_left) == 300);
 }
