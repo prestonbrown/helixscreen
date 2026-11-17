@@ -70,10 +70,22 @@ class FakePanel : public PanelBase {
 class UltrawideFixture : public LVGLTestFixture {
   public:
     UltrawideFixture() {
+        // The chrome role lives in ui_xml/styles.xml; a test that runs before
+        // anything registered that file gets the role alone.
+        if (!cap_chrome_style()) {
+            lv_xml_register_component_from_data(
+                "styles", "<component><styles><style name=\"cap_chrome\"/></styles></component>");
+        }
+        REQUIRE(cap_chrome_style() != nullptr);
         theme_manager_register_responsive_spacing(lv_display_get_default());
         NavigationManager::instance().init();
+        // The panels share a container beside the nav bar, as in the app.
+        panel_container_ = lv_obj_create(lv_screen_active());
+        lv_obj_set_size(panel_container_, lv_pct(100), lv_pct(100));
+        lv_obj_set_style_pad_all(panel_container_, 0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(panel_container_, 0, LV_PART_MAIN);
         for (auto& p : root_panels_) {
-            p = lv_obj_create(lv_screen_active());
+            p = lv_obj_create(panel_container_);
             lv_obj_set_width(p, lv_pct(100));
         }
         NavigationManager::instance().set_panels(root_panels_.data());
@@ -98,12 +110,30 @@ class UltrawideFixture : public LVGLTestFixture {
         lv_obj_update_layout(lv_screen_active());
     }
 
-    static lv_obj_t* push(IPanelLifecycle& lifecycle) {
+    /// A child of @p parent at 100% width, carrying the chrome role if asked.
+    static lv_obj_t* add_child(lv_obj_t* parent, bool chrome) {
+        lv_obj_t* child = lv_obj_create(parent);
+        lv_obj_set_width(child, lv_pct(100));
+        if (chrome) {
+            lv_obj_add_style(child, const_cast<lv_style_t*>(cap_chrome_style()), LV_PART_MAIN);
+        }
+        return child;
+    }
+
+    /// An overlay built the way overlay XML is: a flex column, pushed.
+    static lv_obj_t* push(IPanelLifecycle& lifecycle, bool with_chrome = false) {
         lv_obj_t* w = lv_obj_create(lv_screen_active());
         lv_obj_set_height(w, lv_pct(100));
         lv_obj_set_align(w, LV_ALIGN_RIGHT_MID);
         lv_obj_set_style_border_width(w, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(w, 0, LV_PART_MAIN);
         lv_obj_set_style_pad_right(w, kBasePadRight, LV_PART_MAIN);
+        lv_obj_set_flex_flow(w, LV_FLEX_FLOW_COLUMN);
+        if (with_chrome) {
+            add_child(w, true);                   // header
+            add_child(add_child(w, false), true); // content holding a nested header_bar
+            add_child(w, true);                   // footer
+        }
         auto& nav = NavigationManager::instance();
         nav.register_overlay_instance(w, &lifecycle);
         nav.push_overlay(w);
@@ -118,6 +148,7 @@ class UltrawideFixture : public LVGLTestFixture {
         return std::atoi(s);
     }
 
+    lv_obj_t* panel_container_ = nullptr;
     std::array<lv_obj_t*, kUiPanelCount> root_panels_{};
 };
 
@@ -150,40 +181,29 @@ TEST_CASE_METHOD(UltrawideFixture, "An overlay on an ultrawide screen stops at t
     CHECK(lv_obj_get_style_pad_right(w, LV_PART_MAIN) == kBasePadRight);
 }
 
-TEST_CASE_METHOD(UltrawideFixture,
-                 "The overlay header spans the overlay while its content is capped",
+TEST_CASE_METHOD(UltrawideFixture, "Chrome spans the view while the content between is capped",
                  "[content-cap][overlay]") {
-    // Built the way overlay XML is: a flex column with the header first.
-    lv_obj_t* w = lv_obj_create(lv_screen_active());
-    lv_obj_set_height(w, lv_pct(100));
-    lv_obj_set_align(w, LV_ALIGN_RIGHT_MID);
-    lv_obj_set_style_border_width(w, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(w, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_right(w, kBasePadRight, LV_PART_MAIN);
-    lv_obj_set_flex_flow(w, LV_FLEX_FLOW_COLUMN);
-    lv_obj_t* header = lv_obj_create(w);
-    lv_obj_set_name(header, "overlay_header");
-    lv_obj_set_width(header, lv_pct(100));
-    lv_obj_t* content = lv_obj_create(w);
-    lv_obj_set_width(content, lv_pct(100));
-
     FakeOverlay lifecycle(/*full_width=*/false);
-    auto& nav = NavigationManager::instance();
-    nav.register_overlay_instance(w, &lifecycle);
-    nav.push_overlay(w);
-    helix::ui::UpdateQueue::instance().drain();
-    lv_obj_update_layout(w);
+    lv_obj_t* w = push(lifecycle, /*with_chrome=*/true);
+    lv_obj_t* header = lv_obj_get_child(w, 0);
+    lv_obj_t* content = lv_obj_get_child(w, 1);
+    lv_obj_t* nested = lv_obj_get_child(content, 0);
+    lv_obj_t* footer = lv_obj_get_child(w, 2);
 
     const int32_t cap = read_const("content_max_width");
     const int32_t width = lv_obj_get_width(w);
     REQUIRE(width > cap);
     CHECK(lv_obj_get_width(content) == cap - kBasePadRight);
-    // The header runs from the leading edge to the overlay's own right padding.
+    // Header and footer run from the leading edge to the root's own padding.
     CHECK(lv_obj_get_width(header) == width - kBasePadRight);
+    CHECK(lv_obj_get_width(footer) == width - kBasePadRight);
     CHECK(lv_obj_get_scroll_right(w) == 0);
+    // Chrome inside the content (the print file detail's header) caps with it.
+    CHECK(lv_obj_get_width(nested) == lv_obj_get_content_width(content));
 
     resize(kTestDisplayWidth, kTestDisplayHeight);
     CHECK(lv_obj_get_width(header) == lv_obj_get_width(content));
+    CHECK(lv_obj_get_width(footer) == lv_obj_get_width(content));
 }
 
 TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
@@ -192,18 +212,23 @@ TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
     lv_obj_t* overlay = push(full_overlay);
     CHECK(lv_obj_get_style_pad_right(overlay, LV_PART_MAIN) == kBasePadRight);
 
-    FakePanel capped(/*full_width=*/false);
-    FakePanel full(/*full_width=*/true);
+    // The container caps or not with the shown panel's declaration.
     auto& nav = NavigationManager::instance();
-    nav.register_panel_instance(PanelId::Controls, &capped);
-    nav.register_panel_instance(PanelId::Home, &full);
+    const PanelId shown = PanelId::Controls;
+    lv_obj_t* panel = root_panels_[static_cast<int>(shown)];
+    const int32_t full = lv_obj_get_width(panel_container_);
+    FakePanel capped(/*full_width=*/false);
+    nav.register_panel_instance(shown, &capped);
+    nav.set_active(shown);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE_FALSE(lv_obj_is_hidden(panel));
     lv_obj_update_layout(lv_screen_active());
+    CHECK(lv_obj_get_width(panel) == read_const("content_max_width"));
 
-    const int32_t screen_width = lv_obj_get_width(lv_screen_active());
-    CHECK(lv_obj_get_width(root_panels_[static_cast<int>(PanelId::Controls)]) ==
-          read_const("content_max_width"));
-    CHECK(lv_obj_get_width(root_panels_[static_cast<int>(PanelId::Home)]) == screen_width);
+    FakePanel opted_out(/*full_width=*/true);
+    nav.register_panel_instance(shown, &opted_out);
+    lv_obj_update_layout(lv_screen_active());
+    CHECK(lv_obj_get_width(panel) == full);
 
-    nav.register_panel_instance(PanelId::Controls, nullptr);
-    nav.register_panel_instance(PanelId::Home, nullptr);
+    nav.register_panel_instance(shown, nullptr);
 }

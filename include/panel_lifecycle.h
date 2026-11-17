@@ -189,6 +189,14 @@ class IPanelLifecycle {
     virtual const char* get_name() const = 0;
 };
 
+namespace helix {
+/// Whether @p view's content is capped on an ultrawide screen. A view with no
+/// lifecycle has declared nothing, so it is capped.
+inline bool content_capped(const IPanelLifecycle* view) {
+    return !view || !view->uses_full_content_width();
+}
+} // namespace helix
+
 /**
  * @class ViewLifecycleBase
  * @brief Shared async-lifetime contract for PanelBase and OverlayBase

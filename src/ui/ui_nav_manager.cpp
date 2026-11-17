@@ -870,7 +870,7 @@ void NavigationManager::rekey_overlay_widget(lv_obj_t* old_widget, lv_obj_t* new
         // The new root has its XML's geometry until told its width class, and
         // its own built padding is the base the content cap adds to.
         const OverlayGeometry geometry{wc_it->second.is_destination,
-                                       lv_obj_get_style_pad_right(new_widget, LV_PART_MAIN)};
+                                       helix::content_cap_base_pad(new_widget)};
         overlay_geometry_.erase(wc_it);
         overlay_geometry_[new_widget] = geometry;
         write_overlay_geometry(new_widget, geometry);
@@ -953,8 +953,8 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
     // cached widget pushed again already carries the cap's overflow in it.
     auto geometry_it =
         overlay_geometry_
-            .try_emplace(overlay, OverlayGeometry{is_destination, lv_obj_get_style_pad_right(
-                                                                      overlay, LV_PART_MAIN)})
+            .try_emplace(overlay,
+                         OverlayGeometry{is_destination, helix::content_cap_base_pad(overlay)})
             .first;
     geometry_it->second.is_destination = is_destination;
 
@@ -982,9 +982,8 @@ bool NavigationManager::apply_overlay_width(lv_obj_t* overlay, bool is_first_ove
 
 void NavigationManager::write_overlay_geometry(lv_obj_t* overlay, const OverlayGeometry& geometry) {
     ui_set_overlay_geometry(overlay, geometry.is_destination);
-    const IPanelLifecycle* lifecycle = resolve_overlay_lifecycle(overlay);
-    const bool capped = !(lifecycle && lifecycle->uses_full_content_width());
-    helix::set_overlay_content_cap(overlay, geometry.base_pad_right, capped);
+    helix::apply_content_cap(overlay, geometry.base_pad_right,
+                             helix::content_capped(resolve_overlay_lifecycle(overlay)));
 }
 
 void NavigationManager::reapply_overlay_widths() {

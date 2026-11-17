@@ -8,8 +8,11 @@
 #include "ui_breakpoint.h"
 
 #include "content_width_cap.h"
+#include "helix-xml/src/xml/lv_xml_style.h"
 #include "layout_manager.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/core/lv_obj_private.h"       // obj->styles: LVGL has no style lookup
+#include "lvgl/src/core/lv_obj_style_private.h" // lv_obj_style_t fields
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -153,68 +156,87 @@ int32_t live_content_max_width(lv_obj_t* obj) {
     return content_max_width(screen ? lv_obj_get_height(screen) : 480);
 }
 
+const lv_style_t* cap_chrome_style() {
+    const lv_xml_style_t* xs = lv_xml_get_style_by_name(nullptr, "styles.cap_chrome");
+    return xs ? &xs->style : nullptr;
+}
+
+int32_t content_cap_base_pad(lv_obj_t* root) {
+    return lv_obj_get_style_pad_right(root, LV_PART_MAIN);
+}
+
 namespace {
 
-// The header keeps the overlay's full width while the content below it is
-// capped: back button and title at the left, its right-side items at the
-// screen's right edge. It is found by the overlay_header name every overlay
-// gives its header_bar, and only as a direct child of the root, where the
-// root's right padding is what would otherwise pull it in.
-void span_overlay_header(lv_obj_t* overlay, int32_t base_pad_right, int32_t overflow) {
-    lv_obj_t* header = lv_obj_find_by_name(overlay, "overlay_header");
-    if (!header || lv_obj_get_parent(header) != overlay) {
-        return;
+bool is_cap_chrome(const lv_obj_t* obj, const lv_style_t* chrome) {
+    for (uint32_t i = 0; i < obj->style_cnt; i++) {
+        if (obj->styles[i].style == chrome) {
+            return true;
+        }
     }
-    // A header never widened is left exactly as its XML built it.
-    const bool widened = lv_obj_get_style_margin_right(header, LV_PART_MAIN) < 0;
+    return false;
+}
+
+// Chrome keeps the root's full width while the content beside it is capped:
+// it is widened to reach into the cap's padding, and a matching negative right
+// margin keeps that out of the root's scroll extent. Chrome the cap never
+// widened is left exactly as its XML built it.
+void span_chrome(lv_obj_t* chrome, int32_t full_content_width, int32_t overflow) {
+    const bool widened = lv_obj_get_style_margin_right(chrome, LV_PART_MAIN) < 0;
     if (overflow == 0) {
         if (widened) {
-            lv_obj_set_width(header, lv_pct(100));
-            lv_obj_set_style_margin_right(header, 0, LV_PART_MAIN);
+            lv_obj_set_width(chrome, lv_pct(100));
+            lv_obj_set_style_margin_right(chrome, 0, LV_PART_MAIN);
         }
         return;
     }
-    const int32_t border = lv_obj_get_style_border_width(overlay, LV_PART_MAIN);
-    const int32_t full_width = lv_obj_get_style_width(overlay, LV_PART_MAIN) -
-                               lv_obj_get_style_pad_left(overlay, LV_PART_MAIN) - base_pad_right -
-                               2 * border;
-    lv_obj_set_width(header, full_width);
-    // The header reaches overflow px into the root's right padding; the
-    // matching negative margin keeps that out of the root's scroll extent.
-    lv_obj_set_style_margin_right(header, -overflow, LV_PART_MAIN);
+    lv_obj_set_width(chrome, full_content_width);
+    lv_obj_set_style_margin_right(chrome, -overflow, LV_PART_MAIN);
+}
+
+// The width the cap compares against: the root's own pixel width when it has
+// one (an overlay's class width), otherwise its laid-out width.
+int32_t full_width(lv_obj_t* root) {
+    const int32_t style_width = lv_obj_get_style_width(root, LV_PART_MAIN);
+    if (LV_COORD_IS_PX(style_width)) {
+        return style_width;
+    }
+    lv_obj_update_layout(root);
+    return lv_obj_get_width(root);
 }
 
 } // namespace
 
-// DECLARATIVE_OK: the cap depends on the width class resolved at push time
-// (ui_set_overlay_geometry above), so it is written at the same site.
-void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped) {
-    if (!overlay) {
+// DECLARATIVE_OK: the cap depends on the screen, the view's declared opt-out
+// and, for overlays, the width class resolved at push time.
+void apply_content_cap(lv_obj_t* root, int32_t base_pad_right, bool capped) {
+    if (!root) {
         return;
     }
-    const int32_t overflow =
-        capped ? content_cap_overflow(lv_obj_get_style_width(overlay, LV_PART_MAIN),
-                                      live_content_max_width(overlay))
-               : 0;
-    span_overlay_header(overlay, base_pad_right, overflow);
-    const int32_t pad_right = base_pad_right + overflow;
-    // An overlay that fits keeps whatever its XML or theme gives it; the local
-    // style is written only to add the overflow or to take it away again.
-    if (lv_obj_get_style_pad_right(overlay, LV_PART_MAIN) == pad_right) {
-        return;
-    }
-    lv_obj_set_style_pad_right(overlay, pad_right, LV_PART_MAIN);
-    spdlog::trace("[Theme] Overlay {} content cap: pad_right {} (overflow {})", (void*)overlay,
-                  pad_right, overflow);
-}
+    const int32_t width = full_width(root);
+    const int32_t overflow = capped ? content_cap_overflow(width, live_content_max_width(root)) : 0;
 
-// DECLARATIVE_OK: which panels opt out is declared on the panel class
-// (IPanelLifecycle::uses_full_content_width()), which XML cannot see.
-void set_panel_content_cap(lv_obj_t* panel) {
-    if (!panel) {
+    if (const lv_style_t* chrome = cap_chrome_style()) {
+        const int32_t full_content_width = width - lv_obj_get_style_pad_left(root, LV_PART_MAIN) -
+                                           base_pad_right -
+                                           2 * lv_obj_get_style_border_width(root, LV_PART_MAIN);
+        const uint32_t count = lv_obj_get_child_count(root);
+        for (uint32_t i = 0; i < count; i++) {
+            lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i));
+            if (is_cap_chrome(child, chrome)) {
+                span_chrome(child, full_content_width, overflow);
+            }
+        }
+    }
+
+    const int32_t pad_right = base_pad_right + overflow;
+    // A view that fits keeps whatever its XML or theme gives it; the local
+    // style is written only to add the overflow or to take it away again.
+    if (lv_obj_get_style_pad_right(root, LV_PART_MAIN) == pad_right) {
         return;
     }
-    lv_obj_set_style_max_width(panel, live_content_max_width(panel), LV_PART_MAIN);
+    lv_obj_set_style_pad_right(root, pad_right, LV_PART_MAIN);
+    spdlog::trace("[Theme] {} content cap: pad_right {} (overflow {})", (void*)root, pad_right,
+                  overflow);
 }
 
 } // namespace helix

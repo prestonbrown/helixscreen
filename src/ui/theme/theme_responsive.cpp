@@ -306,6 +306,17 @@ helix::theme_manager_resolve_px_tables(const PxTierTables& t, lv_display_t* disp
  *
  * @param display The LVGL display to get resolution from
  */
+namespace {
+// The ultrawide content width cap, a ratio of the screen height
+// (include/content_width_cap.h), as the content_max_width const's value for
+// startup registration and the resize refresh alike. Panels, overlays and the
+// wizard read the const when the cap is applied; it only binds on screens much
+// wider than they are tall.
+std::string content_max_width_value(int32_t ver_res) {
+    return std::to_string(helix::content_max_width(ver_res));
+}
+} // namespace
+
 void theme_manager_register_responsive_spacing(lv_display_t* display) {
     int32_t hor_res = lv_display_get_horizontal_resolution(display);
     int32_t ver_res = lv_display_get_vertical_resolution(display);
@@ -364,12 +375,7 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
     lv_xml_register_const(scope, "overlay_width_transient", transient_str);
     lv_xml_register_const(scope, "overlay_width_destination", destination_str);
 
-    // The ultrawide content width cap, a ratio of the screen height
-    // (include/content_width_cap.h). Panels and overlays read it at show and
-    // push time; it only binds on screens much wider than they are tall.
-    char content_max_str[16];
-    snprintf(content_max_str, sizeof(content_max_str), "%d", helix::content_max_width(ver_res));
-    lv_xml_register_const(scope, "content_max_width", content_max_str);
+    lv_xml_register_const(scope, "content_max_width", content_max_width_value(ver_res).c_str());
 
     spdlog::trace("[Theme] Layout: nav_width={}px, gap={}px, overlay transient={}px "
                   "destination={}px",
@@ -466,9 +472,7 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     lv_xml_update_const(scope, "overlay_width_transient", transient_str);
     lv_xml_update_const(scope, "overlay_width_destination", destination_str);
 
-    char content_max_str[16];
-    snprintf(content_max_str, sizeof(content_max_str), "%d", helix::content_max_width(ver_res));
-    lv_xml_update_const(scope, "content_max_width", content_max_str);
+    lv_xml_update_const(scope, "content_max_width", content_max_width_value(ver_res).c_str());
 
     // Update breakpoint subject — use shared helper so rotation never
     // downgrades XXLarge to XLarge (previous bug: missing XLARGE_MAX check).

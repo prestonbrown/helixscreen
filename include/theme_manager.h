@@ -1033,25 +1033,30 @@ namespace helix {
 int32_t live_content_max_width(lv_obj_t* obj);
 
 /**
- * @brief Cap an overlay's content at content_max_width, kept against the nav bar
+ * @brief The style that marks a view's chrome for the content cap
  *
- * The overlay keeps the full width ui_set_overlay_geometry() gave it, so it
- * still occludes the backdrop, and whatever overshoots the cap becomes extra
- * right padding. Its header (the overlay_header child) keeps the full width,
- * so only the content below the header is capped. @p base_pad_right is the padding the overlay was
- * built with; the caller remembers it so the overflow can shrink or vanish on a resize. With @p
- * capped false the padding returns to @p base_pad_right.
+ * Chrome is a header or footer that spans the whole view while the content
+ * between them is capped. A component declares the role in XML with
+ * <style name="styles.cap_chrome"/>; header_bar, wizard_header_bar and the
+ * wizard footer do. Null before ui_xml/styles.xml is registered.
  */
-void set_overlay_content_cap(lv_obj_t* overlay, int32_t base_pad_right, bool capped);
+const lv_style_t* cap_chrome_style();
+
+/// The right padding @p root was built with: what apply_content_cap() adds to.
+int32_t content_cap_base_pad(lv_obj_t* root);
 
 /**
- * @brief Cap a main panel's width at content_max_width
+ * @brief Cap a view's content at content_max_width, kept at its leading edge
  *
- * Panels sit left-aligned beside the nav bar, so a max_width leaves the excess
- * empty on the right. Only for panels that do not opt out through
- * IPanelLifecycle::uses_full_content_width().
+ * The one place the cap is written, for overlays, the main panel container
+ * and the wizard alike. @p root keeps its full width, so an overlay still
+ * occludes the backdrop, and whatever overshoots the cap becomes extra right
+ * padding on top of @p base_pad_right (content_cap_base_pad() of the freshly
+ * built root, remembered by the caller so a resize can shrink or remove the
+ * overflow). Direct children carrying cap_chrome_style() keep the full width.
+ * With @p capped false the root and its chrome return to their built geometry.
  */
-void set_panel_content_cap(lv_obj_t* panel);
+void apply_content_cap(lv_obj_t* root, int32_t base_pad_right, bool capped);
 } // namespace helix
 
 /**
