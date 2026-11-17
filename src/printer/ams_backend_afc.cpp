@@ -1348,6 +1348,15 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
                 if (it->second.ace) {
                     apply_ace_unit(unit_info, *it->second.ace);
                 }
+                if (it->second.cfs_lane_tags) {
+                    for (const auto& [lane, tag] : *it->second.cfs_lane_tags) {
+                        if (tag) {
+                            cfs_lane_tags_[lane] = *tag;
+                        } else {
+                            cfs_lane_tags_.erase(lane);
+                        }
+                    }
+                }
                 state_changed = true;
             }
         }
@@ -2258,6 +2267,9 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     if (data.dist_hub) {
         sensors.dist_hub = *data.dist_hub;
     }
+    if (data.unit_position) {
+        lane_unit_positions_[lane_name] = *data.unit_position;
+    }
     // Presence is latched: a lane that once reported a selector still has one,
     // and a delta that omits the key must not read as "selector cleared".
     if (data.selector) {
@@ -2798,6 +2810,9 @@ void AmsBackendAfc::apply_ace_unit(const AfcUnitInfo& unit_info, const afc::AceU
     }
     if (data.dryer_remaining_min) {
         ace.dryer.remaining_min = *data.dryer_remaining_min;
+    }
+    if (data.slot_tags) {
+        ace.slot_tags = *data.slot_tags;
     }
     if (data.temperature_c || data.humidity_pct) {
         EnvironmentData env = ace.environment.value_or(EnvironmentData{});
@@ -5474,14 +5489,49 @@ AmsError AmsBackendAfc::apply_user_edit(int slot_index, const SlotInfo& info) {
     return AmsErrorHelper::success();
 }
 
+std::optional<helix::ams::TagReading>
+AmsBackendAfc::lane_rfid_tag_locked(const std::string& lane_name) const {
+    if (const auto cfs = cfs_lane_tags_.find(lane_name); cfs != cfs_lane_tags_.end()) {
+        return cfs->second;
+    }
+    for (const auto& unit : unit_infos_) {
+        const auto lane = std::find(unit.lanes.begin(), unit.lanes.end(), lane_name);
+        if (lane == unit.lanes.end()) {
+            continue;
+        }
+        const auto ace = ace_units_.find(unit.type + " " + unit.name);
+        if (ace == ace_units_.end()) {
+            return std::nullopt;
+        }
+        // An ACE lane draws from the slot its `lane` index names; the unit's
+        // lane order stands in until the lane has published it.
+        const auto position = lane_unit_positions_.find(lane_name);
+        const int slot = position != lane_unit_positions_.end()
+                             ? position->second - 1
+                             : static_cast<int>(lane - unit.lanes.begin());
+        if (slot < 0 || static_cast<size_t>(slot) >= ace->second.slot_tags.size()) {
+            return std::nullopt;
+        }
+        return ace->second.slot_tags[static_cast<size_t>(slot)];
+    }
+    return std::nullopt;
+}
+
 std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index) const {
     std::lock_guard<std::mutex> lock(mutex_);
     const SlotInfo* slot = slot_info_locked(slot_index);
-    if (!slot || !slot->has_scan()) {
+    if (!slot) {
         return std::nullopt;
     }
-    helix::ams::TagReading reading;
-    reading.color_rgb = *slot->scanned_color_rgb;
+    helix::ams::TagReading reading =
+        lane_rfid_tag_locked(slots_.name_of(slot_index)).value_or(helix::ams::TagReading{});
+    // The TD-1's colour reading stands in where the tag states none.
+    if (!reading.color_rgb && slot->has_scan()) {
+        reading.color_rgb = *slot->scanned_color_rgb;
+    }
+    if (reading.empty()) {
+        return std::nullopt;
+    }
     return reading;
 }
 

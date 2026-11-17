@@ -918,6 +918,20 @@ backend is an `IDryer`: `get_dryer_info(unit)` answers for the ACE units that ha
 AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
 a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
 
+#### Spool tags from ACE and CFS units
+
+Two DEV unit types read RFID tags themselves and publish what they read on the unit object:
+
+| Unit | Field | Read as |
+|------|-------|---------|
+| ACE (`AFC_ACE`) | `ace_slots[]`: `index`, `rfid`, `material`, `color` (`[r,g,b]`), `sku`, `uid` | A slot whose `rfid` is `2` (identified) states its material and colour, read with the ACE backend's own slot readers (`helix::ace::read_tag_state`, `read_slot_material`, `parse_slot_color`). Any other `rfid` is no reading. The lane is matched to its slot by `AFC_lane.lane`, its 1-based position in the unit (AFC_ACE.py `_build_slot_map`) |
+| CFS (`AFC_CFS`, 1e400e2) | `cfs.lanes.<lane>.tag`: `material`, `color` (bare hex), `weight` (g), `spool_id`, or null | Material, colour, weight as the spool's total, and a Spoolman spool id above 1. A null tag (the last read found none) clears the lane's reading |
+
+`AmsBackendAfc::tag_reading()` returns that tag, with the TD-1's colour standing in where
+the tag states none, so the spool editor's tag view and Reset to tag work as on the native
+ACE and CFS backends. AFC applies a tag itself (`SET_COLOR` / `SET_MATERIAL` /
+`SET_SPOOL_ID`), so nothing here writes one back.
+
 #### Unit drawings
 
 The `kShellRows` table in `src/ui/filament/ams_unit_shell.cpp` draws an `ACE <name>` unit as the ACE Pro and

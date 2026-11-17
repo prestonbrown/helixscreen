@@ -469,6 +469,8 @@ inline constexpr std::array<const char*, 11> kMockBackendKnobs = {
         {"boxturtle", "AFC"},
         {"afc_ace", "AFC"},
         {"afc-ace", "AFC"},
+        {"afc_cfs", "AFC"},
+        {"afc-cfs", "AFC"},
         {"snapmaker", "Snapmaker"},
         {"snapswap", "Snapmaker"},
         {"u1", "Snapmaker"},

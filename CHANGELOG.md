@@ -37,6 +37,7 @@ is out.
 - **AD5X with Z-Mod: more than four IFS ports** (#2039) - an AD5X with Z-Mod follows Z-Mod's color limit past four IFS ports and keeps a lane seated past four across restarts.
 - **ACE Pro dryer through AFC** - an Anycubic ACE Pro run by AFC (its development branch) shows the box temperature and humidity and its dryer on the dryer page, which can start and stop a drying cycle.
 - **AFC lanes heat to your filament** - editing a lane on AFC sends its nozzle and bed temperatures to AFC, so a load heats to the spool's temperature instead of AFC's default for the material. On AFC's development branch the vendor and filament name go to AFC too, which shares them with the slicer.
+- **ACE and CFS units under AFC** - an Anycubic ACE Pro or a Creality CFS run by AFC (its development branch) is drawn as the real unit, and the spool tags they read show up as the lane's tag, ready for Reset to tag in the spool editor.
 
 **Home screen and display**
 

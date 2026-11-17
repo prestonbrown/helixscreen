@@ -12,6 +12,7 @@
 // AFC_ACE_DRY_STOP.
 
 #include "core/text_io.h"
+#include "lane_translation.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
@@ -39,6 +40,7 @@ struct UnitShape {
 };
 constexpr UnitShape kBoxTurtle = {"Turtle_1", "Box_Turtle", "AFC_BoxTurtle ", "AFC_stepper ", true};
 constexpr UnitShape kAce = {"Ace_1", "ACE", "AFC_ACE ", "AFC_lane ", false};
+constexpr UnitShape kCfs = {"cfs_1", "CFS", "AFC_CFS ", "AFC_lane ", false};
 
 /// A lane's filament as the mock loads it. Spools 1-3 mirror the mock Spoolman's;
 /// the fourth lane is unlinked and weightless, the untracked-filament path.
@@ -87,7 +89,8 @@ bool MoonrakerClientMock::is_mock_afc_boxturtle() const {
         return false;
     }
     const std::string mode = effective_mock_ams_env();
-    return mode == "afc" || mode == "box_turtle" || mode == "boxturtle" || is_mock_afc_ace();
+    return mode == "afc" || mode == "box_turtle" || mode == "boxturtle" || mode == "afc_cfs" ||
+           mode == "afc-cfs" || is_mock_afc_ace();
 }
 
 bool MoonrakerClientMock::is_mock_afc_ace() const {
@@ -96,8 +99,12 @@ bool MoonrakerClientMock::is_mock_afc_ace() const {
 }
 
 namespace {
-const UnitShape& unit_shape(bool ace) {
-    return ace ? kAce : kBoxTurtle;
+const UnitShape& unit_shape(bool ace, bool cfs) {
+    return ace ? kAce : (cfs ? kCfs : kBoxTurtle);
+}
+bool afc_cfs_mode() {
+    const std::string mode = effective_mock_ams_env();
+    return mode == "afc_cfs" || mode == "afc-cfs";
 }
 } // namespace
 
@@ -113,7 +120,7 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
 }
 
 void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) const {
-    const UnitShape& unit = unit_shape(is_mock_afc_ace());
+    const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
     objects.push_back("AFC");
     objects.push_back(std::string(unit.object_prefix) + unit.name);
     if (unit.has_buffer) {
@@ -128,7 +135,7 @@ void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) 
 }
 
 nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
-    const UnitShape& unit = unit_shape(is_mock_afc_ace());
+    const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
     const char* const kUnit = unit.name;
     std::vector<AfcLane> lanes;
     int loaded = -1;
@@ -186,6 +193,40 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         unit_object["ace_dryer_remain"] = dryer.remain_min;
         unit_object["ace_temp"] = dryer.status == "stop" ? 27.5 : 47.0;
         unit_object["ace_humidity"] = 21.0;
+        // Every spool in the mock carries an RFID tag the ACE has read.
+        nlohmann::json slots = nlohmann::json::array();
+        for (size_t i = 0; i < lanes.size(); ++i) {
+            const AfcLane& l = lanes[i];
+            const auto color = helix::ams::read_lane_color(l.color);
+            const uint32_t rgb =
+                color.kind == helix::ams::ColorReadingKind::Observed ? color.rgb : 0;
+            slots.push_back({{"index", static_cast<int>(i)},
+                             {"status", l.present ? "ready" : "empty"},
+                             {"rfid", l.present ? 2 : 0},
+                             {"sku", ""},
+                             {"material", l.present ? l.material : ""},
+                             {"uid", ""},
+                             {"color", {(rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF}}});
+        }
+        unit_object["ace_slots"] = std::move(slots);
+    }
+    if (afc_cfs_mode()) {
+        // AFC_CFS.py get_status: each lane's slot letter and decoded tag.
+        nlohmann::json cfs_lanes = nlohmann::json::object();
+        for (size_t i = 0; i < lanes.size(); ++i) {
+            const AfcLane& l = lanes[i];
+            std::string hex = l.color.size() > 1 ? l.color.substr(1) : "";
+            nlohmann::json tag = l.present ? nlohmann::json{{"material", l.material},
+                                                            {"color", hex},
+                                                            {"weight", 1000},
+                                                            {"spool_id", nullptr}}
+                                           : nlohmann::json(nullptr);
+            cfs_lanes[lane_name(static_cast<int>(i))] = {
+                {"slot", std::string(1, static_cast<char>('A' + i))},
+                {"present", l.present},
+                {"tag", tag}};
+        }
+        unit_object["cfs"] = {{"online", true}, {"lanes", cfs_lanes}};
     }
     out[std::string(unit.object_prefix) + kUnit] = std::move(unit_object);
     out[std::string("AFC_hub ") + kUnit] = {

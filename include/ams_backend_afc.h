@@ -1475,11 +1475,22 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
         bool has_dryer = false; ///< The object has published `ace_dryer`
         DryerInfo dryer;
         std::optional<EnvironmentData> environment;
+        /// Each ACE slot's RFID tag, by 0-based slot; nullopt where none was read.
+        std::vector<std::optional<ams::TagReading>> slot_tags;
     };
     std::unordered_map<std::string, AfcAceUnit> ace_units_;
 
     /// Folds one ACE unit object's hardware fields in. Caller holds mutex_.
     void apply_ace_unit(const AfcUnitInfo& unit_info, const afc::AceUnitDelta& data);
+    /// Each lane's 1-based position in its unit (`AFC_lane.lane`), by lane name.
+    std::unordered_map<std::string, int> lane_unit_positions_;
+    /// The tag a CFS unit last read for each lane, by lane name; absent when none.
+    std::unordered_map<std::string, ams::TagReading> cfs_lane_tags_;
+    /// The RFID tag AFC reports for @p lane_name (an ACE slot's or a CFS lane's),
+    /// or nullopt. Caller holds mutex_.
+    [[nodiscard]] std::optional<ams::TagReading>
+    lane_rfid_tag_locked(const std::string& lane_name) const;
+
     /// The ACE unit behind @p unit, or nullptr. Caller holds mutex_.
     [[nodiscard]] const AfcAceUnit* ace_unit_locked(int unit) const;
 

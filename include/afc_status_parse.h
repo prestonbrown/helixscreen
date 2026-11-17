@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ams_tag_reading.h"
 #include "ams_types.h"
 #include "json_fwd.h"
 #include "lane_translation.h"
@@ -114,6 +115,9 @@ struct LaneStatusDelta {
     std::optional<std::vector<int>> map;
     /// `current_map`, when present: zero or one tool.
     std::optional<std::vector<int>> current_map;
+    /// `lane`: the lane's 1-based position in its unit (`unit: <name>:<n>`),
+    /// which is the ACE slot an ACE lane draws from.
+    std::optional<int> unit_position;
     std::optional<std::string> hub;      ///< "direct", "direct_load" or a hub name
     std::optional<std::string> extruder; ///< AFC_extruder SECTION name
     Clearable<std::string> runout_lane;
@@ -279,6 +283,9 @@ struct AceUnitDelta {
     std::optional<int> dryer_duration_min;  ///< `ace_dryer_duration`
     std::optional<float> temperature_c;     ///< `ace_temp`, the box's ambient reading
     std::optional<float> humidity_pct;      ///< `ace_humidity` (ACE 2 only)
+    /// `ace_slots`, by ACE slot (0-based): each slot's tag, nullopt where the
+    /// ACE has no tag read for it (no tag, a read in progress, no spool).
+    std::optional<std::vector<std::optional<ams::TagReading>>> slot_tags;
 };
 
 /// Whether an action prompt titled @p title is one AFC raised.
@@ -302,6 +309,9 @@ struct UnitObjectDelta {
     std::optional<std::vector<std::string>> buffers;
     /// Set when the object carries any `ace_` hardware field.
     std::optional<AceUnitDelta> ace;
+    /// A CFS unit's `cfs.lanes.<lane>.tag`, by lane name: the decoded tag, or
+    /// nullopt for a lane whose last read found none (AFC_CFS.py, AFC DEV).
+    std::optional<std::map<std::string, std::optional<ams::TagReading>>> cfs_lane_tags;
 };
 
 [[nodiscard]] UnitObjectDelta parse_unit_object(const nlohmann::json& data);
