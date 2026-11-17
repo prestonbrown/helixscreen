@@ -287,6 +287,10 @@ class SettingsManager {
     // EXTRUDE/RETRACT SPEED (owned by SettingsManager — persisted)
     // =========================================================================
 
+    /// Quick choices the Filament panel offers for extrude_speed, in mm/s. Each
+    /// lies inside the setting's 1-50 range; Machine Limits sets any value in it.
+    static constexpr int kExtrudeSpeedPresets[] = {2, 5, 10, 20};
+
     /** @brief Get extrude/retract speed in mm/s (default 5, range 1-50) */
     int get_extrude_speed() const {
         return settings_.get(Key::ExtrudeSpeed);

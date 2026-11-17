@@ -635,6 +635,10 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* spool_card_ = nullptr;
     lv_obj_t* extruder_selector_group_ = nullptr;
     helix::ui::WidgetRef extruder_dropdown_;
+    /// Extrude/retract speed presets beside the length choice. It edits
+    /// SettingsManager's extrude_speed, the value Machine Limits also sets.
+    helix::ui::WidgetRef extrude_speed_dropdown_;
+    ObserverGuard extrude_speed_observer_;
     lv_obj_t* btn_manage_slots_ = nullptr;
     // 1 with no AMS and one tool: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
@@ -779,6 +783,10 @@ class FilamentPanel : public PanelBase {
     void handle_purge_button();
     void handle_retract_button();
     void handle_extrude_length_select(int amount);
+    /// Writes the preset at @p index (SettingsManager::kExtrudeSpeedPresets).
+    void handle_extrude_speed_select(int index);
+    /// Shows the setting's current speed on the dropdown, a preset or not.
+    void sync_extrude_speed_dropdown();
     void handle_cooldown();
     void update_material_temp_display();
     void update_chamber_temp_display();

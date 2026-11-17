@@ -185,6 +185,12 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
          [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(10); }},
         {"on_filament_extrude_length_25mm",
          [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(25); }},
+        {"on_filament_extrude_speed_changed",
+         [](lv_event_t* e) {
+             auto* dd = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             get_global_filament_panel().handle_extrude_speed_select(
+                 static_cast<int>(lv_dropdown_get_selected(dd)));
+         }},
         // Cooldown button
         {"on_filament_cooldown",
          [](lv_event_t*) { get_global_filament_panel().handle_cooldown(); }},
@@ -329,6 +335,12 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         printer_state_.print_state().get_print_lifecycle_subject(), this,
         [](FilamentPanel* self, int) { self->update_filament_op_buttons(); },
         printer_state_.print_state().get_static_subjects_lifetime());
+
+    // Machine Limits edits the same setting while this panel lives.
+    extrude_speed_observer_ = observe<int>(
+        helix::SettingsManager::instance().subject_extrude_speed(), this,
+        [](FilamentPanel* self, int) { self->sync_extrude_speed_dropdown(); },
+        helix::SettingsManager::instance().get_subjects_lifetime());
 
     // Note: Chamber temperature display is initialized by observer callbacks
     // and refresh_all_displays() on panel activation.
@@ -508,6 +520,7 @@ void FilamentPanel::deinit_subjects() {
     // Watches PrinterState's print_state_enum, a subject tests deinit between
     // cases — must be released alongside the AmsState guards above.
     print_active_observer_.reset();
+    extrude_speed_observer_.reset();
     temp_observers_.clear();
     deinit_subjects_base(subjects_);
 }
@@ -665,6 +678,8 @@ void FilamentPanel::bind_widgets() {
     extruder_selector_group_ =
         helix::ui::find_required(panel_, "extruder_selector_group", get_name());
     extruder_dropdown_ = helix::ui::find_required(panel_, "extruder_dropdown", get_name());
+    extrude_speed_dropdown_ =
+        helix::ui::find_required(panel_, "extrude_speed_dropdown", get_name());
     btn_manage_slots_ = helix::ui::find_required(panel_, "btn_manage_slots", get_name());
 
     // Find external spool row widgets
@@ -700,6 +715,7 @@ void FilamentPanel::bind_widgets() {
 
     // Trigger initial extrude length selection (notifies bind_style observers)
     handle_extrude_length_select(extrude_length_);
+    sync_extrude_speed_dropdown();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -1549,6 +1565,47 @@ void FilamentPanel::handle_extrude_length_select(int amount) {
     lv_subject_set_int(&extrude_length_10mm_active_subject_, amount == 10 ? 1 : 0);
     lv_subject_set_int(&extrude_length_25mm_active_subject_, amount == 25 ? 1 : 0);
     spdlog::debug("[{}] Extrude length set to {}mm", get_name(), amount);
+}
+
+void FilamentPanel::handle_extrude_speed_select(int index) {
+    const auto& presets = helix::SettingsManager::kExtrudeSpeedPresets;
+    if (index < 0 || index >= static_cast<int>(std::size(presets))) {
+        return;
+    }
+    const int speed = presets[static_cast<size_t>(index)];
+    helix::SettingsManager::instance().set_extrude_speed(speed);
+    spdlog::debug("[{}] Extrude speed set to {} mm/s", get_name(), speed);
+}
+
+void FilamentPanel::sync_extrude_speed_dropdown() {
+    if (!extrude_speed_dropdown_) {
+        return;
+    }
+    const auto& presets = helix::SettingsManager::kExtrudeSpeedPresets;
+    const int speed = helix::SettingsManager::instance().get_extrude_speed();
+
+    std::string options;
+    uint32_t selected = LV_DROPDOWN_POS_LAST;
+    for (size_t i = 0; i < std::size(presets); ++i) {
+        if (!options.empty()) {
+            options += '\n';
+        }
+        options += fmt::format("{} mm/s", presets[i]);
+        if (presets[i] == speed) {
+            selected = static_cast<uint32_t>(i);
+        }
+    }
+    if (lv_dropdown_get_option_count(extrude_speed_dropdown_) != std::size(presets)) {
+        lv_dropdown_set_options(extrude_speed_dropdown_, options.c_str());
+    }
+    if (selected != LV_DROPDOWN_POS_LAST) {
+        lv_dropdown_set_selected(extrude_speed_dropdown_, selected);
+    }
+
+    // A speed set in Machine Limits need not be a preset: the closed dropdown
+    // always names the speed Extrude and Retract will use.
+    lv_dropdown_set_text(extrude_speed_dropdown_, fmt::format("{} mm/s", speed).c_str());
+    helix::ui::fit_dropdown_to_text(extrude_speed_dropdown_);
 }
 
 // ============================================================================
