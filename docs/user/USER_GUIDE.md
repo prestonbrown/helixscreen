@@ -1,30 +1,40 @@
 # HelixScreen User Guide
 
-Your printer's touchscreen should show you more than temperatures and a progress bar. HelixScreen is a full-featured touch interface for Klipper printers that puts everything at your fingertips — things you'd normally need to open Mainsail or Fluidd for.
+This guide covers everything you can do from HelixScreen's touchscreen. New to it? Start with [Getting Started](guide/getting-started.md), which tours the five navigation bar buttons and walks through the setup wizard. Looking for one thing? Find it in the table below or in the [Guide Contents](#guide-contents).
 
-**What you get that other touchscreen UIs don't:**
-
-- **A real dashboard** — Drag-and-drop widgets across multiple pages. Temperature graphs, fan controls, camera feeds, power toggles, favorite macros. You decide what's on screen, not the developer.
-- **3D visualization** — Rotate your bed mesh with your finger. Preview G-code layers before printing. See input shaper frequency response charts right on the screen.
-- **Multi-material that works** — 10 filament systems: AFC, Happy Hare, ACE, CFS, AD5X IFS, Snapmaker U1, QIDI Box, OpenAMS, Bondtech INDX (early support), and tool changers. Per-box drying controls and humidity monitoring, Spoolman integration.
-- **Exclude objects** — Tap the failing part on an overhead map to exclude it mid-print. No more scrapping an entire plate for one bad object.
-- **Runs on hardware you already own** — ~15MB RAM on embedded targets (a few times more on 64-bit Pi, still well under what other touchscreen UIs need). No X11, no browser, no desktop environment. Directly on the framebuffer. From a Creality K1 to a Pi Zero 2 W to a random mini-ITX box with an HDMI touchscreen.
-- **Looks good** — 18 theme presets with a live editor, responsive layouts from 480x320 to 1024x600, GPU-accelerated blur. Light and dark modes. (Ultrawide and portrait screens are alpha — see [Which displays are supported?](FAQ.md#which-displays-are-supported).)
-- **Smart setup** — A first-run wizard auto-detects your printer from a database of over 100 models and configures everything. 9 languages.
-
-![Home Panel](../images/screenshot-home-panel.png)
+![The Home panel, with the five navigation bar buttons marked](../images/user/nav-bar.png)
 
 ---
 
-## Quick Reference
+## I Want To...
 
-| Sidebar Icon | Panel | What You'll Do There |
-|--------------|-------|----------------------|
-| Home | [Home](guide/home-panel.md) | [Monitor status](guide/home-panel.md), [start prints](guide/printing.md), [view temperatures](guide/temperature.md) |
-| Tune | [Controls](guide/motion.md) | [Move axes](guide/motion.md), [set temperatures](guide/temperature.md), [control fans](guide/fans.md) |
-| Spool | [Filament](guide/filament.md) | [Load/unload filament](guide/filament.md#load--unload--purge), [manage AMS slots](guide/filament-ams-panel.md) |
-| Gear | [Settings](guide/settings.md) | Configure [display](guide/settings/display.md), [sound](guide/settings/sound.md), [LED](guide/settings/led-settings.md), [network](guide/settings/connection.md), [sensors](guide/sensors.md) |
-| More | [Advanced](guide/advanced.md) | [Calibration](guide/calibration.md), [history](guide/print-history.md), [macros](guide/advanced.md#macro-execution), [system tools](guide/advanced.md) |
+| I want to... | Where on the screen | Read more |
+|--------------|---------------------|-----------|
+| Start a print | **Home**, then **Print Files** on the print card | [Printing](guide/printing.md) |
+| Reprint my last file | **Home**, then **Reprint Last** on the print card | [Printing](guide/printing.md) |
+| Pause or cancel a print | The buttons along the bottom of the print screen | [During a Print](guide/printing.md#during-a-print) |
+| Change speed or flow mid-print | **Tune** on the print screen | [Print Tune Overlay](guide/printing.md#print-tune-overlay) |
+| Fix my first layer | **Tune** on the print screen, or **Z-Offset** on **Controls** | [Z-Offset / Baby Steps](guide/printing.md#z-offset--baby-steps) |
+| Stop printing one failed part | Press and hold the part in the print preview | [Exclude Object](guide/printing.md#exclude-object) |
+| Watch the print on camera | A **Camera** widget, or **Settings > Devices > Camera** | [Camera](guide/camera.md) |
+| Load or unload filament | **Filament** | [Filament Management](guide/filament.md#load--unload--purge) |
+| Load a different slot or tool | **Filament**, then tap the slot | [The Filament System Panel](guide/filament-ams-panel.md) |
+| Dry filament | **Filament**, then the temperature badge on a box, or **Advanced > Dry Filament** | [Filament Drying](guide/filament-drying.md) |
+| Heat the nozzle or bed | **Controls**, or tap a heater on the Home screen | [Temperature Control](guide/temperature.md) |
+| Move or home the print head | **Controls > Motion** | [Motion & Positioning](guide/motion.md) |
+| Level my bed | **Controls > Bed Mesh**, or **Advanced > Bed Leveling** | [Calibration](guide/calibration.md#bed-mesh) |
+| Tune input shaper | **Advanced > Input Shaping** | [Calibration](guide/calibration.md#input-shaper) |
+| PID-tune a heater | **Advanced > Heater Calibration** | [Calibration](guide/calibration.md#heater-calibration-pid--mpc) |
+| Run a macro | **Advanced > Macro Browser**, or a **Macros** widget | [Advanced Features](guide/advanced.md#macro-execution) |
+| See past prints | **Advanced > Print History** | [Print History](guide/print-history.md) |
+| Rearrange the home screen | Long-press the widget grid | [Edit Mode](guide/home-edit-mode.md) |
+| Change the theme | **Settings > Appearance > Theme Colors** | [Appearance](guide/settings/appearance.md) |
+| Join a Wi-Fi network | **Settings > Connection** | [Connection](guide/settings/connection.md) |
+| Lock the screen with a PIN | **Settings > System > Security** | [Security & Screen Lock](guide/security.md) |
+| Fix taps that land in the wrong spot | **Settings > Touch & Input > Touch Calibration** | [Touch Calibration](guide/touch-calibration.md) |
+| Update HelixScreen | **Settings > Updates** | [Updates](guide/settings/updates.md) |
+
+Something not working? See [Troubleshooting](TROUBLESHOOTING.md) and the [FAQ](FAQ.md).
 
 ---
 

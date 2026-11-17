@@ -58,7 +58,7 @@ Tapping a row (or its Load icon) loads that profile.
 
 Assisted manual bed leveling:
 
-1. Navigate to **Advanced > Screws Tilt**
+1. Navigate to **Advanced > Bed Leveling**
 2. Tap **Start Probing**. The printer homes, then probes every bed screw position. It homes before every probe, Re-probe included, because turning a screw moves the bed under a Z position that still reads as homed
 3. Read each screw's instruction, e.g. "Tighten 1/4 turn" or "Loosen 1/8 turn"
 4. Turn the screws, tap **Re-probe**, and repeat until the bed reads level
@@ -91,7 +91,7 @@ The reference screw is labeled **base** (it is the one everything else is measur
 
 Tune vibration compensation for smoother, faster prints:
 
-1. Navigate to **Advanced > Input Shaper**
+1. Navigate to **Advanced > Input Shaping**
 2. Review your current shaper configuration displayed at the top
 3. Pre-flight check verifies accelerometer is connected
 4. Select axis to test (X or Y)
@@ -161,7 +161,7 @@ View and control your Z probe from **Advanced > Probe Management**. HelixScreen 
 
 Interactive panel for dialing in your Z-offset when not printing. Works with all probe types — Cartographer, Beacon, BLTouch, eddy current probes, and standard probes.
 
-1. Navigate to **Advanced > Z-Offset**, or tap **Z-Offset Cal** in the Probe Management overlay
+1. Navigate to **Advanced > Z-Offset Calibration**, or tap **Z-Offset Cal** in the Probe Management overlay
 2. Optionally enable **Warm Bed** to heat the bed before calibrating (accounts for thermal expansion)
 3. Tap **Start** — the printer homes and begins the calibration sequence
 4. Use the **+/−** adjustment buttons to lower the nozzle (paper test: adjust until paper drags slightly)

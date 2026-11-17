@@ -34,18 +34,7 @@ For more, see [Troubleshooting](../TROUBLESHOOTING.md).
 
 ## When to Use Which Panel
 
-| I want to... | Go to... |
-|--------------|----------|
-| Start a print | **Home**, then **Print Files** on the print card |
-| Change the nozzle temperature | **Controls**, or tap a heater on the Home screen |
-| Move the print head | **Controls > Motion** |
-| Load filament | **Filament** |
-| Level my bed | **Controls > Bed Mesh**, or **Advanced > Bed Leveling** |
-| Tune input shaper | **Advanced > Input Shaping** |
-| Run a custom macro | **Advanced > Macro Browser** |
-| Check print history | **Advanced > Print History** |
-| Change the theme | **Settings > Appearance > Theme Colors** |
-| Fix touch calibration | **Settings > Touch & Input > Touch Calibration** |
+The [I Want To... table](../USER_GUIDE.md#i-want-to) in the guide overview lists common tasks, where each one is on the screen, and the page that covers it.
 
 ---
 
