@@ -729,6 +729,12 @@ start_service() {
 # fresh install waits for the reboot: the mod's display mode and the stock
 # UI it disabled only settle at boot. A self-update counts as restarting, by
 # the app's own watchdog.
+#
+# An adopted legacy root (the AD5M's /opt/helixscreen) is left to the reboot:
+# it boots from the host's own S90, which the chroot's script cannot reach,
+# and that script predates this installer run. A root whose binary the chroot
+# cannot reach waits too, since the chroot's init script exits 0 for start
+# and status alike when its DAEMON_DIR does not resolve there.
 mod_payload_restarts_ui() {
     [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] || return 1
     [ -n "${HOST_MOD_CHROOT:-}" ] || return 1
@@ -736,6 +742,10 @@ mod_payload_restarts_ui() {
         "$HOST_MOD_CHROOT/etc/init.d/"*) ;;
         *) return 1 ;;
     esac
+    if [ -n "${HOST_LEGACY_INSTALL_ROOT:-}" ] && [ "${INSTALL_DIR:-}" = "$HOST_LEGACY_INSTALL_ROOT" ]; then
+        return 1
+    fi
+    [ -x "${HOST_MOD_CHROOT}${HELIX_CHROOT_DAEMON_DIR:-$INSTALL_DIR}/bin/helix-screen" ] || return 1
     [ "${HELIX_UI_START_FAILED:-}" = "1" ] && return 1
     _is_self_update && return 0
     [ "${HELIX_UI_WAS_RUNNING:-}" = "1" ] || pidof helix-screen >/dev/null 2>&1
@@ -752,9 +762,11 @@ _mod_chroot_init() { # action
     fi
 }
 
-# Start (or restart) the payload's UI through the mod's chroot. A failure is
-# not fatal: the files are installed and the mod starts them at boot, so the
-# summary asks for a reboot instead (HELIX_UI_START_FAILED).
+# Start (or restart) the payload's UI through the mod's chroot. Only a
+# helix-screen process confirms the start: the init script's exit status and
+# its status action can both read 0 with nothing running. A start that is not
+# confirmed is not fatal: the files are installed and the mod starts them at
+# boot, so the summary asks for a reboot instead (HELIX_UI_START_FAILED).
 start_service_mod_chroot() {
     if _is_self_update; then
         log_info "Skipping service start (self-update; restart via watchdog)"
@@ -768,22 +780,25 @@ start_service_mod_chroot() {
     fi
     log_info "Starting HelixScreen inside the mod's chroot..."
 
+    # The init script's start returns before the UI launches: its forked
+    # supervisor first waits for the framebuffer (up to 10s on the AD5X).
     if [ -x "$INIT_SCRIPT_DEST" ] && _mod_chroot_init "$action"; then
-        local _
-        for _ in 1 2 3 4 5; do
+        local _waited=0
+        while [ "$_waited" -lt 20 ]; do
             sleep 1
-            if _mod_chroot_init status >/dev/null 2>&1; then
+            _waited=$((_waited + 1))
+            if pidof helix-screen >/dev/null 2>&1; then
                 log_success "HelixScreen is running!"
                 return 0
             fi
         done
-        log_warn "Service may still be starting..."
-        return 0
+        log_warn "HelixScreen did not appear within ${_waited}s of its start in the mod's chroot."
+    else
+        log_warn "HelixScreen did not start from the mod's chroot."
     fi
     # shellcheck disable=SC2034  # consumed by plan.sh (print_summary)
     HELIX_UI_START_FAILED=1
-    log_warn "HelixScreen did not start from the mod's chroot; it starts at the next boot."
-    log_warn "Check logs: ${INSTALL_DIR}/logs/launcher.log"
+    log_warn "It starts at the next boot. Check logs: ${INSTALL_DIR}/logs/launcher.log"
 }
 
 # Start service (Snapmaker U1)
