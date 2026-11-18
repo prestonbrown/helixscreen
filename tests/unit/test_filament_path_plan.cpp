@@ -444,6 +444,25 @@ TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn u
     }
 }
 
+TEST_CASE("FilamentPath plan: under a drawn unit each lane shows one sensor mark",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    load_active(*d, 1, PathSegment::NOZZLE);
+    d->view_hub_h = 24;
+    d->art_sensors = true;
+    d->art_draws_prep = false;
+    for (int i = 0; i < 4; i++)
+        d->slot_has_prep_sensor[i] = d->slot_has_load_sensor[i] = true;
+    const PathPlan& plan = plan_for(*d);
+    for (int i = 0; i < 4; i++) {
+        int marks = 0;
+        for (int b = 0; b < plan.band_count; b++)
+            marks += std::fabs(plan.bands[b].at.x - (50.0f + 100 * i)) < 1.0f;
+        CAPTURE(i);
+        CHECK(marks == 1);
+    }
+}
+
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);

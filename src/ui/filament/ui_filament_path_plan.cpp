@@ -1043,16 +1043,16 @@ void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, 
     pg::PathPoint p0, p1;
     band_segment(band, gauge, p0, p1);
     if (band.dot) {
-        // A small dot on the tube, ringed dark so it reads on whatever art it stands on, and
-        // small enough to leave the art round it.
+        // A sensor drawn round, small enough to leave the art round it: a faint light halo keeps
+        // it legible on a head of its own color.
         const int32_t r = LV_MAX(3, gauge / 2 + 1);
         const int32_t x = (int32_t)std::lround(band.at.x), y = (int32_t)std::lround(band.at.y);
         lv_draw_fill_dsc_t fill;
         lv_draw_fill_dsc_init(&fill);
         fill.radius = LV_RADIUS_CIRCLE;
-        fill.color = lv_color_black();
-        fill.opa = LV_OPA_80;
-        const lv_area_t ring = {x - r - 2, y - r - 2, x + r + 2, y + r + 2};
+        fill.color = lv_color_white();
+        fill.opa = LV_OPA_30;
+        const lv_area_t ring = {x - r - 1, y - r - 1, x + r + 1, y + r + 1};
         lv_draw_fill(layer, &fill, &ring);
         fill.color = color;
         fill.opa = LV_OPA_COVER;
@@ -1146,12 +1146,8 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
-    const int before = plan.band_count;
     add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
              only_faults(data, state), fill, /*on_box_edge=*/true);
-    // Under a view scale the hub's sensor is a dot on its outlet edge, like the head's.
-    if (data.view_hub_h > 0 && plan.band_count > before)
-        plan.bands[plan.band_count - 1].dot = true;
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1437,9 +1433,13 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float start_y = (float)lane_start_y(data, f, i);
         const float band_y = (float)lane_band_y(data, f, i);
         append_line(r, x, start_y, x, band_y, lane.style(PathSegment::SPOOL));
-        if (data.slot_has_prep_sensor[i] && !(data.art_sensors && data.art_draws_prep)) {
-            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, lane.band(PathSegment::PREP),
-                     s.color, f.prep_on_box_edge && band_y == start_y);
+        // Under a drawn unit the lane's mark is its load sensor at the tube's start; the prep
+        // sensor shows on the art where drawn, else on the tube only when it faults.
+        const BandState prep = lane.band(PathSegment::PREP);
+        if (data.slot_has_prep_sensor[i] && !(data.art_sensors && data.art_draws_prep) &&
+            !(data.art_sensors && prep != BandState::Error)) {
+            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, prep, s.color,
+                     f.prep_on_box_edge && band_y == start_y);
         }
         // Leaving a drawn unit, the load sensor is a short marker where the tube leaves it,
         // lying along the unit's bottom edge: plain unless that sensor reports a fault.
