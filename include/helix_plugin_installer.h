@@ -455,6 +455,7 @@ enum class PluginSelfHealStep {
     RestartNow, ///< Moonraker must restart to load the plugin this app ships
     WaitForJob, ///< as RestartNow, once no job holds the machine
     GiveUp,     ///< a restart for this same version pair or link already failed: warn only
+    KeepNewer,  ///< the running plugin is newer than the one this app ships: leave it alone
 };
 
 /**
@@ -489,11 +490,29 @@ struct PluginSelfHealFacts {
 /**
  * @brief Whether the running plugin reports another version than this app
  *        ships; false when either is unknown
+ *
+ * Two versions that parse (helix::version::parse_version()) differ when their
+ * precedence does, so `1.2.0+g0f1e2d3` matches `1.2.0`; any other pair is
+ * compared as text.
  */
 bool plugin_versions_differ(const PluginSelfHealFacts& facts);
 
 /**
+ * @brief Whether the running plugin's version ranks above the one this app ships
+ *
+ * Semantic Versioning precedence: `1.10.0` is newer than `1.9.0`, and
+ * `1.4.1-beta.2` older than `1.4.1`. False when either version is empty or
+ * does not parse, so an unreadable version never blocks a repair.
+ */
+bool plugin_running_newer(const std::string& reported_version, const std::string& bundled_version);
+
+/**
  * @brief Decide what the startup check does about the installed plugin
+ *
+ * A running plugin newer than the one this app ships (plugin_running_newer())
+ * is kept whatever else holds (KeepNewer): restarting Moonraker onto this
+ * app's plugin would downgrade it, and a remote one is not reported as a
+ * mismatch to fix either.
  *
  * Only a plugin the user installed is repaired, never one installed here, and
  * only on this host: a remote Moonraker's plugin, or a local one with no link

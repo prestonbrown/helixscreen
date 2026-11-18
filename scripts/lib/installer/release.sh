@@ -1848,17 +1848,23 @@ payload_replace_contents() {
         fi
     done
 
-    # Merge the incoming config/ defaults without overwriting operator files
-    # - the same rule the read-only-parent in-place update applies: only
-    # entries the payload does not already have land, and directories present
-    # on both sides merge at file level.
+    # Merge the incoming config/ without overwriting operator files: entries
+    # the payload does not already have land, and directories present on both
+    # sides merge at file level. A file the release ships and owns (the init
+    # script the service is installed from, the helper scripts) is replaced,
+    # or an updated payload would keep installing the first one it received.
     if [ -d "$new_root/config" ]; then
         local subitem subbase
         mkdir -p "$dest_root/config"
         for item in "$new_root/config"/*; do
             [ -e "$item" ] || continue
             base=$(basename "$item")
-            if [ ! -e "$dest_root/config/$base" ]; then
+            if [ -f "$item" ] && [ -f "$dest_root/config/$base" ] \
+                && ! helix_is_user_config_name "$base"; then
+                if mv -f "$item" "$dest_root/config/$base" 2>/dev/null; then
+                    log_info "Updated shipped payload config: $base"
+                fi
+            elif [ ! -e "$dest_root/config/$base" ]; then
                 mv "$item" "$dest_root/config/$base" 2>/dev/null || true
                 log_info "Added new payload config default: $base"
             elif [ -d "$item" ] && [ -d "$dest_root/config/$base" ]; then

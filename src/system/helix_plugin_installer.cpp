@@ -16,6 +16,7 @@
 #include "system/process_runner.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "version.h"
 #include "wall_clock_trust.h"
 
 #include <spdlog/spdlog.h>
@@ -641,11 +642,27 @@ std::string parse_plugin_version(std::string_view text) {
 }
 
 bool plugin_versions_differ(const PluginSelfHealFacts& facts) {
-    return !facts.reported_version.empty() && !facts.bundled_version.empty() &&
-           facts.reported_version != facts.bundled_version;
+    if (facts.reported_version.empty() || facts.bundled_version.empty()) {
+        return false;
+    }
+    const auto reported = version::parse_version(facts.reported_version);
+    const auto bundled = version::parse_version(facts.bundled_version);
+    if (reported && bundled) {
+        return *reported != *bundled;
+    }
+    return facts.reported_version != facts.bundled_version;
+}
+
+bool plugin_running_newer(const std::string& reported_version, const std::string& bundled_version) {
+    const auto reported = version::parse_version(reported_version);
+    const auto bundled = version::parse_version(bundled_version);
+    return reported && bundled && *reported > *bundled;
 }
 
 PluginSelfHealStep decide_plugin_self_heal(const PluginSelfHealFacts& facts) {
+    if (plugin_running_newer(facts.reported_version, facts.bundled_version)) {
+        return PluginSelfHealStep::KeepNewer;
+    }
     const bool version_differs = plugin_versions_differ(facts);
     if (!facts.local) {
         return version_differs ? PluginSelfHealStep::ReportOnly : PluginSelfHealStep::Nothing;

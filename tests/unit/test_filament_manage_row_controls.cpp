@@ -21,6 +21,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_panel_test_access.h"
 #include "../test_helpers/mock_printer.h"
+#include "../test_helpers/scoped_int_subject.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -90,6 +91,9 @@ struct ManageRowHarness {
     ~ManageRowHarness() {
         panel.reset();
         AmsState::instance().clear_backends();
+        // The tools, mount report and ams_type set above are process-wide.
+        AmsState::instance().deinit_subjects();
+        ToolState::instance().deinit_subjects();
     }
 
     [[nodiscard]] bool hidden(const char* name) const {
@@ -273,7 +277,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_display_t* disp = lv_display_get_default();
     ScopedResolution res(disp, 320, 480);
     theme_manager_refresh_layout_constants(disp);
-    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 1);
+    helix::test::ScopedIntSubject portrait("ui_is_portrait", 1);
     // The fixture registers fewer custom widgets than the app; the strip's
     // AMS mini status needs its registration or the element silently
     // creates nothing.
@@ -319,6 +323,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // callback in this file), and the harness panel is a local instance — so
     // observe the call at the overlay: open() resyncs its mode subject to
     // GraphOnly, and nothing else in this test touches it.
+    // The overlay is a process-wide singleton: dropping it at the end withdraws
+    // the temp_graph_mode subject this case makes it publish.
+    struct DropGlobalOverlay {
+        ~DropGlobalOverlay() {
+            helix::detail::lazy_global_slot<TempGraphOverlay>().reset();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } drop_overlay;
     get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode != nullptr);

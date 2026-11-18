@@ -699,6 +699,21 @@ TEST_CASE_METHOD(SelfHealFixture,
     CHECK(moonraker_restarts() == api_restarts_before);
 }
 
+TEST_CASE_METHOD(SelfHealFixture,
+                 "a running plugin newer than the app ships is neither relinked nor restarted",
+                 "[plugin_installer][print_select][self_heal]") {
+    // The link would be re-pointed at this app's older plugin if the check ran it.
+    ship("0.9.0", 3);
+    const int api_restarts_before = moonraker_restarts();
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+
+    run_plugin_probe();
+    settle();
+
+    CHECK(calls().empty());
+    CHECK(moonraker_restarts() == api_restarts_before);
+}
+
 TEST_CASE_METHOD(SelfHealFixture, "a current plugin of the version the app ships is left alone",
                  "[plugin_installer][print_select][self_heal]") {
     ship("1.0.1", 0);
