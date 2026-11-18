@@ -418,6 +418,7 @@ void PrinterPrintState::reset_for_new_print() {
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
+    file_progress_fraction_ = -1.0;
     lv_subject_copy_string(&print_message_, "");
     set_print_stop_reason("");
     lv_subject_set_int(&print_duration_, 0);
@@ -610,6 +611,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
                     // Reset slicer progress for the new print
                     slicer_progress_ = 0.0;
                     slicer_progress_active_ = false;
+                    file_progress_fraction_ = -1.0;
                     // This frame's own message is already applied above.
                     if (msg_it == stats.end()) {
                         lv_subject_copy_string(&print_message_, "");
@@ -825,6 +827,8 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 
             PrintEtaInputs eta_in;
             eta_in.progress_pct = progress;
+            eta_in.progress_fraction =
+                slicer_progress_active_ ? slicer_progress_ : file_progress_fraction_;
             eta_in.print_duration_s = print_time;
             eta_in.slicer_estimate_s = estimated_print_time_;
             eta_in.preprint_remaining_s = lv_subject_get_int(&preprint_remaining_);
@@ -956,6 +960,10 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
 
         if (sdcard.contains("progress") && sdcard["progress"].is_number()) {
             int file_progress_pct = helix::units::json_to_percent(sdcard, "progress");
+            // Not while paused, for the reason display_status is not read then.
+            if (get_print_lifecycle() != PrintState::Paused) {
+                file_progress_fraction_ = sdcard["progress"].get<double>();
+            }
 
             // Update print_progress_ subject (skipped when slicer is active
             // but only file progress arrived — slicer is authoritative)

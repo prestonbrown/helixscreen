@@ -37,6 +37,7 @@ class PrinterPrintStateTestAccess {
         pps.printer_reports_layers_ = false;
         pps.slicer_progress_ = 0.0;
         pps.slicer_progress_active_ = false;
+        pps.file_progress_fraction_ = -1.0;
         pps.eta_estimator_.reset();
         pps.sdcard_active_ = false;
         // print_stats.exception parses under Moonraker delta semantics: an

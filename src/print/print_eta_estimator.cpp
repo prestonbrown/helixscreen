@@ -4,71 +4,102 @@
 #include "print_eta_estimator.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace helix {
 
 void PrintEtaEstimator::reset() {
     smoothed_remaining_ = 0.0;
     has_smoothed_ = false;
+    last_duration_s_ = 0;
+    anchor_duration_s_ = 0;
+    anchor_fraction_ = 0.0;
 }
 
 int PrintEtaEstimator::remaining_seconds(const PrintEtaInputs& in) {
-    const int progress = in.progress_pct;
+    const double fraction =
+        in.progress_fraction >= 0.0 ? std::min(in.progress_fraction, 1.0) : in.progress_pct / 100.0;
+    const double pct = fraction * 100.0;
 
     // Still preparing: what is left is the rest of the prep plus the whole job.
-    if (progress == 0 && in.preprint_remaining_s > 0 && in.slicer_estimate_s > 0) {
+    if (pct <= 0.0 && in.preprint_remaining_s > 0 && in.slicer_estimate_s > 0) {
         return in.preprint_remaining_s + in.slicer_estimate_s;
     }
 
-    if (progress >= 100) {
+    if (pct >= 100.0) {
         return 0;
     }
 
-    if (progress < 1) {
+    if (pct < 1.0) {
         return kNoEstimate;
     }
 
-    // Too early to extrapolate: a handful of seconds against a whole job turns
-    // any rate estimate into noise, so the slicer's number stands alone.
-    if (progress < 5 && in.slicer_estimate_s > 0) {
-        return in.slicer_estimate_s * (100 - progress) / 100;
-    }
-
-    if (in.print_duration_s > 0) {
-        double raw_remaining =
-            static_cast<double>(in.print_duration_s) * (100 - progress) / progress;
+    double raw_remaining = 0.0;
+    if (pct < 5.0 && in.slicer_estimate_s > 0) {
+        // Too early to extrapolate: a handful of seconds against a whole job
+        // turns any rate estimate into noise, so the slicer's number stands alone.
+        raw_remaining = in.slicer_estimate_s * (1.0 - fraction);
+    } else if (in.print_duration_s > 0) {
+        raw_remaining = in.print_duration_s * (1.0 - fraction) / fraction;
 
         // Early on, damp the extrapolation toward the slicer's estimate. The
         // weight falls to zero at kBlendBelowPct, so the two agree at the
         // handover and the number does not jump as the blend switches off.
-        if (progress < kBlendBelowPct && in.slicer_estimate_s > 0) {
-            const double slicer_weight =
-                static_cast<double>(kBlendBelowPct - progress) / kBlendBelowPct;
-            const double slicer_remaining =
-                static_cast<double>(in.slicer_estimate_s) * (100.0 - progress) / 100.0;
+        if (pct < kBlendBelowPct && in.slicer_estimate_s > 0) {
+            const double slicer_weight = (kBlendBelowPct - pct) / kBlendBelowPct;
+            const double slicer_remaining = in.slicer_estimate_s * (1.0 - fraction);
             raw_remaining =
                 slicer_weight * slicer_remaining + (1.0 - slicer_weight) * raw_remaining;
         }
-
-        // Alpha rises with progress, so the estimate is very stable while the
-        // sample is small and converges once the rate is worth believing:
-        // 0.06 at 1%, 0.20 at 15%, capped at 0.30 from 25% on.
-        const double alpha = std::min(0.3, 0.05 + progress * 0.01);
-        if (!has_smoothed_) {
-            smoothed_remaining_ = raw_remaining;
-            has_smoothed_ = true;
-        } else {
-            smoothed_remaining_ = alpha * raw_remaining + (1.0 - alpha) * smoothed_remaining_;
-        }
-        return static_cast<int>(smoothed_remaining_);
+    } else if (in.slicer_estimate_s > 0) {
+        // Printing has not started clocking yet, so there is no rate to observe.
+        return whole_seconds(in.slicer_estimate_s * (1.0 - fraction));
+    } else {
+        return kNoEstimate;
     }
 
-    // Printing has not started clocking yet, so there is no rate to observe.
-    if (in.slicer_estimate_s > 0) {
-        return in.slicer_estimate_s * (100 - progress) / 100;
+    if (in.print_duration_s <= 0) {
+        return whole_seconds(raw_remaining);
+    }
+    return whole_seconds(smooth(raw_remaining, in.print_duration_s, fraction));
+}
+
+int PrintEtaEstimator::whole_seconds(double seconds) {
+    // Whole seconds, rounded down. The tolerance keeps an exact quotient that
+    // binary fractions miss by a hair (600 * 0.2 / 0.8) from losing a second.
+    return static_cast<int>(seconds + 1e-6);
+}
+
+double PrintEtaEstimator::smooth(double raw_remaining, int duration_s, double fraction) {
+    if (!has_smoothed_ || duration_s < last_duration_s_) {
+        smoothed_remaining_ = raw_remaining;
+        has_smoothed_ = true;
+        last_duration_s_ = duration_s;
+        anchor_duration_s_ = duration_s;
+        anchor_fraction_ = fraction;
+        return smoothed_remaining_;
     }
 
-    return kNoEstimate;
+    // Between progress reports nothing new is known about the rate, so the
+    // estimate counts down with the print clock. print_duration stands still
+    // while paused, so a pause holds the number without a special case.
+    smoothed_remaining_ -= duration_s - last_duration_s_;
+    last_duration_s_ = duration_s;
+
+    // Progress moved: the extrapolation is fresh evidence. Pull toward it by
+    // how much print time it covers, so the answer follows a real change of
+    // pace within a few kSmoothingSeconds whether progress arrives four times a
+    // second or once a minute.
+    if (fraction != anchor_fraction_ && duration_s > anchor_duration_s_) {
+        const double weight =
+            1.0 - std::exp(-(duration_s - anchor_duration_s_) / kSmoothingSeconds);
+        smoothed_remaining_ += weight * (raw_remaining - smoothed_remaining_);
+        anchor_duration_s_ = duration_s;
+        anchor_fraction_ = fraction;
+    }
+
+    smoothed_remaining_ = std::max(0.0, smoothed_remaining_);
+    return smoothed_remaining_;
 }
 
 } // namespace helix
