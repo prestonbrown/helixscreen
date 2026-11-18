@@ -325,6 +325,7 @@
       "filament",
       "action",
       "reason_for_pause",
+      "pause_hint",
       "filament_pos",
       "gate_status",
       "gate_color_rgb",
