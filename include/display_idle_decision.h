@@ -38,6 +38,9 @@ struct IdleInputs {
     bool remote_viewer = false;
     /// remote_viewer became true this tick. Wakes a sleeping display, as a touch does.
     bool remote_viewer_arrived = false;
+    /// A job took the machine this tick (the lifecycle left a state without a job). Wakes a
+    /// sleeping or dimmed display whatever sleep-while-printing says.
+    bool print_started = false;
 };
 
 struct IdleDecision {
@@ -60,7 +63,8 @@ inline IdleDecision decide_idle(const IdleInputs& in) {
     const bool activity = in.inactive_ms < kIdleActivityWindowMs;
 
     if (in.state == IdleState::Sleeping) {
-        if (in.wake_requested || activity || in.host_resumed || in.remote_viewer_arrived) {
+        if (in.wake_requested || activity || in.host_resumed || in.remote_viewer_arrived ||
+            in.print_started) {
             return {IdleAction::Wake};
         }
         return {IdleAction::None};
@@ -74,7 +78,7 @@ inline IdleDecision decide_idle(const IdleInputs& in) {
         if (in.is_preview && in.preview_elapsed_ms < kPreviewGraceMs) {
             dismiss_on_activity = false;
         }
-        if (in.wake_requested || dismiss_on_activity) {
+        if (in.wake_requested || dismiss_on_activity || in.print_started) {
             return {IdleAction::Wake};
         }
         if (!in.inhibit_entry && sleep_due && !in.remote_viewer) {

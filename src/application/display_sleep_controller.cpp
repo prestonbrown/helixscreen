@@ -350,6 +350,25 @@ void DisplaySleepController::tick() {
     }
 #endif
 
+    // A job taking the machine wakes the display once, whatever sleep-while-printing says:
+    // a print started from Mainsail, Fluidd or a slicer shows itself on the screen. The
+    // edge is the lifecycle leaving a state without a job, so later frames of the same
+    // print, pause and resume, and a reconnect that re-reports a job this screen already
+    // knew of (the lifecycle holds its value through a dropped connection) never wake it.
+    // The wake restarts the idle clock; after it the usual rules below apply.
+    const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
+    const bool print_started =
+        job_holds_machine(lifecycle) && !job_holds_machine(m_last_print_lifecycle);
+    m_last_print_lifecycle = lifecycle;
+    if (print_started) {
+        spdlog::info("[DisplaySleep] Print started ({}) while {}",
+                     helix::print_state_name(lifecycle),
+                     m_display_sleeping ? "sleeping; waking display"
+                     : m_display_dimmed ? "dimmed; waking display"
+                                        : "awake; idle clock restarted");
+        lv_display_trigger_activity(lv_display_get_default());
+    }
+
     // If sleep-while-printing is disabled, inhibit *entering* sleep/dim during
     // active prints. We still need to honor wake-from-sleep touches: the
     // display may have entered sleep BEFORE the print started, and bailing out
@@ -360,7 +379,6 @@ void DisplaySleepController::tick() {
         // Lifecycle: a user who turned off sleep-while-printing wants the
         // screen up through the pre-print homing too, which is when they are
         // most likely to be watching.
-        const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
         if (job_holds_machine(lifecycle)) {
             // Reset LVGL activity timer so we don't immediately sleep when print ends
             lv_display_trigger_activity(lv_display_get_default());
@@ -427,6 +445,7 @@ void DisplaySleepController::tick() {
     in.host_resumed = resumed_from_host_sleep;
     in.remote_viewer = m_host.remote_viewer_active && m_host.remote_viewer_active();
     in.remote_viewer_arrived = in.remote_viewer && !m_remote_viewer_seen;
+    in.print_started = print_started;
     m_remote_viewer_seen = in.remote_viewer;
 #if HELIX_ENABLE_SCREENSAVER
     in.has_screensaver = ScreensaverManager::configured_type() != ScreensaverType::OFF;
@@ -463,7 +482,7 @@ void DisplaySleepController::tick() {
             spdlog::info("[DisplaySleep] Remote screen viewer opened the screen; waking display");
         }
         m_wake_requested = false;
-        m_wake_from_input = true;
+        m_wake_from_input = !print_started;
         wake();
         m_wake_from_input = false;
         break;
