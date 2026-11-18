@@ -432,7 +432,24 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     const bool art = slot_grid && s_tray.valid && s_tray.art && s_tray.art_obj &&
                      s_tray.container == lv_obj_get_parent(slot_grid);
     lv_point_t edge_a{}, edge_b{};
+    // The canvas fills its container's height; under a drawn unit it also reaches up into the
+    // unit, so it is that much taller and still ends at the container's bottom. Each change
+    // is made only when it changes something: a resize repaints the canvas.
+    const auto fill_container = [canvas](int32_t reach) {
+        // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
+        if (reach <= 0) {
+            if (lv_obj_get_style_flex_grow(canvas, LV_PART_MAIN) != 1)
+                lv_obj_set_style_flex_grow(canvas, 1, LV_PART_MAIN);
+            return;
+        }
+        const int32_t h = lv_obj_get_content_height(lv_obj_get_parent(canvas)) + reach;
+        if (lv_obj_get_style_flex_grow(canvas, LV_PART_MAIN) != 0)
+            lv_obj_set_style_flex_grow(canvas, 0, LV_PART_MAIN);
+        if (lv_obj_get_style_height(canvas, LV_PART_MAIN) != h)
+            lv_obj_set_height(canvas, h);
+    };
     if (!art || !helix::ui::unit_art_bottom_edge(s_tray.art_obj, edge_a, edge_b)) {
+        fill_container(0);
         // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
         lv_obj_set_style_margin_top(canvas, 0, LV_PART_MAIN);
         ui_filament_path_canvas_set_lane_entry(canvas, offset);
@@ -479,6 +496,7 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     const int32_t reach = std::max<int32_t>(0, cc.y1 - (int32_t)std::floor(highest) + 1);
     // DECLARATIVE_OK: as above
     lv_obj_set_style_margin_top(canvas, -reach, LV_PART_MAIN);
+    fill_container(reach);
     lv_obj_update_layout(lv_obj_get_parent(canvas));
     // Each number stands level with its lane's band, as the canvas lays the band out.
     for (int i = 0; i < n; ++i) {
@@ -523,8 +541,10 @@ int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count
     if (!draws_tray() || slot_count <= 0 || available_width <= 0)
         return token;
     lv_display_t* disp = lv_display_get_default();
-    const int32_t height = disp ? lv_display_get_vertical_resolution(disp) : 0;
-    const int32_t cap = height > 0 ? height / 5 : token;
+    const int32_t shorter = disp ? std::min(lv_display_get_horizontal_resolution(disp),
+                                            lv_display_get_vertical_resolution(disp))
+                                 : 0;
+    const int32_t cap = shorter > 0 ? shorter / 5 : token;
     return tray::fit_spool_size((float)available_width, slot_count, cap);
 }
 

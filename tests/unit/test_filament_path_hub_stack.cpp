@@ -145,8 +145,13 @@ void check_buffer_on_drop(const LinearHubFrame& f, const PathPlan& plan, int32_t
     const float top = (float)(f.buffer_y - half);
     const float bottom = (float)(f.buffer_y + half);
     CAPTURE(f.output_y, f.buffer_y, half, glyph_top, r);
-    CHECK(f.buffer_y - half - f.output_y >= r);
-    CHECK((glyph_top - 2 * r) - (f.buffer_y + half) >= r);
+    // The gap above is never smaller than the gap below (they are equal under a hub; a
+    // selector's jog can only push the buffer lower), and the one below holds the room over
+    // the head where the bypass merges and the toolhead band sits.
+    const int32_t above = f.buffer_y - half - f.output_y;
+    const int32_t below = glyph_top - (f.buffer_y + half);
+    CHECK(above >= below - 2);
+    CHECK(below >= 3 * r);
     const pg::FilamentPath& path = plan.routes[plan.active_route].path;
     int covering = 0;
     for (int i = 0; i < path.count; ++i) {
@@ -238,11 +243,10 @@ TEST_CASE_METHOD(HubStackFixture,
         const PathPlan& plan = plan_of(c, &f);
         const int32_t glyph_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
         check_buffer_on_drop(f, plan, glyph_top);
-        // Even gaps between the hub's outlet and the toolhead band's room below.
+        // Even gaps: the hub's outlet to the buffer, the buffer to the head.
         const int32_t half = buffer_control_height(f.hub_h) / 2;
-        const int32_t floor = f.toolhead_y - f.sensor_r;
         CHECK((f.buffer_y - half - f.output_y) ==
-              Catch::Approx(floor - (f.buffer_y + half)).margin(1));
+              Catch::Approx(glyph_top - (f.buffer_y + half)).margin(2));
     }
     SECTION("without a buffer") {
         auto c = make(false, false);

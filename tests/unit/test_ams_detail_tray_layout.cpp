@@ -888,6 +888,21 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_area_t wa;
     lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "loaded_weight"), &wa);
     CHECK(wa.x2 == da.x2);
+    // The hub stands clear of every lane's number.
+    {
+        auto* cd = helix::ui::fpath::get_data(canvas);
+        REQUIRE((cd != nullptr && cd->hits.hub_valid));
+        for (int i = 0; i < 8; ++i) {
+            lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
+            if (!badge || lv_obj_is_hidden(badge))
+                continue;
+            lv_area_t ba;
+            lv_obj_get_coords(badge, &ba);
+            const lv_area_t& hub = cd->hits.hub;
+            CAPTURE(i, ba.x1, ba.y1, ba.x2, ba.y2, hub.x1, hub.y1, hub.x2, hub.y2);
+            CHECK_FALSE((ba.x1 <= hub.x2 && ba.x2 >= hub.x1 && ba.y1 <= hub.y2 && ba.y2 >= hub.y1));
+        }
+    }
     // Lane badges stay apart at eight lanes.
     lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
     REQUIRE(badges != nullptr);
@@ -1001,6 +1016,63 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
     CHECK_FALSE(lv_obj_is_hidden(arrows));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art in portrait at 320x480: the hub stands clear of the lane numbers",
+                 "[ams][tray][ui_integration][portrait][unit-art]") {
+    helix::test::ScopedGeometry portrait(320, 480);
+    host_ = lv_obj_create(test_screen());
+    lv_obj_set_size(host_, 320, 410);
+    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE((drawing != nullptr && !lv_obj_is_hidden(drawing)));
+    auto* cd = helix::ui::fpath::get_data(lv_obj_find_by_name(panel_obj_, "path_canvas"));
+    REQUIRE((cd != nullptr && cd->hits.hub_valid));
+    const lv_area_t& hub = cd->hits.hub;
+    int checked = 0;
+    for (int i = 0; i < 4; ++i) {
+        lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
+        if (!badge || lv_obj_is_hidden(badge))
+            continue;
+        lv_area_t ba;
+        lv_obj_get_coords(badge, &ba);
+        CAPTURE(i, ba.x1, ba.y1, ba.x2, ba.y2, hub.x1, hub.y1, hub.x2, hub.y2);
+        CHECK(ba.y2 < hub.y1);
+        ++checked;
+    }
+    CHECK(checked > 0);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: the path fills the height below the unit, the head near its bottom",
+                 "[ams][tray][ui_integration][full-height]") {
+    const bool art = GENERATE(false, true);
+    const int geometry = GENERATE(0, 1, 2);
+    const int32_t sizes[3][2] = {{800, 480}, {480, 272}, {1024, 600}};
+    CAPTURE(art, sizes[geometry][0], sizes[geometry][1]);
+    helix::test::ScopedGeometry scoped(sizes[geometry][0], sizes[geometry][1]);
+    if (art)
+        unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/art);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    lv_obj_t* path = lv_obj_find_by_name(panel_obj_, "path_container");
+    REQUIRE((canvas != nullptr && path != nullptr));
+    lv_area_t cc, pc, head;
+    lv_obj_get_coords(canvas, &cc);
+    lv_obj_get_coords(path, &pc);
+    REQUIRE(ui_filament_path_canvas_get_toolhead_box(canvas, &head));
+    CAPTURE(cc.y1, cc.y2, pc.y1, pc.y2, head.y1, head.y2);
+    // The canvas ends where its container does, however far it reaches up into the unit.
+    CHECK(std::abs(cc.y2 - pc.y2) <= 1);
+    // The head stands near the canvas's bottom.
+    CHECK(head.y2 <= cc.y2);
+    CHECK(cc.y2 - head.y2 <= lv_area_get_height(&cc) / 10);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
