@@ -461,14 +461,16 @@ TEST_CASE("HelixPluginInstaller script path", "[plugin_installer]") {
 
 TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs from",
           "[plugin_installer][install_root]") {
-    using helix::HelixPluginInstallerTestAccess;
     helix::test::InstallTreeFixture tree;
     helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
     helix::HelixPluginInstaller installer;
+    const auto run_from = [&](const std::filesystem::path& exe) {
+        helix::HelixPluginInstallerTestAccess::set_running_exe(installer, exe.string(), tree.root);
+    };
 
     SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {
         const auto gui = tree.make_paxx_bind_mount("1.1.0");
-        HelixPluginInstallerTestAccess::set_running_exe(installer, gui.string(), tree.root);
+        run_from(gui);
         // Not canonicalized: install.sh links the plugin by the path it is run
         // from, and the path through latest survives a package upgrade.
         CHECK(installer.get_install_script_path() ==
@@ -477,7 +479,7 @@ TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs fro
 
     SECTION("our own install, launched by its path") {
         const auto ours = tree.make_tree("userdata/helixscreen");
-        HelixPluginInstallerTestAccess::set_running_exe(installer, ours.string(), tree.root);
+        run_from(ours);
         CHECK(installer.get_install_script_path() ==
               std::filesystem::canonical(tree.root +
                                          "/userdata/helixscreen/moonraker-plugin/install.sh")
@@ -570,8 +572,7 @@ TEST_CASE("HelixPluginInstaller install_local_sync runs the script it finds",
     }
 
     SECTION("a script that outlives the timeout is killed and reported as timed out") {
-        HelixPluginInstallerTestAccess::set_script_timeout_seconds(installer, 1);
-        sandbox.write_script("exec sleep 30");
+        sandbox.write_script_past_timeout();
         const auto started = std::chrono::steady_clock::now();
         const auto result = installer.install_local_sync();
         const auto waited = std::chrono::steady_clock::now() - started;
@@ -762,8 +763,7 @@ TEST_CASE("HelixPluginInstaller uninstall_local runs the script it finds", "[plu
     }
 
     SECTION("a script that outlives the timeout is reported as timed out") {
-        HelixPluginInstallerTestAccess::set_script_timeout_seconds(installer, 1);
-        sandbox.write_script("exec sleep 30");
+        sandbox.write_script_past_timeout();
         installer.uninstall_local(record);
         REQUIRE(called);
         CHECK(outcome == Outcome::FAILED);
