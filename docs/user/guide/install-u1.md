@@ -89,9 +89,9 @@ On PAXX firmware the system log is `syslog` in the printer's logs folder, so Mai
 
 ## Updating
 
-The easiest way is on the screen: **Settings > Updates**, then check for an update and install it. HelixScreen also appears in the update list of Mainsail and Fluidd.
+The easiest way is on the screen: **Settings > Updates**, then check for an update and install it. Stock-firmware installs have this from HelixScreen 1.1 on. Versions 0.99.116 through 1.1.0-rc.2 hide in-app updates on every U1 and read **Managed by your firmware** there, so on those versions update once over SSH as below.
 
-Stock-firmware installs have this from HelixScreen 1.1 on. Versions 0.99.116 through 1.1.0-rc.2 hide in-app updates on every U1 and read **Managed by your firmware** there, so on those versions update once over SSH as below. If HelixScreen came with PAXX firmware as a firmware component, the firmware updates it instead, and the screen keeps reading **Managed by your firmware**.
+Mainsail and Fluidd do not list HelixScreen for updates on stock firmware, because the stock firmware's Moonraker has no update manager. If HelixScreen came with PAXX firmware as a firmware component, the firmware updates it instead, and the screen keeps reading **Managed by your firmware**.
 
 From SSH, run the installer with `--update`. It keeps your settings:
 
