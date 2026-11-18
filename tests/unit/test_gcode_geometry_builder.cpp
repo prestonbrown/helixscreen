@@ -1266,6 +1266,25 @@ TEST_CASE("Geometry Builder: band layers keep only exterior features of every n-
     REQUIRE(geometry.layer_strip_ranges[1].second == 0);
 }
 
+TEST_CASE("Geometry Builder: 1-layer exterior bands keep every layer's walls and drop infill",
+          "[gcode][geometry][bands]") {
+    GeometryBuilder builder;
+    builder.set_band_layers(1, true, /*exterior_only=*/true);
+    RibbonGeometry geometry = builder.build(make_banded_gcode(9), band_options());
+
+    // Nine outer walls, plus the infill of the first printed layer only.
+    REQUIRE(builder.last_stats().input_segments == 10);
+    std::set<uint16_t> layers(geometry.strip_layer_index.begin(), geometry.strip_layer_index.end());
+    REQUIRE(layers.size() == 9);
+
+    SECTION("without exterior_only, 1 still means no banding") {
+        GeometryBuilder plain;
+        plain.set_band_layers(1);
+        plain.build(make_banded_gcode(9), band_options());
+        REQUIRE(plain.last_stats().input_segments == 18);
+    }
+}
+
 TEST_CASE("Geometry Builder: a band is n layer heights tall and bands touch",
           "[gcode][geometry][bands]") {
     GeometryBuilder builder;

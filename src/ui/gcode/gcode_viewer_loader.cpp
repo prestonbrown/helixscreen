@@ -127,12 +127,12 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
 
     // A file the triangle cap alone pushed to 2D gets a banded still instead:
     // shells on every n-th layer, n layers tall, skins and the first layer whole.
-    helix::gcode::render_schedule::BandPlan still_bands{1, true};
+    helix::gcode::render_schedule::BandPlan still_bands{1, true, false};
     if (budget_config.tier == 4 && budget_config.triangle_capped) {
         const BandSegmentCounts counts = count_band_segments(file);
         still_bands =
             helix::gcode::render_schedule::plan_still_bands(counts.shell, counts.surface, max_tris);
-        if (still_bands.band_layers > 1) {
+        if (still_bands.exterior_only) {
             budget_config = {.tier = 3,
                              .tube_sides = 4,
                              .simplification_tolerance = 0.01f,
@@ -169,7 +169,8 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
     configure(builder);
     builder.set_budget_tube_sides(budget_config.tube_sides);
     builder.set_budget_limit(budget_config.budget_bytes);
-    builder.set_band_layers(still_bands.band_layers, still_bands.surfaces_every_layer);
+    builder.set_band_layers(still_bands.band_layers, still_bands.surfaces_every_layer,
+                            still_bands.exterior_only);
 
     helix::gcode::SimplificationOptions opts{.tolerance_mm = budget_config.simplification_tolerance,
                                              .min_segment_length_mm = 0.05f,
@@ -213,7 +214,8 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
             const int band_layers = bands.band_layers;
             helix::gcode::GeometryBuilder mesh_builder;
             configure(mesh_builder);
-            mesh_builder.set_band_layers(band_layers, bands.surfaces_every_layer);
+            mesh_builder.set_band_layers(band_layers, bands.surfaces_every_layer,
+                                         bands.exterior_only);
             mesh_builder.set_budget_tube_sides(4);
             helix::gcode::SimplificationOptions mesh_opts{.tolerance_mm = 0.05f,
                                                           .min_segment_length_mm = 0.05f,
