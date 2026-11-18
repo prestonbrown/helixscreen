@@ -1187,10 +1187,23 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
     assert r.returncode == 1, r.stdout
     assert "exit 1  [oth]" in r.stdout
     assert "exit 0  [feat]" in r.stdout
+    verdict = r.stdout[r.stdout.rindex("VERDICT:"):]
+    assert verdict.startswith("VERDICT: SURVIVED - 1 hunk(s)"), verdict
+    assert "src/other.cpp:1" in verdict
+
+
+def test_survivors_in_two_groups_are_counted_together(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == 1, r.stdout
+    verdict = r.stdout[r.stdout.rindex("VERDICT:"):]
+    assert verdict.startswith("VERDICT: SURVIVED - 2 hunk(s)"), verdict
 
 
 @pytest.mark.parametrize("other_detected, code, says", [
-    (False, 1, "Hunks SURVIVED in the groups above"),
+    (False, 1, "1 hunk(s) SURVIVED in the groups above"),
     (True, 3, "Nothing survived"),
 ])
 def test_an_incomplete_group_run_tells_the_truth_about_survivors(
