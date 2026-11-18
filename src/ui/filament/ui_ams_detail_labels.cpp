@@ -794,6 +794,7 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     const int32_t reach = std::max<int32_t>(0, cc.y1 - (int32_t)std::floor(highest) + 1);
     // DECLARATIVE_OK: as above
     lv_obj_set_style_margin_top(canvas, -reach, LV_PART_MAIN);
+    lv_obj_refresh_ext_draw_size(lv_obj_get_parent(canvas));
     fill_container(reach);
     lv_obj_update_layout(lv_obj_get_parent(canvas));
     lv_obj_update_layout(s_tray.container);

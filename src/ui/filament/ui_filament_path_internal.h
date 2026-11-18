@@ -233,6 +233,9 @@ struct LayerState {
     // canvas dirty; the next draw of the widget schedules that refresh.
     bool refresh_deferred = false;
     int render_count = 0; // full topology repaints, for tests and logs
+    // Where the widget stood at the last repaint: the canvas holds absolute screen coordinates,
+    // so a widget that moves is painted again.
+    int32_t painted_x = INT32_MIN, painted_y = INT32_MIN;
 };
 
 // Hit rectangles recorded by the renderer (absolute display coords, with the
