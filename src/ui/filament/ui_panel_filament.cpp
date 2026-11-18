@@ -1270,8 +1270,6 @@ void FilamentPanel::update_status_icon_for_state() {
     }
 }
 
-// set_operation_in_progress removed — replaced by OperationTimeoutGuard
-
 void FilamentPanel::handle_extrude_length_select(int index) {
     if (index < 0 || index >= helix::SettingsManager::kExtrudeLengthPresetCount) {
         return;
@@ -1294,6 +1292,7 @@ bool FilamentPanel::handle_extrude_length_longpress(int index) {
     config.initial_value = static_cast<float>(settings.get_extrude_length_preset(index));
     config.min_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMinMm);
     config.max_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMaxMm);
+    config.default_value = static_cast<float>(settings.get_extrude_length_default(index));
     config.title_label = lv_tr("Extrude Length");
     config.unit_label = "mm";
     // The keypad edits the button it was opened from, which also becomes the

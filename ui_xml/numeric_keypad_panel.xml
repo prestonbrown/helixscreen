@@ -51,7 +51,8 @@
             style_pad_row="0">
 
       <!-- Display: read-only field spanning the key block, unit inside it at the end. A field
-           that allows negatives puts a +/- key in front of it; a hidden flex child takes no
+           that allows negatives puts a +/- key in front of it, and one with a default a reset
+           key that types it; a hidden flex child takes no
            room, so every other field's display keeps the full width. The row's height is
            the display's, and the key fills it so its edges meet the display's border. -->
       <lv_obj name="keypad_display_row"
@@ -63,6 +64,12 @@
                    style_pad_ver="0" text="+/-" variant="secondary" style_radius="#border_radius">
           <bind_flag_if_eq subject="keypad_allow_negative" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_keypad_sign"/>
+        </ui_button>
+        <ui_button name="btn_default"
+                   width="content" height="100%" style_min_width="#button_height" style_pad_hor="#space_sm"
+                   style_pad_ver="0" icon="refresh" text="" variant="secondary" style_radius="#border_radius">
+          <bind_flag_if_eq subject="keypad_has_default" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_keypad_default"/>
         </ui_button>
         <text_input name="input_display"
                     height="content" flex_grow="1" text="" bind_text="keypad_display" bind_suffix="keypad_unit"

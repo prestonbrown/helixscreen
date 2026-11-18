@@ -22,6 +22,7 @@
 #include "subject_managed_panel.h"
 
 #include <functional>
+#include <optional>
 #include <string>
 
 /**
@@ -61,6 +62,9 @@ struct ui_keypad_config_t {
     std::string initial_text;
     /// Ipv4 mode: called with the typed text once the keypad has closed.
     std::function<void(const std::string&)> on_confirm_text;
+    /// The field's default. When set, a reset key beside the display types it, and
+    /// Set confirms it like any typed value. A temperature's is given in Celsius.
+    std::optional<float> default_value;
     /// The value is a temperature: give initial, min and max in Celsius. The keypad
     /// shows and accepts the user's display unit, and `callback`, `validate` and
     /// `on_confirm` receive the whole Celsius target the typed value commands.

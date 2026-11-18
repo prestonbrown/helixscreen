@@ -329,6 +329,11 @@ class SettingsManager {
         return extrude_length_key(index) ? settings_.get(*extrude_length_key(index)) : 0;
     }
 
+    /// Shipped length of preset button @p index in mm; an index outside the presets reads 0.
+    int get_extrude_length_default(int index) const {
+        return extrude_length_key(index) ? settings_.default_of(*extrude_length_key(index)) : 0;
+    }
+
     /// Sets preset button @p index to @p mm (clamped to kExtrudeLengthMinMm..MaxMm,
     /// persisted); an index outside the presets changes nothing.
     void set_extrude_length_preset(int index, int mm) {
