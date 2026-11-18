@@ -975,8 +975,9 @@ _release_tag() {
 # The candidate archive URLs, in the order download_release tries them, and
 # the manifest's hashes for them. Fetches the manifest when it is not cached.
 # Sets, in the caller's scope (declare them local first): zip_filename
-# tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http zip_sha tar_sha
-# manifest_ok.
+# tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http zip_sha tar_sha
+# manifest_ok. The plain-HTTP mirror (server/dl-worker) serves tarballs only,
+# so it has no zip candidate.
 # Args: release tag (from _release_tag), release platform (get_release_platform)
 _release_candidates() {
     local version=$1 platform=$2 manifest_url
@@ -1003,12 +1004,11 @@ _release_candidates() {
         manifest_url=$(echo "$_R2_MANIFEST" | parse_manifest_platform_url "$platform")
     fi
 
-    # Zip gets tried before tar at every transport.
+    # Zip gets tried before tar at each HTTPS transport.
     zip_r2="${R2_BASE_URL}/releases/${version}/${zip_filename}"
     tar_r2="${manifest_url:-${R2_BASE_URL}/releases/${version}/${tar_filename}}"
     zip_gh="https://github.com/${GITHUB_REPO}/releases/download/${version}/${zip_filename}"
     tar_gh="https://github.com/${GITHUB_REPO}/releases/download/${version}/${tar_filename}"
-    zip_http="${HTTP_BASE_URL}/releases/${version}/${zip_filename}"
     tar_http="${HTTP_BASE_URL}/releases/${version}/${tar_filename}"
     if [ -n "$manifest_url" ]; then
         tar_http=$(echo "$manifest_url" | sed "s|${R2_BASE_URL}|${HTTP_BASE_URL}|")
@@ -1068,7 +1068,7 @@ probe_release() {
         PROBE_SIZE_TEXT="package next to the installer, $(_tree_size_mb "$package_dir") MB"
         return 0
     fi
-    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http
     local zip_sha tar_sha manifest_ok url answer unknown=false
     _release_candidates "$(_release_tag "$1")" "$(get_release_platform "$2")"
     # shellcheck disable=SC2034  # consumed by plan.sh (confirm_point)
@@ -1077,7 +1077,7 @@ probe_release() {
     else
         PROBE_SIZE_TEXT="no SHA256 published"
     fi
-    for url in "$zip_r2" "$tar_r2" "$zip_gh" "$tar_gh" "$zip_http" "$tar_http"; do
+    for url in "$zip_r2" "$tar_r2" "$zip_gh" "$tar_gh" "$tar_http"; do
         answer=$(_url_probe "$url")
         [ "$answer" = found ] && return 0
         [ "$answer" = unknown ] && unknown=true
@@ -1133,7 +1133,9 @@ print_release_with_platform_hint() {
 # installer and Moonraker Update Manager) and falls back to the legacy versioned
 # .tar.gz if no .zip is available at any transport — kept for bridge releases
 # during the zip migration. Sets _ARCHIVE_FORMAT to record which format won.
-# Tries R2 CDN, then GitHub Releases, then the plain-HTTP mirror.
+# Tries R2 CDN, then GitHub Releases, then the plain-HTTP mirror's tarball. A
+# host that cannot do HTTPS (BusyBox wget on the AD5M) goes straight to the
+# mirror, since every https:// candidate would fail there.
 download_release() {
     local version
     local platform
@@ -1150,7 +1152,7 @@ download_release() {
 
     # *_dest are the local staged paths; keep them in sync with
     # _archive_tmp_path() above.
-    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http
     local zip_sha tar_sha manifest_ok
     _release_candidates "$version" "$platform"
     local zip_dest="${TMP_DIR}/helixscreen-${platform}-${version}.zip"
@@ -1171,54 +1173,51 @@ download_release() {
 
     log_info "Downloading HelixScreen ${version} for ${platform}..."
 
-    local size
-    # --- Attempt 1: R2 CDN, zip preferred ---
-    log_info "URL: $zip_r2"
-    if _try_download_candidate "$zip_r2" "$zip_dest" https "$zip_sha"; then
-        _ARCHIVE_FORMAT="zip"
-        size=$(ls -lh "$zip_dest" | awk '{print $5}')
-        log_success "Downloaded ${zip_filename} (${size}) from CDN"
-        return 0
-    fi
-    rm -f "$zip_dest"
-    log_info "URL: $tar_r2"
-    if _try_download_candidate "$tar_r2" "$tar_dest" https "$tar_sha"; then
-        _ARCHIVE_FORMAT="tar.gz"
-        size=$(ls -lh "$tar_dest" | awk '{print $5}')
-        log_success "Downloaded ${tar_filename} (${size}) from CDN"
-        return 0
-    fi
-    rm -f "$tar_dest"
-    log_warn "CDN download failed, trying GitHub..."
+    local size https_ok=false
+    check_https_capability && https_ok=true
+    if [ "$https_ok" = true ]; then
+        # --- Attempt 1: R2 CDN, zip preferred ---
+        log_info "URL: $zip_r2"
+        if _try_download_candidate "$zip_r2" "$zip_dest" https "$zip_sha"; then
+            _ARCHIVE_FORMAT="zip"
+            size=$(ls -lh "$zip_dest" | awk '{print $5}')
+            log_success "Downloaded ${zip_filename} (${size}) from CDN"
+            return 0
+        fi
+        rm -f "$zip_dest"
+        log_info "URL: $tar_r2"
+        if _try_download_candidate "$tar_r2" "$tar_dest" https "$tar_sha"; then
+            _ARCHIVE_FORMAT="tar.gz"
+            size=$(ls -lh "$tar_dest" | awk '{print $5}')
+            log_success "Downloaded ${tar_filename} (${size}) from CDN"
+            return 0
+        fi
+        rm -f "$tar_dest"
+        log_warn "CDN download failed, trying GitHub..."
 
-    # --- Attempt 2: GitHub Releases ---
-    log_info "URL: $zip_gh"
-    if _try_download_candidate "$zip_gh" "$zip_dest" https "$zip_sha"; then
-        _ARCHIVE_FORMAT="zip"
-        size=$(ls -lh "$zip_dest" | awk '{print $5}')
-        log_success "Downloaded ${zip_filename} (${size}) from GitHub"
-        return 0
+        # --- Attempt 2: GitHub Releases ---
+        log_info "URL: $zip_gh"
+        if _try_download_candidate "$zip_gh" "$zip_dest" https "$zip_sha"; then
+            _ARCHIVE_FORMAT="zip"
+            size=$(ls -lh "$zip_dest" | awk '{print $5}')
+            log_success "Downloaded ${zip_filename} (${size}) from GitHub"
+            return 0
+        fi
+        rm -f "$zip_dest"
+        log_info "URL: $tar_gh"
+        if _try_download_candidate "$tar_gh" "$tar_dest" https "$tar_sha"; then
+            _ARCHIVE_FORMAT="tar.gz"
+            size=$(ls -lh "$tar_dest" | awk '{print $5}')
+            log_success "Downloaded ${tar_filename} (${size}) from GitHub"
+            return 0
+        fi
+        rm -f "$tar_dest"
+    else
+        log_warn "HTTPS not available, downloading from the plain-HTTP mirror..."
     fi
-    rm -f "$zip_dest"
-    log_info "URL: $tar_gh"
-    if _try_download_candidate "$tar_gh" "$tar_dest" https "$tar_sha"; then
-        _ARCHIVE_FORMAT="tar.gz"
-        size=$(ls -lh "$tar_dest" | awk '{print $5}')
-        log_success "Downloaded ${tar_filename} (${size}) from GitHub"
-        return 0
-    fi
-    rm -f "$tar_dest"
 
-    # --- Attempt 3: plain-HTTP mirror (BusyBox wget fallback) ---
+    # --- Attempt 3: plain-HTTP mirror (BusyBox wget fallback), tarball only ---
     log_info "Trying HTTP fallback..."
-    log_info "URL: $zip_http"
-    if _try_download_candidate "$zip_http" "$zip_dest" http "$zip_sha"; then
-        _ARCHIVE_FORMAT="zip"
-        size=$(ls -lh "$zip_dest" | awk '{print $5}')
-        log_success "Downloaded ${zip_filename} (${size}) via HTTP"
-        return 0
-    fi
-    rm -f "$zip_dest"
     log_info "URL: $tar_http"
     if _try_download_candidate "$tar_http" "$tar_dest" http "$tar_sha"; then
         _ARCHIVE_FORMAT="tar.gz"
@@ -1229,11 +1228,12 @@ download_release() {
     rm -f "$tar_dest"
 
     log_error "Failed to download release."
-    log_error "Tried zip: $zip_r2"
-    log_error "Tried zip: $zip_gh"
-    log_error "Tried zip: $zip_http"
-    log_error "Tried tar: $tar_r2"
-    log_error "Tried tar: $tar_gh"
+    if [ "$https_ok" = true ]; then
+        log_error "Tried zip: $zip_r2"
+        log_error "Tried zip: $zip_gh"
+        log_error "Tried tar: $tar_r2"
+        log_error "Tried tar: $tar_gh"
+    fi
     log_error "Tried tar: $tar_http"
     if [ -n "$_DOWNLOAD_HTTP_CODE" ] && [ "$_DOWNLOAD_HTTP_CODE" != "200" ]; then
         log_error "HTTP status: $_DOWNLOAD_HTTP_CODE"
