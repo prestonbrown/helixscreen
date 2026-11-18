@@ -102,6 +102,7 @@ is out.
 - **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
 - **No stacked AFC errors over AFC's own prompts** - while AFC shows one of its calibration or toolhead-load prompts, its messages go to the notification list instead of popping up over the prompt, as they already did for prompts with AFC in the title.
+- **Installer on boards without polkit** - on a board with no polkit, such as Armbian on the BTT CB1, the installer says polkit is not installed and how to add it (`sudo apt install polkitd`, then restart HelixScreen), instead of reporting a failed power rule write.
 
 ## [1.1.0-rc.4] - UNRELEASED
 
