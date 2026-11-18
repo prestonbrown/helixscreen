@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **No HelixPrint plugin downgrade at startup** - when Moonraker already runs a newer HelixPrint plugin than the one this HelixScreen ships, such as one installed by a newer development build, HelixScreen now leaves it in place. It used to point Moonraker back at its own older plugin and restart Moonraker to load it. Plugin versions are now compared by number, so 1.10.0 counts as newer than 1.9.0, and an older plugin is still updated as before.
 - **FlashForge Forge-X updates restart HelixScreen** - on an AD5M or AD5X running Forge-X, updating HelixScreen with the installer (`--update`, or a local archive) stopped the screen and ended with "Reboot to start it", leaving it dark until a reboot. The installer now starts the new version the same way the printer does at boot, and the summary says it is running. A first install still asks for a reboot. Starting HelixScreen on the AD5X also no longer reports "Failed to start" when it actually started.
+- **Accurate installer message on systems without polkit** - on a Linux board that has no polkit installed, such as Armbian on the BTT CB1, the installer warned that it failed to install the power-off and reboot rule. It now says that polkit is not installed and how to add it, so the screen's own Shutdown and Reboot can be allowed with `sudo apt install polkitd` and a HelixScreen restart.
 
 ## [1.1.0-rc.3] - 2026-11-17
 
