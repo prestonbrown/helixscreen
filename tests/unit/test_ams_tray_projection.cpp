@@ -453,57 +453,71 @@ TEST_CASE("labels over a drawn unit: the fewest rows that give every label its r
 
 TEST_CASE("labels over a drawn unit: spans clear neighbours and the ticks rising past them",
           "[ams][tray][stagger][over-lane]") {
-    using helix::ui::ams_over_lane_label_spans;
     using helix::ui::AmsLabelSpan;
-    const int32_t gap = 4;
-    SECTION("same row: each stops a gap short of halfway") {
-        const float x[2] = {0, 40};
-        const int row[2] = {0, 0};
-        const int32_t need[2] = {100, 100};
-        AmsLabelSpan s[2];
-        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
-        CHECK(s[0].right == 18);
-        CHECK(s[1].left == 18);
-        CHECK(0 + s[0].right < 40 - s[1].left);
-    }
-    SECTION("a higher neighbour's tick: the label stops a gap short of it") {
-        const float x[2] = {0, 40};
-        const int row[2] = {0, 1};
-        const int32_t need[2] = {100, 100};
-        AmsLabelSpan s[2];
-        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
-        CHECK(s[0].right == 36);
+    struct Case {
+        const char* what;
+        int n;
+        float x[2];
+        int row[2];
+        int32_t need[2];
+        float lo, hi;
+        int32_t left[2], right[2]; // -1: not pinned
+    };
+    const Case cases[] = {
+        {"same row: each stops a gap short of halfway",
+         2,
+         {0, 40},
+         {0, 0},
+         {100, 100},
+         -1000,
+         1000,
+         {-1, 18},
+         {18, -1}},
         // The higher label has no tick under it to clear.
-        CHECK(s[1].left == 50);
-        CHECK(s[1].right == 50);
-    }
-    SECTION("crowded on one side, it slides to the other, its own tick still under it") {
-        const float x[2] = {0, 20};
-        const int row[2] = {0, 1};
-        const int32_t need[2] = {40, 10};
+        {"a higher neighbour's tick: the label stops a gap short of it",
+         2,
+         {0, 40},
+         {0, 1},
+         {100, 100},
+         -1000,
+         1000,
+         {-1, 50},
+         {36, 50}},
+        {"crowded on one side, it slides to the other, its own tick still under it",
+         2,
+         {0, 20},
+         {0, 1},
+         {40, 10},
+         -1000,
+         1000,
+         {24, -1},
+         {16, -1}},
+        {"never past the row's ends", 1, {10, 0}, {0, 0}, {40, 0}, 0, 100, {10, -1}, {30, -1}},
+        {"centered where both sides allow",
+         1,
+         {0, 0},
+         {0, 0},
+         {30, 0},
+         -1000,
+         1000,
+         {15, -1},
+         {15, -1}},
+    };
+    for (const Case& t : cases) {
+        CAPTURE(t.what);
         AmsLabelSpan s[2];
-        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
-        CHECK(s[0].right == 16);
-        CHECK(s[0].left == 24);
-        CHECK(s[0].left + s[0].right == 40);
-    }
-    SECTION("never past the row's ends") {
-        const float x[1] = {10};
-        const int row[1] = {0};
-        const int32_t need[1] = {40};
-        AmsLabelSpan s[1];
-        ams_over_lane_label_spans(x, row, need, 1, gap, 0, 100, s);
-        CHECK(s[0].left == 10);
-        CHECK(s[0].right == 30);
-    }
-    SECTION("centered where both sides allow") {
-        const float x[1] = {0};
-        const int row[1] = {0};
-        const int32_t need[1] = {30};
-        AmsLabelSpan s[1];
-        ams_over_lane_label_spans(x, row, need, 1, gap, -1000, 1000, s);
-        CHECK(s[0].left == 15);
-        CHECK(s[0].right == 15);
+        helix::ui::ams_over_lane_label_spans(t.x, t.row, t.need, t.n, 4, t.lo, t.hi, s);
+        for (int k = 0; k < t.n; ++k) {
+            CAPTURE(k);
+            if (t.left[k] >= 0)
+                CHECK(s[k].left == t.left[k]);
+            if (t.right[k] >= 0)
+                CHECK(s[k].right == t.right[k]);
+        }
+        if (t.n == 2 && t.row[0] == t.row[1])
+            CHECK(t.x[0] + (float)s[0].right < t.x[1] - (float)s[1].left);
+        if (t.need[0] < 100)
+            CHECK(s[0].left + s[0].right == t.need[0]);
     }
 }
 

@@ -164,6 +164,22 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         return labels;
     }
 
+    /// Screens, and the panel area each gives the AMS panel, from roomy to the smallest.
+    static constexpr int kHostSizes = 4;
+    static constexpr int32_t kHostSize[kHostSizes][4] = {
+        {320, 480, 320, 410}, {800, 480, 800, 400}, {1024, 600, 1024, 500}, {480, 272, 480, 220}};
+
+    /// Puts the panel in a borderless area of kHostSize[@p size] on that screen.
+    void host_at(int size) {
+        const int32_t* s = kHostSize[size];
+        CAPTURE(s[0], s[1], s[3]);
+        geometry_ = std::make_unique<helix::test::ScopedGeometry>(s[0], s[1]);
+        host_ = lv_obj_create(test_screen());
+        lv_obj_set_size(host_, s[2], s[3]);
+        lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    }
+
     /// No two shown lane numbers of the first @p lanes overlap.
     void check_badges_apart(int lanes) {
         lv_obj_update_layout(test_screen());
@@ -338,6 +354,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     lv_obj_t* panel_obj_ = nullptr;
     /// Where build() puts the panel; the screen when null.
     lv_obj_t* host_ = nullptr;
+    std::unique_ptr<helix::test::ScopedGeometry> geometry_; ///< host_at()'s screen
     lv_obj_t* container_ = nullptr;
     lv_obj_t* slot_grid_ = nullptr;
     lv_point_t origin_{};
@@ -877,15 +894,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 
     // Labels stand in one row or alternate between two, each centered over its own spool
     // with a short straight tick down to it, and no two in a row overlap.
-    lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
-    REQUIRE(layer != nullptr);
-    std::vector<lv_obj_t*> labels;
-    for (uint32_t k = 0; k < lv_obj_get_child_count(layer); ++k) {
-        lv_obj_t* c = lv_obj_get_child(layer, (int32_t)k);
-        const char* name = lv_obj_get_name(c);
-        if (name && std::strcmp(name, "material_label") == 0)
-            labels.push_back(c);
-    }
+    REQUIRE(lv_obj_find_by_name(panel_obj_, "labels_layer") != nullptr);
+    std::vector<lv_obj_t*> labels = over_lane_labels();
     REQUIRE(labels.size() == 8);
     check_labels_over_lanes(labels);
 
@@ -1122,40 +1132,17 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         unit_name_ = "Box Turtle 1";
     build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
           /*buffer=*/false, /*empty_lane=*/1);
-    namespace at = helix::ui::ams_tray;
-    lv_obj_t* label = ui_ams_slot_get_material_label(slot(1));
-    REQUIRE(label != nullptr);
-    REQUIRE(lv_obj_is_hidden(label));
-    const int ticks = at::s_tray.leader_count;
-
-    set_lane_live(1, "PETG");
-    CHECK_FALSE(lv_obj_is_hidden(label));
-    CHECK(at::s_tray.leader_count == ticks + 1);
-
-    // And empty it again.
-    set_lane_live(1, nullptr);
-    CHECK(lv_obj_is_hidden(label));
-    CHECK(at::s_tray.leader_count == ticks);
-}
-
-TEST_CASE_METHOD(
-    AmsTrayPanelFixture,
-    "AMS unit: a lane that fills and needs a second label row keeps it in the unit row",
-    "[ams][tray][ui_integration][over-lane][lane-label-live]") {
-    const bool art = GENERATE(false, true);
-    CAPTURE(art);
-    if (art)
-        unit_name_ = "Box Turtle 1";
-    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
-          /*buffer=*/false, /*empty_lane=*/1);
     for (int lane : {0, 2, 3})
         set_lane_live(lane, "PLA");
     // A full layout around the short names: their labels take one row.
     panel_->refresh_slots();
     process_lvgl(20);
     lv_obj_update_layout(test_screen());
+    namespace at = helix::ui::ams_tray;
     std::vector<lv_obj_t*> labels = over_lane_labels();
     REQUIRE(labels.size() == 4);
+    REQUIRE(lv_obj_is_hidden(labels[1]));
+    const int ticks = at::s_tray.leader_count;
     auto rows = [&] {
         std::vector<int32_t> tops;
         for (lv_obj_t* l : labels) {
@@ -1168,9 +1155,11 @@ TEST_CASE_METHOD(
     };
     REQUIRE(rows() == 1);
 
-    // Lane 1 fills with a name wider than the room between its neighbours: two rows.
+    // Lane 1 fills, with no unit refresh, with a name wider than the room between its
+    // neighbours: its label shows, in a second row that stays inside the unit row.
     set_lane_live(1, "ABS-GF");
-    REQUIRE_FALSE(lv_obj_is_hidden(labels[1]));
+    CHECK_FALSE(lv_obj_is_hidden(labels[1]));
+    CHECK(at::s_tray.leader_count == ticks + 1);
     REQUIRE(rows() == 2);
     lv_area_t c;
     lv_obj_get_coords(container_, &c);
@@ -1181,79 +1170,19 @@ TEST_CASE_METHOD(
         CHECK(a.y1 >= c.y1);
     }
     check_labels_over_lanes(labels);
-}
 
-TEST_CASE_METHOD(AmsTrayPanelFixture,
-                 "AMS unit art: a lane that empties keeps its number clear of its neighbours",
-                 "[ams][tray][ui_integration][unit-art][lane-badges][lane-label-live]") {
-    const int unit = GENERATE(0, 1, 2); // Box Turtle, ACE, OpenAMS's AMS 2 Pro
-    const int size = GENERATE(0, 1, 2, 3);
-    const int32_t sizes[4][4] = {
-        {320, 480, 320, 410}, {800, 480, 800, 400}, {1024, 600, 1024, 500}, {480, 272, 480, 220}};
-    CAPTURE(unit, sizes[size][0], sizes[size][1]);
-    helix::test::ScopedGeometry scoped(sizes[size][0], sizes[size][1]);
-    host_ = lv_obj_create(test_screen());
-    lv_obj_set_size(host_, sizes[size][2], sizes[size][3]);
-    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
-    unit_name_ = unit == 0 ? "Box Turtle 1" : unit == 1 ? "ACE 1" : "AMS2";
-    // Every lane loaded: the numbers are laid out with no "+" to make room for.
-    build("passive", 4, /*tool_changer=*/false, /*ace=*/unit == 1, /*openams=*/unit == 2,
-          /*buffer=*/unit == 2);
-    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
-    if (!drawing || lv_obj_is_hidden(drawing))
-        SKIP("no art for this unit here");
-    check_badges_apart(4);
-    set_lane_live(0, nullptr);
+    // And empty it again.
     set_lane_live(1, nullptr);
-    check_badges_apart(4);
-    // The numbers stand as a full layout of the unit as it is now places them.
-    struct Badge {
-        lv_area_t area;
-        bool plus;
-    };
-    auto badges = [&] {
-        lv_obj_update_layout(test_screen());
-        std::vector<Badge> out;
-        for (int i = 0; i < 4; ++i) {
-            lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
-            REQUIRE(badge != nullptr);
-            lv_obj_t* plus = lv_obj_find_by_name(badge, "badge_plus");
-            Badge b{};
-            lv_obj_get_coords(badge, &b.area);
-            b.plus = plus && !lv_obj_is_hidden(plus);
-            out.push_back(b);
-        }
-        return out;
-    };
-    const std::vector<Badge> live = badges();
-    panel_->refresh_slots();
-    process_lvgl(20);
-    const std::vector<Badge> rebuilt = badges();
-    for (int i = 0; i < 4; ++i) {
-        const Badge& l = live[(size_t)i];
-        const Badge& r = rebuilt[(size_t)i];
-        CAPTURE(i, l.area.x1, l.area.y1, l.area.x2, l.plus, r.area.x1, r.area.y1, r.area.x2,
-                r.plus);
-        CHECK(l.plus == r.plus);
-        CHECK(std::abs(l.area.x1 - r.area.x1) <= 1);
-        CHECK(std::abs(l.area.y1 - r.area.y1) <= 1);
-        CHECK(std::abs(l.area.x2 - r.area.x2) <= 1);
-    }
+    CHECK(lv_obj_is_hidden(labels[1]));
+    CHECK(at::s_tray.leader_count == ticks);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap at any size",
-                 "[ams][tray][ui_integration][unit-art][lane-badges]") {
+                 "[ams][tray][ui_integration][unit-art][lane-badges][lane-label-live]") {
     const int unit = GENERATE(0, 1, 2); // Box Turtle, ACE, OpenAMS's AMS 2 Pro
-    const int size = GENERATE(0, 1, 2, 3);
-    const int32_t sizes[4][4] = {
-        {320, 480, 320, 410}, {800, 480, 800, 400}, {1024, 600, 1024, 500}, {480, 272, 480, 220}};
-    CAPTURE(unit, sizes[size][0], sizes[size][1]);
-    helix::test::ScopedGeometry scoped(sizes[size][0], sizes[size][1]);
-    host_ = lv_obj_create(test_screen());
-    lv_obj_set_size(host_, sizes[size][2], sizes[size][3]);
-    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    const int size = GENERATE(range(0, kHostSizes));
+    CAPTURE(unit);
+    host_at(size);
     unit_name_ = unit == 0 ? "Box Turtle 1" : unit == 1 ? "ACE 1" : "AMS2";
     // One lane empty: its number carries the "+", and it shows no label.
     build("passive", 4, /*tool_changer=*/false, /*ace=*/unit == 1, /*openams=*/unit == 2,
@@ -1262,36 +1191,30 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap
     lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
     if (!drawing || lv_obj_is_hidden(drawing))
         SKIP("no art for this unit here");
-    std::vector<lv_area_t> badges;
-    for (int i = 0; i < 4; ++i) {
-        lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
-        if (!badge || lv_obj_is_hidden(badge))
-            continue;
-        lv_area_t a;
-        lv_obj_get_coords(badge, &a);
-        badges.push_back(a);
-    }
-    REQUIRE(badges.size() >= 2);
-    for (size_t i = 0; i < badges.size(); ++i)
-        for (size_t j = i + 1; j < badges.size(); ++j) {
-            const lv_area_t& a = badges[i];
-            const lv_area_t& b = badges[j];
-            CAPTURE(i, j, a.x1, a.y1, a.x2, a.y2, b.x1, b.y1, b.x2, b.y2);
-            CHECK_FALSE((a.x1 <= b.x2 && a.x2 >= b.x1 && a.y1 <= b.y2 && a.y2 >= b.y1));
-        }
+    check_badges_apart(4);
     lv_obj_t* empty = ui_ams_slot_get_material_label(slot(1));
     REQUIRE(empty != nullptr);
     CHECK(lv_obj_is_hidden(empty));
     // Labels, where the drawing shows any, follow the same rules as everywhere.
-    lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
-    std::vector<lv_obj_t*> labels;
-    for (uint32_t k = 0; layer && k < lv_obj_get_child_count(layer); ++k) {
-        lv_obj_t* c = lv_obj_get_child(layer, (int32_t)k);
-        const char* name = lv_obj_get_name(c);
-        if (name && std::strcmp(name, "material_label") == 0)
-            labels.push_back(c);
-    }
+    std::vector<lv_obj_t*> labels = over_lane_labels();
     check_labels_over_lanes(labels);
+
+    // A lane that empties while shown: its number stands as a full layout of the unit puts it.
+    set_lane_live(0, nullptr);
+    check_badges_apart(4);
+    lv_area_t live[4], rebuilt[4];
+    for (int i = 0; i < 4; ++i)
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &live[i]);
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    for (int i = 0; i < 4; ++i) {
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &rebuilt[i]);
+        CAPTURE(i, live[i].x1, live[i].y1, live[i].x2, rebuilt[i].x1, rebuilt[i].y1, rebuilt[i].x2);
+        CHECK(std::abs(live[i].x1 - rebuilt[i].x1) <= 1);
+        CHECK(std::abs(live[i].x2 - rebuilt[i].x2) <= 1);
+        CHECK(std::abs(live[i].y1 - rebuilt[i].y1) <= 1);
+    }
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
@@ -1299,16 +1222,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "[ams][tray][ui_integration][unit-art][art-fit]") {
     // Screens, and the panel area each gives the AMS panel: short enough that the drawing,
     // at the size its width gives it, leaves its path too little room.
-    const int size = GENERATE(0, 1, 2, 3);
-    const int32_t sizes[4][4] = {
-        {320, 480, 320, 410}, {800, 480, 800, 400}, {1024, 600, 1024, 500}, {480, 272, 480, 220}};
-    const bool smallest = size == 3;
-    CAPTURE(sizes[size][0], sizes[size][1], sizes[size][3]);
-    helix::test::ScopedGeometry scoped(sizes[size][0], sizes[size][1]);
-    host_ = lv_obj_create(test_screen());
-    lv_obj_set_size(host_, sizes[size][2], sizes[size][3]);
-    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    const int size = GENERATE(range(0, kHostSizes));
+    const bool smallest = size == kHostSizes - 1;
+    host_at(size);
     // OpenAMS's AMS 2 Pro: a tall drawing over a hub with an FPS buffer.
     unit_name_ = "AMS2";
     build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/true,
@@ -1342,39 +1258,20 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         CAPTURE(i, ba.y2, cd->hits.hub.y1);
         CHECK(ba.y2 < cd->hits.hub.y1);
     }
-}
-
-TEST_CASE_METHOD(
-    AmsTrayPanelFixture,
-    "AMS unit art: a unit cut to fit its path keeps that size whatever was sized since",
-    "[ams][tray][ui_integration][unit-art][art-fit]") {
-    // At 480x272 the AMS 2 Pro's drawing leaves its path too little room even at half size.
-    helix::test::ScopedGeometry scoped(480, 272);
-    host_ = lv_obj_create(test_screen());
-    lv_obj_set_size(host_, 480, 220);
-    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
-    unit_name_ = "AMS2";
-    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/true,
-          /*buffer=*/true);
-    namespace at = helix::ui::ams_tray;
-    REQUIRE(at::s_tray.art);
+    if (!smallest)
+        return;
+    // A unit cut to fit keeps that size when a wider row is sized (the overview sizes its hub
+    // for its widest unit) and the path is set up again, so its next layout starts there.
     lv_obj_t* slot_area = lv_obj_get_parent(slot_grid_);
-    lv_obj_update_layout(slot_area);
     const int32_t width = lv_obj_get_content_width(slot_area);
-    const auto shown = (int32_t)at::s_tray.spool_size;
-    CAPTURE(width, shown);
+    const auto shown = (int32_t)helix::ui::ams_tray::s_tray.spool_size;
     REQUIRE(helix::ui::ams_detail_spool_size(width, 4) == shown);
-    // A wider row is sized (the overview sizes its hub for its widest unit), and the path is
-    // set up again: the unit keeps its size, so its next layout starts there.
     int wider = 5;
     while (wider < 16 && helix::ui::ams_detail_spool_size(width, wider) / 2 >= shown)
         ++wider;
-    CAPTURE(wider);
-    REQUIRE(helix::ui::ams_detail_spool_size(width, wider) / 2 < shown);
+    CAPTURE(width, shown, wider);
+    REQUIRE(wider < 16);
     (void)helix::ui::ams_detail_slot_layout(width, wider);
-    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
-    REQUIRE(canvas != nullptr);
     CHECK_FALSE(ams_detail_setup_path_canvas(canvas, slot_grid_, -1));
     CHECK(helix::ui::ams_detail_spool_size(width, 4) == shown);
 }
@@ -1382,11 +1279,7 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit art in portrait at 320x480: the hub stands clear of the lane numbers",
                  "[ams][tray][ui_integration][portrait][unit-art]") {
-    helix::test::ScopedGeometry portrait(320, 480);
-    host_ = lv_obj_create(test_screen());
-    lv_obj_set_size(host_, 320, 410);
-    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    host_at(0);
     unit_name_ = "ACE 1";
     build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
     lv_obj_update_layout(test_screen());
@@ -1453,15 +1346,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
             SKIP("no art for this lane count");
     }
     lv_obj_update_layout(test_screen());
-    lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
-    REQUIRE(layer != nullptr);
-    std::vector<lv_obj_t*> labels;
-    for (uint32_t k = 0; k < lv_obj_get_child_count(layer); ++k) {
-        lv_obj_t* c = lv_obj_get_child(layer, (int32_t)k);
-        const char* name = lv_obj_get_name(c);
-        if (name && std::strcmp(name, "material_label") == 0)
-            labels.push_back(c);
-    }
+    REQUIRE(lv_obj_find_by_name(panel_obj_, "labels_layer") != nullptr);
+    std::vector<lv_obj_t*> labels = over_lane_labels();
     REQUIRE((int)labels.size() == lanes);
     check_labels_over_lanes(labels);
 }

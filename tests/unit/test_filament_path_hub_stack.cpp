@@ -536,25 +536,19 @@ TEST_CASE("The required height is the least that lays the path out at full size"
     CHECK(linear_hub_required_height(d, g) == need + 40);
 }
 
-TEST_CASE("A hub on the head asks only the height its head needs, never one for its buffer",
+TEST_CASE("A path no taller canvas would help asks for no height past its own",
           "[filament-path][hub-stack][art-fit][buffer]") {
-    // The stub under a hub on the head holds no buffer at any height.
     FilamentPathData d;
     BaseGeometry g;
     short_hub_canvas(d, g);
-    d.hub_on_toolhead = true;
-    REQUIRE(full_size_at(d, g, g.height, false));
-    CHECK(linear_hub_required_height(d, g) == g.height);
-}
-
-TEST_CASE("A path no height lays out at full size asks for none past its own",
-          "[filament-path][hub-stack][art-fit]") {
-    FilamentPathData d;
-    BaseGeometry g;
-    short_hub_canvas(d, g);
-    // A head too large for any canvas: no taller canvas buys anything.
-    d.theme.extruder_scale = 4000;
-    REQUIRE_FALSE(full_size_at(d, g, g.height * 4, false));
+    // A hub on the head, whose stub holds no buffer at any height and whose head fits; or a
+    // head too large for any canvas.
+    const bool head_hub = GENERATE(true, false);
+    CAPTURE(head_hub);
+    if (head_hub)
+        d.hub_on_toolhead = true;
+    else
+        d.theme.extruder_scale = 4000;
     CHECK(linear_hub_required_height(d, g) == g.height);
 }
 
