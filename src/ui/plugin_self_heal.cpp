@@ -56,6 +56,14 @@ void PluginSelfHeal::on_plugin_reported() {
     if (get_runtime_config()->should_mock_moonraker()) {
         return;
     }
+    // A newer plugin than this app ships is left as it is: install.sh --relink
+    // would point Moonraker's link back at this app's older plugin.
+    const std::string reported = printer_state_.plugin_status_state().version();
+    const std::string bundled = installer_.bundled_plugin_version();
+    if (plugin_running_newer(reported, bundled)) {
+        log_keeping_newer(reported, bundled);
+        return;
+    }
     if (!installer_.is_local_moonraker()) {
         act(false, PluginLinkCheck::NotOurs);
         return;
@@ -73,6 +81,12 @@ void PluginSelfHeal::on_plugin_reported() {
         const PluginLinkCheck link = relink_plugin(script, kRelinkTimeoutSeconds);
         tok.defer("PluginSelfHeal::relinked", [this, link]() { act(true, link); });
     });
+}
+
+void PluginSelfHeal::log_keeping_newer(const std::string& reported, const std::string& bundled) {
+    spdlog::info("[PluginSelfHeal] Moonraker runs HelixPrint plugin {}, newer than the {} this "
+                 "app ships; leaving its link and Moonraker as they are",
+                 reported, bundled);
 }
 
 void PluginSelfHeal::act(bool local, PluginLinkCheck link) {
@@ -97,6 +111,9 @@ void PluginSelfHeal::act(bool local, PluginLinkCheck link) {
     remember(facts, false);
 
     switch (step) {
+    case PluginSelfHealStep::KeepNewer:
+        log_keeping_newer(facts.reported_version, facts.bundled_version);
+        return;
     case PluginSelfHealStep::GiveUp:
         if (link == PluginLinkCheck::Relinked) {
             spdlog::warn("[PluginSelfHeal] The plugin link was re-pointed at {} again after a "
