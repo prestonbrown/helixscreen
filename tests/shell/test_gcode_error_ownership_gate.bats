@@ -112,7 +112,7 @@ void Thing::go() {
         "M220 S100", []() {},
         [](const MoonrakerError& err) {
             spdlog::error("[Thing] speed failed: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
         },
         5000);
 }'

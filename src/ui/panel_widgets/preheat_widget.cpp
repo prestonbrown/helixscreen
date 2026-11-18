@@ -334,9 +334,9 @@ void PreheatWidget::handle_cooldown() {
         helix::ui::temperature::resolve_cooldown_gcode(printer_state_.temperature_state());
     spdlog::info("[PreheatWidget] Cooldown requested - executing: {}", gcode);
     api->execute_gcode(
-        gcode, []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
+        gcode, []() { helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
         [](const MoonrakerError& error) {
-            helix::ui::notify_error_tr(TR_NOOP("Failed to cool down: {}"), error);
+            helix::notify_error_tr(TR_NOOP("Failed to cool down: {}"), error);
         });
 }
 
@@ -398,19 +398,18 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
     auto refused = std::make_shared<bool>(false);
     for (const auto& heater : heaters) {
         spdlog::debug("[PreheatWidget] Setting {} to {}°C", heater, nozzle);
-        c->set_target(heater, static_cast<double>(nozzle),
-                      {.toast = false,
-                       .on_success =
-                           [heater, nozzle]() {
-                               spdlog::info("[PreheatWidget] {} target set to {}°C", heater,
-                                            nozzle);
-                           },
-                       .on_error =
-                           [heater, refused](const MoonrakerError& error) {
-                               *refused = true;
-                               helix::ui::notify_error_tr(TR_NOOP("Failed to set {} temp: {}"),
-                                                          heater, error);
-                           }});
+        c->set_target(
+            heater, static_cast<double>(nozzle),
+            {.toast = false,
+             .on_success =
+                 [heater, nozzle]() {
+                     spdlog::info("[PreheatWidget] {} target set to {}°C", heater, nozzle);
+                 },
+             .on_error =
+                 [heater, refused](const MoonrakerError& error) {
+                     *refused = true;
+                     helix::notify_error_tr(TR_NOOP("Failed to set {} temp: {}"), heater, error);
+                 }});
     }
 
     c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),

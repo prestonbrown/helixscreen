@@ -4,7 +4,6 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
 
@@ -24,6 +23,7 @@
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "tool_state.h"
@@ -691,7 +691,7 @@ std::string ToolSwitcherWidget::head_temp_text(int i) const {
         return {};
     char buf[16];
     return ui::temperature::format_temperature(
-        ui::temperature::deci_to_degrees(head_temps_[i].deci), buf, sizeof(buf));
+        helix::temperature_rules::deci_to_degrees(head_temps_[i].deci), buf, sizeof(buf));
 }
 
 bool ToolSwitcherWidget::head_hot(int i) const {

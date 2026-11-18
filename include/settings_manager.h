@@ -23,10 +23,9 @@
 namespace helix {
 class IMoonrakerClient;
 
-/// Jog step mode selector — defined in ui_panel_motion.h. Declared here so the
-/// jog-distance accessors can take it without pulling the motion panel's UI
-/// machinery into every settings consumer.
-enum class JogMode;
+/// Jog step mode selector. The setting stores it; the motion panel offers it.
+enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
+constexpr int kJogModeCount = 3;
 
 /** @brief Z movement style override (Auto=detect from kinematics, or force) */
 enum class ZMovementStyle { AUTO = 0, BED_MOVES = 1, NOZZLE_MOVES = 2 };

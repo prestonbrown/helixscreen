@@ -113,6 +113,7 @@ src/ui/plugin/ui_plugin_menu_rows.cpp
 src/ui/plugin/ui_plugin_items_menu.cpp
 src/print/active_print_media_manager.cpp
 src/print/crc32.cpp
+src/print/gcode_preview_cache.cpp
 src/print/filament_sensor_manager.cpp
 src/print/firmware_3mf_extract.cpp
 src/print/preprint_predictor.cpp
@@ -128,6 +129,7 @@ src/print/print_eta_estimator.cpp
 src/print/thumbnail_write_journal.cpp
 src/print/print_completion.cpp
 src/print/print_completion_alert.cpp
+src/ui/print/ui_print_completion_modal.cpp
 src/print/print_stop_reason.cpp
 src/print/print_file_data.cpp
 src/print/print_activity.cpp
@@ -144,6 +146,7 @@ src/print/three_mf.cpp
 src/print/three_mf_conversions.cpp
 src/print/three_mf_reader.cpp
 src/print/zip_reader.cpp
+src/printer/action_prompt_manager.cpp
 src/printer/active_material_provider.cpp
 src/printer/bed_occupancy.cpp
 src/printer/bed_occupancy_state.cpp
@@ -224,6 +227,7 @@ src/printer/filament_database.cpp
 src/printer/filament_display_name.cpp
 src/printer/filament_macro_profiles.cpp
 src/printer/filament_mapper.cpp
+src/printer/filament_mapping_plan.cpp
 src/printer/filament_variants.cpp
 src/printer/firmware_error_envelope.cpp
 src/printer/firmware_fault_codes.cpp
@@ -407,9 +411,9 @@ src/system/translation_loader.cpp
 src/system/update_checker_subjects.cpp
 src/system/wizard_step_logic.cpp
 src/temperature/temperature_history_manager.cpp
+src/temperature/temperature_rules.cpp
 src/temperature/thermal_rate_model.cpp
 src/ui/notify/ui_chamber_air_notices.cpp
-src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp
 src/ui/filament/ams_unit_pages.cpp
@@ -449,8 +453,8 @@ src/ui/home/home_macro_run.cpp
 src/core/i18n_plural.cpp
 src/core/temperature_units.cpp
 src/core/temp_unit_subject.cpp
-src/ui/locale_formats.cpp
-src/ui/printers/printer_discovery_list.cpp
+src/system/locale_formats.cpp
+src/system/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp
@@ -459,13 +463,13 @@ src/ui/modals/ui_hidden_network_modal.cpp
 src/ui/modals/macro_param_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
 src/core/observer_factory.cpp
-src/ui/operation_timeout_guard.cpp
+src/core/operation_timeout_guard.cpp
 src/ui/overlay_base.cpp
 src/ui/home/page_scroll_auto_inject.cpp
 src/ui/home/page_scroll_controller.cpp
 src/ui/home/panel_widget_manager.cpp
 src/ui/filament/buffer_slider_geometry.cpp
-src/ui/filament/clog_meter_geometry.cpp
+src/printer/clog_meter_geometry.cpp
 src/ui/filament/clog_meter_model.cpp
 src/ui/filament/humidity_drop_geometry.cpp
 src/ui/home/panel_widget_registry.cpp
@@ -532,7 +536,7 @@ src/ui/controls/temp_graph_controller.cpp
 src/ui/print/print_progress_text.cpp
 src/ui/print/print_status_layout_fitter.cpp
 src/ui/controls/temp_graph_tooltip.cpp
-src/ui/controls/temperature_controller.cpp
+src/temperature/temperature_controller.cpp
 src/ui/filament/bed_drying_controller.cpp
 src/ui/controls/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
@@ -546,7 +550,7 @@ src/ui/calibration/touch_calibration_session.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/tour/tour_overlay.cpp
 src/ui/tour/tour_steps.cpp
-src/ui/print/tune_controller.cpp
+src/print/tune_controller.cpp
 src/ui/filament/ui_ams_context_menu.cpp
 src/ui/filament/ui_ams_current_tool.cpp
 src/ui/filament/ui_ams_device_operations_overlay.cpp
@@ -630,7 +634,7 @@ src/ui/filament/ui_filament_path_topology.cpp
 src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
-src/ui/ui_format_utils.cpp
+src/system/display_format.cpp
 src/printer/display_numbering.cpp
 src/ui/lane_count_label.cpp
 src/ui/components/ui_gradient_canvas.cpp
@@ -779,7 +783,7 @@ src/ui/components/ui_status_pill.cpp
 src/ui/components/ui_step_progress.cpp
 src/api/subscription_guard.cpp
 src/ui/components/ui_search_debounce.cpp
-src/ui/ui_coalesced_timer.cpp
+src/core/coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
 src/ui/components/ui_switch.cpp
 src/ui/filament/ui_system_path_canvas.cpp

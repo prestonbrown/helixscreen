@@ -176,7 +176,7 @@ and in exactly one function, `format_temperature_pair()` in
 heater that is off (target 0 or below) with a dash in place of the target.
 
 `PrinterState` stores temperatures as **decidegrees** (degrees x10), so display divides by
-**10**, via `helix::ui::temperature::deci_to_degrees()` (`include/ui_temperature_utils.h`).
+**10**, via `helix::temperature_rules::deci_to_degrees()` (`include/temperature_rules.h`).
 
 A shared widget beats a formula on every axis that matters here: it needs no conditional
 operator, keeps one implementation of the heater-off case, and translates.

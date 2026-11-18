@@ -4,7 +4,6 @@
 #include "job_queue_widget.h"
 
 #include "ui_event_safety.h"
-#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "core/gcode_filename.h"
@@ -23,6 +22,7 @@
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"

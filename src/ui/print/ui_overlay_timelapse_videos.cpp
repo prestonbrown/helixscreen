@@ -9,7 +9,6 @@
 #if HELIX_HAS_TIMELAPSE_VIEWER
 
 #include "ui_callback_helpers.h"
-#include "ui_format_utils.h"
 #include "ui_gradient_canvas.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
@@ -18,6 +17,7 @@
 #include "app_globals.h"
 #include "core/run_capture.h"
 #include "core/static_panel_registry.h"
+#include "display_format.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
@@ -326,9 +326,9 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         entry.filename = file.filename;
         entry.size = file.size;
         entry.modified = file.modified;
-        entry.file_info = helix::ui::format_file_size(static_cast<size_t>(file.size)) +
-                          " \xC2\xB7 " +
-                          helix::ui::format_short_date(static_cast<time_t>(file.modified));
+        entry.file_info =
+            helix::display_format::format_file_size(static_cast<size_t>(file.size)) + " \xC2\xB7 " +
+            helix::display_format::format_short_date(static_cast<time_t>(file.modified));
         videos_.push_back(std::move(entry));
     }
 

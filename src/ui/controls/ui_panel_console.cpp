@@ -9,7 +9,6 @@
 #include "ui_modal.h"
 #include "ui_overlay_console_settings.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -25,6 +24,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "signal_macro_names.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 

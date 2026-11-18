@@ -5,7 +5,6 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_fonts.h"
-#include "ui_format_utils.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_notification.h"
@@ -23,6 +22,7 @@
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
 #include "filament_chip_model.h"
@@ -1065,8 +1065,8 @@ static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subj
         return;
     }
     const time_t ts = static_cast<time_t>(timestamp);
-    lv_subject_set_string(date, helix::ui::format_month_day(ts).c_str());
-    lv_subject_set_string(time, helix::ui::format_time(ts).c_str());
+    lv_subject_set_string(date, helix::display_format::format_month_day(ts).c_str());
+    lv_subject_set_string(time, helix::display_format::format_time(ts).c_str());
 }
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {

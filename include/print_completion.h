@@ -106,29 +106,6 @@ struct PreparingExitAction {
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason);
 
 /**
- * @brief Rendered stat strings for the print-completion modal
- *
- * Optional fields are empty when the underlying value is unknown; the modal
- * binds their visibility off that.
- */
-struct CompletionStats {
-    std::string duration;
-    std::string estimate;
-    std::string layers;
-    std::string filament;
-};
-
-/**
- * @brief Build the completion modal's stat strings
- *
- * Pure: no subjects, no LVGL objects. Every value routes through the shared
- * formatters in ui_format_utils so the modal cannot disagree with the rest of
- * the UI about how a layer count or a filament length reads.
- */
-CompletionStats build_completion_stats(int duration_secs, int estimated_secs, int total_layers,
-                                       int filament_mm);
-
-/**
  * @brief Clean up stale staged copies on startup
  *
  * Deletes all files in every staging directory on Moonraker

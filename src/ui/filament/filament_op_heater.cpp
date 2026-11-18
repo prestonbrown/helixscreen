@@ -152,7 +152,7 @@ lv_subject_t* FilamentOpHeater::target_subject(const std::string& extruder) cons
 }
 
 int FilamentOpHeater::read_c(lv_subject_t* subject) const {
-    return subject ? temperature::deci_to_degrees(lv_subject_get_int(subject)) : 0;
+    return subject ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(subject)) : 0;
 }
 
 const FilamentOpHeater::Heated* FilamentOpHeater::heated_for(FilamentOpTicket ticket) const {
@@ -500,7 +500,7 @@ void FilamentOpHeater::on_target(int target_deci) {
     // The target reaches ours some time after the send, so only a drop from a
     // target already seen means the preheat was undone (cleared by the user, a
     // heater fault, a Klipper shutdown). Such a preheat would never complete.
-    const int target = temperature::deci_to_degrees(target_deci);
+    const int target = helix::temperature_rules::deci_to_degrees(target_deci);
     if (target >= pending_->wait_c - kPreheatMarginC) {
         pending_->target_seen = true;
         return;

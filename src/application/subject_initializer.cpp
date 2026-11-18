@@ -38,6 +38,7 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_panel_settings.h"
 #include "ui_panel_spoolman.h"
+#include "ui_print_completion_modal.h"
 #include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
 #include "ui_stepper_resonance_cal_modal.h"
@@ -466,7 +467,9 @@ void SubjectInitializer::init_temperature_control(helix::IMoonrakerAPI* api) {
 void SubjectInitializer::init_observers(helix::IMoonrakerAPI* api) {
     spdlog::trace("[SubjectInitializer] Initializing observers");
 
-    // Print completion notification observer
+    // Print completion notification observer; the dialog's subjects exist
+    // before any print can end.
+    helix::init_print_completion_subjects();
     m_observers.push_back(helix::init_print_completion_observer());
     m_observers.push_back(helix::init_preparing_exit_observer());
 

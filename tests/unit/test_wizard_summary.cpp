@@ -14,7 +14,6 @@
  * On some platforms this corrupted the data, causing blank summary screens.
  */
 
-#include "ui_subject_registry.h"
 #include "ui_wizard_summary.h"
 #include "ui_wizard_telemetry.h"
 
@@ -22,6 +21,7 @@
 #include "config.h"
 #include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "system/subject_registry.h"
 #include "system_settings_manager.h"
 
 #include <cstring>

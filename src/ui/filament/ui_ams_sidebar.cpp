@@ -1214,9 +1214,9 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
             int current_deci = lv_subject_get_int(temp_subject);
             int target_deci = lv_subject_get_int(target_subject);
             char temp_buf[32];
-            temperature::format_temperature_pair(temperature::deci_to_degrees(current_deci),
-                                                 temperature::deci_to_degrees(target_deci),
-                                                 temp_buf, sizeof(temp_buf));
+            temperature::format_temperature_pair(
+                helix::temperature_rules::deci_to_degrees(current_deci),
+                helix::temperature_rules::deci_to_degrees(target_deci), temp_buf, sizeof(temp_buf));
             snprintf(label_buf, sizeof(label_buf), "%s %s", base_label, temp_buf);
         }
         ui_step_progress_set_label(step_progress_, live_temp_step_index_, label_buf);
@@ -1490,9 +1490,9 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
         int target_deci = lv_subject_get_int(
             printer_state_.temperature_state().get_active_extruder_target_subject());
         char temp_buf[32];
-        temperature::format_temperature_pair(temperature::deci_to_degrees(current_deci),
-                                             temperature::deci_to_degrees(target_deci), temp_buf,
-                                             sizeof(temp_buf));
+        temperature::format_temperature_pair(
+            helix::temperature_rules::deci_to_degrees(current_deci),
+            helix::temperature_rules::deci_to_degrees(target_deci), temp_buf, sizeof(temp_buf));
         char label_buf[64];
         snprintf(label_buf, sizeof(label_buf), "%s %s", lv_tr("Heat nozzle"), temp_buf);
         ui_step_progress_set_label(step_progress_, 0, label_buf);

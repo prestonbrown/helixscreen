@@ -7,7 +7,6 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_notification.h"
-#include "ui_subject_registry.h"
 #include "ui_wizard.h"
 
 #include "ams_state.h"
@@ -32,6 +31,7 @@
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "utils/network_validation.h"

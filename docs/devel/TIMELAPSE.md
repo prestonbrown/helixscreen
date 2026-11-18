@@ -228,5 +228,5 @@ not by a hostname check in the thumbnailer.
 | `include/timelapse_thumbnailer.h` | Thumbnail extraction and playback utilities |
 | `src/print/timelapse_thumbnailer.cpp` | Utility function implementations |
 | `tests/unit/test_timelapse_videos.cpp` | Playback argument construction tests |
-| `include/ui_format_utils.h` | `format_short_date()` for smart date display |
-| `src/ui/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |
+| `include/display_format.h` | `format_short_date()` for smart date display |
+| `src/system/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |

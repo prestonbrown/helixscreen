@@ -6,10 +6,10 @@
 #include "ui_modal.h"
 #include "ui_widget_ref.h"
 
+#include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "klipper_config_editor.h"
-#include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 

@@ -14,7 +14,6 @@
  */
 
 #include "ui_callback_helpers.h"
-#include "ui_filament_mapping_card.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 
@@ -27,6 +26,7 @@
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "filament_mapping_plan.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_start_checks.h"
@@ -217,7 +217,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The AMS path never reads the palette's material list.
     ctx.filament_materials.clear();
 
-    const auto* tool = helix::ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, 0);
+    const auto* tool = helix::filament_mapping::find_by_tool_index(ctx.tool_info, 0);
     REQUIRE(tool != nullptr);
     CHECK(tool->material == "PETG");
     REQUIRE(ctx.mappings.size() == 1);

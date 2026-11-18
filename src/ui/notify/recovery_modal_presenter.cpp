@@ -72,7 +72,7 @@ constexpr int kTempThresholdC = 5;
 
 int nozzle_current_c() {
     auto* subj = get_printer_state().temperature_state().get_active_extruder_temp_subject();
-    return subj ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(subj)) : 0;
+    return subj ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(subj)) : 0;
 }
 
 } // namespace

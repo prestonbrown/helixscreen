@@ -444,7 +444,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         }
 
         // Set dynamic content only — unit name and slot count vary per unit
-        uc.display_name = ams_draw::get_unit_display_name(unit, i);
+        uc.display_name = helix::ui::unit_display_name(unit, i);
         helix::ui::set_row_label_text(uc.card, "unit_name", uc.display_name.c_str());
 
         set_slot_count_label(uc.slot_count_label, noun, unit.slot_count);
@@ -479,7 +479,7 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
 
     // Update name label. Keep display_name in step - it is the only untruncated
     // copy, and publish_cards_compact() measures it.
-    card.display_name = ams_draw::get_unit_display_name(unit, card.unit_index);
+    card.display_name = helix::ui::unit_display_name(unit, card.unit_index);
     helix::ui::set_row_label_text(card.card, "unit_name", card.display_name.c_str());
 
     // Rebuild the mini bars only when a geometry input changed (lane count or

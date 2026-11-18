@@ -10,8 +10,6 @@
 
 #include "printer_temperature_state.h"
 
-#include "ui_temperature_utils.h"
-
 #include "chamber_heater_backend.h"
 #include "core/subject.h"
 #include "core/temp_unit_subject.h"
@@ -21,6 +19,7 @@
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "state/subject_macros.h"
+#include "temperature_rules.h"
 #include "unit_conversions_json.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -812,11 +811,11 @@ void PrinterTemperatureState::update_from_status(const nlohmann::json& status) {
     release_chamber_rejection_if_target_followed();
 
     // Effective chamber setpoint + control mode: delegate to the single source of
-    // truth in ui_temperature_utils so the display and data layers can never
+    // truth in temperature_rules.h so the display and data layers can never
     // diverge. Recomputed on EVERY status update so external sets (Mainsail/
     // startup, partial subscription updates touching only one source subject) are
     // always reflected. See chamber_effective_setpoint() for the full rule set.
-    auto sp = helix::ui::temperature::chamber_effective_setpoint(
+    auto sp = helix::temperature_rules::chamber_effective_setpoint(
         lv_subject_get_int(&chamber_target_), lv_subject_get_int(&chamber_fan_target_),
         chamber_fan_resting_deci_);
     lv_subject_set_int(&chamber_effective_target_, sp.deci);
@@ -919,9 +918,9 @@ void PrinterTemperatureState::publish_chamber_heater_element_temp() {
     }
     // Canonical decimal-drop rule (one decimal <100°C, whole degrees at/above):
     // format_temperature_f wraps format_temp_number plus the unit.
-    helix::ui::temperature::format_temperature_f(*chamber_heater_element_temp_c_,
-                                                 chamber_heater_element_temp_text_buf_,
-                                                 sizeof(chamber_heater_element_temp_text_buf_));
+    helix::temperature_rules::format_temperature_f(*chamber_heater_element_temp_c_,
+                                                   chamber_heater_element_temp_text_buf_,
+                                                   sizeof(chamber_heater_element_temp_text_buf_));
     lv_subject_set_string(&chamber_heater_element_temp_text_,
                           chamber_heater_element_temp_text_buf_);
 }

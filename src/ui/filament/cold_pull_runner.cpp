@@ -561,8 +561,9 @@ void ColdPullRunner::finish_owed_from_subject() {
     }
     owed_query_in_flight_ = false;
     lv_subject_t* s = state_.temperature_state().get_extruder_target_subject(owed_->heater);
-    finish_owed(s ? std::optional<int>(temperature::deci_to_degrees(lv_subject_get_int(s)))
-                  : std::nullopt);
+    finish_owed(
+        s ? std::optional<int>(helix::temperature_rules::deci_to_degrees(lv_subject_get_int(s)))
+          : std::nullopt);
 }
 
 void ColdPullRunner::on_sensor(int value) {
@@ -628,14 +629,14 @@ int ColdPullRunner::heater_temp_c() const {
     lv_subject_t* s =
         flow_ ? state_.temperature_state().get_extruder_temp_subject(flow_->params().heater)
               : nullptr;
-    return s ? temperature::deci_to_degrees(lv_subject_get_int(s)) : 0;
+    return s ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(s)) : 0;
 }
 
 int ColdPullRunner::heater_target_c() const {
     lv_subject_t* s =
         flow_ ? state_.temperature_state().get_extruder_target_subject(flow_->params().heater)
               : nullptr;
-    return s ? temperature::deci_to_degrees(lv_subject_get_int(s)) : 0;
+    return s ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(s)) : 0;
 }
 
 void ColdPullRunner::adjust_soak(int delta_c) {

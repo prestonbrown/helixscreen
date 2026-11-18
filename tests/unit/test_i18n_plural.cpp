@@ -7,9 +7,8 @@
  *        form from a translation pack (prestonbrown/helixscreen#1808).
  */
 
-#include "ui_format_utils.h"
-
 #include "../lvgl_test_fixture.h"
+#include "display_format.h"
 #include "display_numbering.h"
 #include "i18n_plural.h"
 #include "lane_count_label.h"
@@ -174,13 +173,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::ensure_translation_loaded("ru");
     lv_translation_set_language("ru");
 
-    CHECK(helix::ui::format_relative_time(1 * kDayMs) == "1 день назад");
-    CHECK(helix::ui::format_relative_time(2 * kDayMs) == "2 дня назад");
-    CHECK(helix::ui::format_relative_time(4 * kDayMs) == "4 дня назад");
-    CHECK(helix::ui::format_relative_time(5 * kDayMs) == "5 дней назад");
-    CHECK(helix::ui::format_relative_time(11 * kDayMs) == "11 дней назад");
-    CHECK(helix::ui::format_relative_time(21 * kDayMs) == "21 день назад");
-    CHECK(helix::ui::format_relative_time(22 * kDayMs) == "22 дня назад");
+    CHECK(helix::display_format::format_relative_time(1 * kDayMs) == "1 день назад");
+    CHECK(helix::display_format::format_relative_time(2 * kDayMs) == "2 дня назад");
+    CHECK(helix::display_format::format_relative_time(4 * kDayMs) == "4 дня назад");
+    CHECK(helix::display_format::format_relative_time(5 * kDayMs) == "5 дней назад");
+    CHECK(helix::display_format::format_relative_time(11 * kDayMs) == "11 дней назад");
+    CHECK(helix::display_format::format_relative_time(21 * kDayMs) == "21 день назад");
+    CHECK(helix::display_format::format_relative_time(22 * kDayMs) == "22 дня назад");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

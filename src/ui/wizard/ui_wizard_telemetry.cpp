@@ -4,11 +4,11 @@
 
 #include "ui_settings_system.h"
 #include "ui_settings_updates.h"
-#include "ui_subject_registry.h"
 #include "ui_wizard.h"
 
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
+#include "system/subject_registry.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 

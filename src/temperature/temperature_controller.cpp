@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "temperature_controller.h"
 
-#include "ui_error_reporting.h"
-#include "ui_temperature_utils.h"
-
 #include "ams_state.h"
 #include "chamber_heater_backend.h"
 #include "core/observer_factory.h"
@@ -18,6 +15,8 @@
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
 #include "spool_latch_gate.h"
+#include "system/notify_tr.h"
+#include "temperature_rules.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -237,7 +236,7 @@ void TemperatureController::set_target(const std::string& klipper_name, double c
         lv_subject_t* actual = temps.get_extruder_temp_subject(klipper_name);
         const double actual_deg =
             actual ? static_cast<double>(
-                         helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(actual)))
+                         helix::temperature_rules::deci_to_degrees_f(lv_subject_get_int(actual)))
                    : 0.0;
         const auto it = temps.extruders().find(klipper_name);
         const double latched = it != temps.extruders().end()
@@ -302,7 +301,7 @@ void TemperatureController::send_gcode_target(const std::string& klipper_name, d
             helix::ui::run_on_main("TemperatureController::on_error",
                                    [cb = opts.on_error, e]() { cb(e); });
         if (opts.toast) {
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set temperature: {}"), e);
+            helix::notify_error_tr(TR_NOOP("Failed to set temperature: {}"), e);
         }
     };
     // opts.toast is the signal: on_err above raises NOTIFY_ERROR only when it is
@@ -395,7 +394,7 @@ void TemperatureController::send_chamber_target_direct(
             helix::ui::run_on_main("TemperatureController::on_error",
                                    [cb = opts.on_error, e]() { cb(e); });
         if (opts.toast) {
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set temperature: {}"), e);
+            helix::notify_error_tr(TR_NOOP("Failed to set temperature: {}"), e);
         }
     };
     // A refusal is a reply, not a transport error, so it is turned into one

@@ -12,7 +12,6 @@
 #include "ui_panel_common.h"
 #include "ui_panel_controls.h"
 #include "ui_settings_motion.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -32,6 +31,7 @@
 #include "sort_small.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "tile_grid_fit.h"
 #include "toolhead_homing.h"
@@ -1354,12 +1354,12 @@ void MotionPanel::home_axes(const std::string& axes) {
         axes,
         [axes]() {
             if (axes.empty()) {
-                helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
+                helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
             } else {
                 if (axes.size() == 1) {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
                 } else {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
                 }
             }
         },

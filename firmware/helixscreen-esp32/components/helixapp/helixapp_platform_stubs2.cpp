@@ -715,7 +715,9 @@ void UpdateChecker::on_channel_changed() {}
 void UpdateChecker::sync_moonraker_channel() {}
 // The notification history panel's "show update" action. Nothing posts an
 // update notification in this slice, so the action is never dispatched.
-void UpdateChecker::show_update_notification() {}
+namespace helix::ui {
+void show_update_notification() {}
+} // namespace helix::ui
 void UpdateChecker::report_download_status(DownloadStatus, int, const std::string&,
                                            const std::string&) {}
 std::optional<UpdateChecker::ReleaseInfo> UpdateChecker::get_cached_update() const {

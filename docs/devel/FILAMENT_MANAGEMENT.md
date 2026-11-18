@@ -1541,7 +1541,7 @@ unload lane choice): it publishes `filament_picker_title`, `_row_count`, `_offer
 one `filament_picker_row_cb`. One picker shows at a time, since the subjects are global.
 
 **No filament system.** On a printer with one toolhead (`ToolState::has_multiple_toolheads()`
-false) and no filament system, `FilamentMappingCard::shows_loaded_for()` shows the card
+false) and no filament system, `filament_mapping::shows_loaded_for()` shows the card
 whenever a used tool names a material; `shows_mapping_for()` and the print-start gate are
 unchanged, so the bypass dead-control rule still holds. Chips compare the file against the
 external spool (`get_external_spool_info()`): the first used tool's body is just the spool dot

@@ -29,9 +29,11 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
+#include "gcode_preview_cache.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
@@ -718,7 +720,7 @@ std::string PrintSelectDetailView::canonical_gcode_path() const {
     // Keyed on the FULL relative path (not just the filename) so same-name files
     // in different directories never collide on one temp file.
     return get_helix_cache_dir("gcode_temp") + "/" +
-           helix::ui::GcodePreviewFetcher::cache_file_name("detail_", current_file_key());
+           helix::gcode::preview_cache_file_name("detail_", current_file_key());
 }
 
 void PrintSelectDetailView::resolve_local_gcodes_root() {
@@ -1606,7 +1608,7 @@ std::vector<helix::GcodeToolInfo> PrintSelectDetailView::get_used_tool_info() co
     // Source per-tool info DIRECTLY from the slicer palette (Moonraker metadata,
     // populated on ALL platforms) via the stateless assembler — NOT from the
     // mapping card INSTANCE, whose tool_info_ is empty on the U1/headless path.
-    return FilamentMappingCard::build_used_tool_info(
+    return helix::filament_mapping::build_used_tool_info(
         current_filament_colors_, current_filament_materials_, tools_used_effective());
 }
 

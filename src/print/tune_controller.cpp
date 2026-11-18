@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tune_controller.h"
 
-#include "ui_error_reporting.h"
-
 #include "filament_database.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "pa_tuning.h"
 #include "spdlog/spdlog.h"
+#include "system/notify_tr.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -35,7 +34,7 @@ void set_speed_percent(IMoonrakerAPI* api, int pct) {
         [value]() { spdlog::debug("[TuneController] Speed set to {}%", value); },
         [](const MoonrakerError& err) {
             spdlog::error("[TuneController] Failed to set speed: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err);
         });
 }
 
@@ -49,7 +48,7 @@ void set_flow_percent(IMoonrakerAPI* api, int pct) {
         [value]() { spdlog::debug("[TuneController] Flow set to {}%", value); },
         [](const MoonrakerError& err) {
             spdlog::error("[TuneController] Failed to set flow: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set flow rate: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Failed to set flow rate: {}"), err);
         });
 }
 
@@ -65,7 +64,7 @@ void set_pressure_advance(IMoonrakerAPI* api, const std::string& extruder, float
         },
         [](const MoonrakerError& err) {
             spdlog::error("[TuneController] Failed to set pressure advance: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to set pressure advance: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Failed to set pressure advance: {}"), err);
         });
 }
 

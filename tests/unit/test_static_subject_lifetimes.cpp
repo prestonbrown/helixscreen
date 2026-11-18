@@ -18,6 +18,7 @@
 #include "ui_ams_slot.h"
 #include "ui_color_picker.h"
 #include "ui_guided_device_flow.h"
+#include "ui_print_completion_modal.h"
 #include "ui_tile_edit_callout.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -26,7 +27,6 @@
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lock_manager.h"
-#include "print_completion.h"
 #include "src/ui/panel_widgets/dryer_model.h"
 #include "src/ui/panel_widgets/filament_sensor_widget.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -122,7 +122,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         {"DryerModelSubjects", "home_dryer_available", [] { helix::dryer_model::init_subjects(); },
          false},
         {"PrintCompletion", "print_completion_has_estimate",
-         [] { ObserverGuard completion = init_print_completion_observer(); }, false},
+         [] { helix::init_print_completion_subjects(); }, false},
         {"LockManager", "lock_pin_set", [] { helix::LockManager::instance().init_subjects(); },
          false},
         {"PrintStatusWidgetSubjects", "print_status_view",

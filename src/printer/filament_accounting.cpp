@@ -2,8 +2,7 @@
 
 #include "filament_accounting.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_numbering.h"
 #include "format_utils.h"
 #include "json_utils.h"
@@ -239,9 +238,9 @@ std::string describe_spool_usage(const std::vector<SpoolUsage>& usage,
         } else {
             spool = lv_tr("No spool linked");
         }
-        const std::string amount = u.grams
-                                       ? ui::format_filament_weight(static_cast<float>(*u.grams))
-                                       : format::format_filament_length(u.mm);
+        const std::string amount =
+            u.grams ? helix::display_format::format_filament_weight(static_cast<float>(*u.grams))
+                    : format::format_filament_length(u.mm);
         if (!text.empty()) {
             text += '\n';
         }

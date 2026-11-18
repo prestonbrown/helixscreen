@@ -7,6 +7,7 @@
 
 #include "ui_modal.h"
 #include "ui_panel_print_status.h"
+#include "ui_print_completion_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
@@ -122,13 +123,19 @@ TEST_CASE_METHOD(StopReasonPanelFixture, "Canceled overlay: the stop reason show
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows under the filename",
                  "[print_completion][stop_reason]") {
+    auto& audio = AudioSettingsManager::instance();
+    const CompletionAlertMode saved_mode = audio.get_completion_alert_mode();
+    audio.set_completion_alert_mode(CompletionAlertMode::ALERT);
     ObserverGuard completion = init_print_completion_observer();
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    UpdateQueue::instance().drain();
     state().print_state().set_print_stop_reason(kReason);
+    test::set_wire_state(state(), PrintJobState::CANCELLED);
     UpdateQueue::instance().drain();
 
-    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
-    REQUIRE(dialog != nullptr);
-    lv_obj_t* reason = lv_obj_find_by_name(dialog, "stop_reason_label");
+    REQUIRE(ModalStack::instance().top_component_name() == "print_completion_modal");
+    lv_obj_t* reason =
+        lv_obj_find_by_name(ModalStack::instance().top_dialog(), "stop_reason_label");
     REQUIRE(reason != nullptr);
     CHECK(label_text(reason) == kReason);
     CHECK_FALSE(lv_obj_is_hidden(reason));
@@ -137,9 +144,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Completion modal: the stop reason shows und
     UpdateQueue::instance().drain();
     CHECK(lv_obj_is_hidden(reason));
 
-    helix::ui::modal_hide(dialog);
+    // The next job makes this one's result stale.
+    test::set_wire_state(state(), PrintJobState::PRINTING);
     UpdateQueue::instance().drain();
-    process_lvgl(10);
+    process_lvgl(400);
+    CHECK(ModalStack::instance().top_component_name().empty());
+    completion.reset();
+    audio.set_completion_alert_mode(saved_mode);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Completion toast: a canceled print says why",

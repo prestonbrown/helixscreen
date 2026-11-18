@@ -3,9 +3,8 @@
 
 #include "ui_printer_events_overlay.h"
 
-#include "ui_format_utils.h"
-
 #include "app_globals.h"
+#include "display_format.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lvgl.h"
@@ -30,7 +29,7 @@ std::string row_message(const JournalEntry& e, const JournalRow& row) {
 }
 
 std::string row_time(const JournalEntry& e, const JournalRow& row) {
-    std::string text = format_modified_date(static_cast<time_t>(e.time));
+    std::string text = display_format::format_modified_date(static_cast<time_t>(e.time));
     if (row.repeat_count > 1) {
         text += " ";
         text += fmt::format(fmt::runtime(lv_tr("(repeated {} times)")), row.repeat_count);

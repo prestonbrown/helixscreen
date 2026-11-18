@@ -3,8 +3,7 @@
 
 #include "print_progress_text.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "tune_controller.h"
@@ -30,7 +29,7 @@ void PrintProgressText::init_subjects(SubjectManager& subjects) {
 void PrintProgressText::refresh_layer() {
     auto& print = printer_state_.print_state();
     const int layer = lifecycle_.current_layer();
-    std::string text = format_layer_progress_compact(
+    std::string text = display_format::format_layer_progress_compact(
         layer, lifecycle_.total_layers(), print.layer_is_accurate(),
         print.layer_line_z_centimm(
             layer,

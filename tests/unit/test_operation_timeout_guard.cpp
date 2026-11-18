@@ -8,7 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
-#include "operation_timeout_guard.h"
+#include "core/operation_timeout_guard.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>

@@ -2,16 +2,15 @@
 
 #include "print_start_inputs.h"
 
-#include "ui_filament_mapping_card.h"
-
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
-#include "gcode_preview_fetcher.h"
+#include "gcode_preview_cache.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
@@ -91,13 +90,13 @@ namespace {
 
 /// What the file view's mapping card holds for @p facts when the user has not
 /// edited it.
-ui::FilamentMappingCard::Mapping card_mapping_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::compute_mapping(facts.palette.colors, facts.palette.materials,
+helix::filament_mapping::Mapping card_mapping_for(const FileStartFacts& facts) {
+    return helix::filament_mapping::compute_mapping(facts.palette.colors, facts.palette.materials,
                                                     facts.tools_used);
 }
 
 std::vector<GcodeToolInfo> used_tool_info_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::build_used_tool_info(facts.palette.colors,
+    return helix::filament_mapping::build_used_tool_info(facts.palette.colors,
                                                          facts.palette.materials, facts.tools_used);
 }
 
@@ -565,7 +564,7 @@ void FileStartFactsLoader::download_to_temp(
         return;
     }
     const std::string path = dir + "/" +
-                             ui::GcodePreviewFetcher::cache_file_name(
+                             helix::gcode::preview_cache_file_name(
                                  "start_", file_key + "#" + std::to_string(generation));
     api_->transfers().download_file_to_path(
         "gcodes", file_key, path, [done, path](const std::string&) { done(true, path); },

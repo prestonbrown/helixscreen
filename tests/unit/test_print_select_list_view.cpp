@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
 #include "ui_print_select_list_view.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/display/lv_display_private.h" // inv_areas
 #include "lvgl/src/misc/lv_area_private.h"       // lv_area_is_in
@@ -16,6 +16,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
+using helix::display_format::format_modified_date;
 
 namespace {
 

@@ -3,11 +3,21 @@
 
 #pragma once
 
+/**
+ * @file display_format.h
+ * @brief Strings for showing times, dates, sizes and counts to the user
+ *
+ * They follow the display settings (12/24-hour time, the date order, the
+ * language), which is why they sit beside DisplaySettingsManager in src/system
+ * rather than with the pure formatters of format_utils.h. Nothing here touches
+ * a widget, so state and print code format through it as the screens do.
+ */
+
 #include <cstdint>
 #include <ctime>
 #include <string>
 
-namespace helix::ui {
+namespace helix::display_format {
 
 /**
  * @brief Format print time from minutes to human-readable string
@@ -194,4 +204,4 @@ std::string format_relative_time(uint64_t elapsed_ms);
  */
 std::string format_uptime(int total_seconds);
 
-} // namespace helix::ui
+} // namespace helix::display_format

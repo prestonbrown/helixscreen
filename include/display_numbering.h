@@ -13,7 +13,8 @@
 
 namespace helix {
 class AmsBackend;
-}
+struct AmsUnit;
+} // namespace helix
 
 namespace helix::ui {
 
@@ -241,6 +242,10 @@ std::string clear_spool_blocked_hint(LaneNoun noun, int index);
  * spacing cannot drift between them. An empty unit degrades to the body
  * alone, the single-unit form.
  */
+/// A unit's name as the screens show it: display_name over name, underscores
+/// as spaces, and "Unit N" when it has neither.
+std::string unit_display_name(const helix::AmsUnit& unit, int unit_index);
+
 std::string unit_scoped_label(std::string_view unit_display_name, std::string_view body);
 
 /**

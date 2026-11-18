@@ -1,7 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
 #include "ui_history_list_view.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_history_list.h"
@@ -11,6 +10,7 @@
 #include "../test_helpers/history_list_panel_test_access.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "lvgl.h"
@@ -26,6 +26,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix::ui;
+using helix::display_format::format_modified_date;
 
 // Container-replacement coverage for the #1396 fix as it applies to
 // HistoryListView. The mechanism and the reasoning are the twin of
@@ -135,13 +136,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::TimeFormat time = helix::DisplaySettingsManager::instance().get_time_format();
         std::optional<helix::DateFormat> order = helix::saved_date_format();
         ~Restore() {
-            helix::ui::locale_set_language("en");
+            helix::locale::locale_set_language("en");
             helix::DisplaySettingsManager::instance().set_time_format(time);
             helix::set_saved_date_format(order);
         }
     } restore;
     helix::set_saved_date_format(std::nullopt);
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     display.set_time_format(helix::TimeFormat::HOUR_12);
     std::vector<PrintHistoryJob> jobs = make_test_jobs(3);
     jobs[0].start_time = 1733063400.0;
@@ -149,7 +150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     ScopedGerman german;
     REQUIRE(std::string(lv_tr("Completed")) != "Completed"); // the pack loaded
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     display.set_time_format(helix::TimeFormat::HOUR_24);
 
     HistoryListView view;

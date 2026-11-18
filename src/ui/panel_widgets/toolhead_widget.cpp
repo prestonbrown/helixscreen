@@ -9,7 +9,6 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_panel_motion.h"
-#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
@@ -32,6 +31,7 @@
 #include "src/ui/panel_widgets/motion_widget.h"
 #include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "tool_state.h"

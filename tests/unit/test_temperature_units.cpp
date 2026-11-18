@@ -158,8 +158,10 @@ TEST_CASE("temperature units: the shared readouts show °F", "[temp_units]") {
     CHECK(std::string(temperature::format_temperature_range(200, 230, buf, sizeof(buf))) ==
           "392-446°F");
     // The compact rule applies to the shown number: 40°C is 104°F, three digits.
-    CHECK(std::string(temperature::format_temp_number(40.0f, buf, sizeof(buf))) == "104");
-    CHECK(std::string(temperature::format_temperature_f(37.5f, buf, sizeof(buf))) == "99.5°F");
+    CHECK(std::string(helix::temperature_rules::format_temp_number(40.0f, buf, sizeof(buf))) ==
+          "104");
+    CHECK(std::string(helix::temperature_rules::format_temperature_f(37.5f, buf, sizeof(buf))) ==
+          "99.5°F");
     CHECK(temperature::heater_display(2100, 2200).temp == "410 / 428°F");
     CHECK(std::string(temperature::get_extrusion_safety_status(160, 170)) ==
           "Heating (18°F below minimum)");
@@ -249,25 +251,25 @@ TEST_CASE("temperature units: region defaults follow the zone, then the language
 TEST_CASE_METHOD(LVGLTestFixture, "temperature units: dates follow the chosen order",
                  "[temp_units][date_format]") {
     auto& display = helix::DisplaySettingsManager::instance();
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     const std::tm now_year = date(this_year(), 3, 9);
     const std::tm old_year = date(2024, 3, 9);
 
     display.set_date_format(DateFormat::MDY);
-    CHECK(helix::ui::format_localized_month_day(&now_year) == "Mar 9");
-    CHECK(helix::ui::format_localized_short_date(&old_year) == "Mar 09 '24");
-    CHECK(helix::ui::format_localized_long_date(&now_year).find("March 9, ") == 0);
+    CHECK(helix::locale::format_localized_month_day(&now_year) == "Mar 9");
+    CHECK(helix::locale::format_localized_short_date(&old_year) == "Mar 09 '24");
+    CHECK(helix::locale::format_localized_long_date(&now_year).find("March 9, ") == 0);
 
     display.set_date_format(DateFormat::DMY);
-    CHECK(helix::ui::format_localized_month_day(&now_year) == "9 Mar");
-    CHECK(helix::ui::format_localized_short_date(&old_year) == "09 Mar '24");
-    CHECK(helix::ui::format_localized_long_date(&old_year) == "9 March 2024");
+    CHECK(helix::locale::format_localized_month_day(&now_year) == "9 Mar");
+    CHECK(helix::locale::format_localized_short_date(&old_year) == "09 Mar '24");
+    CHECK(helix::locale::format_localized_long_date(&old_year) == "9 March 2024");
 
     display.set_date_format(DateFormat::YMD);
-    CHECK(helix::ui::format_localized_month_day(&now_year) == "3/9");
-    CHECK(helix::ui::format_localized_short_date(&old_year) == "2024/3/9");
-    CHECK(helix::ui::format_localized_long_date(&old_year) == "2024 March 9");
-    CHECK(helix::ui::format_localized_date(&now_year) == "3/9 (Mon)");
+    CHECK(helix::locale::format_localized_month_day(&now_year) == "3/9");
+    CHECK(helix::locale::format_localized_short_date(&old_year) == "2024/3/9");
+    CHECK(helix::locale::format_localized_long_date(&old_year) == "2024 March 9");
+    CHECK(helix::locale::format_localized_date(&now_year) == "3/9 (Mon)");
 
     erase_display_key("date_format");
 }
@@ -447,15 +449,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLTestFixture,
                  "temperature units: a date formats off the main thread from the saved order alone",
                  "[temp_units][date_format]") {
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     const std::tm day = date(2024, 3, 9);
     // Config alone does not change the order: formatting never reads it.
     helix::Config::get_instance()->set<int>("/display/date_format", 2);
-    CHECK(helix::ui::format_localized_short_date(&day) == "Mar 09 '24");
+    CHECK(helix::locale::format_localized_short_date(&day) == "Mar 09 '24");
 
     helix::set_saved_date_format(DateFormat::YMD);
     std::string from_thread;
-    std::thread([&] { from_thread = helix::ui::format_localized_short_date(&day); }).join();
+    std::thread([&] { from_thread = helix::locale::format_localized_short_date(&day); }).join();
     CHECK(from_thread == "2024/3/9");
 
     helix::set_saved_date_format(std::nullopt);
@@ -489,6 +491,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(text(2) == "50");
 
     char buf[16];
-    CHECK(std::string(temperature::format_number_compact(40.0, buf, sizeof(buf))) == "40.0");
+    CHECK(std::string(helix::temperature_rules::format_number_compact(40.0, buf, sizeof(buf))) ==
+          "40.0");
     lv_obj_delete(td);
 }

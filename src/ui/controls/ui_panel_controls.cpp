@@ -19,7 +19,6 @@
 #include "ui_panel_screws_tilt.h"
 #include "ui_position_utils.h"
 #include "ui_settings_sensors.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -27,6 +26,7 @@
 #include "app_globals.h"
 #include "bed_plate_context.h"
 #include "core/observer_factory.h"
+#include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/temp_unit_subject.h"
 #include "core/temperature_units.h"
@@ -37,12 +37,12 @@
 #include "i18n_plural.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
-#include "operation_timeout_guard.h"
 #include "printer_state.h"
 #include "quick_action_slots.h"
 #include "sort_small.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_service.h"
@@ -63,8 +63,8 @@
 #include <memory>
 
 using namespace helix;
+using helix::temperature_rules::deci_to_degrees;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees;
 
 // Forward declarations for class-based API
 class MotionPanel;
@@ -1292,7 +1292,7 @@ void ControlsPanel::handle_fan_slider_changed(int value) {
         api_->set_fan_speed(
             part_fan, static_cast<double>(value), []() { /* Silent success */ },
             [](const MoonrakerError& err) {
-                helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+                helix::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
             });
     }
 }

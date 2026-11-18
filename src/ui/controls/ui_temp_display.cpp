@@ -30,9 +30,9 @@
 #include <cstring>
 #include <memory>
 
-using helix::ui::temperature::deci_to_degrees;
-using helix::ui::temperature::deci_to_degrees_f;
-using helix::ui::temperature::format_temp_number;
+using helix::temperature_rules::deci_to_degrees;
+using helix::temperature_rules::deci_to_degrees_f;
+using helix::temperature_rules::format_temp_number;
 using helix::ui::temperature::get_heating_state_color;
 
 // ============================================================================
@@ -317,9 +317,9 @@ static void update_display(TempDisplayData* data) {
 
     // Update current temp via subject
     if (data->raw) {
-        helix::ui::temperature::format_number_compact(deci_to_degrees_f(data->current_deci),
-                                                      data->current_text_buf,
-                                                      sizeof(data->current_text_buf));
+        helix::temperature_rules::format_number_compact(deci_to_degrees_f(data->current_deci),
+                                                        data->current_text_buf,
+                                                        sizeof(data->current_text_buf));
     } else {
         format_deci_temp(data->current_text_buf, sizeof(data->current_text_buf),
                          data->current_deci);
@@ -789,10 +789,10 @@ void ui_temp_display_set(lv_obj_t* obj, int current, int target) {
     }
 
     data->current_deci =
-        helix::ui::temperature::degrees_to_deci(current); // Approximate from whole degrees
+        helix::temperature_rules::degrees_to_deci(current); // Approximate from whole degrees
     data->current_temp = current;
     data->target_temp = target;
-    data->target_deci = helix::ui::temperature::degrees_to_deci(target);
+    data->target_deci = helix::temperature_rules::degrees_to_deci(target);
     update_display(data);
 }
 

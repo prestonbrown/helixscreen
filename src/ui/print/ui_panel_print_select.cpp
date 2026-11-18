@@ -17,7 +17,6 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
-#include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -26,7 +25,6 @@
 #include "ui_print_select_file_sorter.h"
 #include "ui_print_select_history.h"
 #include "ui_print_select_path_navigator.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -42,6 +40,7 @@
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
@@ -69,6 +68,7 @@
 #include "queued_job_start.h"
 #include "runtime_config.h"
 #include "storage_report_service.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "try_reserve.h"
@@ -93,12 +93,12 @@ namespace hfs = helix::fs;
 namespace tio = helix::text_io;
 
 using namespace helix;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_layer_count;
+using helix::display_format::format_layer_height;
+using helix::display_format::format_print_height;
+using helix::display_format::format_print_time;
 using helix::gcode::strip_gcode_extension;
-using helix::ui::format_filament_weight;
-using helix::ui::format_layer_count;
-using helix::ui::format_layer_height;
-using helix::ui::format_print_height;
-using helix::ui::format_print_time;
 
 // ============================================================================
 // Global Instance
@@ -3179,8 +3179,8 @@ void PrintSelectPanel::copy_usb_file_to_printer(
                               return;
                           }
                           end_usb_copy();
-                          helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
-                                                     req.filename, err);
+                          helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
+                                                 req.filename, err);
                       });
         });
 }
@@ -3206,7 +3206,7 @@ void PrintSelectPanel::upload_usb_copy(UsbCopyRequest req,
             }
             if (space == storage::UploadSpace::TooFull) {
                 end_usb_copy();
-                helix::ui::notify_error_tr(storage::kNoUploadSpaceMessage);
+                helix::notify_error_tr(storage::kNoUploadSpaceMessage);
                 return;
             }
             start_usb_upload(std::move(req), dest);
@@ -3231,8 +3231,8 @@ void PrintSelectPanel::start_usb_upload(UsbCopyRequest req, const std::string& d
             tok.defer("PrintSelectPanel::usb_copy_failed", [this, generation, filename, err]() {
                 if (usb_copy_current(generation)) {
                     end_usb_copy();
-                    helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
-                                               err);
+                    helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
+                                           err);
                 }
             });
         },

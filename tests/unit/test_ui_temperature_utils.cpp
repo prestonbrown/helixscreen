@@ -11,6 +11,7 @@
 
 #include "../catch_amalgamated.hpp"
 
+using namespace helix::temperature_rules;
 using namespace helix::ui::temperature;
 
 // ============================================================================

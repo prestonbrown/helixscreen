@@ -4,8 +4,6 @@
 
 #include "ams_backend_ad5x_ifs.h"
 
-#include "ui_temperature_utils.h"
-
 #include "ams_fault_event.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -34,6 +32,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "temperature_rules.h"
 #include "toolhead_homing.h"
 #include "translation_loader.h"
 #include "zmod_color_status.h"
@@ -64,7 +63,7 @@ namespace {
 /// frame or a RESPOND line reports one), so it names only what is known.
 std::string heating_detail(int target_deci, int current_deci) {
     const auto shown = [](int deci) {
-        return units::format_display_temp(helix::ui::temperature::deci_to_degrees(deci));
+        return units::format_display_temp(helix::temperature_rules::deci_to_degrees(deci));
     };
     if (target_deci > 0 && current_deci > 0) {
         return fmt::format(fmt::runtime(lv_tr("Heating nozzle to {} ({})")), shown(target_deci),
@@ -2704,7 +2703,7 @@ int AmsBackendAd5xIfs::clear_toolhead_temp_c(int nozzle_target_deci) {
     // No lane names a material to take a temperature from, so a nozzle the
     // user already heated keeps its target. The module's clear refuses below
     // 150C.
-    const int target_c = ui::temperature::deci_to_degrees(nozzle_target_deci);
+    const int target_c = helix::temperature_rules::deci_to_degrees(nozzle_target_deci);
     return target_c >= kClearToolheadMinTempC ? target_c : kClearToolheadFallbackTempC;
 }
 
@@ -3864,7 +3863,7 @@ bool AmsBackendAd5xIfs::on_gcode_response_line(const std::string& line) {
             if (helix::regex_search(line, m, heat_re)) {
                 int degrees = std::atoi(m[1].str().c_str());
                 if (degrees > 0) {
-                    phase_tracker_.target_deci = helix::ui::temperature::degrees_to_deci(degrees);
+                    phase_tracker_.target_deci = helix::temperature_rules::degrees_to_deci(degrees);
                     spdlog::debug("{} Phase: RESPOND heat target {}°C", backend_log_tag(), degrees);
                     phase_changed = apply_phase_action_locked();
                 }
@@ -5679,7 +5678,7 @@ void AmsBackendAd5xIfs::on_extruder_temp_locked(int temp_deci, int target_deci) 
         if (!phase_tracker_.reached_target_once) {
             phase_tracker_.reached_target_once = true;
             spdlog::info("{} Phase: reached target {}°C", backend_log_tag(),
-                         helix::ui::temperature::deci_to_degrees(tgt));
+                         helix::temperature_rules::deci_to_degrees(tgt));
         }
     }
     apply_phase_action_locked();

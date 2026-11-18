@@ -1,11 +1,11 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
 #include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../ui_test_utils.h"
+#include "display_format.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
 
@@ -14,12 +14,12 @@
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
-using helix::ui::format_print_time;
-using helix::ui::format_relative_time;
-using helix::ui::format_uptime;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
+using helix::display_format::format_modified_date;
+using helix::display_format::format_print_time;
+using helix::display_format::format_relative_time;
+using helix::display_format::format_uptime;
 
 // ============================================================================
 // format_print_time() Tests

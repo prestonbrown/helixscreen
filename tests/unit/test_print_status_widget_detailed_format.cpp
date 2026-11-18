@@ -1,14 +1,13 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/print_history_manager_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "print_history_manager.h"
@@ -464,7 +463,7 @@ PrintHistoryJob job_with(PrintJobStatus status, double start_time, double end_ti
 }
 
 std::string relative(double secs) {
-    return helix::ui::format_relative_time(static_cast<uint64_t>(secs * 1000.0));
+    return helix::display_format::format_relative_time(static_cast<uint64_t>(secs * 1000.0));
 }
 
 } // namespace

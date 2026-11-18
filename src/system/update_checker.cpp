@@ -15,10 +15,6 @@
 
 #include "system/update_checker.h"
 
-#include "ui_event_safety.h"
-#include "ui_modal.h"
-#include "ui_settings_updates.h"
-
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
@@ -829,9 +825,6 @@ UpdateChecker::~UpdateChecker() {
     reap_download_thread(std::chrono::milliseconds(250));
 }
 
-// Forward declaration - defined before show_update_notification()
-static void register_notify_callbacks();
-
 // ============================================================================
 // Lifecycle
 // ============================================================================
@@ -847,7 +840,6 @@ void UpdateChecker::init() {
     download_cancelled_ = false;
 
     init_subjects();
-    register_notify_callbacks();
 
     // Snapshot the Config-derived settings while we are provably on the main
     // thread, so the debug bundle can report channel/manifest URL from its
@@ -3633,7 +3625,7 @@ void UpdateChecker::start_auto_check() {
                     lv_subject_set_int(&self->changelog_visible_subject_, 0);
                 }
 
-                self->show_update_notification();
+                helix::publish_ui_request({helix::UiRequestKind::ShowUpdateNotification});
             });
 
             // Convert to 24h periodic timer
@@ -3660,69 +3652,6 @@ void UpdateChecker::stop_auto_check() {
     if (auto_check_timer_) {
         cancel_auto_check_timer();
         spdlog::debug("[UpdateChecker] Auto-check timer stopped");
-    }
-}
-
-// ============================================================================
-// Notification Modal Callbacks
-// ============================================================================
-
-static void on_update_notify_install(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_install");
-    spdlog::info("[UpdateChecker] User chose to install update");
-    UpdateChecker::instance().hide_update_notification();
-    helix::settings::get_updates_settings_overlay().show_update_download_modal(
-        /*start_immediately=*/true);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_notify_ignore(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_ignore");
-    spdlog::info("[UpdateChecker] User chose to ignore update");
-    UpdateChecker::instance().dismiss_current_version();
-    UpdateChecker::instance().hide_update_notification();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_notify_close(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_close");
-    spdlog::info("[UpdateChecker] User closed update notification (remind later)");
-    UpdateChecker::instance().hide_update_notification();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_toggle_changelog(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_toggle_changelog");
-    auto* subject = UpdateChecker::instance().changelog_visible_subject();
-    int current = lv_subject_get_int(subject);
-    lv_subject_set_int(subject, current ? 0 : 1);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static bool s_notify_callbacks_registered = false;
-
-static void register_notify_callbacks() {
-    if (s_notify_callbacks_registered)
-        return;
-    lv_xml_register_event_cb(nullptr, "on_update_notify_install", on_update_notify_install);
-    lv_xml_register_event_cb(nullptr, "on_update_notify_ignore", on_update_notify_ignore);
-    lv_xml_register_event_cb(nullptr, "on_update_notify_close", on_update_notify_close);
-    lv_xml_register_event_cb(nullptr, "on_update_toggle_changelog", on_update_toggle_changelog);
-    s_notify_callbacks_registered = true;
-    spdlog::debug("[UpdateChecker] Notification callbacks registered");
-}
-
-void UpdateChecker::show_update_notification() {
-    spdlog::info("[UpdateChecker] Show update notification");
-    if (!notify_modal_) {
-        notify_modal_ = helix::ui::ComponentModal::show_owned("update_notify_modal");
-    }
-}
-
-void UpdateChecker::hide_update_notification() {
-    if (notify_modal_) {
-        helix::ui::modal_hide(notify_modal_);
-        notify_modal_ = nullptr;
     }
 }
 

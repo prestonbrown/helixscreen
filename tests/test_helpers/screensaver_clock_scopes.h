@@ -21,7 +21,7 @@ struct LanguageScope {
     LanguageScope& operator=(const LanguageScope&) = delete;
     static void set(const std::string& lang) {
         helix::SystemSettingsManager::instance().set_language(lang);
-        helix::ui::locale_set_language(lang);
+        helix::locale::locale_set_language(lang);
     }
 };
 

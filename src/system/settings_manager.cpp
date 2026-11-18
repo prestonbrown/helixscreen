@@ -3,8 +3,6 @@
 
 #include "settings_manager.h"
 
-#include "ui_panel_motion.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"

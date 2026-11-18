@@ -3,12 +3,10 @@
 
 #include "src/ui/panel_widgets/maintenance_model.h"
 
-#include "ui_format_utils.h"
 #include "ui_maintenance_overlay.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_panel_notification_history.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -19,6 +17,7 @@
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -29,6 +28,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "translation_loader.h"
 #include "wall_clock_trust.h"
 #include "widget_subjects.h"
@@ -268,8 +268,8 @@ std::string task_last_text(const Meter& m) {
     std::string text =
         fmt::format(lv_tr("Last done at {} h"), static_cast<int>(std::lround(*m.reset_at_h)));
     if (m.reset_at_s) {
-        text += fmt::format(" ({})",
-                            helix::ui::format_short_date(static_cast<std::time_t>(*m.reset_at_s)));
+        text += fmt::format(" ({})", helix::display_format::format_short_date(
+                                         static_cast<std::time_t>(*m.reset_at_s)));
     }
     return text;
 }

@@ -1,11 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_subject_registry.h"
-
 #include "../lvgl_test_fixture.h"
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
+#include "system/subject_registry.h"
 
 #include "../catch_amalgamated.hpp"
 

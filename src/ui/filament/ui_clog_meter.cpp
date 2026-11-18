@@ -170,4 +170,9 @@ void UiClogMeter::resize_arc() {
     in_resize_ = false;
 }
 
+lv_color_t resolve_clog_tint(int mode, int value, int warning) {
+    const ClogMeterTint t = clog_meter_tint(mode, value, warning);
+    return lv_color_mix(theme_manager_get_color(t.a), theme_manager_get_color(t.b), t.mix_a);
+}
+
 } // namespace helix::ui

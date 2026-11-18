@@ -629,7 +629,7 @@ lv_subject_t* target = pts.get_active_extruder_target_subject();
 lv_subject_t* t1_temp = pts.get_extruder_temp_subject("extruder1");
 if (t1_temp) {
     int deci = lv_subject_get_int(t1_temp);   // 2053 = 205.3C
-    float degrees = helix::ui::temperature::deci_to_degrees_f(deci);
+    float degrees = helix::temperature_rules::deci_to_degrees_f(deci);
 }
 
 // Enumerate all extruders

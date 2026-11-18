@@ -9,7 +9,6 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
 
@@ -24,6 +23,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_state.h"
+#include "system/subject_registry.h"
 #include "temp_graph_controller.h"
 #include "temperature_controller.h"
 #include "temperature_history_manager.h"
@@ -42,8 +42,8 @@
 #include <string>
 
 using namespace helix;
+using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees_f;
 
 // ============================================================================
 // Helper: heater type index
@@ -400,8 +400,8 @@ void TemperatureService::deinit_subjects() {
 void TemperatureService::set_heater(HeaterType type, int current, int target) {
     auto& h = heaters_[idx(type)];
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(h.min_temp),
-        helix::ui::temperature::degrees_to_deci(h.max_temp), heater_label(type));
+        current, target, helix::temperature_rules::degrees_to_deci(h.min_temp),
+        helix::temperature_rules::degrees_to_deci(h.max_temp), heater_label(type));
     h.current = current;
     h.target = target;
     update_display(type);

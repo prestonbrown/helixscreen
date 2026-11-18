@@ -3,13 +3,12 @@
 
 #include "print_file_data.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "moonraker_types.h"
 #include "usb_backend.h"
 
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
 
 // ============================================================================
 // FACTORY METHODS
@@ -94,7 +93,7 @@ namespace helix {
 void format_unfetched_print_times(std::vector<PrintFileData>& files) {
     for (auto& file : files) {
         if (!file.is_dir && !file.metadata_fetched && file.print_time_str.empty()) {
-            file.print_time_str = helix::ui::format_print_time(file.print_time_minutes);
+            file.print_time_str = helix::display_format::format_print_time(file.print_time_minutes);
         }
     }
 }

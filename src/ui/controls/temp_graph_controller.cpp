@@ -72,8 +72,8 @@ std::vector<int> decimate_indices(const std::vector<int64_t>& timestamps_ms, int
 
 namespace helix {
 
+using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees_f;
 
 // ============================================================================
 // Shared color palette

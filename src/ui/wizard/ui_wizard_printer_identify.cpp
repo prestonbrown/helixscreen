@@ -5,7 +5,6 @@
 
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_subject_registry.h"
 #include "ui_text.h"
 #include "ui_wizard.h"
 
@@ -21,6 +20,7 @@
 #include "printer_images.h"
 #include "printer_name_sync.h"
 #include "system/crash_handler.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"

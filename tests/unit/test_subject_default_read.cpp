@@ -4,10 +4,9 @@
 // reporting false while its subject is still uninitialized
 // (prestonbrown/helixscreen#1288).
 
-#include "ui_subject_registry.h"
-
 #include "../lvgl_test_fixture.h"
 #include "core/subject.h"
+#include "system/subject_registry.h"
 
 #include "../catch_amalgamated.hpp"
 

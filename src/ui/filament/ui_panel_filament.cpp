@@ -16,7 +16,6 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_spool_canvas.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_unload_lane_choice.h"
 #include "ui_utils.h"
@@ -52,6 +51,7 @@
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "standard_macros.h"
+#include "system/subject_registry.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
 #include "theme_manager.h"
@@ -95,9 +95,9 @@ void reset_to_defaults() {
 }
 } // namespace helix::filament_presets
 
+using helix::temperature_rules::deci_to_degrees;
 using helix::ui::observe;
 using helix::ui::temperature::classify_heat_state;
-using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
 using helix::ui::temperature::format_temperature;
 using helix::ui::temperature::format_temperature_pair;
@@ -1459,7 +1459,7 @@ void FilamentPanel::show_printer_nozzle_target() {
     if (!target) {
         target = printer_state_.temperature_state().get_active_extruder_target_subject();
     }
-    nozzle_target_ = helix::ui::temperature::deci_to_degrees(lv_subject_get_int(target));
+    nozzle_target_ = helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target));
     update_temp_display();
     update_material_temp_display();
     update_status();
@@ -1994,18 +1994,18 @@ void FilamentPanel::execute_extrude() {
                                    heat_op_succeeded();
                                    op_succeeded(FilamentOp::Extrude); // checkmark, then auto-revert
                                }),
-        object_lifetime_.bg_cb(
-            "FilamentPanel::extrude_err",
-            [this](const MoonrakerError& error) {
-                operation_guard_.end();
-                heat_op_failed();
-                op_failed(FilamentOp::Extrude);
-                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                    NOTIFY_WARNING(lv_tr("Extrude may still be running — response timed out"));
-                } else {
-                    helix::ui::notify_error_tr(TR_NOOP("Extrude failed: {}"), error);
-                }
-            }),
+        object_lifetime_.bg_cb("FilamentPanel::extrude_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   op_failed(FilamentOp::Extrude);
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Extrude may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Extrude failed: {}"), error);
+                                   }
+                               }),
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
@@ -2115,7 +2115,7 @@ void FilamentPanel::purge_failed(const MoonrakerError& error) {
     if (error.type == MoonrakerErrorType::TIMEOUT) {
         NOTIFY_WARNING(lv_tr("Purge may still be running — response timed out"));
     } else {
-        helix::ui::notify_error_tr(TR_NOOP("Purge failed: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Purge failed: {}"), error);
     }
 }
 
@@ -2161,18 +2161,18 @@ void FilamentPanel::execute_retract() {
                                    heat_op_succeeded();
                                    op_succeeded(FilamentOp::Retract);
                                }),
-        object_lifetime_.bg_cb(
-            "FilamentPanel::retract_err",
-            [this](const MoonrakerError& error) {
-                operation_guard_.end();
-                heat_op_failed();
-                op_failed(FilamentOp::Retract);
-                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                    NOTIFY_WARNING(lv_tr("Retract may still be running — response timed out"));
-                } else {
-                    helix::ui::notify_error_tr(TR_NOOP("Retract failed: {}"), error);
-                }
-            }),
+        object_lifetime_.bg_cb("FilamentPanel::retract_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   op_failed(FilamentOp::Retract);
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Retract may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Retract failed: {}"), error);
+                                   }
+                               }),
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
@@ -2630,9 +2630,9 @@ void FilamentPanel::handle_cooldown() {
     if (api_) {
         api_->execute_gcode(
             helix::ui::temperature::resolve_cooldown_gcode(printer_state_.temperature_state()),
-            []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
+            []() { helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
             [](const MoonrakerError& error) {
-                helix::ui::notify_error_tr(TR_NOOP("Failed to turn off heaters: {}"), error);
+                helix::notify_error_tr(TR_NOOP("Failed to turn off heaters: {}"), error);
             });
     }
 
@@ -2649,8 +2649,8 @@ void FilamentPanel::handle_cooldown() {
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(nozzle_min_temp_),
-        helix::ui::temperature::degrees_to_deci(nozzle_max_temp_), "Filament");
+        current, target, helix::temperature_rules::degrees_to_deci(nozzle_min_temp_),
+        helix::temperature_rules::degrees_to_deci(nozzle_max_temp_), "Filament");
 
     nozzle_current_ = current;
     nozzle_target_ = target;
@@ -2689,7 +2689,7 @@ void FilamentPanel::set_material(int material_id) {
     // Set chamber target from material preset (clear if material has no chamber requirement)
     if (!printer_state_.temperature_state().chamber_heater_name().empty()) {
         chamber_target_ = mat->chamber_temp_c > 0
-                              ? helix::ui::temperature::degrees_to_deci(mat->chamber_temp_c)
+                              ? helix::temperature_rules::degrees_to_deci(mat->chamber_temp_c)
                               : 0;
         update_chamber_temp_display();
     }
@@ -3142,31 +3142,31 @@ void FilamentPanel::run_filament_macro(const std::string& macro_name, const std:
     }
 
     std::string gcode = helix::build_macro_gcode(macro_name, params);
-    api_->execute_gcode(gcode,
-                        object_lifetime_.bg_cb("FilamentPanel::macro_ok",
-                                               [this]() {
-                                                   operation_guard_.end();
-                                                   heat_op_succeeded();
-                                                   if (op_in_flight_) {
-                                                       op_succeeded(*op_in_flight_);
-                                                   }
-                                               }),
-                        object_lifetime_.bg_cb(
-                            "FilamentPanel::macro_err",
-                            [this](const MoonrakerError& error) {
-                                operation_guard_.end();
-                                heat_op_failed();
-                                if (op_in_flight_) {
-                                    op_failed(*op_in_flight_);
-                                }
-                                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                                    NOTIFY_WARNING(
-                                        lv_tr("Macro may still be running — response timed out"));
-                                } else {
-                                    helix::ui::notify_error_tr(TR_NOOP("Macro failed: {}"), error);
-                                }
-                            }),
-                        IMoonrakerAPI::kExtrusionTimeoutMs);
+    api_->execute_gcode(
+        gcode,
+        object_lifetime_.bg_cb("FilamentPanel::macro_ok",
+                               [this]() {
+                                   operation_guard_.end();
+                                   heat_op_succeeded();
+                                   if (op_in_flight_) {
+                                       op_succeeded(*op_in_flight_);
+                                   }
+                               }),
+        object_lifetime_.bg_cb("FilamentPanel::macro_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   if (op_in_flight_) {
+                                       op_failed(*op_in_flight_);
+                                   }
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Macro may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Macro failed: {}"), error);
+                                   }
+                               }),
+        IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
 void FilamentPanel::show_load_warning() {

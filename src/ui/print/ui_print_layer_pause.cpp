@@ -173,8 +173,8 @@ bool PrintLayerPauseControls::send(const std::string& gcode, const char* what,
     api_->execute_gcode(gcode, lifetime_.bg_cb("PrintLayerPauseControls::send", std::move(on_sent)),
                         [](const MoonrakerError& err) {
                             spdlog::error("[LayerPause] Command failed: {}", err.message);
-                            helix::ui::notify_error_tr(TR_NOOP("Failed to schedule the pause: {}"),
-                                                       err);
+                            helix::notify_error_tr(TR_NOOP("Failed to schedule the pause: {}"),
+                                                   err);
                         });
     return true;
 }

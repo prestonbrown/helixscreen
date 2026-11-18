@@ -195,4 +195,9 @@ class DetectionManager {
 /// links on builds that leave detection out, where it only stores the setting.
 void apply_detection_switch(bool enabled);
 
+/// The Bed Check switch on the same screen: asks the printer to turn its own
+/// bed check on or off (DetectionManager::set_bed_check_enabled). Free for the
+/// same reason as apply_detection_switch().
+void apply_bed_check_switch(bool enabled);
+
 } // namespace helix::detection

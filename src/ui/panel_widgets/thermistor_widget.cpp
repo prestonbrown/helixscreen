@@ -63,7 +63,7 @@ void register_thermistor_widget() {
 } // namespace helix
 
 using namespace helix;
-using helix::ui::temperature::deci_to_degrees_f;
+using helix::temperature_rules::deci_to_degrees_f;
 
 /// Strip redundant " Temperature" suffix — the widget context already implies it
 /// "Chamber Temperature" -> "Chamber", "Chamber Temperature (BME280)" -> "Chamber (BME280)".
@@ -1078,11 +1078,11 @@ void ThermistorWidget::show_page_temp(size_t page, int decidegrees) {
     char number[16];
     // An override is text only: the reading shows as the sensor reports it.
     if (unit_override_) {
-        helix::ui::temperature::format_number_compact(deci_to_degrees_f(decidegrees), number,
-                                                      sizeof(number));
+        helix::temperature_rules::format_number_compact(deci_to_degrees_f(decidegrees), number,
+                                                        sizeof(number));
     } else {
-        helix::ui::temperature::format_temp_number(deci_to_degrees_f(decidegrees), number,
-                                                   sizeof(number));
+        helix::temperature_rules::format_temp_number(deci_to_degrees_f(decidegrees), number,
+                                                     sizeof(number));
     }
     page_temp_->set_string(page, number + unit_text(unit_override_));
     if (page < page_deci_.size()) {

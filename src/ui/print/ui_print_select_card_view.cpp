@@ -5,7 +5,6 @@
 
 #include "ui_gradient_canvas.h"
 #include "ui_panel_print_select.h" // For PrintFileData, CardDimensions
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 #include "ui_virtual_list.h"
 
@@ -14,6 +13,7 @@
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
 #include "sound_manager.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "thumbnail_processor.h"
 

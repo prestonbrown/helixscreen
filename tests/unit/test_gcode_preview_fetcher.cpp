@@ -16,6 +16,7 @@
 #include "config.h"
 #include "core/gcode_filename.h"
 #include "core/update_queue.h"
+#include "gcode_preview_cache.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
 
@@ -229,7 +230,7 @@ TEST_CASE_METHOD(FetcherFixture,
 
     // The running transfer has written part of the file.
     const auto partial =
-        cache_.dir / "gcode_temp" / GcodePreviewFetcher::cache_file_name("print_view_", REMOTE);
+        cache_.dir / "gcode_temp" / helix::gcode::preview_cache_file_name("print_view_", REMOTE);
     {
         std::ofstream copy(partial, std::ios::binary);
         copy << "partial";
@@ -256,7 +257,7 @@ TEST_CASE_METHOD(FetcherFixture,
                  "Fetcher: a cached copy too costly to preview now is kept, not handed over",
                  "[gcode_preview_fetcher][preview_gate]") {
     const auto cached =
-        cache_.dir / "gcode_temp" / GcodePreviewFetcher::cache_file_name("print_view_", REMOTE);
+        cache_.dir / "gcode_temp" / helix::gcode::preview_cache_file_name("print_view_", REMOTE);
     std::filesystem::create_directories(cached.parent_path());
     {
         std::ofstream copy(cached, std::ios::binary);

@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
+#include "display_format.h"
 
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <ctime>
 
-namespace helix::ui {
+namespace helix::display_format {
 
 std::string format_layer_z(int z_centimm) {
     if (z_centimm <= 0)
@@ -59,7 +59,7 @@ std::string format_layer_count(uint32_t layer_count) {
         return helix::format::UNAVAILABLE;
     }
     char buf[48];
-    snprintf(buf, sizeof(buf), tr_plural("1 layer", "%u layers", layer_count), layer_count);
+    snprintf(buf, sizeof(buf), ui::tr_plural("1 layer", "%u layers", layer_count), layer_count);
     return std::string(buf);
 }
 
@@ -172,15 +172,15 @@ static std::string format_local_time(time_t timestamp, Formatter format) {
 }
 
 std::string format_modified_date(time_t timestamp) {
-    return format_local_time(timestamp, format_localized_modified_date);
+    return format_local_time(timestamp, locale::format_localized_modified_date);
 }
 
 std::string format_short_date(time_t timestamp) {
-    return format_local_time(timestamp, format_localized_short_date);
+    return format_local_time(timestamp, locale::format_localized_short_date);
 }
 
 std::string format_month_day(time_t timestamp) {
-    return format_local_time(timestamp, format_localized_month_day);
+    return format_local_time(timestamp, locale::format_localized_month_day);
 }
 
 std::string format_time(time_t timestamp) {
@@ -195,18 +195,18 @@ std::string format_relative_time(uint64_t elapsed_ms) {
     if (elapsed_ms < 3600000) { // < 1 hour
         const auto mins = static_cast<unsigned long>(elapsed_ms / 60000);
         char buf[48];
-        snprintf(buf, sizeof(buf), tr_plural("1 min ago", "%lu min ago", mins), mins);
+        snprintf(buf, sizeof(buf), ui::tr_plural("1 min ago", "%lu min ago", mins), mins);
         return buf;
     }
     if (elapsed_ms < 86400000) { // < 1 day
         const auto hours = static_cast<unsigned long>(elapsed_ms / 3600000);
         char buf[48];
-        snprintf(buf, sizeof(buf), tr_plural("1 hour ago", "%lu hours ago", hours), hours);
+        snprintf(buf, sizeof(buf), ui::tr_plural("1 hour ago", "%lu hours ago", hours), hours);
         return buf;
     }
     const auto days = static_cast<unsigned long>(elapsed_ms / 86400000);
     char buf[48];
-    snprintf(buf, sizeof(buf), tr_plural("1 day ago", "%lu days ago", days), days);
+    snprintf(buf, sizeof(buf), ui::tr_plural("1 day ago", "%lu days ago", days), days);
     return buf;
 }
 
@@ -228,4 +228,4 @@ std::string format_uptime(int total_seconds) {
     return buf;
 }
 
-} // namespace helix::ui
+} // namespace helix::display_format

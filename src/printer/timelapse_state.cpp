@@ -3,13 +3,12 @@
 
 #include "timelapse_state.h"
 
-#include "ui_format_utils.h"
-
 #include "app_globals.h"
 #include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "json_utils.h"
 #include "notice.h"
 #include "printer_state.h"
@@ -156,7 +155,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
             if (current == 0) {
                 auto* fn_subject = get_printer_state().print_state().get_print_filename_subject();
                 const char* filename = fn_subject ? lv_subject_get_string(fn_subject) : "";
-                auto date_str = helix::ui::format_short_date(std::time(nullptr));
+                auto date_str = helix::display_format::format_short_date(std::time(nullptr));
                 std::string info;
                 if (filename && filename[0] != '\0') {
                     info = std::string(filename) + " \xC2\xB7 " + date_str;

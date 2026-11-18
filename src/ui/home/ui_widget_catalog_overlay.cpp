@@ -8,7 +8,6 @@
 #include "ui_panel_common.h"
 #include "ui_row_text.h"
 #include "ui_selector_model.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -20,6 +19,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <lvgl/lvgl.h>

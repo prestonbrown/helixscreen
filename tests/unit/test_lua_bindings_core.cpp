@@ -25,7 +25,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.t resolves, falls back and tracks 
     // A real switch flips LVGL's table and the formatting locale together
     // (SystemSettingsManager::set_language); the test does both by hand.
     lv_translation_set_language("de");
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     REQUIRE(b.t.run(R"(
         v = helix.i18n.t("core bindings test greeting")
         missing = helix.i18n.t("core bindings test nothing")
@@ -35,7 +35,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.t resolves, falls back and tracks 
     CHECK(b.t.global("missing") == "core bindings test nothing");
     CHECK(b.t.global("loc") == "de");
     lv_translation_set_language("en");
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.on_change fires per language change",
@@ -45,8 +45,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.on_change fires per language chang
         codes = {}
         helix.i18n.on_change(function(code) codes[#codes + 1] = code end)
     )"));
-    helix::ui::locale_set_language("de");
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("de");
+    helix::locale::locale_set_language("en");
     REQUIRE(b.t.run(R"(c = table.concat(codes, ","))"));
     CHECK(b.t.global("c") == "de,en");
 }
@@ -66,11 +66,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "helix.i18n.on_change handlers may register mo
             end
         end)
     )"));
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     REQUIRE(b.t.run(R"(c1, l1 = calls, late)"));
     CHECK(b.t.global("c1") == "1");
     CHECK(b.t.global("l1") == "0"); // a handler added during a change first runs on the next
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     REQUIRE(b.t.run(R"(c2, l2 = calls, late)"));
     CHECK(b.t.global("c2") == "2");
     CHECK(b.t.global("l2") == "64");

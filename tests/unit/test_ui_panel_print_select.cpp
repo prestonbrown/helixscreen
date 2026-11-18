@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
 
 #include "core/gcode_filename.h"
+#include "display_format.h"
 
 #include <algorithm>
 #include <ctime>
@@ -14,9 +14,9 @@
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
-using helix::ui::format_print_time;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
+using helix::display_format::format_print_time;
 
 // ============================================================================
 // PrintFileData - now defined in ui_panel_print_select.h

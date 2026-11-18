@@ -396,7 +396,7 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
         gcode, [sent_delta]() { spdlog::debug("[zoffset] adjusted {:+.3f}mm", sent_delta); },
         [](const MoonrakerError& err) {
             spdlog::error("[zoffset] adjust failed: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Z-offset failed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Z-offset failed: {}"), err);
         });
 
     return AdjustResult{delta_mm, new_offset, true, false};
