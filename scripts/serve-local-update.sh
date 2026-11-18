@@ -7,8 +7,8 @@
 # OVERVIEW
 # --------
 # Builds a platform package, generates a manifest.json with a fixed high test
-# version (99.0.0) guaranteed to be newer than any real install, and serves
-# both over HTTP. The running helix-screen binary sees the manifest version
+# version (99.0.0) guaranteed to be newer than any real install, signs it with
+# a throwaway local key, and serves all three over HTTP. The running helix-screen binary sees the manifest version
 # as newer than itself and triggers the full self-update path without
 # touching VERSION.txt.
 #
@@ -61,7 +61,8 @@
 #   --configure-remote    SSH into the device, select the dev channel in
 #                         settings.json, install a root-owned override file at
 #                         /var/lib/helixscreen/update_urls.json pointing dev_url
-#                         at this server, enable HELIX_LOG_LEVEL=debug in
+#                         at this server and release_pubkey at the local
+#                         signing key (see SIGNING below), enable HELIX_LOG_LEVEL=debug in
 #                         helixscreen.env for debug logging, copy install.sh to
 #                         /tmp/ for local install testing, and restart the
 #                         helixscreen service. Run once per device (or after a
@@ -76,9 +77,22 @@
 #                         immediately.
 #   --port PORT           HTTP port to listen on (default: 8765).
 #
+# SIGNING
+# -------
+#   The app refuses a manifest without a signature that verifies
+#   (docs/devel/RELEASE_SIGNING.md). This script signs manifest.json into
+#   manifest.json.minisig with a key of its own, made on first use at
+#   $HELIX_LOCAL_UPDATE_KEY_DIR (default ~/.helixscreen-local-update-key) and
+#   kept, so a device configured once keeps accepting later runs. The device
+#   trusts that key only through release_pubkey in its root-owned
+#   update_urls.json, which --configure-remote writes; a device configured
+#   before this needs --configure-remote again. The release key is never used:
+#   the script refuses a key directory whose public key is the release key.
+#
 # DEPENDENCIES
 # ------------
 #   - Docker (for *-docker cross-compilation targets)
+#   - minisign (to sign the manifest)
 #   - python3 (for the HTTP server and device settings.json patch)
 #   - ssh + scp with key for $HELIX_TEST_USERNAME@$HELIX_TEST_PRINTER
 #   - rsync (used by package.sh)
@@ -138,6 +152,7 @@ fi
 # ── Dependency checks ─────────────────────────────────────────────────────────
 _missing=()
 command -v python3 >/dev/null || _missing+=(python3)
+command -v minisign >/dev/null || _missing+=(minisign)
 if [[ $BUILD -eq 1 ]]; then
     command -v docker >/dev/null || _missing+=(docker)
 fi
@@ -272,6 +287,29 @@ echo "[serve-local-update] Manifest → $MANIFEST_PATH"
 echo "  SHA256: ${TARBALL_SHA256}"
 echo "  Size:   ${TARBALL_SIZE} bytes"
 
+# ── Sign the manifest with the local test key ─────────────────────────────────
+KEY_DIR="${HELIX_LOCAL_UPDATE_KEY_DIR:-$HOME/.helixscreen-local-update-key}"
+LOCAL_SECKEY="$KEY_DIR/local-update.key"
+LOCAL_PUBFILE="$KEY_DIR/local-update.pub"
+if [[ ! -f "$LOCAL_SECKEY" || ! -f "$LOCAL_PUBFILE" ]]; then
+    echo "[serve-local-update] Creating a local test signing key in $KEY_DIR ..."
+    (umask 077; mkdir -p "$KEY_DIR")
+    minisign -G -W -p "$LOCAL_PUBFILE" -s "$LOCAL_SECKEY" >/dev/null
+fi
+LOCAL_PUBKEY="$(sed -n 2p "$LOCAL_PUBFILE")"
+if [[ "$LOCAL_PUBKEY" == "$(sed -n 2p "$PROJECT_DIR/.github/release-minisign.pub")" ]]; then
+    echo "ERROR: $LOCAL_PUBFILE is the release key. Test manifests are never signed with it;"
+    echo "  point HELIX_LOCAL_UPDATE_KEY_DIR at a directory of its own."
+    exit 1
+fi
+rm -f "$MANIFEST_PATH.minisig"
+minisign -S -s "$LOCAL_SECKEY" -m "$MANIFEST_PATH" -x "$MANIFEST_PATH.minisig" \
+    -t "file:manifest.json channel:dev" </dev/null >/dev/null
+# -H refuses a legacy (not prehashed) signature, as the app does.
+minisign -V -H -q -p "$LOCAL_PUBFILE" -m "$MANIFEST_PATH" -x "$MANIFEST_PATH.minisig"
+echo "[serve-local-update] Signed → $MANIFEST_PATH.minisig"
+echo "  Key:    ${LOCAL_PUBKEY}  ($LOCAL_PUBFILE)"
+
 # ── Configure remote device ────────────────────────────────────────────────────
 if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
     echo "[serve-local-update] Configuring ${USERNAME}@${PRINTER} ..."
@@ -305,7 +343,7 @@ print('  update/channel =', data['update']['channel'], '(dev)')
 # between this write and the install.
 _fd, override = tempfile.mkstemp(prefix='helixscreen-update-urls.', suffix='.json', dir='/tmp')
 with os.fdopen(_fd, 'w') as f:
-    json.dump({'dev_url': '${BASE_URL}/'}, f)
+    json.dump({'dev_url': '${BASE_URL}/', 'release_pubkey': '${LOCAL_PUBKEY}'}, f)
 print('STAGED_OVERRIDE=' + override)
 
 # Enable HELIX_LOG_LEVEL=debug in helixscreen.env (enables debug logging via launcher).
@@ -355,6 +393,7 @@ print('  HELIX_LOG_LEVEL=debug  (debug logging enabled in', env_path + ')')
     echo "[serve-local-update] Installing update_urls.json (root-owned, 644) on ${USERNAME}@${PRINTER} ..."
     ssh "${USERNAME}@${PRINTER}" "sudo mkdir -p /var/lib/helixscreen && sudo chmod 755 /var/lib/helixscreen && sudo install -o root -g root -m 644 '$STAGED_OVERRIDE' /var/lib/helixscreen/update_urls.json && rm -f '$STAGED_OVERRIDE'"
     echo "  dev_url = ${BASE_URL}/  (in /var/lib/helixscreen/update_urls.json)"
+    echo "  release_pubkey = ${LOCAL_PUBKEY}  (the local test key)"
     echo ""
     echo "[serve-local-update] Copying install.sh to /tmp/ on ${USERNAME}@${PRINTER} ..."
     scp "$INSTALLER" "${USERNAME}@${PRINTER}:/tmp/install.sh"
@@ -373,11 +412,13 @@ echo ""
 echo "  Ready"
 echo "  ─────────────────────────────────────────────────"
 echo "  Manifest : ${BASE_URL}/manifest.json"
+echo "  Signature: ${BASE_URL}/manifest.json.minisig"
 echo "  Tarball  : ${BASE_URL}/${TARBALL_NAME}"
 echo ""
 echo "  Device expects (set via --configure-remote if not already done):"
 echo "    update/channel  = 2                            (~/helixscreen/config/settings.json)"
 echo "    dev_url         = \"${BASE_URL}/\"   (/var/lib/helixscreen/update_urls.json, root-owned)"
+echo "    release_pubkey  = \"${LOCAL_PUBKEY}\"   (same file)"
 echo ""
 echo "  Press Ctrl+C to stop."
 echo "  ─────────────────────────────────────────────────"
