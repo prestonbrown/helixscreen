@@ -385,8 +385,21 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         return own;
     if (least) {
         // The fan's room is not monotonic in the height (the hub's width follows it), so the
-        // least height is the first that fits, walked up from the hub and head alone.
-        for (int32_t h = data.view_hub_h; h <= own * 4; h += 2)
+        // least height is the first that fits, walked up. Above the head's top stand at least
+        // the lanes' converging room and the hub (two and a half hub heights together) and the
+        // room over the head, whatever the fan does; heights short of that lay out no frame.
+        const auto head_room = [&](int32_t height) {
+            BaseGeometry at = g;
+            at.height = height;
+            return toolhead_top_y(linear_hub_nozzle_y(at, data.theme.extruder_scale),
+                                  data.theme.extruder_scale) -
+                   g.y_off;
+        };
+        int32_t h = data.view_hub_h;
+        const int32_t stack = data.view_hub_h * 5 / 2 + 3 * data.theme.sensor_radius;
+        while (h <= own * 4 && head_room(h) < stack)
+            h += 2;
+        for (; h <= own * 4; h += 2)
             if (fits(h))
                 return h;
         return own;
