@@ -36,8 +36,8 @@
  * (which detaches and destroys the widget) runs BEFORE
  * `destroy_formatter_for_test()` — matching
  * test_print_status_widget_recycle.cpp's teardown order. Calling it first
- * forces the shared DetailedFormatter singleton's refcount to 0 while the
- * widget is still attached and live, and the widget's own destructor then
+ * destroys the shared DetailedFormatter while the widget is still attached
+ * and live, and the widget's own destructor then
  * touches formatter-dependent state that's already gone (SIGSEGV, confirmed
  * by hand while writing this file — not a hypothetical).
  *

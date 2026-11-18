@@ -41,7 +41,7 @@ struct FormatterScope {
         PrintStatusWidget::ensure_formatter_for_test();
     }
     ~FormatterScope() {
-        PrintStatusWidget::release_formatter_for_test();
+        PrintStatusWidget::destroy_formatter_for_test();
     }
 };
 } // namespace

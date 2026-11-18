@@ -30,7 +30,7 @@ struct FormatterScope {
         PrintStatusWidget::ensure_formatter_for_test();
     }
     ~FormatterScope() {
-        PrintStatusWidget::release_formatter_for_test();
+        PrintStatusWidget::destroy_formatter_for_test();
     }
 };
 } // namespace
@@ -493,7 +493,7 @@ struct FormatterTexts {
         PrintStatusWidget::ensure_formatter_for_test();
     }
     ~FormatterTexts() {
-        PrintStatusWidget::release_formatter_for_test();
+        PrintStatusWidget::destroy_formatter_for_test();
     }
     static void set(const char* subject, const char* text) {
         lv_subject_set_string(lv_xml_get_subject(nullptr, subject), text);

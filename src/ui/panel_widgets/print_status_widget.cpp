@@ -211,29 +211,20 @@ PrintStatusWidget::PrintStatusWidget() : printer_state_(get_printer_state()) {
 }
 
 void PrintStatusWidget::acquire_formatter() {
-    if (s_formatter_refcount_++ != 0) {
+    if (s_formatter_) {
         return;
     }
-    // Release the parked predecessor BEFORE building the replacement. Both
-    // formatters publish the same thirteen names into helix-xml's process-wide
-    // scope, and ~DetailedFormatter withdraws them by name — so constructing
-    // first would have the outgoing formatter's teardown delete the scope
-    // records that now point at the incoming one's subjects, leaving every
-    // bind_text on the Detailed card resolving to nothing for the rest of the
-    // session. Reached whenever the last print-status widget leaves the
-    // dashboard and one is added back.
-    s_formatter_.reset();
     s_formatter_ = std::make_unique<DetailedFormatter>();
+    // The formatter lives until StaticSubjectRegistry tears it down: after the
+    // panels are destroyed and before lv_deinit() or a printer rebuild, while
+    // spdlog, PrintHistoryManager and the observed subjects are still alive.
+    // The next widget constructed after that builds a fresh one.
+    StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetDetailedFormatter",
+                                                      []() { s_formatter_.reset(); });
 }
 
 PrintStatusWidget::~PrintStatusWidget() {
     detach();
-    // Pair the eager ctor refcount bump, but leave s_formatter_ standing at
-    // refcount==0: destroying it here would dangle the helix-xml scope's subject
-    // pointers for any XML still bound to them. It is released in
-    // acquire_formatter(), where a replacement is about to take over the names.
-    if (s_formatter_refcount_ > 0)
-        --s_formatter_refcount_;
 }
 
 void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -512,12 +503,6 @@ void PrintStatusWidget::detach() {
     parent_screen_ = nullptr;
 
     spdlog::debug("[PrintStatusWidget] Detached");
-
-    // NOTE: s_formatter_refcount_ is decremented in ~PrintStatusWidget, not
-    // here, because the dtor ALSO calls detach(). Double-decrement would
-    // corrupt the count with multiple PrintStatusWidget instances live (panel
-    // manager may keep up to 4 — one per breakpoint variant). detach() is
-    // safely idempotent — re-entry resets observers that are already null.
 }
 
 // ============================================================================
@@ -750,9 +735,8 @@ void PrintStatusWidget::bind_active_branch() {
     // Nozzle reads the tool-pin-aware proxy subjects rather than the raw
     // active-extruder ones, so the icon tracks whichever tool the card is
     // showing. Bed and chamber use the PrinterState defaults. The proxy
-    // subjects live on s_formatter_, which is only ever replaced from
-    // acquire_formatter() — i.e. while no widget is attached — so they genuinely
-    // outlive this binder.
+    // subjects live on s_formatter_, which only its StaticSubjectRegistry entry
+    // destroys, after every panel and widget is gone, so they outlive this binder.
     nozzle_icon_binder_.bind_subjects(widget_obj_, "nozzle_icon_glyph",
                                       lv_xml_get_subject(nullptr, "print_status_nozzle_current"),
                                       lv_xml_get_subject(nullptr, "print_status_nozzle_target"));
@@ -2560,37 +2544,6 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
                               subjects_);
     UI_MANAGED_SUBJECT_INT(idle_has_last_subject_, 0, "print_status_idle_has_last", subjects_);
 
-    // Tear down formatter-owned subjects + observers under lv_deinit() (while
-    // spdlog and PrintHistoryManager are still alive). ~DetailedFormatter runs
-    // at C++ atexit, which is too late: spdlog sinks may be gone (UAF in log
-    // calls) and helix-xml's scope is destroyed, so deinit_all() at atexit is
-    // a no-op but the dangling pointer window between lv_deinit and atexit is
-    // closed by this earlier teardown. Safe to fire multiple times since
-    // subjects_.deinit_all() and observer .reset() are idempotent.
-    StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetDetailedFormatter", []() {
-        if (!s_formatter_)
-            return;
-        if (auto* hm = get_print_history_manager()) {
-            hm->remove_observer(&s_formatter_->history_cb_);
-        }
-        s_formatter_->layer_current_observer_.reset();
-        s_formatter_->layer_total_observer_.reset();
-        s_formatter_->elapsed_observer_.reset();
-        s_formatter_->time_left_observer_.reset();
-        s_formatter_->filament_used_observer_.reset();
-        s_formatter_->live_velocity_observer_.reset();
-        s_formatter_->live_extruder_velocity_observer_.reset();
-        s_formatter_->nozzle_temp_observer_.reset();
-        s_formatter_->nozzle_target_observer_.reset();
-        s_formatter_->tools_version_observer_.reset();
-        s_formatter_->active_tool_observer_.reset();
-        s_formatter_->language_observer_.reset();
-        s_formatter_->temp_unit_observer_.reset();
-        s_formatter_->nozzle_temp_lifetime_.reset();
-        s_formatter_->nozzle_target_lifetime_.reset();
-        s_formatter_->subjects_.deinit_all();
-    });
-
     using helix::ui::observe;
     auto& ps = get_printer_state();
     layer_current_observer_ = observe<int>(
@@ -2685,16 +2638,9 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
 }
 
 PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
-    // Two destruction paths:
-    //   1. Production: never destructs at runtime (s_formatter_ lives forever).
-    //      At C++ atexit the dtor runs after spdlog teardown — so no spdlog
-    //      calls here. By that point register_deinit has already torn things
-    //      down under lv_deinit; the calls below are safe idempotent no-ops.
-    //   2. Tests: release_formatter_for_test() destroys the formatter between
-    //      runs to keep subjects from leaking across PrinterState resets.
-    //      In this path lv_deinit has NOT fired, so register_deinit has NOT
-    //      run; the cleanup below is the only thing that detaches observers
-    //      before subjects get reset by the next test.
+    // Runs from the StaticSubjectRegistry entry in production and from the test
+    // hooks; both leave LVGL alive. No spdlog here: a formatter a test leaves
+    // standing is destroyed at C++ atexit, after the sinks are gone.
     if (auto* hm = get_print_history_manager()) {
         hm->remove_observer(&history_cb_);
     }
