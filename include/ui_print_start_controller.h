@@ -227,8 +227,16 @@ class PrintStartController {
     }
 
   private:
-    /// Reads a reprinted file's tools when its caller has none; created on that use.
+    /// Reads a file's tools for read_file_tools(); created on that use.
     std::unique_ptr<helix::FileStartFactsLoader> reprint_facts_;
+    /// Reads a reprinted file's facts for the gates; created on that use.
+    std::unique_ptr<helix::FileStartFactsLoader> reprint_gate_facts_;
+    /// The on_error of a reprint whose facts load has not answered; empty otherwise.
+    std::function<void()> pending_reprint_on_error_;
+
+    /// Drop a reprint whose facts load has not answered, telling its caller
+    /// through its on_error. Nothing when none is pending.
+    void abandon_pending_reprint();
 
     // Test-only access to the gate-pipeline runner (toy-gate injection and
     // dialog introspection).

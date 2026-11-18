@@ -167,3 +167,26 @@ TEST_CASE_METHOD(ReprintGatesFixture,
     press("btn_secondary");
     CHECK(errors == 1);
 }
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a reprint superseded before its file checks answer is told",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 500.0F);
+    PlantedGcode file("reprint_superseded.gcode", "", kRedPla140g);
+
+    int first_errors = 0;
+    mock_client_.defer_next("server.files.metadata");
+    controller().initiate_reprint(
+        file.name(), "", {0}, []() {}, [&first_errors]() { ++first_errors; });
+    settle();
+    CHECK(first_errors == 0);
+
+    reprint(file.name());
+    mock_client_.fire_deferred("server.files.metadata");
+    settle();
+
+    CHECK(first_errors == 1);
+    REQUIRE(start_params.size() == 1);
+    CHECK(started == 1);
+    CHECK(errors == 0);
+}

@@ -643,15 +643,19 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     // A reprint asks the same pre-print questions as any other start, through
     // the same gates, about the file it reprints; the gates end in the
     // reprint's own start. The loader is this controller's, so its answer
-    // never outlives it.
-    if (!reprint_facts_) {
-        reprint_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
+    // never outlives it. A load still unanswered is superseded, and its
+    // caller hears so.
+    abandon_pending_reprint();
+    if (!reprint_gate_facts_) {
+        reprint_gate_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
     }
-    reprint_facts_->set_api(api_);
-    reprint_facts_->load(
+    reprint_gate_facts_->set_api(api_);
+    pending_reprint_on_error_ = on_error;
+    reprint_gate_facts_->load(
         filename,
         [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
          native_plate](helix::FileStartFacts facts) {
+            pending_reprint_on_error_ = nullptr;
             // The tools the caller saw print are this job's; the file read
             // answers for a caller that has none.
             if (!tools_used.empty()) {
@@ -674,6 +678,19 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         // Tools in hand leave only the palette and grams to read, which never
         // earn a download of the whole file.
         tools_used.empty() ? helix::FileRead::Whole : helix::FileRead::Footer);
+}
+
+void PrintStartController::abandon_pending_reprint() {
+    if (!pending_reprint_on_error_) {
+        return;
+    }
+    spdlog::info("[PrintStartController] Dropping a reprint whose file checks had not answered");
+    if (reprint_gate_facts_) {
+        reprint_gate_facts_->cancel();
+    }
+    auto on_error = std::move(pending_reprint_on_error_);
+    pending_reprint_on_error_ = nullptr;
+    on_error();
 }
 
 void PrintStartController::start_reprint(const std::string& filename, const std::string& path,
