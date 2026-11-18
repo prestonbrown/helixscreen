@@ -173,7 +173,8 @@ class HelixPluginInstaller {
     /**
      * @brief Get path to bundled install.sh script
      *
-     * Searches for install.sh relative to the executable.
+     * Looks in moonraker-plugin/ under the install root (resolve_install_root),
+     * then beside the executable and in the system share dir.
      *
      * @return Path to script, or empty if not found
      */
@@ -252,6 +253,10 @@ class HelixPluginInstaller {
     // Where install.sh is looked for. Empty means beside the executable, plus the
     // system share dir; a set root is searched alone, so nothing outside it runs.
     std::string script_search_root_;
+    // Tests only: the executable path, and the root the firmware package is probed
+    // under, that the install root is resolved from. Empty means /proc/self/exe.
+    std::string running_exe_override_;
+    std::string probe_root_ = "/";
     // How long install.sh may run before it is killed.
     int script_timeout_seconds_ = 60;
 

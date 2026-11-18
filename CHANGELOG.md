@@ -105,6 +105,7 @@ is out.
 - **Installer on boards without polkit** - on a board with no polkit, such as Armbian on the BTT CB1, the installer says polkit is not installed and how to add it (`sudo apt install polkitd`, then restart HelixScreen), instead of reporting a failed power rule write.
 - **Installer downloads without HTTPS** - on printers whose downloader cannot use HTTPS, such as the FlashForge Adventurer 5M, the installer goes to the plain-HTTP download server first and asks it only for the tarball it carries, so a "404 Not Found" for a .zip no longer shows up before the download succeeds.
 - **Adventurer 5M waits for Moonraker on Forge-X** - when HelixScreen runs inside Forge-X's own environment, as an installer update sets it up, it waits for Moonraker at startup instead of starting alongside it, and still skips the wait when Moonraker is turned off in Forge-X.
+- **HelixPrint plugin installs on a Snapmaker U1 with PAXX firmware** (#2136) - when the PAXX Extended Firmware runs HelixScreen as its own package, HelixScreen finds the package it runs from, so installing and removing the HelixPrint plugin, the timelapse plugin setup and the plugin check at startup work there instead of failing with "Install script not found".
 
 ## [1.1.0-rc.4] - UNRELEASED
 

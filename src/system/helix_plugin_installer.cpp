@@ -4,6 +4,7 @@
 #include "helix_plugin_installer.h"
 
 #include "config.h"
+#include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "helix_fs.h"
 #include "helix_version.h"
@@ -760,32 +761,41 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         exe_dir = script_search_root_;
         search_paths = {script_search_root_ + "/moonraker-plugin/install.sh"};
     } else {
+        std::string exe = running_exe_override_;
+        if (exe.empty()) {
 #ifdef __APPLE__
-        char path[1024];
-        uint32_t size = sizeof(path);
-        if (_NSGetExecutablePath(path, &size) == 0) {
-            exe_dir = std::string(hfs::parent_path(path));
-        }
+            char path[1024];
+            uint32_t size = sizeof(path);
+            if (_NSGetExecutablePath(path, &size) == 0) {
+                exe = path;
+            }
 #else
-        // Linux: read /proc/self/exe
-        char path[1024];
-        ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
-        if (len != -1) {
-            path[len] = '\0';
-            exe_dir = std::string(hfs::parent_path(path));
-        }
+            char path[1024];
+            ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+            if (len != -1) {
+                path[len] = '\0';
+                exe = path;
+            }
 #endif
-
-        if (exe_dir.empty()) {
+        }
+        if (exe.empty()) {
             return "";
         }
+        exe_dir = std::string(hfs::parent_path(exe));
 
-        // Try common locations relative to executable
-        search_paths = {exe_dir + "/moonraker-plugin/install.sh",    // Deployed alongside binary
-                        exe_dir + "/../moonraker-plugin/install.sh", // Development build
-                        exe_dir + "/../../moonraker-plugin/install.sh",
-                        exe_dir + "/../share/helix/moonraker-plugin/install.sh", // Installed
-                        "/usr/share/helix/moonraker-plugin/install.sh"};
+        const std::string install_root = resolve_install_root(exe, probe_root_);
+        if (!install_root.empty()) {
+            search_paths.push_back(install_root + "/moonraker-plugin/install.sh");
+        }
+        // Layouts with no install root of their own: the script beside the binary,
+        // or in a share dir.
+        for (const std::string& candidate :
+             {exe_dir + "/moonraker-plugin/install.sh", exe_dir + "/../moonraker-plugin/install.sh",
+              exe_dir + "/../../moonraker-plugin/install.sh",
+              exe_dir + "/../share/helix/moonraker-plugin/install.sh",
+              std::string("/usr/share/helix/moonraker-plugin/install.sh")}) {
+            search_paths.push_back(candidate);
+        }
     }
 
     for (const auto& candidate : search_paths) {

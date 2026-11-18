@@ -8,6 +8,7 @@
 #include "platform_info.h"
 #include "platform_table.h"
 #include "test_helpers/flashforge_layout_fixture.h"
+#include "test_helpers/install_tree_fixture.h"
 #include "test_helpers/scoped_board.h"
 #include "test_helpers/unique_temp_dir.h"
 
@@ -260,4 +261,25 @@ TEST_CASE("an unidentifiable executable beside a PAXX package is firmware-manage
     // Our own install root stays ours even then.
     const fs::path ours = touch_exe(tmp.path / "userdata/helixscreen/bin/helix-screen");
     CHECK_FALSE(firmware_manages_updates(Board::SnapmakerU1, ours.string(), tmp.path.string()));
+}
+
+TEST_CASE("firmware_package_root names the PAXX version dir its binary runs from",
+          "[board][install_root]") {
+    using helix::board::firmware_package_root;
+    helix::test::InstallTreeFixture tree;
+    const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
+    const std::string version_dir = tree.root + "/oem/apps/helixscreen/1.1.0";
+
+    // Through the bind mount, and by the package paths: always the real version dir,
+    // never `latest`, which the next package upgrade re-points.
+    CHECK(firmware_package_root(Board::SnapmakerU1, gui.string(), tree.root) == version_dir);
+    CHECK(firmware_package_root(Board::SnapmakerU1,
+                                tree.root + "/oem/apps/helixscreen/latest/bin/helix-screen",
+                                tree.root) == version_dir);
+
+    // Our own install beside it is not the package, and no other board has one.
+    const fs::path ours = tree.make_tree("userdata/helixscreen");
+    CHECK_FALSE(firmware_package_root(Board::SnapmakerU1, ours.string(), tree.root));
+    CHECK_FALSE(firmware_package_root(Board::SnapmakerU1, tree.root + "/missing", tree.root));
+    CHECK_FALSE(firmware_package_root(Board::K1, gui.string(), tree.root));
 }

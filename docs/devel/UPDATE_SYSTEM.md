@@ -103,7 +103,10 @@ toward "managed", because self-updating a firmware's package is the worse mistak
 2. The running executable is the same file, by device and inode, as
    `bin/helix-screen` in any subdirectory of it, `latest` included: managed. Identity rather
    than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
-   `/proc/self/exe` names `/usr/bin/gui` and the install root does not resolve.
+   `/proc/self/exe` names `/usr/bin/gui`, a path that leads to no install tree.
+   `board::firmware_package_root()` makes the same identity match and names the version
+   directory, and `helix::resolve_install_root()` falls back to it, so `app_get_install_root()`
+   and the HelixPrint plugin installer find the package tree there (#2136).
 3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
    executable that cannot be stat'd or resolved counts as the firmware's.
 

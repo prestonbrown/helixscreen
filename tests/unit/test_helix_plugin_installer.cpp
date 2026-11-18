@@ -18,7 +18,9 @@
 #include "../../include/helix_plugin_installer.h"
 #include "../../include/helix_version.h"
 #include "../test_helpers/helix_plugin_installer_test_access.h"
+#include "../test_helpers/install_tree_fixture.h"
 #include "../test_helpers/plugin_script_sandbox.h"
+#include "../test_helpers/scoped_board.h"
 #include "../test_helpers/scoped_env.h"
 
 #include <chrono>
@@ -454,6 +456,32 @@ TEST_CASE("HelixPluginInstaller script path", "[plugin_installer]") {
         std::ofstream(other) << "#!/bin/sh\nexit 0\n";
         std::filesystem::create_symlink(other, sandbox.script_path());
         CHECK(sandbox.installer.get_install_script_path().empty());
+    }
+}
+
+TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs from",
+          "[plugin_installer][install_root]") {
+    using helix::HelixPluginInstallerTestAccess;
+    helix::test::InstallTreeFixture tree;
+    helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
+    helix::HelixPluginInstaller installer;
+
+    SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {
+        const auto gui = tree.make_paxx_bind_mount("1.1.0");
+        HelixPluginInstallerTestAccess::set_running_exe(installer, gui.string(), tree.root);
+        CHECK(installer.get_install_script_path() ==
+              std::filesystem::canonical(tree.root +
+                                         "/oem/apps/helixscreen/1.1.0/moonraker-plugin/install.sh")
+                  .string());
+    }
+
+    SECTION("our own install, launched by its path") {
+        const auto ours = tree.make_tree("userdata/helixscreen");
+        HelixPluginInstallerTestAccess::set_running_exe(installer, ours.string(), tree.root);
+        CHECK(installer.get_install_script_path() ==
+              std::filesystem::canonical(tree.root +
+                                         "/userdata/helixscreen/moonraker-plugin/install.sh")
+                  .string());
     }
 }
 
