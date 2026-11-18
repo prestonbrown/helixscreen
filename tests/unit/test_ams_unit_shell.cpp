@@ -50,11 +50,25 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
     CHECK(id(AmsType::AFC, "Night_Owl Turtle_1") == "night_owl");
-    CHECK(id(AmsType::OPENAMS, "oams1") == "ams_2_pro");
+    // klipper_openams reports no family; its four-bay units are OpenAMS 1 boards in an AMS.
+    CHECK(id(AmsType::OPENAMS, "oams1") == "ams");
     AmsSystemInfo single = one_unit(AmsType::OPENAMS, "oams1");
     single.units[0].slot_count = 1;
     REQUIRE(unit_shell_for(single, 0) != nullptr);
     CHECK(std::string(unit_shell_for(single, 0)->id) == "ams_ht");
+    // openams names each unit's family: an original AMS is told apart from an AMS 2 Pro.
+    AmsSystemInfo family = one_unit(AmsType::OPENAMS, "2");
+    family.units[0].model = "ams1";
+    CHECK(std::string(unit_shell_for(family, 0)->id) == "ams");
+    family.units[0].model = "ams2";
+    CHECK(std::string(unit_shell_for(family, 0)->id) == "ams_2_pro");
+    // A klipper-mmu family takes its own drawing, and one without a drawing keeps the logo.
+    family.units[0].model = "boxturtle";
+    CHECK(std::string(unit_shell_for(family, 0)->id) == "box_turtle");
+    family.units[0].model = "pico_mmu";
+    CHECK(unit_shell_for(family, 0) == nullptr);
+    family.units[0].slot_count = 1;
+    CHECK(unit_shell_for(family, 0) == nullptr);
 }
 
 TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firmwares",

@@ -15,6 +15,7 @@ from unit_art.heads import a4t, anthead, bambu, creality_k1, creality_k2, dragon
 from unit_art.units import (  # noqa: E402
     ace_pro,
     ad5x_ifs,
+    ams,
     ams_2_pro,
     ams_ht,
     bmcu,
@@ -38,6 +39,7 @@ UNITS = [
     box_turtle.UNIT,
     box_turtle.ENCLOSED,
     ams_2_pro.UNIT,
+    ams.UNIT,
     cfs.UNIT,
     qidi_box.UNIT,
     btt_vivid.UNIT,

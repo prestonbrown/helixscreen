@@ -397,6 +397,15 @@ ManagerStatus parse_manager_status(const json& manager) {
             if (!device) {
                 continue;
             }
+            // The hardware family (`ams1`, `ams2`, `ams_ht`, a klipper-mmu device id),
+            // published on the device and in its capabilities.
+            std::string family = string_member(*device, "family");
+            if (family.empty()) {
+                if (const json* caps = object_member(*device, "capabilities")) {
+                    family = string_member(*caps, "family");
+                }
+            }
+            out.units[u].model = family;
             out.faults[u] = parse_faults(*device);
             out.dryers[u] = parse_dryer(*device);
             out.units[u].environment = out.dryers[u].environment;
