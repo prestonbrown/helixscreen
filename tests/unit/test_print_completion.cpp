@@ -20,6 +20,7 @@
 
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
+#include "audio_settings_manager.h"
 #include "print_completion.h"
 #include "printer_state.h"
 

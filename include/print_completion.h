@@ -4,7 +4,6 @@
 
 #include "ui_observer_guard.h"
 
-#include "audio_settings_manager.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 
@@ -14,6 +13,9 @@
 class IMoonrakerAPI;
 
 namespace helix {
+
+/// Defined in audio_settings_manager.h.
+enum class CompletionAlertMode;
 
 /**
  * @brief Initialize print completion notification system
