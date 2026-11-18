@@ -67,6 +67,19 @@ TEST_CASE("the moving plan halves resolution when the mesh itself overflows the 
     REQUIRE(p.half_resolution);
 }
 
+TEST_CASE("a gesture that dropped to half resolution stays there", "[gcode][render_schedule]") {
+    // A fast half-resolution sample makes the next plan ask for full resolution.
+    const MovingPlan full = plan_moving(80000, 0, 4000.0f);
+    REQUIRE_FALSE(full.half_resolution);
+
+    const MovingPlan held = hold_half_resolution(full, true);
+    REQUIRE(held.half_resolution);
+    REQUIRE(held.stride == full.stride);
+    REQUIRE(held.use_mesh == full.use_mesh);
+
+    REQUIRE_FALSE(hold_half_resolution(full, false).half_resolution);
+}
+
 TEST_CASE("plan_bands sizes shell bands to the budget left after surfaces",
           "[gcode][render_schedule]") {
     // 11 triangles per N=4 segment: 36k shell segments project to 396k

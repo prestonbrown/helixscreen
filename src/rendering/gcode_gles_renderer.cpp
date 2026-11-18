@@ -1221,10 +1221,23 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
     // rate affords, instead of handing out slices. cancel_job() inside
     // render_moving clears have_complete_image_, so the release restarts a
     // still job even for a tap that never moved the camera.
+    //
+    // LVGL raises the draw event once per invalidated area the widget
+    // overlaps, often three per refresh (the body plus a strip above and below
+    // it). The scene is the same for all of them, so only the first draws it
+    // and the rest blit that frame.
     if (interaction_mode_) {
+        const CachedRenderState moving_state = snapshot_state(camera);
+        if (moving_frame_valid_ && draw_buf_ && moving_epoch_ == scene_epoch_ &&
+            moving_state == moving_state_) {
+            draw_cached_to_lvgl(layer, widget_coords);
+            return;
+        }
         arm_gpu_guard();
         render_moving(layer, gcode, camera, widget_coords);
         clear_gpu_guard();
+        moving_state_ = moving_state;
+        moving_epoch_ = scene_epoch_;
         return;
     }
 
@@ -1441,8 +1454,11 @@ static constexpr float kGhostLightenScale = 4.0f;
 void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& gcode,
                                       const GCodeCamera& camera, const lv_area_t* widget_coords) {
     cancel_job();
-    const render_schedule::MovingPlan plan =
-        render_schedule::plan_moving(uploaded_triangles_, mesh_triangles_, gpu_rate_tris_per_ms_);
+    moving_frame_valid_ = false;
+    const render_schedule::MovingPlan plan = render_schedule::hold_half_resolution(
+        render_schedule::plan_moving(uploaded_triangles_, mesh_triangles_, gpu_rate_tris_per_ms_),
+        moving_half_res_held_);
+    moving_half_res_held_ = plan.half_resolution;
     // The mesh has its own bounds and its own quantization, so it must be the
     // geometry setup_frame dequantizes with, and it replaces the layer VBOs
     // the draw reads. Stride stays 1: the mesh is already banded.
@@ -1492,6 +1508,7 @@ void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& 
         render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles_rendered_ - before, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     blit_to_lvgl(layer, widget_coords, /*overlays_drawn=*/false);
+    moving_frame_valid_ = draw_buf_ != nullptr;
     spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms",
                   plan.use_mesh && draw_vbos == &moving_vbos_ ? "mesh " : "", plan.stride,
                   plan.half_resolution ? "half" : "full", ms);
@@ -1950,13 +1967,21 @@ void GCodeGLESRenderer::set_viewport_size(int width, int height) {
         return;
     viewport_width_ = width;
     viewport_height_ = height;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
     if (interaction_mode_ == interacting)
         return;
     interaction_mode_ = interacting;
+    // Each gesture plans its resolution afresh, and its first frame always draws.
+    moving_half_res_held_ = false;
+    moving_frame_valid_ = false;
+}
+
+void GCodeGLESRenderer::mark_frame_dirty() {
+    frame_dirty_ = true;
+    ++scene_epoch_;
 }
 
 void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
@@ -1973,7 +1998,7 @@ void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
     const float g = static_cast<float>((rgb >> 8) & 0xFF);
     const float b = static_cast<float>(rgb & 0xFF);
     filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
@@ -1981,7 +2006,7 @@ void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
         glm::vec4(color.red / 255.0f, color.green / 255.0f, color.blue / 255.0f, 1.0f);
     palette_.has_override = true;
     palette_.override_color = color;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] set_extrusion_color: R={} G={} B={} → ({:.2f},{:.2f},{:.2f})",
                   color.red, color.green, color.blue, filament_color_.r, filament_color_.g,
                   filament_color_.b);
@@ -2035,7 +2060,7 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
         geometry_uploaded_ = false;
         upload_next_layer_ = 0;
         upload_total_layers_ = 0;
-        frame_dirty_ = true;
+        mark_frame_dirty();
         spdlog::debug("[GCode GLES] Applied {} tool color overrides, triggering VBO re-upload",
                       ams_colors.size());
     }
@@ -2084,7 +2109,7 @@ void GCodeGLESRenderer::clear_tool_color_overrides() {
     geometry_uploaded_ = false;
     upload_next_layer_ = 0;
     upload_total_layers_ = 0;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] Retracted tool color overrides, restored {}-entry baked palette",
                   geometry_->color_palette.size());
 }
@@ -2096,28 +2121,28 @@ void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
 void GCodeGLESRenderer::set_specular(float intensity, float shininess) {
     specular_intensity_ = std::clamp(intensity, kMinSpecularIntensity, kMaxSpecularIntensity);
     specular_shininess_ = std::clamp(shininess, kMinSpecularShininess, kMaxSpecularShininess);
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_debug_face_colors(bool enable) {
     debug_face_colors_ = enable;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_show_travels(bool show) {
     show_travels_ = show;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_show_extrusions(bool show) {
     show_extrusions_ = show;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_layer_range(int start, int end) {
     layer_start_ = start;
     layer_end_ = end;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
@@ -2131,19 +2156,19 @@ void GCodeGLESRenderer::set_highlighted_objects(const std::unordered_set<std::st
     // SelectionState memoizes the set hash, so the per-frame cached-state build
     // does not iterate every name on each LVGL invalidation tick.
     if (selection_.set_highlighted(names) != InvalidationScope::Nothing) {
-        frame_dirty_ = true;
+        mark_frame_dirty();
     }
 }
 
 void GCodeGLESRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
     if (selection_.set_excluded(names) != InvalidationScope::Nothing) {
-        frame_dirty_ = true;
+        mark_frame_dirty();
     }
 }
 
 void GCodeGLESRenderer::set_global_opacity(lv_opa_t opacity) {
     global_opacity_ = opacity;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::reset_colors() {
@@ -2151,7 +2176,7 @@ void GCodeGLESRenderer::reset_colors() {
     sel_palette_ = selection::palette_from_theme();
     palette_.has_override = false;
     filament_color_ = kDefaultFilamentColor;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::clear_cached_frame() {
@@ -2191,7 +2216,7 @@ void GCodeGLESRenderer::set_print_progress_layer(int current_layer) {
 
 void GCodeGLESRenderer::set_ghost_opacity(lv_opa_t opacity) {
     ghost_opacity_ = opacity;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_content_offset_y(float offset_percent) {
@@ -2200,12 +2225,12 @@ void GCodeGLESRenderer::set_content_offset_y(float offset_percent) {
         return;
     }
     content_offset_y_percent_ = clamped;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_ghost_render_mode(GhostRenderMode mode) {
     ghost_render_mode_ = mode;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 int GCodeGLESRenderer::get_max_layer_index() const {
@@ -2283,7 +2308,7 @@ void GCodeGLESRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> ge
     upload_next_layer_ = 0;
     upload_total_layers_ = 0;
     mesh_triangles_ = 0;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] Geometry set: {} strips, {} vertices",
                   geometry_ ? geometry_->strips.size() : 0,
                   geometry_ ? geometry_->vertices.size() : 0);
