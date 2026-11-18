@@ -1127,9 +1127,10 @@ namespace {
 // The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
 // outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
 // to judge.
-// Under a view scale a sensor's mark shows only a fault: plain otherwise.
+// Under a drawn unit a sensor's mark shows only a fault, plain otherwise, as the unit's own
+// sensors do; without one every mark keeps its loaded and empty states.
 BandState only_faults(const FilamentPathData& data, BandState state) {
-    return data.view_hub_h > 0 && state != BandState::Error ? BandState::Empty : state;
+    return data.art_sensors && state != BandState::Error ? BandState::Empty : state;
 }
 
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,

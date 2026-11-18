@@ -419,6 +419,31 @@ TEST_CASE("FilamentPath plan: hub-edge bands are painted after the hub box",
     CHECK_FALSE(band_at(plan, 200, 272)->on_box_edge);
 }
 
+TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn unit alone",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    load_active(*d, 1, PathSegment::NOZZLE);
+    d->view_hub_h = 24;
+    const auto hub_band = [&]() -> const SensorBand* {
+        const PathPlan& plan = plan_for(*d);
+        for (int i = 0; i < plan.band_count; i++)
+            if (plan.bands[i].on_box_edge)
+                return &plan.bands[i];
+        return nullptr;
+    };
+    SECTION("no drawing: the loaded hub reads loaded") {
+        const SensorBand* b = hub_band();
+        REQUIRE(b != nullptr);
+        CHECK(b->state == BandState::Active);
+    }
+    SECTION("a drawing: plain until it faults") {
+        d->art_sensors = true;
+        const SensorBand* b = hub_band();
+        REQUIRE(b != nullptr);
+        CHECK(b->state == BandState::Empty);
+    }
+}
+
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);
