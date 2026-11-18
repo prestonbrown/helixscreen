@@ -587,7 +587,7 @@ void AmsPanel::hand_off_if_multi_unit(const helix::AmsSystemInfo& info) {
     overview_handoff_queued_ = true;
     spdlog::info("[{}] Backend now reports {} units - handing over to the overview", get_name(),
                  info.unit_count());
-    hand_ams_panel_to_overview(panel_);
+    helix::ui::hand_ams_panel_to_overview(panel_);
 }
 
 void AmsPanel::on_closed() {

@@ -1382,7 +1382,7 @@ void helix::ui::open_ams_detail_panel() {
     });
 }
 
-void hand_ams_panel_to_overview(lv_obj_t* panel_root) {
+void helix::ui::hand_ams_panel_to_overview(lv_obj_t* panel_root) {
     helix::ui::queue_update("AMS::hand_to_overview", [panel_root]() {
         if (!panel_root || !helix::nav::is_in_stack(panel_root))
             return;
