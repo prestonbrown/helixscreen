@@ -76,6 +76,9 @@ def _dot_sites(c, size):
 def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
     """Draw one spool; color None leaves the bare core with hollow vents."""
     scene.spool_radius = radius
+    # Every item drawn from here to the end belongs to this lane's spool.
+    target = getattr(scene, "scene", scene)
+    target.current_spool = lane
     xc, yc, zc = center
     cam = scene.camera
     R = radius
@@ -123,6 +126,7 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
             )
             _vents(scene, x_near, yc, zc, size, c, lit, lip, lane)
     scene.poly(_circle(x_near, yc, zc, hub, 32), scene.grad("#050505", "#404040", zc + hub, zc - hub, x_near, yc))
+    target.current_spool = None
 
 
 def _cylinder(scene, x0, x1, yc, zc, r, paint, lane=None, n=64):

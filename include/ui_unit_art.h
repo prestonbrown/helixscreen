@@ -109,6 +109,11 @@ struct UnitArtLaneMark {
 /// Marks each lane of @p art; lanes past @p marks keep none.
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks);
 
+/// Lane @p lane's own pixels that show in @p art at its current size, one byte each, row by
+/// row: its two flanges and the filament wound between them, less every nearer spool and the
+/// drawing's front. Empty without geometry.
+std::vector<uint8_t> unit_art_lane_visible_mask(lv_obj_t* art, int lane);
+
 /// The image showing the lane marks, or nullptr when none has been shown.
 lv_obj_t* unit_art_marks_obj(lv_obj_t* art);
 

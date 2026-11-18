@@ -9,27 +9,33 @@
       "lanes": [
         {
           "color": "full_lane0.png",
-          "shade": "full_lane0_shade.png"
+          "shade": "full_lane0_shade.png",
+          "spool": "full_lane0_spool.png"
         },
         {
           "color": "full_lane1.png",
-          "shade": "full_lane1_shade.png"
+          "shade": "full_lane1_shade.png",
+          "spool": "full_lane1_spool.png"
         },
         {
           "color": "full_lane2.png",
-          "shade": "full_lane2_shade.png"
+          "shade": "full_lane2_shade.png",
+          "spool": "full_lane2_spool.png"
         },
         {
           "color": "full_lane3.png",
-          "shade": "full_lane3_shade.png"
+          "shade": "full_lane3_shade.png",
+          "spool": "full_lane3_spool.png"
         },
         {
           "color": "full_lane4.png",
-          "shade": "full_lane4_shade.png"
+          "shade": "full_lane4_shade.png",
+          "spool": "full_lane4_spool.png"
         },
         {
           "color": "full_lane5.png",
-          "shade": "full_lane5_shade.png"
+          "shade": "full_lane5_shade.png",
+          "spool": "full_lane5_spool.png"
         }
       ]
     },

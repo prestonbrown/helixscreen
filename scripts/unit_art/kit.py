@@ -323,6 +323,7 @@ class Item:
     lane: object
     tag: str
     blur: bool = False
+    spool: object = None  # the lane whose spool this item is part of, flanges and core included
 
     def svg(self, fill=None, opacity=None):
         d = " ".join(f"{x:.4f},{y:.4f}" for x, y in self.points)
@@ -364,10 +365,15 @@ class Scene:
         # Per lane, the spool spool.draw_spool drew there and where its filament leaves the unit.
         self.spools = {}
         self.outlets = {}
+        # The lane whose spool is being drawn: spool.draw_spool sets it around its items.
+        self.current_spool = None
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
-            Item([self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur)
+            Item(
+                [self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur,
+                self.current_spool,
+            )
         )
 
     def poly(self, pts3, fill, opacity=1.0, stroke=None, sw=0.0, lane=None, tag="", blur=False):
@@ -452,6 +458,17 @@ class Scene:
             if i.layer == "back" and not i.blur
         )
         return f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}>{body}</mask>'
+
+    def lane_spool_svg(self, lane, width):
+        """White where lane's whole spool shows (flanges, core, filament), as everything drawn
+        after it covers it; translucent parts in front, such as a lid's glass, cover it in part."""
+        body = "".join(
+            i.svg(fill="#fff" if i.spool == lane else "#000", opacity=1.0 if i.layer == "back" else i.opacity)
+            for i in self.items
+            if i.layer in ("back", "front") and not i.blur
+        )
+        mask = f'<mask id="spool" maskUnits="userSpaceOnUse" {self._frame()}><rect {self._frame()} fill="#000"/>{body}</mask>'
+        return self._wrap(width, f'<rect {self._frame()} fill="#fff" mask="url(#spool)"/>', mask)
 
     def _frame(self):
         vx, vy, vw, vh = self._viewbox()

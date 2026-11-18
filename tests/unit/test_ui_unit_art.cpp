@@ -478,56 +478,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_obj_get_style_bitmap_mask_src(lane1, LV_PART_MAIN) == nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a glow rings its spool, a dim covers it",
-                 "[ams][unit-art][marks]") {
-    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
-    REQUIRE(geom != nullptr);
-    const int32_t w = 300;
-    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
-    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
-    unit_art_set_unit(art, ace_system(), 0);
-    CHECK(unit_art_marks_obj(art) == nullptr);
-
-    std::vector<UnitArtLaneMark> marks(4);
-    marks[0].glow = true;
-    marks[0].color = lv_color_hex(0x2080ff);
-    marks[3].dim = true;
-    unit_art_set_lane_marks(art, marks);
-    REQUIRE(unit_art_marks_obj(art) != nullptr);
-    // A point @p radius flange radii out past a lane's outer end: the left lane's far flange,
-    // the right lane's near one, where no neighbor stands.
-    auto alpha_out = [&](int lane, float radius) {
-        const tray::ArtLaneGeom& g = geom->lane[lane];
-        const bool near_end = lane == 3;
-        const float det = g.ey_x * g.ez_y - g.ey_y * g.ez_x;
-        const float ax = g.near_x - g.far_x, ay = g.near_y - g.far_y;
-        const float u = (ax * g.ez_y - ay * g.ez_x) / det, v = (g.ey_x * ay - g.ey_y * ax) / det;
-        const float len = std::hypot(u, v), s = near_end ? radius / len : -radius / len;
-        const float x = (near_end ? g.near_x : g.far_x) + s * (u * g.ey_x + v * g.ez_x);
-        const float y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
-        return unit_art_marks_alpha(art, (int32_t)std::lround(x * w), (int32_t)std::lround(y * w));
-    };
-    // The glow is light falling off softly around the spool: none over the spool itself,
-    // strongest at its outline, fading out within about half a flange radius.
-    CHECK(alpha_out(0, 0.5f) == 0);
-    CHECK(alpha_out(0, 1.06f) > alpha_out(0, 1.3f));
-    CHECK(alpha_out(0, 1.3f) > 0);
-    CHECK(alpha_out(0, 2.2f) == 0);
-    // Nor over the unit's body in front of the spool.
-    const tray::ArtLaneGeom& first = geom->lane[0];
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround((first.box_x0 + first.box_x1) / 2 * w),
-                               (int32_t)std::lround((geom->drawn[3] - 0.03f) * w)) == 0);
-    // The dim covers its spool, seen through the lid, and nothing past it.
-    const tray::ArtLaneGeom& last = geom->lane[3];
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround((last.far_x + last.near_x) / 2 * w),
-                               (int32_t)std::lround((last.far_y + last.near_y) / 2 * w)) > 0);
-    CHECK(alpha_out(3, 1.3f) == 0);
-
-    // No marks, no image.
-    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
-    CHECK(unit_art_marks_obj(art) == nullptr);
-}
-
 TEST_CASE_METHOD(LVGLTestFixture,
                  "unit art widget: places each lane's spool and outlet from the bake",
                  "[ams][unit-art][geometry]") {
@@ -549,104 +499,135 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK_FALSE(unit_art_lane_place(art, 4, spool, outlet));
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a lane's glow hides behind what stands in front",
-                 "[ams][unit-art][marks]") {
-    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
-    REQUIRE(geom != nullptr);
-    const int32_t w = 300;
-    const float dw = (float)w;
-    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
-    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
-    unit_art_set_unit(art, ace_system(), 0);
-    std::vector<UnitArtLaneMark> marks(4);
-    marks[1].glow = true;
-    marks[1].color = lv_color_hex(0x2080ff);
-    unit_art_set_lane_marks(art, marks);
+namespace {
 
-    // Just past lane 1's rim, out each end of its axis: toward lane 2, which stands nearer
-    // the camera, and toward lane 0, which stands behind it.
-    const tray::ArtLaneGeom& g = geom->lane[1];
-    auto past_end = [&](bool near_end, float radius, float& x, float& y) {
-        const float det = g.ey_x * g.ez_y - g.ey_y * g.ez_x;
-        const float ax = g.near_x - g.far_x, ay = g.near_y - g.far_y;
-        const float u = (ax * g.ez_y - ay * g.ez_x) / det, v = (g.ey_x * ay - g.ey_y * ax) / det;
-        const float len = std::hypot(u, v), s = near_end ? radius / len : -radius / len;
-        x = (near_end ? g.near_x : g.far_x) + s * (u * g.ey_x + v * g.ez_x);
-        y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
-    };
-    float x, y;
-    past_end(true, 1.06f, x, y);
-    // That point is on lane 2's spool, which hides the glow there.
-    REQUIRE(tray::art_lane_distance(geom->lane[2], x, y) < 0.95f);
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) ==
-          0);
-    // The bloom lights open space only: not lane 0's spool behind it either, but the air
-    // above the spool's top.
-    past_end(false, 1.06f, x, y);
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) ==
-          0);
-    const float ax = (g.far_x + g.near_x) / 2 + 1.12f * g.ez_x;
-    const float ay = (g.far_y + g.near_y) / 2 + 1.12f * g.ez_y;
-    for (int i = 0; i < 4; ++i)
-        REQUIRE(tray::art_lane_distance(geom->lane[i], ax, ay) > 1.02f);
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(ax * dw), (int32_t)std::lround(ay * dw)) >
-          0);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "unit art marks: the active spool's own visible rim lights, nearer spools stay",
-                 "[ams][unit-art][marks]") {
-    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
-    REQUIRE(geom != nullptr);
-    const int32_t w = 300;
-    const float dw = (float)w;
+AmsSystemInfo turtle_system() {
     AmsSystemInfo info = ace_system();
     info.type = AmsType::AFC;
     info.units[0].name = "Turtle_1";
+    for (SlotInfo& s : info.units[0].slots)
+        s = slot(SlotStatus::AVAILABLE, 0x40e0d0);
+    return info;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art marks: the active spool lights only its own visible pixels",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
-    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
-    unit_art_set_unit(art, info, 0);
-    REQUIRE(unit_art_aspect(art) == Catch::Approx(geom->aspect));
+    lv_obj_set_size(art, w, h);
+    unit_art_set_unit(art, turtle_system(), 0);
+    std::vector<std::vector<uint8_t>> vis;
+    for (int i = 0; i < 4; ++i) {
+        vis.push_back(unit_art_lane_visible_mask(art, i));
+        REQUIRE(vis.back().size() == (size_t)(w * h));
+    }
     std::vector<UnitArtLaneMark> marks(4);
     marks[1].glow = true;
     marks[1].color = lv_color_hex(0x2080ff);
     unit_art_set_lane_marks(art, marks);
+    auto at = [&](int x, int y) { return unit_art_marks_alpha(art, x, y); };
+    auto idx = [&](int x, int y) { return (size_t)y * (size_t)w + (size_t)x; };
 
-    // Somewhere on the rim of lane 1's near flange that lane 2 does not cover lights strongly.
-    const tray::ArtLaneGeom& g = geom->lane[1];
-    const tray::ArtLaneGeom& next = geom->lane[2];
-    int lit = 0, seen = 0;
-    for (int k = 0; k < 72; ++k) {
-        const float a = 2.0f * 3.14159265f * (float)k / 72.0f;
-        const float r = 0.96f;
-        const float x = g.near_x + r * (std::cos(a) * g.ey_x + std::sin(a) * g.ez_x);
-        const float y = g.near_y + r * (std::cos(a) * g.ey_y + std::sin(a) * g.ez_y);
-        if (tray::art_lane_distance(next, x, y) < 1.1f || tray::art_lane_distance(g, x, y) > 0.99f)
-            continue;
-        ++seen;
-        lit += unit_art_marks_alpha(art, (int32_t)std::lround(x * dw),
-                                    (int32_t)std::lround(y * dw)) > 150;
+    // Nothing lights the spools beside it: not lane 2 in front, nor lane 0 behind.
+    int neighbor_lit = 0, neighbor = 0;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            if (vis[2][idx(x, y)] > 200 || vis[0][idx(x, y)] > 200) {
+                ++neighbor;
+                neighbor_lit += at(x, y) > 0;
+            }
+        }
     }
-    REQUIRE(seen > 0);
-    CHECK(lit * 2 >= seen);
-    // Lane 2 stands in front: its own spool keeps its look.
-    const float cx = (next.far_x + next.near_x) / 2, cy = (next.far_y + next.near_y) / 2;
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(cx * dw), (int32_t)std::lround(cy * dw)) ==
-          0);
+    REQUIRE(neighbor > 0);
+    CHECK(neighbor_lit == 0);
 
-    // Marked again, the old marks neither hide the new ones nor bake into the drawing: the
-    // same rim lights as at first.
+    // Its outline carries a crisp rim, all round but where the unit's front cuts it off.
+    auto rim_lit = [&]() {
+        int lit = 0, outline = 0;
+        for (int y = 1; y < h - 1; ++y) {
+            for (int x = 1; x < w - 1; ++x) {
+                if (vis[1][idx(x, y)] < 200)
+                    continue;
+                // An outline pixel: within two pixels, something that is not this spool.
+                bool edge = false;
+                for (int dy = -2; dy <= 2; ++dy)
+                    for (int dx = -2; dx <= 2; ++dx)
+                        edge = edge || vis[1][idx(std::clamp(x + dx, 0, w - 1),
+                                                  std::clamp(y + dy, 0, h - 1))] < 30;
+                if (!edge)
+                    continue;
+                ++outline;
+                lit += at(x, y) > 150;
+            }
+        }
+        REQUIRE(outline > 10);
+        return std::pair{lit, outline};
+    };
+    const auto [lit, outline] = rim_lit();
+    CHECK(lit * 2 >= outline);
+
+    // No stroke where a solid flange-sized cylinder would have its top: only the soft bloom.
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    for (int k = 1; k < 10; ++k) {
+        const float t = (float)k / 10.0f;
+        const float sx = g.far_x + t * (g.near_x - g.far_x) + g.ez_x;
+        const float sy = g.far_y + t * (g.near_y - g.far_y) + g.ez_y;
+        const int x = (int)std::lround(sx * w), y = (int)std::lround(sy * w);
+        if (vis[1][idx(x, y)] > 50)
+            continue;
+        CAPTURE(k);
+        CHECK(at(x, y) < 120);
+    }
+
+    // Light falls off softly into open space: a third of a flange radius above the far
+    // flange's top it still shows.
+    const int bx = (int)std::lround((g.far_x + 1.3f * g.ez_x) * w);
+    const int by = (int)std::lround((g.far_y + 1.3f * g.ez_y) * w);
+    for (int i = 0; i < 4; ++i)
+        REQUIRE(vis[i][idx(bx, by)] < 30);
+    CHECK(at(bx, by) > 25);
+
+    // Marked again in a new color, the last marks hide nothing: the same rim lights.
     marks[1].color = lv_color_hex(0xff8020);
     unit_art_set_lane_marks(art, marks);
-    int relit = 0;
-    for (int k = 0; k < 72; ++k) {
-        const float a = 2.0f * 3.14159265f * (float)k / 72.0f;
-        const float x = g.near_x + 0.96f * (std::cos(a) * g.ey_x + std::sin(a) * g.ez_x);
-        const float y = g.near_y + 0.96f * (std::cos(a) * g.ey_y + std::sin(a) * g.ez_y);
-        if (tray::art_lane_distance(next, x, y) < 1.1f || tray::art_lane_distance(g, x, y) > 0.99f)
-            continue;
-        relit += unit_art_marks_alpha(art, (int32_t)std::lround(x * dw),
-                                      (int32_t)std::lround(y * dw)) > 150;
+    CHECK(rim_lit().first == lit);
+
+    // No marks, no image.
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(unit_art_marks_obj(art) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a missing bay dims its own spool, nothing else",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, h);
+    unit_art_set_unit(art, turtle_system(), 0);
+    const std::vector<uint8_t> mine = unit_art_lane_visible_mask(art, 3);
+    const std::vector<uint8_t> beside = unit_art_lane_visible_mask(art, 2);
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[3].dim = true;
+    unit_art_set_lane_marks(art, marks);
+    int dimmed = 0, own = 0, leaked = 0;
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            const size_t i = (size_t)y * (size_t)w + (size_t)x;
+            if (mine[i] > 200) {
+                ++own;
+                dimmed += unit_art_marks_alpha(art, x, y) > 0;
+            }
+            if (beside[i] > 200 && mine[i] < 10)
+                leaked += unit_art_marks_alpha(art, x, y) > 0;
+        }
     }
-    CHECK(relit == lit);
+    REQUIRE(own > 0);
+    CHECK(dimmed == own);
+    CHECK(leaked == 0);
 }

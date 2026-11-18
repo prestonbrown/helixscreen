@@ -569,3 +569,35 @@ def test_the_shell_table_carries_each_arts_bottom_edge():
     table = build.generate_shell_table(build.UNITS)
     row = next(line for line in table.splitlines() if line.startswith('    {"box_turtle", 4, '))
     assert row.count("{") == 3  # the row, its drawn box and its bottom edge
+
+
+def test_every_item_of_a_spool_belongs_to_its_lane():
+    scene = _art_scene(box_turtle.UNIT)
+    spool_items = [i for i in scene.items if i.spool is not None]
+    # Flanges, core, filament and vents: far more than the lane's tintable filament alone.
+    for lane in range(4):
+        mine = [i for i in spool_items if i.spool == lane]
+        tinted = [i for i in scene.items if i.lane == lane]
+        assert len(mine) > len(tinted) > 0
+        assert all(i.spool == lane for i in tinted)
+    # Nothing outside draw_spool claims a spool.
+    assert all(i.spool is None for i in scene.items if i.layer == "front")
+
+
+def test_a_lanes_spool_mask_covers_its_flanges_where_they_show(tmp_path):
+    rendered = {}
+
+    def fake_render(svg_text, width, png_path):
+        rendered[png_path.name] = svg_text
+        png_path.write_bytes(b"png")
+
+    build.bake_unit(box_turtle.UNIT, tmp_path, render=fake_render)
+    manifest = json.loads((tmp_path / "box_turtle" / "manifest.json").read_text())
+    for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
+        assert names["spool"] == f"full_lane{lane}_spool.png"
+        assert (tmp_path / "box_turtle" / names["spool"]).is_file()
+    # The thumbnails never mark a lane, so they carry none.
+    assert all("spool" not in names for names in manifest["tiers"]["thumb"]["lanes"])
+    svg = rendered["full_lane1_spool.png"]
+    # White where lane 1's items show, black where any later item covers them.
+    assert 'fill="#fff"' in svg and 'fill="#000"' in svg

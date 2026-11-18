@@ -44,6 +44,7 @@ struct LaneImages {
     lv_obj_t* shade;
     lv_draw_buf_t* mask = nullptr; ///< the wound filament's outline at mask_fill, A8
     int mask_pct = 100;
+    lv_obj_t* spool = nullptr; ///< where the lane's whole spool shows, baked; never drawn
 };
 
 struct ArtData {
@@ -115,6 +116,15 @@ void min_filter(std::vector<uint8_t>& px, int w, int h, int radius) {
             px[static_cast<size_t>(y) * w + x] = m;
         }
     }
+}
+
+/// Each pixel the greatest of the (2 @p radius + 1)-square around it: dilates a mask.
+void max_filter(std::vector<uint8_t>& px, int w, int h, int radius) {
+    for (uint8_t& v : px)
+        v = static_cast<uint8_t>(255 - v);
+    min_filter(px, w, h, radius);
+    for (uint8_t& v : px)
+        v = static_cast<uint8_t>(255 - v);
 }
 
 ArtData* data_of(lv_obj_t* art) {
@@ -192,6 +202,16 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         data->lanes.push_back(images);
     }
     data->front = add_layer(data->layers, base + "_front.png");
+    // Where each lane's whole spool shows, as baked: read for the lane marks, never drawn.
+    // Only the full tier is marked, so only it carries them.
+    if (data->geom && data->tier == UnitArtTier::Full) {
+        for (int lane = 0; lane < lane_count; ++lane) {
+            lv_obj_t* spool =
+                add_layer(data->layers, base + "_lane" + std::to_string(lane) + "_spool.png");
+            lv_obj_set_hidden(spool, true); // DECLARATIVE_OK: a mask, read only by snapshot
+            data->lanes[static_cast<size_t>(lane)].spool = spool;
+        }
+    }
     if (data->track) {
         data->carriage = add_layer(data->layers, base + "_carriage.png");
         data->carriage_flat = lv_image_create(art);
@@ -706,13 +726,68 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
 
 namespace {
 constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
-constexpr int kLaneHaloDivisor = 40; ///< glow spread per pass: the drawing's width over this
+constexpr int kLaneHaloDivisor = 30; ///< glow spread per pass: the drawing's width over this
 constexpr int kLaneHaloPasses = 3;   ///< box blurs that soften the spread toward a Gaussian
-constexpr int kLaneHaloGain = 2;     ///< lifts the falloff so the glow reads at the outline
+constexpr int kLaneHaloGain = 4;     ///< lifts the falloff so the glow reads at the outline
 constexpr int kLaneHaloPeak = 210;   ///< the glow's strongest alpha
 constexpr int kLaneRimDivisor = 110; ///< rim width: the drawing's width over this
 constexpr int kLaneRimPeak = 245;    ///< the rim's alpha on the spool's visible edges
+constexpr uint8_t kMaskOwn = 96;     ///< below this coverage a pixel belongs to its neighbor
+constexpr uint8_t kFrontSolid = 200; ///< the front's alpha from which it is solid, not glass
 } // namespace
+
+namespace {
+
+/// Where each lane's spool shows in the drawing, from the bake, one byte per pixel of a widget
+/// @p w by @p h: its flanges, core and filament less everything drawn in front of them, the
+/// unit's front included and translucent glass in part.
+struct SpoolMasks {
+    std::vector<std::vector<uint8_t>> visible;
+    std::vector<uint8_t> front, open;
+};
+
+SpoolMasks spool_masks(lv_obj_t* art, ArtData* data, int32_t w, int32_t h) {
+    SpoolMasks sm;
+    const size_t pixels = static_cast<size_t>(w) * static_cast<size_t>(h);
+    for (const LaneImages& lane : data->lanes) {
+        std::vector<uint8_t> mask;
+        if (lane.spool)
+            mask = layer_alpha(art, data, {lane.spool}, w, h);
+        if (mask.size() != pixels)
+            mask.assign(pixels, 0);
+        sm.visible.push_back(std::move(mask));
+    }
+    sm.front = data->front ? layer_alpha(art, data, {data->front}, w, h) : std::vector<uint8_t>{};
+    if (sm.front.size() != pixels)
+        sm.front.assign(pixels, 0);
+    // Glass in front lets a mark show through; only the front's solid parts hide one.
+    for (uint8_t& a : sm.front)
+        a = a >= kFrontSolid ? 255 : 0;
+    // Open space: no spool showing and nothing solid of the unit's front.
+    sm.open.assign(pixels, 0);
+    for (size_t idx = 0; idx < pixels; ++idx) {
+        uint8_t any = 0;
+        for (const std::vector<uint8_t>& v : sm.visible)
+            any = std::max(any, v[idx]);
+        sm.open[idx] = static_cast<uint8_t>((255 - any) * (255 - sm.front[idx]) / 255);
+    }
+    return sm;
+}
+
+} // namespace
+
+std::vector<uint8_t> unit_art_lane_visible_mask(lv_obj_t* art, int lane) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom || lane < 0 || lane >= data->geom->lanes)
+        return {};
+    lv_obj_update_layout(art);
+    const int32_t w = lv_obj_get_width(art), h = lv_obj_get_height(art);
+    if (w <= 0 || h <= 0)
+        return {};
+    SpoolMasks sm = spool_masks(art, data, w, h);
+    return lane < static_cast<int>(sm.visible.size()) ? sm.visible[static_cast<size_t>(lane)]
+                                                      : std::vector<uint8_t>{};
+}
 
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
     ArtData* data = art ? data_of(art) : nullptr;
@@ -761,104 +836,52 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
         px[2] = mix(px[2], color.red);
         px[3] = static_cast<uint8_t>(oa);
     };
-    // Each lane's spool, and what stands in front of it: the drawing's front layer and every
-    // lane drawn after it, which the bake stands nearer the camera. A mark is light or shade
-    // at its spool's depth, so whatever stands in front hides it.
     const int lanes = std::min<int>(static_cast<int>(marks.size()), data->geom->lanes);
-    auto spool_of = [&](int lane) {
-        const tray::ArtLaneGeom& g = data->geom->lane[lane];
-        const float k = tray::art_lane_px_per_unit(g, c.w);
-        std::vector<uint8_t> spool(pixels);
-        for (int32_t y = 0; y < h; ++y) {
-            const float sy = ((float)y + 0.5f - c.y) / c.w;
-            for (int32_t x = 0; x < w; ++x) {
-                const float sx = ((float)x + 0.5f - c.x) / c.w;
-                spool[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)] =
-                    static_cast<uint8_t>(
-                        std::lround(255.0f * tray::art_lane_coverage(g, sx, sy, 1.0f, k)));
-            }
-        }
-        return spool;
-    };
-    std::vector<std::vector<uint8_t>> spools(static_cast<size_t>(data->geom->lanes));
-    for (int i = 0; i < data->geom->lanes; ++i)
-        spools[static_cast<size_t>(i)] = spool_of(i);
-    std::vector<uint8_t> front =
-        data->front ? layer_alpha(art, data, {data->front}, w, h) : std::vector<uint8_t>{};
-    if (front.size() != pixels)
-        front.assign(pixels, 0);
-    for (int i = 0; i < lanes; ++i) {
+    const SpoolMasks sm = spool_masks(art, data, w, h);
+    for (int i = 0; i < lanes && i < static_cast<int>(sm.visible.size()); ++i) {
         const UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
         if (!m.glow && !m.dim)
             continue;
-        const std::vector<uint8_t>& spool = spools[static_cast<size_t>(i)];
-        std::vector<uint8_t> clear(pixels); // how much of the mark shows past what is in front
-        for (size_t idx = 0; idx < pixels; ++idx) {
-            uint8_t cover = front[idx];
-            for (int j = i + 1; j < data->geom->lanes; ++j)
-                cover = std::max(cover, spools[static_cast<size_t>(j)][idx]);
-            clear[idx] = static_cast<uint8_t>(255 - cover);
-        }
+        const std::vector<uint8_t>& visible = sm.visible[static_cast<size_t>(i)];
+        // A pixel only a sliver of the spool covers is its neighbor's: marks keep off it.
+        auto own = [&](size_t idx) { return visible[idx] >= kMaskOwn ? 255 : 0; };
         if (m.dim) {
-            for (int32_t y = 0; y < h; ++y) {
-                for (int32_t x = 0; x < w; ++x) {
-                    const size_t idx = static_cast<size_t>(y) * w + x;
-                    blend(x, y, dim_color,
-                          static_cast<uint8_t>(spool[idx] * clear[idx] / 255 * kDimOpa / 255));
-                }
-            }
+            for (int32_t y = 0; y < h; ++y)
+                for (int32_t x = 0; x < w; ++x)
+                    blend(
+                        x, y, dim_color,
+                        static_cast<uint8_t>(own(static_cast<size_t>(y) * w + x) * kDimOpa / 255));
         }
-        if (m.glow) {
-            const tray::ArtLaneGeom& g = data->geom->lane[i];
-            const float k = tray::art_lane_px_per_unit(g, c.w);
-            // What of the spool shows: its silhouette less everything standing in front, and
-            // less the nearer spools alone, whose edges are the spool's own visible outline.
-            std::vector<uint8_t> visible(pixels), unhidden(pixels), near_disc(pixels), open(pixels);
-            for (int32_t y = 0; y < h; ++y) {
-                const float sy = ((float)y + 0.5f - c.y) / c.w;
-                for (int32_t x = 0; x < w; ++x) {
-                    const float sx = ((float)x + 0.5f - c.x) / c.w;
-                    const size_t idx = static_cast<size_t>(y) * w + x;
-                    visible[idx] = static_cast<uint8_t>(spool[idx] * clear[idx] / 255);
-                    uint8_t nearer = 0;
-                    for (int j = i + 1; j < data->geom->lanes; ++j)
-                        nearer = std::max(nearer, spools[static_cast<size_t>(j)][idx]);
-                    unhidden[idx] = static_cast<uint8_t>(spool[idx] * (255 - nearer) / 255);
-                    const float d = tray::art_lane_flange_distance(g, sx, sy, true);
-                    near_disc[idx] = static_cast<uint8_t>(
-                        std::lround(255.0f * std::clamp((1.0f - d) * k + 0.5f, 0.0f, 1.0f)));
-                    // Open space: no spool and nothing of the unit's front.
-                    uint8_t any = 0;
-                    for (const std::vector<uint8_t>& other : spools)
-                        any = std::max(any, other[idx]);
-                    open[idx] = static_cast<uint8_t>((255 - any) * (255 - front[idx]) / 255);
-                }
-            }
-            // A crisp rim along the edges of the spool where the spools in front leave it,
-            // and of its near flange; the unit's front parts then cover it like the spool.
-            const int rim = std::max(1, (int)c.w / kLaneRimDivisor);
-            std::vector<uint8_t> inner = unhidden, disc_inner = near_disc;
-            min_filter(inner, w, h, rim);
-            min_filter(disc_inner, w, h, rim);
-            // And a soft bloom from it into the open space around.
-            std::vector<uint8_t> bloom = visible;
-            const int radius = std::max(1, (int)c.w / kLaneHaloDivisor);
-            for (int pass = 0; pass < kLaneHaloPasses; ++pass) {
-                box_blur(bloom, w, h, 1, w, radius);
-                box_blur(bloom, h, w, w, 1, radius);
-            }
-            for (int32_t y = 0; y < h; ++y) {
-                for (int32_t x = 0; x < w; ++x) {
-                    const size_t idx = static_cast<size_t>(y) * w + x;
-                    const int edge =
-                        std::max<int>(unhidden[idx] - inner[idx],
-                                      (near_disc[idx] - disc_inner[idx]) * unhidden[idx] / 255) *
-                        (255 - front[idx]) / 255;
-                    const int rim_a = edge * kLaneRimPeak / 255;
-                    const int bloom_a = std::min(255, bloom[idx] * kLaneHaloGain) * kLaneHaloPeak /
-                                        255 * open[idx] / 255;
-                    blend(x, y, m.color, static_cast<uint8_t>(std::max(rim_a, bloom_a)));
-                }
+        if (!m.glow)
+            continue;
+        // A crisp rim just inside the edge of what shows of the spool. Small seams in the mask
+        // are closed first, so only its outline is stroked; where the unit's front cuts the
+        // spool off, the edge is the front part's outline and gets none.
+        const int rim = std::max(1, (int)c.w / kLaneRimDivisor);
+        std::vector<uint8_t> closed = visible;
+        max_filter(closed, w, h, 1);
+        min_filter(closed, w, h, 1);
+        std::vector<uint8_t> inner = closed;
+        min_filter(inner, w, h, rim);
+        std::vector<uint8_t> front_near = sm.front;
+        max_filter(front_near, w, h, rim + 1);
+        // Soft light falling off from what shows into the open space around it.
+        std::vector<uint8_t> bloom = visible;
+        const int radius = std::max(1, (int)c.w / kLaneHaloDivisor);
+        for (int pass = 0; pass < kLaneHaloPasses; ++pass) {
+            box_blur(bloom, w, h, 1, w, radius);
+            box_blur(bloom, h, w, w, 1, radius);
+        }
+        for (int32_t y = 0; y < h; ++y) {
+            for (int32_t x = 0; x < w; ++x) {
+                const size_t idx = static_cast<size_t>(y) * w + x;
+                const int edge = std::max(0, (int)closed[idx] - (int)inner[idx]) * own(idx) / 255 *
+                                 (255 - front_near[idx]) / 255;
+                const int rim_a = edge * kLaneRimPeak / 255;
+                const int open = sm.open[idx] >= kMaskOwn ? sm.open[idx] : 0;
+                const int bloom_a =
+                    std::min(255, bloom[idx] * kLaneHaloGain) * kLaneHaloPeak / 255 * open / 255;
+                blend(x, y, m.color, static_cast<uint8_t>(std::max(rim_a, bloom_a)));
             }
         }
     }

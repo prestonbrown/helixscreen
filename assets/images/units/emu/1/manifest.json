@@ -9,7 +9,8 @@
       "lanes": [
         {
           "color": "full_lane0.png",
-          "shade": "full_lane0_shade.png"
+          "shade": "full_lane0_shade.png",
+          "spool": "full_lane0_spool.png"
         }
       ]
     },

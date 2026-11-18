@@ -258,6 +258,10 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
             names = {"color": f"{tier}_lane{lane}.png", "shade": f"{tier}_lane{lane}_shade.png"}
             render(scene.lane_color_svg(lane, width), width, target / names["color"])
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
+            # Only the unit view marks lanes, and it draws the full tier.
+            if tier == "full" and lane in scene.spools:
+                names["spool"] = f"{tier}_lane{lane}_spool.png"
+                render(scene.lane_spool_svg(lane, width), width, target / names["spool"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
         if tier == "full":
