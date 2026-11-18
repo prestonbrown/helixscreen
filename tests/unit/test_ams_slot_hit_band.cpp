@@ -109,8 +109,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_set_style_pad_column(row, -layout.overlap, LV_PART_MAIN);
     for (int i = 0; i < kCount; ++i) {
         lv_obj_set_width(slots[i], layout.slot_width);
-        const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, kCount);
-        helix::ui::ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
+        helix::ui::ams_slot_set_hit_band(slots[i], helix::ui::ams_slot_hit_band(layout, i, kCount));
     }
     lv_obj_update_layout(row);
     lv_area_t bands[kCount];

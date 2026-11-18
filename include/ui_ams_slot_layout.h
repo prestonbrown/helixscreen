@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 
+#include <algorithm>
 #include <cstdint>
 
 /**
@@ -67,11 +68,65 @@ inline AmsSlotLayout calculate_ams_slot_layout(int32_t available_width, int slot
 
 namespace helix::ui {
 
-/// Pixels trimmed off each side of a slot's tap area.
+/// Pixels trimmed off each side of a slot's tap area. An inset of 0 leaves the slot's own edge.
 struct AmsSlotHitBand {
     int32_t left_inset = 0;
     int32_t right_inset = 0;
+    /// Pixels a trimmed edge leans right per pixel down, below the height its inset is measured
+    /// at, for lanes drawn at a slant; above it the edge stands upright.
+    float slant = 0;
+    /// The slot-local heights at which the left and right insets are measured.
+    int32_t left_y = 0;
+    int32_t right_y = 0;
 };
+
+/// Whether a tap at (@p x, @p y) falls in @p band of a slot whose left, top and right edges
+/// are @p x1, @p y1 and @p x2.
+inline bool ams_slot_hit_band_holds(const AmsSlotHitBand& band, int32_t x1, int32_t y1, int32_t x2,
+                                    int32_t x, int32_t y) {
+    auto lean = [&](int32_t at) { return band.slant * (float)std::max<int32_t>(0, y - y1 - at); };
+    if (band.left_inset > 0 && (float)x < (float)(x1 + band.left_inset) + lean(band.left_y))
+        return false;
+    if (band.right_inset > 0 && (float)x > (float)(x2 - band.right_inset) + lean(band.right_y))
+        return false;
+    return true;
+}
+
+/// A drawn lane in screen pixels: its spool's middle and its outlet below.
+struct AmsLaneLine {
+    int32_t x, y;
+    int32_t out_x, out_y;
+};
+
+/**
+ * @brief The band a slot owns over a drawing whose lanes lean.
+ *
+ * Each boundary stands midway between two neighbouring spools and, below their middles, leans
+ * with the lanes toward their outlets, so a tap on a lane's spool, its outlet or anywhere
+ * between opens that lane. @p lanes holds all @p n lanes;
+ * the slot spans @p x1 to @p x2 from top @p y1.
+ */
+inline AmsSlotHitBand ams_slot_lane_hit_band(const AmsLaneLine* lanes, int i, int n, int32_t x1,
+                                             int32_t y1, int32_t x2) {
+    AmsSlotHitBand band;
+    if (!lanes || i < 0 || i >= n)
+        return band;
+    const AmsLaneLine& lane = lanes[i];
+    if (lane.out_y != lane.y)
+        band.slant = (float)(lane.out_x - lane.x) / (float)(lane.out_y - lane.y);
+    // Neighbours compute each shared boundary from the same integer midpoint, so they meet.
+    if (i > 0) {
+        const int32_t mx = (lanes[i - 1].x + lane.x) / 2, my = (lanes[i - 1].y + lane.y) / 2;
+        band.left_inset = mx > x1 ? mx - x1 : 1;
+        band.left_y = my - y1;
+    }
+    if (i < n - 1) {
+        const int32_t mx = (lane.x + lanes[i + 1].x) / 2, my = (lane.y + lanes[i + 1].y) / 2;
+        band.right_inset = x2 > mx ? x2 - mx : 1;
+        band.right_y = my - y1;
+    }
+    return band;
+}
 
 /**
  * @brief The part of an overlapping slot that a tap belongs to.

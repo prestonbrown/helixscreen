@@ -981,6 +981,41 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit with baked art: a tap anywhere down a lane opens that lane's slot",
+                 "[ams][tray][ui_integration][unit-art][hit_band]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(art));
+    lv_area_t aa;
+    lv_obj_get_coords(art, &aa);
+    auto owner = [&](lv_point_t p) {
+        for (lv_obj_t* o = lv_indev_search_obj(test_screen(), &p); o; o = lv_obj_get_parent(o)) {
+            for (int i = 0; i < 4; ++i) {
+                if (o == slot(i))
+                    return i;
+            }
+        }
+        return -1;
+    };
+    for (int i = 0; i < 4; ++i) {
+        lv_area_t spool;
+        lv_point_t outlet;
+        REQUIRE(helix::ui::unit_art_lane_place(art, i, spool, outlet));
+        // The lanes lean with the drawing: each outlet stands left of its spool's middle.
+        const lv_point_t mid{aa.x1 + (spool.x1 + spool.x2) / 2, aa.y1 + (spool.y1 + spool.y2) / 2};
+        const lv_point_t out{aa.x1 + outlet.x, aa.y1 + outlet.y};
+        const lv_point_t below{out.x, out.y + 8};
+        const lv_point_t upper{mid.x, mid.y - (spool.y2 - spool.y1) / 3};
+        for (lv_point_t p : {upper, mid, out, below}) {
+            CAPTURE(i, p.x, p.y);
+            CHECK(owner(p) == i);
+        }
+    }
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit with baked art: the art stands in for the tray, lanes leave its foot",
                  "[ams][tray][ui_integration][unit-art]") {
     unit_name_ = "ACE 1";

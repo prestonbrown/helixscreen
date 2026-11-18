@@ -312,8 +312,8 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     for (int i = 0; i < count; ++i) {
         if (slot_widgets[i]) {
             lv_obj_set_width(slot_widgets[i], result.layout.slot_width);
-            const auto band = helix::ui::ams_slot_hit_band(result.layout, i, count);
-            helix::ui::ams_slot_set_hit_band(slot_widgets[i], band.left_inset, band.right_inset);
+            helix::ui::ams_slot_set_hit_band(slot_widgets[i],
+                                             helix::ui::ams_slot_hit_band(result.layout, i, count));
         }
     }
 
@@ -839,6 +839,20 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
                 lv_obj_set_style_translate_x(
                     holder, origin.x + art.outlet[i].x - (ha.x1 + ha.x2) / 2, LV_PART_MAIN);
             }
+        }
+        // The drawn lanes lean, so each slot's tap band leans with its lane.
+        helix::ui::AmsLaneLine lines[kAmsDetailMaxSlots];
+        for (int i = 0; i < n; ++i) {
+            lines[i] = {origin.x + (art.lane[i].x1 + art.lane[i].x2) / 2,
+                        origin.y + (art.lane[i].y1 + art.lane[i].y2) / 2,
+                        origin.x + art.outlet[i].x, origin.y + art.outlet[i].y};
+        }
+        for (int i = 0; i < n; ++i) {
+            lv_area_t sa;
+            lv_obj_get_coords(slot_widgets[i], &sa);
+            helix::ui::ams_slot_set_hit_band(
+                slot_widgets[i],
+                helix::ui::ams_slot_lane_hit_band(lines, i, n, sa.x1, sa.y1, sa.x2));
         }
     }
 

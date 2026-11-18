@@ -94,14 +94,10 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count,
                                  int label_rows = 0);
 
 namespace helix::ui {
-/**
- * @brief Narrow the slot's tap area to the band it owns in an overlapping row
- *
- * @param obj         The ams_slot widget
- * @param left_inset  Pixels off the left edge that belong to the left neighbour
- * @param right_inset Pixels off the right edge that belong to the right neighbour
- */
-void ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset);
+struct AmsSlotHitBand;
+
+/// Narrow the slot's tap area to the band it owns in an overlapping row (ui_ams_slot_layout.h).
+void ams_slot_set_hit_band(lv_obj_t* obj, const AmsSlotHitBand& band);
 } // namespace helix::ui
 
 /**

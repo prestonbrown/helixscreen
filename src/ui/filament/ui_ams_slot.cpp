@@ -603,9 +603,9 @@ static void ams_slot_event_cb(lv_event_t* e) {
         }
         lv_area_t area;
         lv_obj_get_coords(obj, &area);
-        const int32_t x = info->point->x;
-        info->res = info->res && x >= area.x1 + data->hit_band.left_inset &&
-                    x <= area.x2 - data->hit_band.right_inset;
+        info->res = info->res &&
+                    helix::ui::ams_slot_hit_band_holds(data->hit_band, area.x1, area.y1, area.x2,
+                                                       info->point->x, info->point->y);
     }
 }
 
@@ -1197,13 +1197,14 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
     return helix::ui::ams_lane_spool_get_fill_level(data->lane_spool);
 }
 
-void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset) {
+void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, const AmsSlotHitBand& band) {
     auto* data = obj ? get_slot_data(obj) : nullptr;
     if (!data) {
         return;
     }
-    data->hit_band.left_inset = std::max<int32_t>(0, left_inset);
-    data->hit_band.right_inset = std::max<int32_t>(0, right_inset);
+    data->hit_band = band;
+    data->hit_band.left_inset = std::max<int32_t>(0, band.left_inset);
+    data->hit_band.right_inset = std::max<int32_t>(0, band.right_inset);
 }
 
 void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count, int label_rows) {
