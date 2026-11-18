@@ -257,9 +257,10 @@ class PrintStartController {
     [[nodiscard]] static helix::FileRead reprint_file_read(const std::set<int>& tools_used,
                                                            int archive_plate);
 
-    /// Ends a reprint whose facts load has not answered within the transfer
-    /// stall limit (abandon_pending_reprint()), with a toast naming @p filename.
-    void arm_reprint_stall_watchdog(const std::string& filename);
+    /// Ends a reprint whose facts load has not answered within @p ms
+    /// (abandon_pending_reprint()), with a toast naming @p filename. Re-arming
+    /// replaces the deadline.
+    void arm_reprint_stall_watchdog(const std::string& filename, uint32_t ms);
     helix::ui::LvglTimerGuard reprint_stall_;
     std::string reprint_stall_file_;
 

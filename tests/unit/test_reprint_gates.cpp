@@ -25,7 +25,10 @@
 #include "ams_backend_mock.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "file_analysis.h"
+#include "helix_plugin_features.h"
 #include "moonraker_client_mock.h"
+#include "printer_plugin_status_state.h"
 
 #include <string>
 #include <vector>
@@ -441,4 +444,56 @@ TEST_CASE_METHOD(ReprintGatesFixture,
     REQUIRE(start_params.size() == 1);
     CHECK(started == 1);
     CHECK(errors == 0);
+}
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a large reprint's file read gets time for its size",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 500.0F);
+    PlantedGcode file("reprint_large.gcode", "", kRedPla140g);
+    // 50 MB on the printer: its read is allowed 500 s on top of the stall window.
+    helix::MoonrakerClientMockTestAccess::set_method_handler(
+        mock_client_, "server.files.metadata",
+        [&file](MoonrakerClientMock*, const json&, helix::SharedCallback<void(const json&)> ok,
+                helix::SharedCallback<void(const MoonrakerError&)>) -> bool {
+            ok(json{{"result",
+                     {{"filename", file.name()},
+                      {"size", 50'000'000},
+                      {"modified", 1.0},
+                      {"filament_weight_total", 140.0},
+                      {"filament_type", "PLA"},
+                      {"filament_colors", json::array({"#FF0000"})}}}});
+            return true;
+        });
+    // The plugin's file analysis is asked after the metadata, and held, so the
+    // read is still under way once its size is known.
+    helix::PluginFeatureEntry entry;
+    entry.version = helix::kFileAnalysisMinVersion;
+    entry.available = true;
+    entry.enabled = true;
+    auto& plugin = get_printer_state().plugin_status_state();
+    plugin.set_installed(true);
+    plugin.set_features({{helix::kFileAnalysisFeature, entry}});
+    struct PluginOff {
+        helix::PrinterPluginStatusState& p;
+        ~PluginOff() {
+            p.set_features({});
+            p.set_installed(false);
+        }
+    } plugin_off{plugin};
+    mock_client_.defer_next(helix::kFileAnalysisRpc);
+
+    reprint(file.name());
+    REQUIRE(mock_client_.call_count(helix::kFileAnalysisRpc) == 1);
+
+    lv_tick_inc(app_constants::transfer::STALL_MS + 1000);
+    lv_timer_handler();
+    settle();
+    CHECK(errors == 0);
+
+    lv_tick_inc(500'000);
+    lv_timer_handler();
+    settle();
+    CHECK(errors == 1);
+    CHECK(start_params.empty());
 }

@@ -664,7 +664,9 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     reprint_gate_facts_->set_api(api_);
     reprint_pending_ = true;
     pending_reprint_on_error_ = on_error;
-    arm_reprint_stall_watchdog(filename);
+    // Each step answers within the transfer stall window until the file's
+    // size is known; then the read is allowed that size too.
+    arm_reprint_stall_watchdog(filename, app_constants::transfer::STALL_MS);
     reprint_gate_facts_->load(
         filename,
         [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
@@ -716,7 +718,13 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                                on_error, std::move(remap)};
             run_gates_from(0);
         },
-        nullptr, nullptr, reprint_file_read(tools_used, archive_plate));
+        nullptr,
+        [this, filename](const std::optional<FileMetadata>& metadata) {
+            if (reprint_pending_ && metadata) {
+                arm_reprint_stall_watchdog(filename, helix::file_facts_stall_ms(*metadata));
+            }
+        },
+        reprint_file_read(tools_used, archive_plate));
 }
 
 std::optional<std::map<int, int>>
@@ -779,7 +787,7 @@ helix::FileRead PrintStartController::reprint_file_read(const std::set<int>& too
     return tools_needed ? helix::FileRead::Whole : helix::FileRead::Footer;
 }
 
-void PrintStartController::arm_reprint_stall_watchdog(const std::string& filename) {
+void PrintStartController::arm_reprint_stall_watchdog(const std::string& filename, uint32_t ms) {
     lv_timer_t* timer = lv_timer_create(
         [](lv_timer_t* t) {
             auto* self = static_cast<PrintStartController*>(lv_timer_get_user_data(t));
@@ -794,7 +802,7 @@ void PrintStartController::arm_reprint_stall_watchdog(const std::string& filenam
             NOTIFY_WARNING(lv_tr("Failed to reprint: {}"), self->reprint_stall_file_);
             self->abandon_pending_reprint();
         },
-        app_constants::transfer::STALL_MS, this);
+        ms, this);
     lv_timer_set_repeat_count(timer, 1);
     reprint_stall_file_ = filename;
     reprint_stall_.reset(timer);
