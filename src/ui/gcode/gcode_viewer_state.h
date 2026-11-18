@@ -294,6 +294,10 @@ class GCodeViewerState {
     helix::ui::gcode_viewer_load_callback_t first_frame_callback{nullptr};
     void* first_frame_callback_user_data{nullptr};
     bool first_frame_fired_{false};
+    helix::ui::gcode_viewer_render_path_callback_t render_path_callback{nullptr};
+    void* render_path_callback_user_data{nullptr};
+    /// The path last reported to render_path_callback: -1 none yet, 0 2D, 1 3D.
+    int reported_render_path_{-1};
     helix::gcode::FitFraming framing_{
         helix::gcode::FitFraming::STANDARD}; ///< Fit shape every renderer of this viewer uses
     helix::ui::gcode_viewer_clear_cb_t clear_callback{nullptr};

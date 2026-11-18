@@ -42,7 +42,7 @@
     <prop name="gradient_hidden" type="string" default=""/>
     <prop name="viewer_hidden" type="string"/>
     <prop name="thumbnail_hidden" type="string"/>
-    <prop name="hint_hidden" type="string"/>
+    <prop name="hint_hidden_when" type="string"/>
     <!-- Optional. Deliberately declared WITHOUT a default: an unset prop with no
          default has its attribute dropped entirely, where an empty default would
          reach lv_xml_get_subject("") and log "No subject was found" on every
@@ -86,7 +86,7 @@
                width="content" height="content" variant="ghost" style_pad_all="#space_xs" style_border_width="0"
                ext_click_area="12" focusable="false" align="top_right" style_translate_x="-8"
                style_translate_y="#space_sm">
-      <bind_flag_if cond="$hint_hidden" flag="hidden"/>
+      <bind_flag_if cond="$hint_hidden_when" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_gcode_preview_reset_view"/>
       <icon src="rotate_3d" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
     </ui_button>
