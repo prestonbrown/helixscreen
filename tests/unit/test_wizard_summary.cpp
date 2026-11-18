@@ -16,10 +16,13 @@
 
 #include "ui_subject_registry.h"
 #include "ui_wizard_summary.h"
+#include "ui_wizard_telemetry.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
 #include "core/subject.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "system_settings_manager.h"
 
 #include <cstring>
 #include <string>
@@ -89,5 +92,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the firs
     CHECK_FALSE(row_shown("telemetry_opt_in_row"));
     CHECK_FALSE(row_shown("telemetry_divider"));
 
+    cfg->set<nlohmann::json>("/printers", printers_before);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The wizard's update channel row opens on the stored channel, wired to Settings'",
+                 "[wizard][summary][update_channel]") {
+    auto* cfg = Config::get_instance();
+    const nlohmann::json printers_before = cfg->get<nlohmann::json>("/printers", nlohmann::json());
+    nlohmann::json one = nlohmann::json::object();
+    one["default"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", one);
+    auto& system = helix::SystemSettingsManager::instance();
+    const int channel_before = system.get_update_channel();
+    system.set_update_channel(1); // Beta
+
+    auto check_step = [&](helix::wizard::Step* step, const char* holder) {
+        CAPTURE(holder != nullptr);
+        // Each step registers the row's callback itself, whichever page opened first.
+        lv_xml_register_event_cb(nullptr, "on_about_update_channel_changed", nullptr);
+        REQUIRE(lv_xml_get_event_cb(nullptr, "on_about_update_channel_changed") == nullptr);
+        step->register_callbacks();
+        CHECK(lv_xml_get_event_cb(nullptr, "on_about_update_channel_changed") != nullptr);
+        lv_obj_t* root = step->create(test_screen());
+        REQUIRE(root != nullptr);
+        if (holder) {
+            // Asked beside the telemetry opt-in, which the first printer shows.
+            lv_obj_t* box = lv_obj_find_by_name(root, holder);
+            REQUIRE(box != nullptr);
+            CHECK_FALSE(lv_obj_is_hidden(box));
+        }
+        lv_obj_t* row = lv_obj_find_by_name(root, "row_update_channel");
+        REQUIRE(row != nullptr);
+        CHECK(lv_dropdown_get_selected(lv_obj_find_by_name(row, "dropdown")) == 1);
+        step->cleanup();
+        lv_obj_delete(root);
+    };
+    check_step(get_wizard_summary_step(), "summary_update_channel");
+    check_step(get_wizard_telemetry_step(), nullptr);
+
+    system.set_update_channel(channel_before);
     cfg->set<nlohmann::json>("/printers", printers_before);
 }

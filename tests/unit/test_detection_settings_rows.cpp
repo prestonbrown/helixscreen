@@ -242,34 +242,43 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
     lv_subject_set_int(m.subject_bed_check_switchable(), 1);
 }
 
-TEST_CASE_METHOD(DetectionRowsFixture, "Safety confirmation rows write their settings",
-                 "[settings][safety]") {
+TEST_CASE_METHOD(DetectionRowsFixture, "Safety rows write the motors-off and power settings",
+                 "[settings][safety][binding]") {
     helix::settings::get_safety_settings_overlay().register_callbacks();
     auto& safety = helix::SafetySettingsManager::instance();
-    safety.set_motors_off_require_confirmation(true);
-    safety.set_power_require_confirmation(true);
-    safety.set_power_target(helix::PowerTarget::Ask);
+    const bool saved_motors = safety.get_motors_off_require_confirmation();
+    const bool saved_power = safety.get_power_require_confirmation();
+    const helix::PowerTarget saved_target = safety.get_power_target();
     build();
-    const auto widget = [this](const char* row, const char* name) {
+    auto inner = [this](const char* row, const char* widget) {
         lv_obj_t* r = lv_obj_find_by_name(root_, row);
         REQUIRE(r != nullptr);
-        lv_obj_t* w = lv_obj_find_by_name(r, name);
+        lv_obj_t* w = lv_obj_find_by_name(r, widget);
         REQUIRE(w != nullptr);
         return w;
     };
-    for (const char* row : {"row_motors_off_confirm", "row_power_confirm"}) {
-        lv_obj_t* sw = widget(row, "toggle");
-        lv_obj_remove_state(sw, LV_STATE_CHECKED);
-        lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+    auto flip = [](lv_obj_t* toggle, bool on) {
+        if (on) {
+            lv_obj_add_state(toggle, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(toggle, LV_STATE_CHECKED);
+        }
+        lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    };
+
+    for (bool on : {false, true}) {
+        CAPTURE(on);
+        flip(inner("row_motors_off_confirm", "toggle"), on);
+        CHECK(safety.get_motors_off_require_confirmation() == on);
+        flip(inner("row_power_confirm", "toggle"), on);
+        CHECK(safety.get_power_require_confirmation() == on);
     }
-    lv_obj_t* target = widget("row_power_target", "dropdown");
+    lv_obj_t* target = inner("row_power_target", "dropdown");
     lv_dropdown_set_selected(target, 2);
     lv_obj_send_event(target, LV_EVENT_VALUE_CHANGED, nullptr);
-
-    CHECK_FALSE(safety.get_motors_off_require_confirmation());
-    CHECK_FALSE(safety.get_power_require_confirmation());
     CHECK(safety.get_power_target() == helix::PowerTarget::Screen);
-    safety.set_motors_off_require_confirmation(true);
-    safety.set_power_require_confirmation(true);
-    safety.set_power_target(helix::PowerTarget::Ask);
+
+    safety.set_motors_off_require_confirmation(saved_motors);
+    safety.set_power_require_confirmation(saved_power);
+    safety.set_power_target(saved_target);
 }

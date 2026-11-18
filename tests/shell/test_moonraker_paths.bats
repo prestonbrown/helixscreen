@@ -375,7 +375,10 @@ setup_k2_layout() {
     printf 'klipper\nmoonraker\n' > "$klipper/moonraker.asvc"
 
     ensure_moonraker_asvc "$klipper/config/moonraker.conf"
+    [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]
+    # The second call appends nothing, so Moonraker needs no restart for it.
     ensure_moonraker_asvc "$klipper/config/moonraker.conf"
+    [ -z "$_MOONRAKER_ASVC_CHANGED" ]
     [ "$(grep -c '^helixscreen$' "$klipper/moonraker.asvc")" -eq 1 ]
 }
 

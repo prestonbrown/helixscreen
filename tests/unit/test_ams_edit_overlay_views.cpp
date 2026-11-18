@@ -4547,6 +4547,27 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         show_editor_on_lane(*this, *backend, 1);
         CHECK(access.shown("tool_dropdown_row"));
         CHECK(access.shown("backup_dropdown_row"));
+        CHECK_FALSE(lv_obj_has_state(access.widget("tool_dropdown"), LV_STATE_DISABLED));
+        CHECK_FALSE(access.shown("tool_refusal"));
+    }
+    SECTION("a remap the backend refuses: Assigned Tool disabled, with the reason") {
+        struct RefusingBackend : AmsBackendMock {
+            using AmsBackendMock::AmsBackendMock;
+            AmsError can_set_tool_mapping(int, int) const override {
+                return AmsError(AmsResult::NOT_SUPPORTED, "refused", "Tools are assigned elsewhere",
+                                "", -1);
+            }
+        };
+        auto owned = std::make_unique<RefusingBackend>(4);
+        backend = owned.get();
+        AmsState::instance().clear_backends();
+        AmsState::instance().set_backend(std::move(owned));
+        show_editor_on_lane(*this, *backend, 1);
+        REQUIRE(access.shown("tool_dropdown_row"));
+        CHECK(lv_obj_has_state(access.widget("tool_dropdown"), LV_STATE_DISABLED));
+        REQUIRE(access.shown("tool_refusal"));
+        CHECK(std::string(lv_label_get_text(access.widget("tool_refusal"))) ==
+              "Tools are assigned elsewhere");
     }
     SECTION("a mapping table the backend cannot write: no Assigned Tool") {
         backend->set_remap_strategy(AmsBackend::RemapStrategy::PrePrintSend);
