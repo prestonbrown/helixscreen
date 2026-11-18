@@ -761,8 +761,7 @@ void PrintStartController::arm_reprint_stall_watchdog(const std::string& filenam
             spdlog::warn("[PrintStartController] Not reprinting {}: its file checks did not "
                          "answer in time",
                          self->reprint_stall_file_);
-            NOTIFY_WARNING(lv_tr("Could not check {} - the reprint did not start"),
-                           self->reprint_stall_file_);
+            NOTIFY_WARNING(lv_tr("Failed to reprint: {}"), self->reprint_stall_file_);
             self->abandon_pending_reprint();
         },
         app_constants::transfer::STALL_MS, this);
