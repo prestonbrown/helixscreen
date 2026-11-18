@@ -6,6 +6,8 @@
 
 #include <string_view>
 
+#include "hv/json.hpp"
+
 namespace helix::fan_heaters {
 
 std::vector<std::string> config_list(const nlohmann::json& value) {
