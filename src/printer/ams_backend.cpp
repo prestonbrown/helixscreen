@@ -664,12 +664,11 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
                                                                  std::getenv("HELIX_MOCK_PRINTER"));
     const bool quattro_box = ams_type == "quattro_box" || ams_type == "quattrobox";
-    // A Quattro Box is built with four lanes and no other count, whatever HELIX_AMS_GATES says.
-    constexpr int kQuattroBoxLanes = 4;
-    if (quattro_box && gate_count != kQuattroBoxLanes) {
-        spdlog::info("[AMS Backend] Mock Quattro Box has {} lanes; ignoring {} gates",
-                     kQuattroBoxLanes, gate_count);
-        gate_count = kQuattroBoxLanes;
+    if (const int real = helix::mock::mock_real_lane_count(ams_type, gate_count);
+        real != gate_count) {
+        spdlog::info("[AMS Backend] Mock {} is built with {} lanes; ignoring {} gates", ams_type,
+                     real, gate_count);
+        gate_count = real;
     }
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
