@@ -218,6 +218,16 @@ class AmsPanel : public PanelBase {
     bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes
     bool slot_creation_pending_ = false;   ///< Coalesces rapid slot count changes
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
+    /// Opened while the backend reported one unit. A backend that reports its units one at a
+    /// time (multiACE's ACEs arrive after the SnapSwap) can turn that into several while the
+    /// panel is up, and several units belong on the overview.
+    bool opened_single_unit_ = false;
+    bool overview_handoff_queued_ = false;
+    /// Swaps this panel for the overview; replaced by the tests.
+    std::function<void(AmsPanel&)> hand_to_overview_ = &AmsPanel::close_and_open_overview;
+    static void close_and_open_overview(AmsPanel& panel);
+    /// Hands the panel to the overview once the units it was opened for have become several.
+    void hand_off_if_multi_unit(const helix::AmsSystemInfo& info);
     bool path_update_pending_ = false; ///< Coalesces rapid path state changes
 
     // === Dynamic Slot State ===

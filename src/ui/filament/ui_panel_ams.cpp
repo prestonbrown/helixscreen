@@ -36,6 +36,7 @@
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
@@ -191,6 +192,8 @@ void AmsPanel::init_subjects() {
             if (!self->open_ || !self->subjects_initialized_ || !self->panel_)
                 return;
             spdlog::trace("[AmsPanel] Gates version changed - refreshing slots");
+            if (const auto info = AmsState::instance().system_info())
+                self->hand_off_if_multi_unit(*info);
             self->refresh_slots();
         },
         AmsState::instance().get_subjects_lifetime());
@@ -479,6 +482,11 @@ void AmsPanel::on_activate() {
     spdlog::debug("[{}] Activated - syncing from backend", get_name());
     const bool opening = !open_;
     open_ = true;
+    if (opening) {
+        const auto info = AmsState::instance().system_info();
+        opened_single_unit_ = info && !info->is_multi_unit();
+        overview_handoff_queued_ = false;
+    }
     if (!sidebar_) {
         sidebar_ = helix::ui::AmsOperationSidebar::attach(printer_state_, panel_);
     }
@@ -571,6 +579,26 @@ void AmsPanel::run_close() {
     if (auto* p = get_existing_ams_panel()) {
         p->on_closed();
     }
+}
+
+void AmsPanel::hand_off_if_multi_unit(const helix::AmsSystemInfo& info) {
+    if (!opened_single_unit_ || overview_handoff_queued_ || !info.is_multi_unit())
+        return;
+    overview_handoff_queued_ = true;
+    spdlog::info("[{}] Backend now reports {} units - handing over to the overview", get_name(),
+                 info.unit_count());
+    hand_to_overview_(*this);
+}
+
+void AmsPanel::close_and_open_overview(AmsPanel& panel) {
+    // Navigation runs outside the observer that noticed the change.
+    lv_obj_t* root = panel.panel_;
+    helix::ui::queue_update("AmsPanel::hand_to_overview", [root]() {
+        if (!root || !helix::nav::is_in_stack(root))
+            return;
+        helix::nav::close_overlay(root);
+        navigate_to_ams_panel();
+    });
 }
 
 void AmsPanel::on_closed() {
