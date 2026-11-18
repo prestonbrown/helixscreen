@@ -37,8 +37,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "a file whose outer walls land in a shaky band
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.body.find("86") != std::string::npos);
     CHECK(r.body.find("77-97") != std::string::npos);
-    CHECK(r.body.find("76") != std::string::npos);
-    CHECK(r.body.find("97") != std::string::npos);
+    CHECK(r.body.find("Try 76 or 97 mm/s") != std::string::npos);
     CHECK_FALSE(r.proceed_label.empty());
 }
 

@@ -423,6 +423,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
     REQUIRE(ts.tool_count() == 4);
     REQUIRE(ts.extruder_count() == 4);
     REQUIRE(ts.has_multiple_extruders());
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == 4);
 
     // Surviving the AMS rebuild matters — that is where the mapping was lost once.
     helix::ToolTopology topo;
@@ -437,6 +438,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
 
     ts.clear_ams_topology();
     UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == ts.extruder_count());
 }
 
 // =============================================================================

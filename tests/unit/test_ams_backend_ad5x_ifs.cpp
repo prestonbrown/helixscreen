@@ -7997,6 +7997,11 @@ TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
             }
             backend.refresh_translated_texts();
             CHECK(detail() == std::string(r.expected) + " (timed out)");
+
+            // recover() and reset() retire the composed line: a later re-word leaves it gone.
+            REQUIRE((r.extruder_frame ? backend.reset() : backend.recover()).success());
+            backend.refresh_translated_texts();
+            CHECK(detail().empty());
         }
     }
 }

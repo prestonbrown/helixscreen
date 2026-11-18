@@ -21,6 +21,7 @@
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/mock_printer.h"
+#include "test_helpers/scoped_language.h"
 
 #include <algorithm>
 #include <array>
@@ -774,6 +775,17 @@ TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs
                                {"loaded_channels", json::array()}}}});
     CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
     CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
+
+    // Without the board's own words the line is a catalog key, worded when shown.
+    helix::test::StartedBackend<AmsBackendAd5xIfs> bare;
+    bare.fire_status(module_ifs_frame(0, {}, "ready"));
+    bare.fire_status(json{{"ifs",
+                           {{"activity", "driver_error"},
+                            {"active_channel", 0},
+                            {"loaded_channels", json::array()}}}});
+    helix::ScopedLanguage fr("fr");
+    REQUIRE(bare.current_error().has_value());
+    CHECK(bare.current_error()->detail == "Erreur du pilote IFS");
 }
 
 TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends nothing",
@@ -1185,9 +1197,12 @@ TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
     REQUIRE(backend.unload_filament(1).success());
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
 
-    // And a manual resync is a no-op rather than a re-read.
+    // And a manual resync is a no-op rather than a re-read, of the IFS; the lane
+    // records are still read again.
+    const size_t reads = backend.wire().fake_client().rpc_count("server.database.get_item");
     backend.request_resync();
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
+    CHECK(backend.wire().fake_client().rpc_count("server.database.get_item") > reads);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

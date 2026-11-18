@@ -186,7 +186,7 @@ TEST_CASE("Fan tachometers: K2 Plus part fan RPM lands on the part fan (#2071)",
 
     auto& fs = state.fan_state();
     fs.init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2", "heater_fan hotend_fan",
-                  "heater_fan chamber_fan"});
+                  "heater_fan chamber_fan", "fan_generic aux"});
     fs.set_tachometers(fan_tach::map_from_config(k2_plus_settings()));
 
     // Measured on a K2 Plus: part fan only, at 46%.
@@ -210,6 +210,14 @@ TEST_CASE("Fan tachometers: K2 Plus part fan RPM lands on the part fan (#2071)",
     CHECK_FALSE(rpm_of("output_pin fan2"));
     CHECK(rpm_of("heater_fan hotend_fan") == std::optional<int>(0));
     CHECK(rpm_of("heater_fan chamber_fan") == std::optional<int>(0));
+
+    // A fan's own null rpm clears it, unless a tachometer elsewhere measures that fan.
+    state.update_from_status({{"fan_generic aux", {{"rpm", 1200}}}});
+    REQUIRE(rpm_of("fan_generic aux") == std::optional<int>(1200));
+    state.update_from_status(
+        {{"fan_generic aux", {{"rpm", nullptr}}}, {"heater_fan hotend_fan", {{"rpm", nullptr}}}});
+    CHECK_FALSE(rpm_of("fan_generic aux"));
+    CHECK(rpm_of("heater_fan hotend_fan") == std::optional<int>(0));
 
     SECTION("without a tachometer map nothing is mapped") {
         PrinterStateTestAccess::reset(state);

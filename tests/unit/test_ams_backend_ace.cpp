@@ -1233,10 +1233,11 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    // Started, so the backend opens its own lane record store.
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, &mock_printer.client);
     AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
+    REQUIRE(backend.start().success());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Prime the backend with 4 slots so apply_user_edit's index check passes.
     AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},

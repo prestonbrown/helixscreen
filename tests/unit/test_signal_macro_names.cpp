@@ -718,6 +718,17 @@ TEST_CASE("the macros row's signal line follows the scan and the plugin", "[sign
 
     status.set_signal_macro_scan(std::nullopt);
     CHECK(line() == sm::SignalNamesLine::None);
+
+    // A fresh session reads neither the last scan nor the last report.
+    status.set_signal_macro_scan(scan_of(instrumented_print_start()));
+    status.set_signal_migration_report(sm::SignalMigrationReport::WillRename);
+    status.deinit_subjects();
+    status.init_subjects(false);
+    status.set_installed(true);
+    CHECK(line() == sm::SignalNamesLine::None);
+    status.set_signal_macro_scan(scan_of(instrumented_print_start()));
+    status.set_features({{"signal_macro_migration", ready}});
+    CHECK(line() == sm::SignalNamesLine::AliasesKept);
     status.deinit_subjects();
 }
 

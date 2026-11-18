@@ -203,6 +203,7 @@ TEST_CASE("A rejected swap command clears the optimistic action",
         tc.reject_last_send(MoonrakerErrorType::JSON_RPC_ERROR, "MedusaHC is busy: picking");
         CHECK(tc.get_current_action() == AmsAction::SELECTING);
         CHECK(tc.get_system_info().is_busy());
+        CHECK(tc.get_system_info().operation_detail == "Picking up tool");
         // Its own idle frame ends it.
         tc.feed(json{{"medusahc", {{"operation", "idle"}, {"current_tool", 1}}}});
         CHECK(tc.get_current_action() == AmsAction::IDLE);

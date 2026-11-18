@@ -5333,13 +5333,17 @@ TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has ou
     // not be read (the printer's real default is 80); one saved against a real
     // default the printer has since changed, which is stale.
     TuningRig rig({{"gear_from_spool_speed", {{"value", 95.0}, {"config_default", 60.0}}},
-                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}}});
+                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}},
+                   {"gear_from_buffer_speed", {{"value", 120.0}, {"config_default", 150.0}}},
+                   {"toolhead_ooze_reduction", {{"value", 1.5}, {"config_default", 2.0}}}});
     rig.connect();
 
     const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
     REQUIRE(o.gear_from_spool_speed);
     CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
     CHECK_FALSE(o.gear_unload_speed);
+    CHECK(o.gear_from_buffer_speed == std::optional<float>(120.0f));
+    CHECK(o.toolhead_ooze_reduction == std::optional<float>(1.5f));
     // The built-in-default record is re-pointed at the printer's, in Moonraker.
     CHECK(rig.stored()["gear_from_spool_speed"]["config_default"] == Catch::Approx(80.0));
     CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
@@ -5928,6 +5932,21 @@ TEST_CASE_METHOD(HhFourGatesWithClient,
         CHECK_FALSE(helper.execute_device_action("mmu_fan_mode:unit0", std::any(std::string("On")))
                         .success());
         CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("v4: autotune starts from the config, and a reload forgets what was sent") {
+        auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+        fx["configfile_settings"]["mmu_unit_parameters unit0"]["autotune_rotation_distance"] = 1;
+        const auto autotune = [this] {
+            return *std::any_cast<bool>(
+                &v4_control_rows(helper)["sync_feedback_autotune"].current_value);
+        };
+        connect_with_fixture(helper, client, fx);
+        feed_params(helper, {{"mmu", both}});
+        CHECK(autotune());
+        REQUIRE(helper.execute_device_action("sync_feedback_autotune", std::any(false)).success());
+        CHECK_FALSE(autotune());
+        connect_with_fixture(helper, client, fx);
+        CHECK(autotune());
     }
     SECTION("v4 single unit: each control's command, no UNIT=") {
         const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");

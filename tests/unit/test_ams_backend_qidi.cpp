@@ -6,11 +6,13 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_qidi.h"
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "filament_slot_override.h"
@@ -137,6 +139,10 @@ TEST_CASE("QIDI Box default system_info shape", "[ams][qidi_box]") {
     // Only an explicit enable_box=0 disconnects the unit; one that has not
     // reported yet reads connected, so the UI does not flash "Disconnected".
     REQUIRE(info.units[0].connected);
+
+    // A box is an ordinal, not a lane position: zero-based lane numbers leave it alone.
+    ScopedZeroLaneNumbering from_zero;
+    CHECK(AmsBackendQidi(nullptr, nullptr).get_system_info().units[0].name == "QIDI Box 1");
 }
 
 // =====================================================================
@@ -1165,6 +1171,13 @@ TEST_CASE("QIDI Box dries with the box's timer commands, else the bare heater",
             CHECK(backend.sent.empty());
         }
     }
+
+    // The refusal names the range in the display unit (the per-test reset restores °C).
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    const std::string hint = backend.start_drying(150.0f, 240).suggestion;
+    CHECK(hint.find("°F") != std::string::npos);
+    CHECK(hint.find("°C") == std::string::npos);
 }
 
 // =====================================================================

@@ -31,6 +31,7 @@
 #include "core/update_queue.h"
 #include "error_event.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/scoped_language.h"
 
 #include <string>
 
@@ -191,6 +192,12 @@ TEST_CASE("AFC current_error carries the fault text and a recovery set", "[ams][
         REQUIRE(e.has_value());
         CHECK_FALSE(e->detail.empty());
         CHECK_FALSE(e->recovery_actions.empty());
+
+        // Worded in the language showing when the error is.
+        const std::string english = afc.get_system_info().operation_detail;
+        helix::ScopedLanguage fr("fr");
+        REQUIRE(std::string(lv_tr(english.c_str())) != english);
+        CHECK(afc.current_error()->detail == std::string(lv_tr(english.c_str())));
     }
 }
 

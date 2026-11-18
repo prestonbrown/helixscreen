@@ -884,7 +884,9 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
 
 TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
           "[ams][cfs][calib][2007]") {
-    CfsCalibHelper backend;
+    helix::test::FakeMoonrakerClient console;
+    CfsCalibHelper backend(nullptr, &console);
+    const auto handlers = console.live_handlers();
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     bool failed = false;
@@ -907,6 +909,8 @@ TEST_CASE("CFS chute park failure after a good save reports the position as save
     CHECK(backend.captured ==
           std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
+    // The save's console watch goes with the failed park.
+    CHECK(console.live_handlers() == handlers);
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
@@ -3243,6 +3247,21 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
         CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
     }
 
+    SECTION("a loaded bay or a lane load withdraws the stored declaration") {
+        REQUIRE(rig.backend->enable_bypass().success());
+        REQUIRE(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared") == true);
+        SECTION("a bay loaded") {
+            json box =
+                make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+            box["T1"]["filament"] = "A";
+            rig.poll(box);
+        }
+        SECTION("a lane load") {
+            REQUIRE(rig.backend->load_filament(0).success());
+        }
+        CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
+    }
+
     SECTION("another client's declaration is picked up by the poll") {
         rig.client.mock_db_set("helix-screen", "cfs_bypass_declared", true);
         rig.backend->refresh_lane_records();
@@ -5049,8 +5068,10 @@ TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs]
     REQUIRE(backend.current_error().has_value());
     backend.captured.clear();
 
+    REQUIRE_FALSE(backend.get_system_info().operation_detail.empty());
     CHECK(backend.clear_fault(0).success());
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK(backend.get_system_info().operation_detail.empty());
     CHECK_FALSE(backend.current_error().has_value());
     CHECK(backend.captured.empty());
 

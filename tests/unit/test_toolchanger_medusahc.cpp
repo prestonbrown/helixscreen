@@ -519,13 +519,17 @@ TEST_CASE("Irbis3D's opening 'changing' frame lights the swap's first step",
     // Latch the direction and the gripper, as a swap's own frames would.
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_detail.empty());
     REQUIRE(tc.change_tool(2).success());
 
+    // The detail is a catalog key for the word, never the raw word.
     tc.feed(json{{"medusahc", {{"operation", "changing"}, {"current_tool", 0}}}});
     CHECK(tc.get_system_info().operation_phase == 0); // Release filament
     CHECK(tc.get_system_info().action == AmsAction::SELECTING);
+    CHECK(tc.get_system_info().operation_detail == "Tool swap");
     tc.feed(json{{"medusahc", {{"operation", "dropping"}, {"current_tool", 0}}}});
     CHECK(tc.get_system_info().operation_phase == 1); // Dock tool
+    CHECK(tc.get_system_info().operation_detail == "Docking tool");
 }
 
 TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",

@@ -15,6 +15,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "ams_backend_toolchanger.h"
+#include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "macro_param_cache.h"
 #include "printer_discovery.h"
@@ -142,11 +143,12 @@ TEST_CASE_METHOD(RecoveryFixture, "MedusaHC: a failed swap mid-print says how to
                  "[toolchanger][medusahc][resume]") {
     RecoveryChanger tc(api.get(), &mock_client);
     helix::test::set_wire_state(state, PrintJobState::PAUSED);
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit); // reset per test
 
     tc.feed(failed_pick_of_t2());
     CHECK(ToolChangerTestAccess::feed_last_toast(tc) ==
           "Tool change to Tool 3 (T2) failed: MHC_SET: sensors did not confirm T2. Seat the "
-          "hot ends, heat Tool 3 (T2) above 190°C, then tap Resume.");
+          "hot ends, heat Tool 3 (T2) above 374°F, then tap Resume.");
 }
 
 TEST_CASE_METHOD(RecoveryFixture, "MedusaHC: a failed swap with no print says nothing of Resume",
@@ -170,6 +172,8 @@ TEST_CASE_METHOD(RecoveryFixture, "MedusaHC: Resume waits for the target tool to
     REQUIRE(cold.has_value());
     CHECK(cold->result == AmsResult::WRONG_STATE);
     CHECK(cold->user_msg == "Heat Tool 3 (T2) above 190°C before resuming");
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit); // reset per test
+    CHECK(resume_answer(tc)->user_msg == "Heat Tool 3 (T2) above 374°F before resuming");
 
     nozzle("extruder2", 190.0); // the controller wants it ABOVE 190
     REQUIRE(resume_answer(tc).has_value());

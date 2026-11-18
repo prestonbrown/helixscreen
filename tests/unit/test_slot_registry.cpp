@@ -522,3 +522,15 @@ TEST_CASE("SlotRegistry reorganize respects given unit order", "[slot_registry][
         }
     }
 }
+
+TEST_CASE("SlotRegistry write_edit reports a field or a mapping change", "[slot_registry]") {
+    SlotRegistry reg;
+    reg.initialize("Unit", {"s0", "s1"});
+    helix::SlotInfo info = reg.get(0)->info;
+    CHECK_FALSE(reg.write_edit(0, info));
+    info.material = "PETG";
+    CHECK(reg.write_edit(0, info));
+    info.mapped_tool = 1;
+    CHECK(reg.write_edit(0, info));
+    CHECK(reg.slot_for_tool(1) == 0);
+}

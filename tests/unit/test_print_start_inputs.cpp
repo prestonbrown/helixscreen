@@ -272,7 +272,8 @@ constexpr const char* kTwoToolFooter = "; filament_type = PLA;PETG\n"
                                        "; filament_colour = #FF0000;#0000FF\n"
                                        "G28\n"
                                        "T0\n"
-                                       "; filament used [g] = 1.50, 2.25\n";
+                                       "; filament used [g] = 1.50, 2.25\n"
+                                       "; outer_wall_speed = 200\n";
 
 struct LoaderFixture : LVGLUITestFixture {
     LoaderFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -314,6 +315,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer that names its tools answers without a
     CHECK(answer->palette.colors.size() == 2);
     CHECK(answer->palette.materials == std::vector<std::string>{"PLA", "PETG"});
     CHECK(answer->tool_grams == std::vector<double>{1.50, 2.25});
+    CHECK(answer->outer_wall_speed_mm_s == 200.0f);
     CHECK(downloads == 0);
 }
 
