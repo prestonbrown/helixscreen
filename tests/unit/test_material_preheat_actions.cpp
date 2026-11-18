@@ -335,8 +335,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "Material presets heat the bed and chamber only while the setting is on",
                  "[material_preheat][preheat][chamber][preset_bed]") {
+    const auto action = GENERATE(PreheatAction::FILAMENT_PRESET, PreheatAction::HOME_WIDGET);
     const bool heat_bed_and_chamber = GENERATE(true, false);
-    CAPTURE(heat_bed_and_chamber);
+    CAPTURE(static_cast<int>(action), heat_bed_and_chamber);
     MaterialSettingsScope settings;
     auto& sm = helix::SettingsManager::instance();
     sm.init_subjects();
@@ -351,8 +352,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     discover_macros(h, {"extruder", "heater_bed", "heater_generic chamber_heater"});
     REQUIRE(controller.get().resolved_name(helix::HeaterType::Chamber) ==
             "heater_generic chamber_heater");
+    feed_hot_nozzle(h);
 
-    PanelAccess::handle_preset_button(*h.panel, 2);
+    press(action, h);
 
     // ABS asks for a 45°C chamber. Off, the nozzle alone: the bed and the
     // chamber keep the targets they had.
@@ -365,15 +367,31 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Home preheat on several tools heats only the nozzles while presets leave the bed",
-                 "[material_preheat][preheat][panel_widget][preset_bed]") {
+                 "A material preset asks for its chamber only on a printer with a chamber heater",
+                 "[material_preheat][preheat][chamber][preset_bed]") {
+    Harness h;
+    helix::SettingsManager::instance().set_chamber_heater_assignment("auto");
+    discover_macros(h);
+    CHECK(helix::presets::chamber_request(45, h.state.temperature_state()) == 0);
+
+    discover_macros(h, {"extruder", "heater_bed", "heater_generic chamber_heater"});
+    CHECK(helix::presets::chamber_request(45, h.state.temperature_state()) == 45);
+    CHECK(helix::presets::chamber_request(0, h.state.temperature_state()) == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Home preheat on several tools heats the bed and chamber only while presets do",
+                 "[material_preheat][preheat][panel_widget][chamber][preset_bed]") {
+    const bool heat_bed_and_chamber = GENERATE(true, false);
+    CAPTURE(heat_bed_and_chamber);
     MaterialSettingsScope settings;
     auto& sm = helix::SettingsManager::instance();
     sm.init_subjects();
     const bool saved = sm.get_material_presets_heat_bed_and_chamber();
-    sm.set_material_presets_heat_bed_and_chamber(false);
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed_and_chamber);
+    sm.set_chamber_heater_assignment("auto");
     Harness h;
-    discover_macros(h);
+    discover_macros(h, {"extruder", "heater_bed", "heater_generic chamber_heater"});
     h.use_two_extruders();
     REQUIRE(ToolState::instance().has_multiple_extruders());
     helix_test::ScopedSharedResource<helix::TemperatureController> controller(
@@ -383,11 +401,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     widget.set_config({{"material_index", 2}});
     WidgetAccess::set_tool_target(widget, -1);
 
+    REQUIRE(controller.get().resolved_name(helix::HeaterType::Chamber) ==
+            "heater_generic chamber_heater");
+
     WidgetAccess::handle_apply(widget);
 
-    CHECK(h.client.gcode_script_history() ==
-          Scripts{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
-                  "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=250"});
+    Scripts expected{"SET_HEATER_TEMPERATURE HEATER=extruder TARGET=250",
+                     "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=250"};
+    if (heat_bed_and_chamber) {
+        expected.push_back("SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=105");
+        expected.push_back("SET_HEATER_TEMPERATURE HEATER=chamber_heater TARGET=45");
+    }
+    CHECK(h.client.gcode_script_history() == expected);
     sm.set_material_presets_heat_bed_and_chamber(saved);
 }
 

@@ -203,7 +203,7 @@ PreheatWidget::PreheatTargets PreheatWidget::targets_for_slot(int slot) {
     if (!mat) {
         return {};
     }
-    return {mat->nozzle_recommended(), mat->bed_temp};
+    return {mat->nozzle_recommended(), mat->bed_temp, mat->chamber_temp_c};
 }
 
 std::string PreheatWidget::label_for_slot(int slot, bool heaters_active, int32_t width_px) {
@@ -288,7 +288,7 @@ void PreheatWidget::handle_selection_changed() {
     }
 }
 
-void PreheatWidget::set_temperatures(int nozzle, int bed) {
+void PreheatWidget::set_temperatures(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
@@ -296,22 +296,31 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
                   {.toast = true, .on_success = [nozzle]() {
                        NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), nozzle);
                    }});
-    send_bed(bed);
+    send_bed_and_chamber(bed, chamber);
 }
 
-bool PreheatWidget::send_bed(int bed) {
-    // With "Material presets heat the bed and chamber" off, a preset heats the
-    // nozzle alone.
-    const auto target = presets::heater_targets(bed).bed;
+bool PreheatWidget::send_bed_and_chamber(int bed, int chamber) {
     auto* c = get_temperature_controller();
-    if (!target || !c) {
+    if (!c) {
         return false;
     }
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(*target),
-                  {.toast = true, .on_success = [t = *target]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
-                   }});
-    return true;
+    // With "Material presets heat the bed and chamber" off, a preset heats the
+    // nozzle alone.
+    const auto targets = presets::heater_targets(
+        bed, presets::chamber_request(chamber, printer_state_.temperature_state()));
+    if (targets.bed) {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                      {.toast = true, .on_success = [t = *targets.bed]() {
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
+                       }});
+    }
+    if (targets.chamber) {
+        c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
+                      {.toast = true, .on_success = [t = *targets.chamber]() {
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), t);
+                       }});
+    }
+    return targets.bed.has_value();
 }
 
 void PreheatWidget::handle_apply() {
@@ -343,13 +352,13 @@ void PreheatWidget::handle_apply() {
             const PreheatTargets t = targets_for_slot(selected_material_);
             // Multiple lanes sharing one hotend still use the active nozzle.
             if (ToolState::instance().has_multiple_extruders()) {
-                set_temperatures_multi(t.nozzle, t.bed);
+                set_temperatures_multi(t.nozzle, t.bed, t.chamber);
             } else {
-                set_temperatures(t.nozzle, t.bed);
+                set_temperatures(t.nozzle, t.bed, t.chamber);
             }
-            spdlog::info(
-                "[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, tool_target={})",
-                material_name, t.nozzle, t.bed, tool_target_);
+            spdlog::info("[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, "
+                         "chamber={}°C, tool_target={})",
+                         material_name, t.nozzle, t.bed, t.chamber, tool_target_);
         },
         "[PreheatWidget]", hw);
 }
@@ -415,7 +424,7 @@ std::vector<std::string> PreheatWidget::collect_preheat_heaters(const std::vecto
     return heaters;
 }
 
-void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
+void PreheatWidget::set_temperatures_multi(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
@@ -444,7 +453,7 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
                            }});
     }
 
-    const bool bed_sent = send_bed(bed);
+    const bool bed_sent = send_bed_and_chamber(bed, chamber);
 
     if (*refused) {
         return;

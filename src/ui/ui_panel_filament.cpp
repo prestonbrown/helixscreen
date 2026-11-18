@@ -2202,12 +2202,10 @@ void FilamentPanel::set_material(int material_id) {
     nozzle_target_ = mat->nozzle_recommended();
     bed_target_ = mat->bed_temp;
 
-    // Set chamber target from material preset (clear if material has no chamber requirement)
-    if (!printer_state_.temperature_state().chamber_heater_name().empty()) {
-        chamber_target_ = mat->chamber_temp_c > 0
-                              ? helix::ui::temperature::degrees_to_deci(mat->chamber_temp_c)
-                              : 0;
-    }
+    // The material's chamber temperature, 0 when it needs none or the printer
+    // has no chamber heater.
+    chamber_target_ = helix::ui::temperature::degrees_to_deci(
+        helix::presets::chamber_request(mat->chamber_temp_c, printer_state_.temperature_state()));
 
     lv_subject_set_int(&material_selected_subject_, selected_material_);
     update_preset_buttons_visual();

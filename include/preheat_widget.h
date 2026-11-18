@@ -37,6 +37,7 @@ class PreheatWidget : public PanelWidget {
     struct PreheatTargets {
         int nozzle = 0;
         int bed = 0;
+        int chamber = 0; ///< the material's, 0 when it needs none
     };
     static PreheatTargets targets_for_slot(int slot);
 
@@ -85,11 +86,12 @@ class PreheatWidget : public PanelWidget {
     void update_button_label();
     void update_heater_state();
     void update_tool_target_label();
-    void set_temperatures(int nozzle, int bed);
-    void set_temperatures_multi(int nozzle, int bed);
-    /// Send @p bed when material presets heat the bed (presets::heater_targets());
-    /// whether it went out.
-    bool send_bed(int bed);
+    void set_temperatures(int nozzle, int bed, int chamber);
+    void set_temperatures_multi(int nozzle, int bed, int chamber);
+    /// Send @p bed, and @p chamber when the printer has a chamber heater, while
+    /// material presets heat the bed and chamber (presets::heater_targets());
+    /// whether the bed went out.
+    bool send_bed_and_chamber(int bed, int chamber);
     void cycle_tool_target();
 
     void handle_nozzle_tap();
