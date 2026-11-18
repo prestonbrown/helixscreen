@@ -1113,6 +1113,7 @@ Select the mock AMS visual scenario.
 | `feeder` | Lane 3's filament waits at its feeder: its entry sensor reads it, its toolhead has not taken it (`PREP`). Shows the PARALLEL entry band with `HELIX_MOCK_AMS=snapmaker` |
 | `disconnected` | The last unit reports itself offline: its overview card ghosts with a "Disconnected" chip, and the detail header carries the chip. With one unit, the AMS panel header does |
 | `finishes` | One lane per swatch finish (silk, marble, sparkle, matte) plus a three-colour silk and a two-colour lane, repeating across the lanes, named for their colours and unlinked from Spoolman: every surface that paints a spool shows each (`docs/devel/COLOR_SWATCHES.md`) |
+| `absent` | The last unit's bays are reserved but its box is not on the bus: its slots take the disabled state, and a unit drawn from its baked art dims each spool |
 | `grade` | Every lane holds `PLA-CF` instead of its usual filament — same compat group, so the mapper routes a PLA tool exactly as before and the print-start **grade** dialog is what fires. All four lanes, not one, because a tool lands on a lane by colour and then by positional fallback over the file's whole palette |
 
 ```bash
@@ -1132,6 +1133,21 @@ HELIX_MOCK_AMS_STATE=grade ./build/bin/helix-screen --test -vv
 # Combine with topology selection
 HELIX_MOCK_AMS=afc HELIX_MOCK_AMS_STATE=error ./build/bin/helix-screen --test
 HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --test
+```
+
+
+### `HELIX_MOCK_AMS_FILL`
+
+Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Comma-separated percentages, first lane first |
+| **Default** | Unset: each lane keeps the mock's sample weight |
+| **File** | `src/printer/ams_backend.cpp` |
+
+```bash
+HELIX_MOCK_AMS=ace HELIX_MOCK_AMS_FILL=100,50,10,100 ./build/bin/helix-screen --test
 ```
 
 

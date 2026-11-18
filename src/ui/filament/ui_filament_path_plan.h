@@ -140,6 +140,10 @@ int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int3
 /// lane run, else the prep sensors' row.
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
 
+/// The lanes' row (their prep sensors' straight run's end): its ratio row, or lower when lanes
+/// drop their bands below a box edge, by a band's room under the lowest band.
+int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g);
+
 /// A sliding selector's art in the LINEAR bar's place: between the lanes' sensors and the
 /// buffer, centred, as tall as fits. Empty for a canvas without such art, and for one too small
 /// to show it.
@@ -370,6 +374,14 @@ PathPlan& plan_scratch();
 
 /// Outer tube width, walls included, for a theme's space_xs.
 int32_t tube_gauge_for_spacing(int32_t space_xs);
+
+/// The row @p lane's tube starts on in frame @p f: on a box edge, the edge where it crosses
+/// the lane's column (the edge's lowest point less the lane's rise).
+int32_t lane_start_y(const FilamentPathData& data, const LinearHubFrame& f, int lane);
+
+/// The row of @p lane's prep band: its band drop below its start, held a band's width above
+/// the lane's row.
+int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane);
 
 void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, const BaseGeometry& g,
                      PathPlan& out);

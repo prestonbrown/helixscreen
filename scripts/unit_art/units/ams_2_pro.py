@@ -65,6 +65,8 @@ def draw_art(sc, colors, tier):
 
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
+        # Each lane's filament leaves under its feeder, at the plinth.
+        kit.outlet(sc, lane, (xc, -0.002, PLINTH + 0.03))
 
     sc.layer = "front"
     plinth = [(0.03, 0.02), (0.03, D - 0.02), (W - 0.03, D - 0.02), (W - 0.03, 0.02)]

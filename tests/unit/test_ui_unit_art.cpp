@@ -6,6 +6,13 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "display_settings_manager.h"
+#include "theme_manager.h"
+#include "unit_art_geometry.h"
+
+#include <algorithm>
+#include <cmath>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -154,6 +161,11 @@ TEST_CASE("unit art: an empty bay shows no filament; black filament is still fil
     CHECK_FALSE(unit_art_lane(slot(SlotStatus::UNKNOWN, 0x123456)).filled);
     const UnitArtLane lane = unit_art_lane(slot(SlotStatus::LOADED, 0x000000));
     CHECK((lane.filled && lane.color == 0x000000));
+    // A bay that reads empty but still names its spool keeps the spool's color, as the
+    // drawn spool does, rather than showing a bare reel.
+    SlotInfo known = slot(SlotStatus::EMPTY, 0x2244aa);
+    known.material = "ABS";
+    CHECK(unit_art_lane(known).filled);
 }
 
 TEST_CASE("unit art: drawn only at the lane counts its art is baked in", "[ams][unit-art]") {
@@ -429,4 +441,218 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: its pulse dies with the widget
     REQUIRE(lv_anim_get(glow, nullptr) != nullptr);
     lv_obj_delete(art);
     CHECK(lv_anim_get(glow, nullptr) == nullptr);
+}
+
+namespace {
+
+/// The pixel at @p radius flange radii from the middle of @p lane's axis, straight up its
+/// flange's z, in a widget @p w wide that holds the drawing exactly.
+lv_point_t lane_point(const tray::UnitArtGeom& geom, int lane, float radius, int32_t w) {
+    const tray::ArtLaneGeom& g = geom.lane[lane];
+    const float x = (g.far_x + g.near_x) / 2 + radius * g.ez_x;
+    const float y = (g.far_y + g.near_y) / 2 + radius * g.ez_y;
+    return {(int32_t)std::lround(x * w), (int32_t)std::lround(y * w)};
+}
+
+uint8_t mask_at(lv_obj_t* image, lv_point_t p) {
+    const auto* mask =
+        static_cast<const lv_draw_buf_t*>(lv_obj_get_style_bitmap_mask_src(image, LV_PART_MAIN));
+    return mask ? *static_cast<const uint8_t*>(lv_draw_buf_goto_xy(mask, p.x, p.y)) : 255;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: a part-wound lane shows its filament that far out",
+                 "[ams][unit-art][fill]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    AmsSystemInfo info = ace_system();
+    for (SlotInfo& s : info.units[0].slots) {
+        s.total_weight_g = 1000.0f;
+        s.remaining_weight_g = 1000.0f;
+    }
+    info.units[0].slots[1].remaining_weight_g = 500.0f;
+    info.units[0].slots[2].remaining_weight_g = 100.0f;
+    const int32_t w = 300;
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
+    unit_art_set_unit(art, info, 0);
+
+    CHECK(unit_art_lane_fill_pct(art, 0) == 100);
+    CHECK(unit_art_lane_fill_pct(art, 1) == 50);
+    CHECK(unit_art_lane_fill_pct(art, 2) == 10);
+    // A full spool is not masked; a half one shows filament inside its wound radius only.
+    CHECK(lv_obj_get_style_bitmap_mask_src(unit_art_lane_color_obj(art, 0), LV_PART_MAIN) ==
+          nullptr);
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    const float half = tray::wound_radius(g.core, g.wound, 0.5f);
+    lv_obj_t* lane1 = unit_art_lane_color_obj(art, 1);
+    CHECK(mask_at(lane1, lane_point(*geom, 1, half - 0.1f, w)) == 255);
+    CHECK(mask_at(lane1, lane_point(*geom, 1, half + 0.1f, w)) == 0);
+    // Refilled, the mask goes.
+    info.units[0].slots[1].remaining_weight_g = 1000.0f;
+    unit_art_set_unit(art, info, 0);
+    CHECK(unit_art_lane_fill_pct(art, 1) == 100);
+    CHECK(lv_obj_get_style_bitmap_mask_src(lane1, LV_PART_MAIN) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: places each lane's spool and outlet from the bake",
+                 "[ams][unit-art][geometry]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    // A widget wider than the drawing centers it.
+    const int32_t h = 200, dw = (int32_t)std::lround(h * geom->aspect);
+    lv_obj_set_size(art, dw + 40, h);
+    unit_art_set_unit(art, ace_system(), 0);
+    lv_area_t spool;
+    lv_point_t outlet;
+    REQUIRE(unit_art_lane_place(art, 2, spool, outlet));
+    const tray::ArtLaneGeom& g = geom->lane[2];
+    CHECK(std::abs(spool.x1 - (20 + (int32_t)std::lround(g.box_x0 * dw))) <= 1);
+    CHECK(std::abs(spool.y1 - (int32_t)std::lround(g.box_y0 * dw)) <= 1);
+    CHECK(std::abs(outlet.x - (20 + (int32_t)std::lround(g.outlet_x * dw))) <= 1);
+    CHECK(std::abs(outlet.y - (int32_t)std::lround(g.outlet_y * dw)) <= 1);
+    CHECK_FALSE(unit_art_lane_place(art, 4, spool, outlet));
+}
+
+namespace {
+
+AmsSystemInfo turtle_system() {
+    AmsSystemInfo info = ace_system();
+    info.type = AmsType::AFC;
+    info.units[0].name = "Turtle_1";
+    for (SlotInfo& s : info.units[0].slots)
+        s = slot(SlotStatus::AVAILABLE, 0x40e0d0);
+    return info;
+}
+
+} // namespace
+
+namespace {
+
+/// The composed drawing's pixel at (@p x, @p y), 0xAARRGGBB.
+uint32_t pixel(lv_obj_t* art, int32_t x, int32_t y) {
+    lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
+    REQUIRE(snap != nullptr);
+    const auto* px = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(snap, x, y));
+    const uint32_t v = (uint32_t)px[3] << 24 | (uint32_t)px[2] << 16 | (uint32_t)px[1] << 8 | px[0];
+    lv_draw_buf_destroy(snap);
+    return v;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left to right",
+                 "[ams][unit-art][marks]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 230, 195);
+    unit_art_set_unit(art, turtle_system(), 0);
+    std::vector<std::string> want = {"back"};
+    for (int lane = 0; lane < 4; ++lane) {
+        const std::string n = "lane" + std::to_string(lane);
+        // A spool-only stack dims by recoloring itself, with no layer of its own.
+        for (const char* part : {"_glow", "_body", "_tint", "_shade"})
+            want.push_back(n + part);
+    }
+    want.push_back("front");
+    CHECK(unit_art_compose_order(art) == want);
+
+    // A thumbnail carries each lane's stack but no marks.
+    lv_obj_t* thumb = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(thumb, 40, 34);
+    unit_art_set_unit(thumb, turtle_system(), 0);
+    const std::vector<std::string> order = unit_art_compose_order(thumb);
+    CHECK(order.front() == "back");
+    CHECK(order[1] == "lane0_body");
+    CHECK(order.back() == "front");
+    CHECK(std::none_of(order.begin(), order.end(),
+                       [](const std::string& n) { return n.find("_glow") != std::string::npos; }));
+
+    // A drawing whose stacks hold more than their spools dims each spool with its own silhouette,
+    // just in front of the stack.
+    AmsSystemInfo emu_info = turtle_system();
+    emu_info.units[0].name = "EMU Turtle_1";
+    lv_obj_t* emu = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(emu, 230, 195);
+    unit_art_set_unit(emu, emu_info, 0);
+    const std::vector<std::string> emu_order = unit_art_compose_order(emu);
+    for (int lane = 0; lane < 4; ++lane) {
+        const std::string n = "lane" + std::to_string(lane);
+        const auto shade = std::find(emu_order.begin(), emu_order.end(), n + "_shade");
+        REQUIRE(shade != emu_order.end());
+        REQUIRE(shade + 1 != emu_order.end());
+        CHECK(*(shade + 1) == n + "_dim");
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art marks: a lane's glow lights open space, never the spool in front",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, h);
+    unit_art_set_unit(art, turtle_system(), 0);
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    const tray::ArtLaneGeom& next = geom->lane[2];
+    // Lane 2's filament, standing in front of lane 1, and the open air above lane 1's far
+    // flange, a third of a flange radius out.
+    const int32_t fx = (int32_t)std::lround((next.far_x + next.near_x) / 2 * w);
+    const int32_t fy = (int32_t)std::lround((next.far_y + next.near_y) / 2 * w);
+    const int32_t ox = (int32_t)std::lround((g.far_x + 1.3f * g.ez_x) * w);
+    const int32_t oy = (int32_t)std::lround((g.far_y + 1.3f * g.ez_y) * w);
+    const uint32_t front_before = pixel(art, fx, fy), open_before = pixel(art, ox, oy);
+
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].glow = true;
+    marks[1].color = lv_color_hex(0x2080ff);
+    unit_art_set_lane_marks(art, marks);
+    CHECK(unit_art_lane_mark(art, 1).glow);
+    CHECK(pixel(art, fx, fy) == front_before);
+    const uint32_t open_after = pixel(art, ox, oy);
+    CHECK(open_after != open_before);
+    CHECK((open_after & 0xff) > (open_before & 0xff)); // more blue
+
+    // Unmarked, the drawing is as it was.
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(pixel(art, ox, oy) == open_before);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a missing bay dims its own spool, nothing else",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, h);
+    unit_art_set_unit(art, turtle_system(), 0);
+    auto mid = [&](int lane) {
+        const tray::ArtLaneGeom& l = geom->lane[lane];
+        return std::pair{(int32_t)std::lround((l.far_x + l.near_x) / 2 * w),
+                         (int32_t)std::lround((l.far_y + l.near_y) / 2 * w)};
+    };
+    const auto [mx, my] = mid(1);
+    const auto [nx, ny] = mid(2);
+    const uint32_t mine = pixel(art, mx, my), beside = pixel(art, nx, ny);
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].dim = true;
+    unit_art_set_lane_marks(art, marks);
+    // The spool fades toward the card as if the card's color lay over it at the dim's opacity,
+    // within the rounding LVGL's recolor and blend each add.
+    const uint32_t dimmed = pixel(art, mx, my);
+    const lv_color_t want =
+        lv_color_mix(theme_manager_get_color("card_bg"), lv_color_hex(mine & 0xffffff), 150);
+    CHECK(dimmed != mine);
+    CHECK(std::abs((int)((dimmed >> 16) & 0xff) - want.red) <= 4);
+    CHECK(std::abs((int)((dimmed >> 8) & 0xff) - want.green) <= 4);
+    CHECK(std::abs((int)(dimmed & 0xff) - want.blue) <= 4);
+    CHECK(pixel(art, nx, ny) == beside);
+
+    // Undimmed, the spool is as it was.
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(pixel(art, mx, my) == mine);
 }

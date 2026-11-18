@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -92,14 +94,10 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count,
                                  int label_rows = 0);
 
 namespace helix::ui {
-/**
- * @brief Narrow the slot's tap area to the band it owns in an overlapping row
- *
- * @param obj         The ams_slot widget
- * @param left_inset  Pixels off the left edge that belong to the left neighbour
- * @param right_inset Pixels off the right edge that belong to the right neighbour
- */
-void ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset);
+struct AmsSlotHitBand;
+
+/// Narrow the slot's tap area to the band it owns in an overlapping row (ui_ams_slot_layout.h).
+void ams_slot_set_hit_band(lv_obj_t* obj, const AmsSlotHitBand& band);
 } // namespace helix::ui
 
 /**
@@ -157,6 +155,12 @@ lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj);
 /// Draw the slot's spool at @p spool_size px, its container sized to hold it.
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size);
+
+/// Show the "+" of an empty lane and its error dot on the slot's number badge, for a view
+/// that draws the lane's spool itself.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
+                                 helix::SlotError::Severity severity);
 
 /// The slot's material label, wherever it is parented, or nullptr.
 // NAMESPACE_OK: the widget's C API, beside its siblings

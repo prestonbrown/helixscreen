@@ -9,23 +9,33 @@
       "lanes": [
         {
           "color": "full_lane0.png",
-          "shade": "full_lane0_shade.png"
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png"
         },
         {
           "color": "full_lane1.png",
-          "shade": "full_lane1_shade.png"
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png"
         },
         {
           "color": "full_lane2.png",
-          "shade": "full_lane2_shade.png"
+          "shade": "full_lane2_shade.png",
+          "body": "full_lane2_body.png",
+          "glow": "full_lane2_glow.png"
         },
         {
           "color": "full_lane3.png",
-          "shade": "full_lane3_shade.png"
+          "shade": "full_lane3_shade.png",
+          "body": "full_lane3_body.png",
+          "glow": "full_lane3_glow.png"
         },
         {
           "color": "full_lane4.png",
-          "shade": "full_lane4_shade.png"
+          "shade": "full_lane4_shade.png",
+          "body": "full_lane4_body.png",
+          "glow": "full_lane4_glow.png"
         }
       ]
     },
@@ -36,25 +46,194 @@
       "lanes": [
         {
           "color": "thumb_lane0.png",
-          "shade": "thumb_lane0_shade.png"
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
         },
         {
           "color": "thumb_lane1.png",
-          "shade": "thumb_lane1_shade.png"
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
         },
         {
           "color": "thumb_lane2.png",
-          "shade": "thumb_lane2_shade.png"
+          "shade": "thumb_lane2_shade.png",
+          "body": "thumb_lane2_body.png"
         },
         {
           "color": "thumb_lane3.png",
-          "shade": "thumb_lane3_shade.png"
+          "shade": "thumb_lane3_shade.png",
+          "body": "thumb_lane3_body.png"
         },
         {
           "color": "thumb_lane4.png",
-          "shade": "thumb_lane4_shade.png"
+          "shade": "thumb_lane4_shade.png",
+          "body": "thumb_lane4_body.png"
         }
       ]
     }
-  }
+  },
+  "drawn": [
+    0.03166,
+    0.0947,
+    0.9428,
+    0.79997
+  ],
+  "bottom_edge": [
+    0.14006,
+    0.69656,
+    0.68838,
+    0.79211
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.17584,
+        0.36239
+      ],
+      "near": [
+        0.27456,
+        0.37959
+      ],
+      "ey": [
+        0.07186,
+        -0.04823
+      ],
+      "ez": [
+        0.0,
+        -0.14874
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.10398,
+        0.20603,
+        0.34642,
+        0.53595
+      ],
+      "outlet": [
+        0.11741,
+        0.71107
+      ]
+    },
+    {
+      "far": [
+        0.307,
+        0.38524
+      ],
+      "near": [
+        0.40572,
+        0.40245
+      ],
+      "ey": [
+        0.07186,
+        -0.04823
+      ],
+      "ez": [
+        0.0,
+        -0.14874
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.23514,
+        0.22888,
+        0.47758,
+        0.55881
+      ],
+      "outlet": [
+        0.24857,
+        0.73392
+      ]
+    },
+    {
+      "far": [
+        0.43815,
+        0.4081
+      ],
+      "near": [
+        0.53687,
+        0.42531
+      ],
+      "ey": [
+        0.07186,
+        -0.04823
+      ],
+      "ez": [
+        0.0,
+        -0.14874
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.3663,
+        0.25174,
+        0.60873,
+        0.58167
+      ],
+      "outlet": [
+        0.37973,
+        0.75678
+      ]
+    },
+    {
+      "far": [
+        0.56931,
+        0.43096
+      ],
+      "near": [
+        0.66803,
+        0.44816
+      ],
+      "ey": [
+        0.07186,
+        -0.04823
+      ],
+      "ez": [
+        0.0,
+        -0.14874
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.49745,
+        0.2746,
+        0.73989,
+        0.60452
+      ],
+      "outlet": [
+        0.51088,
+        0.77964
+      ]
+    },
+    {
+      "far": [
+        0.70047,
+        0.45381
+      ],
+      "near": [
+        0.79919,
+        0.47102
+      ],
+      "ey": [
+        0.07186,
+        -0.04823
+      ],
+      "ez": [
+        0.0,
+        -0.14874
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.62861,
+        0.29745,
+        0.87105,
+        0.62738
+      ],
+      "outlet": [
+        0.64204,
+        0.80249
+      ]
+    }
+  ]
 }

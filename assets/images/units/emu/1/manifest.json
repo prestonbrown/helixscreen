@@ -9,7 +9,10 @@
       "lanes": [
         {
           "color": "full_lane0.png",
-          "shade": "full_lane0_shade.png"
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png",
+          "silhouette": "full_lane0_silhouette.png"
         }
       ]
     },
@@ -20,9 +23,54 @@
       "lanes": [
         {
           "color": "thumb_lane0.png",
-          "shade": "thumb_lane0_shade.png"
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
         }
       ]
     }
-  }
+  },
+  "drawn": [
+    0.28916,
+    0.1271,
+    0.67639,
+    0.81119
+  ],
+  "bottom_edge": [
+    0.28916,
+    0.78133,
+    0.46051,
+    0.81119
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.43461,
+        0.32891
+      ],
+      "near": [
+        0.54365,
+        0.34791
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.35524,
+        0.1562,
+        0.62301,
+        0.52061
+      ],
+      "outlet": [
+        0.39706,
+        0.78134
+      ]
+    }
+  ]
 }

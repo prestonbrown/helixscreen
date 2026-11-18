@@ -14,6 +14,7 @@
 #include "ui_humidity_drop.h"
 #include "ui_panel_ams.h"
 #include "ui_spool_canvas.h"
+#include "ui_unit_art.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_panel_test_access.h"
@@ -531,7 +532,8 @@ TEST_CASE_METHOD(
     AmsTrayPanelFixture,
     "AMS tray: a drawn unit's readout tucks low over its end, clear of the last number",
     "[ams][tray][ui_integration]") {
-    build("dryer", 4, /*tool_changer=*/false, /*ace=*/true);
+    // Five lanes: the ACE's own drawing, which has no five-lane art.
+    build("dryer", 5, /*tool_changer=*/false, /*ace=*/true);
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(pill));
@@ -678,8 +680,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_get_coords(slot_grid_, &g);
     lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
     REQUIRE(canvas != nullptr);
-    CHECK(std::abs(helix::ui::fpath::get_data(canvas)->lane_entry_offset -
-                   (origin_.y + (int32_t)std::lround(box_.fb) - g.y1)) <= 1);
+    // The drawn box's lanes leave its foot; over the EMU's baked art they leave its edge.
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!art || lv_obj_is_hidden(art))
+        CHECK(std::abs(helix::ui::fpath::get_data(canvas)->lane_entry_offset -
+                       (origin_.y + (int32_t)std::lround(box_.fb) - g.y1)) <= 1);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
@@ -973,4 +978,225 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
     CHECK_FALSE(lv_obj_is_hidden(arrows));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit with baked art: a tap anywhere down a lane opens that lane's slot",
+                 "[ams][tray][ui_integration][unit-art][hit_band]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(art));
+    lv_area_t aa;
+    lv_obj_get_coords(art, &aa);
+    auto owner = [&](lv_point_t p) {
+        for (lv_obj_t* o = lv_indev_search_obj(test_screen(), &p); o; o = lv_obj_get_parent(o)) {
+            for (int i = 0; i < 4; ++i) {
+                if (o == slot(i))
+                    return i;
+            }
+        }
+        return -1;
+    };
+    for (int i = 0; i < 4; ++i) {
+        lv_area_t spool;
+        lv_point_t outlet;
+        REQUIRE(helix::ui::unit_art_lane_place(art, i, spool, outlet));
+        // The lanes lean with the drawing: each outlet stands left of its spool's middle.
+        const lv_point_t mid{aa.x1 + (spool.x1 + spool.x2) / 2, aa.y1 + (spool.y1 + spool.y2) / 2};
+        const lv_point_t out{aa.x1 + outlet.x, aa.y1 + outlet.y};
+        const lv_point_t below{out.x, out.y + 8};
+        const lv_point_t upper{mid.x, mid.y - (spool.y2 - spool.y1) / 3};
+        for (lv_point_t p : {upper, mid, out, below}) {
+            CAPTURE(i, p.x, p.y);
+            CHECK(owner(p) == i);
+        }
+    }
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit with baked art: the art stands in for the tray, lanes leave its foot",
+                 "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(art));
+    lv_area_t aa;
+    lv_obj_get_coords(art, &aa);
+    auto* path = helix::ui::fpath::get_data(lv_obj_find_by_name(panel_obj_, "path_canvas"));
+    REQUIRE(path != nullptr);
+    lv_area_t pc;
+    lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "path_canvas"), &pc);
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE(badges != nullptr);
+    int32_t band_minus_start[4] = {};
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_area_t spool;
+        lv_point_t outlet;
+        REQUIRE(helix::ui::unit_art_lane_place(art, i, spool, outlet));
+        // The slot's own spool is not drawn; its tap target stands over the art's spool.
+        lv_obj_t* lane_spool = lv_obj_find_by_name(slot(i), "lane_spool");
+        REQUIRE(lane_spool != nullptr);
+        CHECK(lv_obj_get_style_opa(lane_spool, LV_PART_MAIN) == LV_OPA_TRANSP);
+        lv_area_t sa;
+        lv_obj_get_coords(slot(i), &sa);
+        const int32_t spool_mid = aa.x1 + (spool.x1 + spool.x2) / 2;
+        CHECK((sa.x1 <= spool_mid && spool_mid <= sa.x2));
+        // The path's lane runs straight down from the lane's outlet.
+        CHECK(std::abs(pc.x1 + helix::ui::fpath::get_slot_x(path, i, pc.x1) - (aa.x1 + outlet.x)) <=
+              1);
+        // The lane's tube starts on the unit's bottom edge, slanted as drawn, where it crosses
+        // the lane's column; its band stands on a line parallel to the edge, its number level
+        // with the band and right of the column.
+        lv_point_t ea, eb;
+        REQUIRE(helix::ui::unit_art_bottom_edge(art, ea, eb));
+        const float column = (float)(aa.x1 + outlet.x);
+        const float edge_y = (float)(aa.y1 + ea.y) + (float)(eb.y - ea.y) *
+                                                         (column - (float)(aa.x1 + ea.x)) /
+                                                         (float)(eb.x - ea.x);
+        int32_t start = 0, band = 0;
+        lv_obj_t* canvas_obj = lv_obj_find_by_name(panel_obj_, "path_canvas");
+        REQUIRE(ui_filament_path_canvas_get_lane_rows(canvas_obj, i, &start, &band));
+        CAPTURE(start, band, edge_y);
+        CHECK(std::fabs((float)start - edge_y) <= 1.0f);
+        band_minus_start[i] = band - start;
+        lv_area_t ba;
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
+        CHECK(ba.x1 > aa.x1 + outlet.x);
+        CHECK(std::abs((ba.y1 + ba.y2) / 2 - band) <= 1);
+        // The lane's number sits centered in its circle.
+        lv_obj_t* number =
+            lv_obj_find_by_name(ui_ams_slot_get_status_badge(slot(i)), "slot_badge_label");
+        REQUIRE(number != nullptr);
+        lv_area_t na;
+        lv_obj_get_coords(number, &na);
+        CHECK(std::abs((na.x1 + na.x2) - (ba.x1 + ba.x2)) <= 2);
+        CHECK(std::abs((na.y1 + na.y2) - (ba.y1 + ba.y2)) <= 2);
+    }
+    for (int i = 1; i < 4; ++i)
+        CHECK(band_minus_start[i] == band_minus_start[0]);
+    CHECK(band_minus_start[0] > 0);
+    // The canvas reaches up to every lane's start.
+    lv_area_t canvas_area;
+    lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "path_canvas"), &canvas_area);
+    for (int i = 0; i < 4; ++i) {
+        int32_t start = 0;
+        REQUIRE(ui_filament_path_canvas_get_lane_rows(
+            lv_obj_find_by_name(panel_obj_, "path_canvas"), i, &start, nullptr));
+        CHECK(start >= canvas_area.y1);
+    }
+    // No tube is drawn over the unit: the layer in front of the spools paints nothing.
+    lv_obj_t* front = lv_obj_find_by_name(panel_obj_, "slot_tray");
+    REQUIRE(front != nullptr);
+    lv_draw_buf_t* snap = lv_snapshot_take(front, LV_COLOR_FORMAT_ARGB8888);
+    REQUIRE(snap != nullptr);
+    int painted = 0;
+    for (uint32_t y = 0; y < snap->header.h; ++y) {
+        const auto* row = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(snap, 0, y));
+        for (uint32_t x = 0; x < snap->header.w; ++x)
+            painted += row[x * 4 + 3] > 0;
+    }
+    lv_draw_buf_destroy(snap);
+    CHECK(painted == 0);
+    // The drawing's foot stands on the unit row's bottom edge; the path's lane entry is the
+    // lowest of the lanes' starts on the slanted edge.
+    lv_area_t drawn, g, cc;
+    REQUIRE(helix::ui::unit_art_drawn_area(art, drawn));
+    lv_obj_get_coords(slot_grid_, &g);
+    lv_obj_get_coords(container_, &cc);
+    CHECK(aa.y1 + drawn.y2 == cc.y2);
+    int32_t lowest_start = INT32_MIN;
+    for (int i = 0; i < 4; ++i) {
+        int32_t start = 0;
+        REQUIRE(ui_filament_path_canvas_get_lane_rows(
+            lv_obj_find_by_name(panel_obj_, "path_canvas"), i, &start, nullptr));
+        lowest_start = std::max(lowest_start, start);
+    }
+    CHECK(path->lane_entry_offset + g.y1 == lowest_start);
+    // A number standing below the foot, past its own layer, is still drawn: by the path.
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    // The lowest number, which hangs past the unit row.
+    int lowest_lane = 0;
+    lv_area_t low;
+    lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(0)), &low);
+    for (int i = 1; i < 4; ++i) {
+        lv_area_t a;
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &a);
+        if (a.y2 > low.y2) {
+            low = a;
+            lowest_lane = i;
+        }
+    }
+    REQUIRE(low.y2 > cc.y2);
+    REQUIRE(canvas != nullptr);
+    lv_obj_t* screen = lv_obj_get_screen(canvas);
+    lv_area_t sc;
+    lv_obj_get_coords(screen, &sc);
+    auto badge_color_at = [&](bool shown) {
+        lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(lowest_lane)), !shown);
+        lv_draw_buf_t* shot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
+        REQUIRE(shot != nullptr);
+        const auto* px = static_cast<const uint8_t*>(
+            lv_draw_buf_goto_xy(shot, (low.x1 + low.x2) / 2 - sc.x1, low.y2 - 2 - sc.y1));
+        const uint32_t rgb = (uint32_t)px[2] << 16 | (uint32_t)px[1] << 8 | px[0];
+        lv_draw_buf_destroy(shot);
+        return rgb;
+    };
+    CHECK(badge_color_at(true) != badge_color_at(false));
+    lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(lowest_lane)), false);
+    // The readout tucks low over the drawing's end, clear of the last number.
+    lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+    REQUIRE(pill != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
+    lv_area_t pa, last;
+    lv_obj_get_coords(pill, &pa);
+    lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
+    const int32_t tuck = theme_manager_get_spacing("space_sm");
+    CHECK(pa.x1 > last.x2);
+    CHECK(pa.y2 == aa.y1 + drawn.y2 + tuck);
+}
+
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS unit with baked art: an empty lane's badge carries its plus, a missing bay dims",
+    "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    // Each badge carries its lane's "+" exactly when the lane shows as empty.
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* spool = lv_obj_find_by_name(slot(i), "lane_spool");
+        lv_obj_t* plus = lv_obj_find_by_name(ui_ams_slot_get_status_badge(slot(i)), "badge_plus");
+        REQUIRE(plus != nullptr);
+        CHECK(lv_obj_is_hidden(plus) == !helix::ui::ams_lane_spool_empty(spool));
+    }
+    // The badge shows what it is told: the "+" after the number, the dot on its corner.
+    lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(2));
+    ui_ams_slot_set_badge_marks(slot(2), true, true, SlotError::Severity::ERROR);
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(badge, "badge_plus")));
+    lv_obj_t* dot = lv_obj_find_by_name(badge, "badge_error_dot");
+    REQUIRE(dot != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(dot));
+    lv_obj_update_layout(badge);
+    lv_area_t da, ba;
+    lv_obj_get_coords(dot, &da);
+    lv_obj_get_coords(badge, &ba);
+    CHECK(da.x2 > ba.x2);
+    CHECK(da.y1 < ba.y1);
+    ui_ams_slot_set_badge_marks(slot(2), false, false, SlotError::Severity::INFO);
+    CHECK(lv_obj_is_hidden(dot));
+    // A bay that is not on the bus takes the disabled state, and the art dims its spool.
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    lv_obj_add_state(slot(1), LV_STATE_DISABLED);
+    helix::ui::WidgetRef slots[4];
+    for (int i = 0; i < 4; ++i)
+        slots[i].reset(slot(i));
+    AmsSystemInfo info = *AmsState::instance().system_info();
+    info.units[0].absent = true;
+    helix::ui::ams_detail_sync_slot_states(slots, 4, info);
+    CHECK(helix::ui::unit_art_lane_mark(art, 1).dim);
 }

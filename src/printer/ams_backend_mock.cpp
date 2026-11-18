@@ -436,6 +436,16 @@ AmsError AmsBackendMock::start() {
             }
             emit_event(EVENT_STATE_CHANGED);
             spdlog::info("[AMS Mock] Applied initial state scenario: disconnected (last unit)");
+        } else if (scenario == "absent") {
+            // The last unit's bays are reserved but its box is not on the bus.
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (!system_info_.units.empty()) {
+                    system_info_.units.back().absent = true;
+                }
+            }
+            emit_event(EVENT_STATE_CHANGED);
+            spdlog::info("[AMS Mock] Applied initial state scenario: absent (last unit)");
         } else if (scenario == "unaccounted") {
             // Filament at the toolhead with no lane accounting for it — drives
             // the unaccounted_toolhead_filament print-start gate (hand-fed /
@@ -1604,6 +1614,25 @@ void AmsBackendMock::force_slot_status(int slot_index, SlotStatus status) {
         spdlog::debug("[AmsBackendMock] Forced slot {} status to {}", slot_index,
                       slot_status_to_string(status));
     }
+}
+
+void AmsBackendMock::force_slot_cleared(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto* entry = slots_.get_mut(slot_index);
+        if (!entry)
+            return;
+        entry->info.status = SlotStatus::EMPTY;
+        entry->info.material.clear();
+        entry->info.brand.clear();
+        entry->info.spool_name.clear();
+        entry->info.color_name.clear();
+        entry->info.color_rgb = 0;
+        entry->info.spoolman_id = 0;
+        entry->info.total_weight_g = 0.0f;
+        entry->info.remaining_weight_g = -1.0f;
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
 }
 
 void AmsBackendMock::force_slot_remaining(int slot_index, float remaining_m) {

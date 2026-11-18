@@ -49,13 +49,18 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 | `front` | Everything in front of the spools (`scene.layer = "front"`) |
 | carriage | For a unit with a sliding selector: the moving part, baked at gate 0 and shifted per gate |
 
-`<unit_art>` stacks them back to front, tints each filled lane, and hides a lane that is empty or has a zero colour. A unit with no matching art hides the widget. Variants:
+`<unit_art>` stacks them back to front, tints each lane that holds or still names a spool, and hides the tint of an empty one. A unit with no matching art hides the widget. Variants:
 
 - A unit built in several lane counts sets `lane_variants` and bakes each count to `assets/images/units/<id>/<n>/`. A lane count without baked art keeps the live tray shell and loses only the picture.
 - `stub_art` bakes a second drawing, the body alone with a tube per lane, under `stubs/`. Units that hold no spools (BMCU, MMX, 3MS, AD5X IFS) can show either look, chosen by `HELIX_UNIT_ART_FEEDER` (`docs/devel/ENVIRONMENT_VARIABLES.md#helix_unit_art_feeder`).
 - A selector that stands in front of the spools (ERCF, Tradrack, HTLF) draws no spools, only its body and a filament stub per gate.
 - `face_art` bakes a selector rail head-on for the path screen (ERCF and Tradrack), with a `RailFaceArt` row per gate count. A unit with face art and no carriage, the HTLF, passes each lane through to its own outlet below its inlet: its cam turns in place. Its art is baked at its one lane count, and on a HUB or MIXED path it stands between the spools and the hub or the lane sensors, with each lane bending in to its inlet and leaving its own outlet (`src/ui/filament/ui_filament_path_plan.cpp#through_art_rect`).
 - The drying glow is a runtime image over the drawing, limited to the chamber around the spools by `unit_art_chamber_mask`. It runs only while the unit dries, and `unit_art_glow_for` turns it off on reduced-effects boards and stops it pulsing when animations are off.
+
+The bake also records each lane's geometry, in shares of the drawing's width (`manifest.json` `geometry` and `drawn`, and a `UnitArtGeom` row in `src/generated/ams_unit_shells_gen.cpp`): the two flange centers and the flange's radius vectors, so the spool is every flange disc between them; the full and bare-core radii of the wound filament; the flange cylinder's bounds; and the lane's outlet, where its filament leaves the unit (`kit.outlet`, else the front bottom edge under the spool). The runtime reads these and never measures the art's pixels (`include/unit_art_geometry.h`):
+
+- Fill level masks each lane's tint and shade to the filament wound at its weight, by the one rule the drawn spool uses (`tray::wound_radius`).
+- `unit_art_set_lane_marks` draws, per lane, a thin rim just outside the spool's outline (the current lane in the accent color, a lane in error in its severity's) and a dim over a bay that is not there.
 
 Spools follow the app. The kit reads the flange colours, vent pattern and sizes from the C++ spool values (`spool_constants`), so art cannot drift from the live widget. Every unit draws its spools at one real spool proportion in a common frame (`kSpoolWidth` is 0.294 of the spool size).
 
@@ -70,6 +75,10 @@ Each unit on the overview row (`src/ui/filament/ui_panel_ams_overview_cards.cpp`
 | Has no art, in a row where no unit has | `ams_unit_card`, the logo card with lane bars and a lane count |
 
 Each unit resolves on its own, so a rig of mixed units mixes tiles. A unit that gains or loses art, such as after a lane count change, rebuilds the row. The readout is hidden at the two smallest breakpoints. A row that overflows sizes every tile to one width chosen so the next tile stands partly past the right edge (`overview_peek_card_width`); a bars tile's compact width counts as its floor there, so art is never narrower than a bars tile beside it. A disconnected unit's art takes the `unit_offline` fade, and an absent one shows disabled with "Not connected".
+
+## The unit view
+
+A unit with art and lane geometry for its lane count is drawn from its art in the AMS unit view too (`src/ui/filament/ui_ams_detail.cpp#place_unit_view_art`). The art is scaled so its first and last spools stand over the first and last slots, which stay as tap targets with their own spool drawing transparent. Each lane's tube starts at the drawing's foot, in its baked outlet's column, so no tube runs over the unit, with the lane's number just right of it on that edge. Labels and their dotted leaders end at each spool's top, the readout tucks over the drawing's right end, and a tool badge stands beside its label, off the drawing. The art shows each lane's color, fill, glow and dim; an empty lane's "+" and its error dot ride on its number badge. Any other unit keeps the drawn tray below.
 
 ## The live tray
 

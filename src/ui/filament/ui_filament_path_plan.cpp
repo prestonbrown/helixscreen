@@ -221,8 +221,21 @@ int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int3
     return y <= row - 2 * data.theme.tube_gauge - kBandThickness ? y : INT32_MIN;
 }
 
-int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
+int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t prep_y = g.y_off + (int32_t)(g.height * kPrepYRatio);
+    if (g.lane_entry_y == INT32_MIN)
+        return prep_y;
+    // Lanes that drop their bands below a slanted edge keep a band's room under the lowest.
+    int32_t drop = 0;
+    for (int i = 0; i < FilamentPathData::kMaxSlots; ++i)
+        drop = std::max(drop, data.lane_band_drop[i]);
+    if (drop == 0)
+        return prep_y;
+    return std::max(prep_y, g.lane_entry_y + drop + 2 * data.theme.tube_gauge + 2 * kBandThickness);
+}
+
+int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
+    const int32_t prep_y = lanes_row_y(data, g);
     // The lanes leave the spool box at its front edge, through their prep sensors.
     const int32_t edge = box_edge_above(data, g, 0, prep_y);
     return edge != INT32_MIN ? edge : prep_y;
@@ -288,6 +301,23 @@ int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale) {
 // Layout mirrors the ratios at the top of ui_filament_path_internal.h; LINEAR
 // butts the selector against the prep sensors and slides the output exit under
 // the active slot.
+int32_t lane_start_y(const FilamentPathData& data, const LinearHubFrame& f, int lane) {
+    // On a box edge, a lane starts where the edge crosses its column.
+    if (!f.prep_on_box_edge || f.rail.w != 0 || f.through.w != 0 || lane < 0 ||
+        lane >= FilamentPathData::kMaxSlots)
+        return f.entry_y;
+    return f.entry_y - std::max(0, data.lane_entry_rise[lane]);
+}
+
+int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane) {
+    // Below its start, on a line parallel to the edge; a band's width above its row at most.
+    if (f.rail.w != 0 || f.through.w != 0 || lane < 0 || lane >= FilamentPathData::kMaxSlots)
+        return f.prep_band_y;
+    const int32_t start = f.prep_on_box_edge ? lane_start_y(data, f, lane) : f.prep_band_y;
+    return std::clamp(start + std::max(0, data.lane_band_drop[lane]), start,
+                      std::max(start, f.prep_y - kBandThickness));
+}
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top) {
     LinearHubFrame f;
@@ -295,7 +325,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const bool linear = data.topology == static_cast<int>(PathTopology::LINEAR);
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
-    f.prep_y = g.y_off + (int32_t)(g.height * kPrepYRatio);
+    f.prep_y = lanes_row_y(data, g);
     f.prep_band_y = lanes_leave_y(data, g);
     if (f.prep_band_y != f.prep_y) {
         f.entry_y = f.prep_band_y;
@@ -1156,15 +1186,16 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float x = (float)g.slot_x[i];
         Route& r = new_route(out);
 
-        append_line(r, x, (float)f.entry_y, x, (float)f.prep_band_y,
-                    lane.style(PathSegment::SPOOL));
+        const bool straight = f.rail.w == 0 && f.through.w == 0;
+        const float start_y = (float)lane_start_y(data, f, i);
+        const float band_y = (float)lane_band_y(data, f, i);
+        append_line(r, x, start_y, x, band_y, lane.style(PathSegment::SPOOL));
         if (data.slot_has_prep_sensor[i]) {
-            add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
-                     lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
+            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, lane.band(PathSegment::PREP),
+                     s.color, f.prep_on_box_edge && band_y == start_y);
         }
-        if (f.rail.w == 0 && f.through.w == 0)
-            append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
-                        lane.style(PathSegment::LANE));
+        if (straight)
+            append_line(r, x, band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));
 
         if (linear && f.rail.w > 0) {
             // Each lane bends in above the art to its gate and goes in behind the art's face.

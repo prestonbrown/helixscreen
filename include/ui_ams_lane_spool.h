@@ -125,6 +125,18 @@ void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin);
  */
 void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size);
 
+/// Whether the lane's spool glows (current lane or error), and in what color.
+bool ams_lane_spool_glow(lv_obj_t* spool, lv_color_t& color);
+
+/// Whether the lane shows as empty.
+bool ams_lane_spool_empty(lv_obj_t* spool);
+
+/// Whether the lane shows its error as a dot (an empty lane in error), and how severe.
+bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity);
+
+/// Call @p listener with @p user whenever what the lane shows changes; nullptr stops it.
+void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void* user);
+
 /**
  * @brief The spool family's material-label rule
  *

@@ -3,6 +3,8 @@
 
 #include "ui_ams_detail_tray.h"
 
+#include "ui_filament_path_plan.h"
+
 #include "filament_tube_stroker.h"
 #include "sort_small.h"
 #include "theme_manager.h"
@@ -74,7 +76,7 @@ lv_point_t container_origin(lv_obj_t* obj) {
 
 void tray_back_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
-    if (!layer || !s_tray.valid)
+    if (!layer || !s_tray.valid || s_tray.art)
         return;
     load_tray_look();
     const lv_point_t o = container_origin(lv_event_get_target_obj(e));
@@ -158,14 +160,18 @@ void draw_sheen(lv_layer_t* layer, lv_point_t o, const tray::Lid& lid) {
 }
 
 /// Front wall, right side, edges and the glass lid, in front of the spools.
+
 } // namespace
 
 void tray_front_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
     if (!layer || !s_tray.valid)
         return;
-    load_tray_look();
+    // Over a unit's drawing the art is the unit; nothing stands in front of it.
+    if (s_tray.art)
+        return;
     const lv_point_t o = container_origin(lv_event_get_target_obj(e));
+    load_tray_look();
     const tray::TrayFaces f = tray::tray_faces(s_tray.box);
     const TrayColors& c = s_tray.color;
     const bool simple = helix::ui::reduced_effects();

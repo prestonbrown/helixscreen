@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Bake every unit's layers into assets/images/units and draw a contact sheet."""
 import base64
+import dataclasses
+import io
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -92,6 +95,23 @@ TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
 
+def optimize_png(png_path):
+    """Recompress png_path losslessly, keeping the smaller file only if it decodes to the same pixels."""
+    from PIL import Image  # the bake's one dependency beyond rsvg-convert
+
+    with Image.open(png_path) as original:
+        original.load()
+        buf = io.BytesIO()
+        original.save(buf, "PNG", optimize=True)
+        with Image.open(io.BytesIO(buf.getvalue())) as packed:
+            packed.load()
+            same = (packed.mode, packed.size, packed.tobytes()) == (original.mode, original.size, original.tobytes())
+    if not same:
+        raise RuntimeError(f"{png_path}: recompression changed the pixels")
+    if len(buf.getvalue()) < png_path.stat().st_size:
+        png_path.write_bytes(buf.getvalue())
+
+
 def rsvg_render(svg_text, width, png_path):
     svg_path = png_path.with_suffix(".svg")
     svg_path.write_text(svg_text)
@@ -99,6 +119,7 @@ def rsvg_render(svg_text, width, png_path):
         subprocess.run(["rsvg-convert", "-w", str(width), "-o", str(png_path), str(svg_path)], check=True)
     finally:
         svg_path.unlink()
+    optimize_png(png_path)
 
 
 def art_dirs(unit, out_dir):
@@ -163,6 +184,93 @@ def face_row(scene, gates):
     return f"{{{gates}, {vw / vh:.5f}f, {inlets[0][0]:.5f}f, {step:.5f}f, {inlets[0][1]:.5f}f, {out_x:.5f}f, {out_y:.5f}f}}"
 
 
+@dataclasses.dataclass
+class LaneGeometry:
+    """One lane of a baked drawing, in shares of its width from its top-left corner.
+
+    far and near are the flange centers; ey and ez carry the flange's radius along world y and
+    z, so the spool is every disc of radius 1 in that basis between them. wound and core are the
+    full filament's and the core's radii in flange radii; box bounds the flange's cylinder.
+    """
+
+    far: tuple
+    near: tuple
+    ey: tuple
+    ez: tuple
+    wound: float
+    core: float
+    box: tuple
+    outlet: tuple
+
+
+def art_drawn_box(scene):
+    """What the drawing covers, in shares of its width from its top-left corner."""
+    vx, vy, vw, _ = scene._viewbox()
+    pts = [p for i in scene.items if not i.blur for p in i.points]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return ((min(xs) - vx) / vw, (min(ys) - vy) / vw, (max(xs) - vx) / vw, (max(ys) - vy) / vw)
+
+
+def art_bottom_edge(scene):
+    """The unit's bottom edge as the camera sees it, (x0, y0, x1, y1) in shares of the drawing's
+    width: the longest segment of the lower hull of everything drawn, which for a box in this
+    camera is its front bottom edge."""
+    vx, vy, vw, _ = scene._viewbox()
+    pts = sorted({((p[0] - vx) / vw, (p[1] - vy) / vw) for i in scene.items if not i.blur for p in i.points})
+    # Screen y grows downward, so the lower hull is the one bulging toward larger y.
+    hull = []
+    for p in pts:
+        while len(hull) >= 2:
+            (ax, ay), (bx, by) = hull[-2], hull[-1]
+            if (bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax) >= 0:
+                hull.pop()
+            else:
+                break
+        hull.append(p)
+    # Of the hull's segments running along the row (within 5 degrees of world x as drawn), the
+    # longest; a unit standing on a narrower plinth has the plinth's edge there.
+    ox, oy = scene.camera.project((0.0, 0.0, 0.0))
+    rx, ry = scene.camera.project((1.0, 0.0, 0.0))
+    along = math.atan2(ry - oy, rx - ox)
+
+    def runs_along(seg):
+        (ax, ay), (bx, by) = seg
+        return abs(math.atan2(by - ay, bx - ax) - along) <= math.radians(5)
+
+    segments = list(zip(hull, hull[1:]))
+    a, b = max([s for s in segments if runs_along(s)] or segments, key=lambda s: math.dist(s[0], s[1]))
+    return (a[0], a[1], b[0], b[1])
+
+
+def art_lane_geometry(scene, lane_count):
+    """Each lane's spool and outlet in scene, or [] when the drawing has no spool per lane."""
+    if any(lane not in scene.spools for lane in range(lane_count)):
+        return []
+    vx, vy, vw, _ = scene._viewbox()
+    cam = scene.camera
+
+    def share(p):
+        u, w = cam.project(p)
+        return ((u - vx) / vw, (w - vy) / vw)
+
+    def along(p, d, r):
+        a, b = cam.project(p), cam.project(tuple(c + r * k for c, k in zip(p, d)))
+        return ((b[0] - a[0]) / vw, (b[1] - a[1]) / vw)
+
+    out = []
+    for lane in range(lane_count):
+        sp = scene.spools[lane]
+        r = sp["radius"]
+        far, near = share(sp["far"]), share(sp["near"])
+        ey, ez = along(sp["far"], (0, 1, 0), r), along(sp["far"], (0, 0, 1), r)
+        hx, hy = math.hypot(ey[0], ez[0]), math.hypot(ey[1], ez[1])
+        box = (min(far[0], near[0]) - hx, min(far[1], near[1]) - hy, max(far[0], near[0]) + hx, max(far[1], near[1]) + hy)
+        xc = (sp["far"][0] + sp["near"][0]) / 2
+        point = scene.outlets.get(lane, (xc, 0.0, 0.0))
+        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point)))
+    return out
+
+
 def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
     target.mkdir(parents=True, exist_ok=True)
     manifest = {"id": unit_id, "lanes": lane_count, "tiers": {}}
@@ -174,17 +282,68 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
         render(scene.layer_svg("back", width), width, target / back)
         render(scene.layer_svg("front", width), width, target / front)
         lanes = []
+        # A stack of nothing but its spool dims by recoloring itself; one with more needs the
+        # spool's own outline to dim only the spool.
+        silhouettes = scene.stacks_hold_more_than_spools()
         for lane in range(lane_count):
             names = {"color": f"{tier}_lane{lane}.png", "shade": f"{tier}_lane{lane}_shade.png"}
             render(scene.lane_color_svg(lane, width), width, target / names["color"])
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
+            if lane in scene.spools:
+                names["body"] = f"{tier}_lane{lane}_body.png"
+                render(scene.lane_body_svg(lane, width), width, target / names["body"])
+                # Only the unit view marks lanes, and it draws the full tier.
+                if tier == "full":
+                    names["glow"] = f"{tier}_lane{lane}_glow.png"
+                    render(scene.lane_glow_svg(lane, width), width, target / names["glow"])
+                    if silhouettes:
+                        names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
+                        render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
+        if tier == "full":
+            geometry = art_lane_geometry(scene, lane_count)
+            if geometry:
+                manifest["drawn"] = _rounded(art_drawn_box(scene))
+                manifest["bottom_edge"] = _rounded(art_bottom_edge(scene))
+                manifest["geometry"] = [_rounded(dataclasses.asdict(g)) for g in geometry]
         if has_carriage:
             carriage = f"{tier}_carriage.png"
             render(scene.layer_svg("carriage", width), width, target / carriage)
             manifest["tiers"][tier]["carriage"] = carriage
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def _rounded(value):
+    if isinstance(value, float):
+        return round(value, 5)
+    if isinstance(value, (list, tuple)):
+        return [_rounded(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _rounded(v) for k, v in value.items()}
+    return value
+
+
+def _geometry_rows(unit):
+    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes) per baked lane count."""
+    rows = []
+    for _, lanes in art_dirs(unit, "."):
+        scene = kit.Scene(kit.ART_CAMERA)
+        unit.draw_art(scene, ["#ffffff"] * lanes, "full")
+        geometry = art_lane_geometry(scene, lanes)
+        if not geometry:
+            continue
+        _, _, vw, vh = scene._viewbox()
+
+        def f(v):
+            return f"{v:.5f}f"
+
+        lane_rows = [
+            "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
+            for g in geometry
+        ]
+        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows, scene.stacks_hold_more_than_spools()))
+    return rows
 
 
 def _trailing_fields(fields):
@@ -259,12 +418,31 @@ def generate_shell_table(units):
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
             f"{lid}, Combiner::{combiner_name(unit)}, {'true' if t.port_block else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, {'true' if unit.stub_art else 'false'}, 0x{variants:x}{track}}},"
         )
-    out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
+    geoms = []
+    for unit in units:
+        if unit.tray is None:
+            continue
+        for lanes, aspect, drawn, edge, lane_rows, silhouettes in _geometry_rows(unit):
+            name = f"k_{unit.id}_{lanes}_lanes"
+            out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
+            box = ", ".join(f"{v:.5f}f" for v in drawn)
+            foot = ", ".join(f"{v:.5f}f" for v in edge)
+            flag = ", true" if silhouettes else ""
+            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}{flag}}},')
+    out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "", "const UnitArtGeom kArtGeoms[] = {"] + geoms + ["};", "} // namespace", ""]
     out += [
         "const UnitShell* unit_shell_by_id(const char* id) {",
         "    for (const UnitShell& shell : kShells) {",
         "        if (std::strcmp(shell.id, id) == 0)",
         "            return &shell;",
+        "    }",
+        "    return nullptr;",
+        "}",
+        "",
+        "const UnitArtGeom* unit_art_geometry(const char* id, int lanes) {",
+        "    for (const UnitArtGeom& geom : kArtGeoms) {",
+        "        if (geom.lanes == lanes && std::strcmp(geom.id, id) == 0)",
+        "            return &geom;",
         "    }",
         "    return nullptr;",
         "}",
@@ -360,6 +538,8 @@ def contact_sheet(out_dir, sheet_path):
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["back"])}"/>')
                 for lane, names in enumerate(t["lanes"]):
                     mask_id = f"m{bg[1:]}{m['id']}{m['lanes']}{tier}{lane}"
+                    if "body" in names:
+                        cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["body"])}"/>')
                     cells.append(
                         f'<mask id="{mask_id}"><image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["color"])}"/></mask>'
                         f'<rect x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" fill="{SAMPLE[lane % len(SAMPLE)]}" mask="url(#{mask_id})"/>'

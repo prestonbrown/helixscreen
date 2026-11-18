@@ -18,6 +18,7 @@
 #include "spool_vents.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
+#include "unit_art_geometry.h"
 #include "widget_data_registry.h"
 
 #include <spdlog/spdlog.h>
@@ -823,7 +824,8 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     // Max filament is smaller than flange so flanges always show as "taller"
     float fill = LV_CLAMP(0.0f, data->fill_level, 1.0f);
     int32_t max_filament_ry = (int32_t)(flange_ry * 0.85f); // Flanges 15% taller than full filament
-    int32_t filament_ry = hub_ry + (int32_t)((max_filament_ry - hub_ry) * fill);
+    int32_t filament_ry =
+        (int32_t)helix::ui::tray::wound_radius((float)hub_ry, (float)max_filament_ry, fill);
     int32_t filament_rx = (int32_t)(filament_ry * helix::ui::tray::kDepthSkew);
 
     // Colors (from theme tokens)

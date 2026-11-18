@@ -233,6 +233,12 @@ def tray_profile(profile, base_z, px_per_unit):
     return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
 
 
+def outlet(scene, lane, point):
+    """Where lane's filament leaves the unit, a world point; without one it leaves the front
+    bottom edge under its spool."""
+    scene.outlets[lane] = point
+
+
 class ScaledScene:
     """Draws into a scene with every length multiplied by k, so a body keeps its own units."""
 
@@ -317,6 +323,7 @@ class Item:
     lane: object
     tag: str
     blur: bool = False
+    spool: object = None  # the lane whose spool this item is part of, flanges and core included
 
     def svg(self, fill=None, opacity=None):
         d = " ".join(f"{x:.4f},{y:.4f}" for x, y in self.points)
@@ -355,10 +362,18 @@ class Scene:
         self.layer = "back"
         self.spool_radius = None
         self.margin = 0.05
+        # Per lane, the spool spool.draw_spool drew there and where its filament leaves the unit.
+        self.spools = {}
+        self.outlets = {}
+        # The lane whose spool is being drawn: spool.draw_spool sets it around its items.
+        self.current_spool = None
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(
-            Item([self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur)
+            Item(
+                [self.camera.project(p) for p in pts3], fill, opacity, stroke, sw, closed, self.layer, lane, tag, blur,
+                self.current_spool,
+            )
         )
 
     def poly(self, pts3, fill, opacity=1.0, stroke=None, sw=0.0, lane=None, tag="", blur=False):
@@ -432,16 +447,69 @@ class Scene:
         """Everything drawn in any of layers, filament included."""
         return self._wrap(width, "".join(i.svg() for i in self.items if i.layer in layers))
 
+    # A drawing with spools composes back to front, left to right: the back layer, then each
+    # lane's stack from the farthest (leftmost) to the nearest, then the front layer.
+
+    def _spool_starts(self):
+        """Where each lane's spool starts in the drawing order, by lane."""
+        starts = {}
+        for k, item in enumerate(self.items):
+            if item.spool is not None and item.spool not in starts:
+                starts[item.spool] = k
+        return starts
+
+    def back_items(self):
+        """The back layer's items drawn before any spool: what stands behind every lane."""
+        starts = self._spool_starts()
+        first = min(starts.values()) if starts else len(self.items)
+        return [i for k, i in enumerate(self.items) if i.layer == "back" and k < first]
+
+    def lane_items(self, lane):
+        """Lane's stack: its spool and every back-layer item drawn after it and before the next
+        lane's spool, such as a box per lane."""
+        starts = self._spool_starts()
+        if lane not in starts:
+            return []
+        later = [k for k in starts.values() if k > starts[lane]]
+        end = min(later) if later else len(self.items)
+        return [i for i in self.items[starts[lane] : end] if i.layer == "back"]
+
     def layer_svg(self, layer, width):
-        """A shell layer, without any tintable filament."""
-        return self._wrap(width, "".join(i.svg() for i in self.items if i.layer == layer and i.lane is None))
+        """A shell layer, without any tintable filament; with spools, the back holds only what
+        stands behind them."""
+        items = self.back_items() if layer == "back" and self.spools else [i for i in self.items if i.layer == layer]
+        return self._wrap(width, "".join(i.svg() for i in items if i.lane is None))
+
+    def lane_body_svg(self, lane, width):
+        """Lane's stack without its tintable filament: flanges, core, and what is drawn with them."""
+        return self._wrap(width, "".join(i.svg() for i in self.lane_items(lane) if i.lane is None))
+
+    def stacks_hold_more_than_spools(self):
+        """Whether any lane's stack carries parts besides its spool, such as a bay's walls."""
+        return any(i.spool is None for lane in self.spools for i in self.lane_items(lane))
+
+    def _silhouette(self, lane):
+        return "".join(i.svg(fill="#fff", opacity=1.0) for i in self.items if i.spool == lane and not i.blur)
+
+    def lane_silhouette_svg(self, lane, width):
+        """White over all of lane's spool, as if nothing stood in front of it."""
+        return self._wrap(width, self._silhouette(lane))
+
+    def lane_glow_svg(self, lane, width):
+        """Lane's silhouette blurred into a soft light spreading past its outline."""
+        sd = (self.spool_radius or 0.25) * 0.16
+        glow = (
+            f'<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">'
+            f'<feGaussianBlur stdDeviation="{sd:.4f}"/>'
+            '<feComponentTransfer><feFuncA type="linear" slope="1.8"/></feComponentTransfer></filter>'
+        )
+        return self._wrap(width, f'<g filter="url(#glow)">{self._silhouette(lane)}</g>', glow)
 
     def _coverage_mask(self, lane):
-        body = "".join(
-            i.svg(fill="#fff" if i.lane == lane else "#000", opacity=1.0)
-            for i in self.items
-            if i.layer == "back" and not i.blur
-        )
+        # With spools, the tint is cut only by its own stack: the lanes in front cover it
+        # by being composed after it.
+        items = self.lane_items(lane) if lane in self.spools else [i for i in self.items if i.layer == "back"]
+        body = "".join(i.svg(fill="#fff" if i.lane == lane else "#000", opacity=1.0) for i in items if not i.blur)
         return f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}>{body}</mask>'
 
     def _frame(self):

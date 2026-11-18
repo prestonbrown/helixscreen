@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The unit art kit: camera, spools tied to the app's values, baked layers."""
+import subprocess
 import dataclasses
 import json
 import math
@@ -415,7 +416,8 @@ def test_the_htlf_body_continues_below_its_outlets():
 @pytest.mark.parametrize("unit", FEEDERS + [htlf.UNIT, rail.ERCF, rail.TRADRACK], ids=lambda u: u.id)
 def test_a_unit_in_front_of_loose_spools_leaves_them_the_plain_tray(unit):
     table = build.generate_shell_table([unit, ace_pro.UNIT])
-    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in table.splitlines() if line.startswith("    {\"")}
+    shells = table.split("const UnitShell kShells[] = {")[1].split("};")[0]
+    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in shells.splitlines() if line.startswith("    {\"")}
     assert unit.tray.plain_tray and rows[unit.id].endswith("true},")
     assert not ace_pro.UNIT.tray.plain_tray and not rows["ace_pro"].endswith("true},")
 
@@ -545,3 +547,165 @@ def test_a_unit_without_a_combiner_stops_the_table():
     unit = dataclasses.replace(ace_pro.UNIT, tray=dataclasses.replace(ace_pro.UNIT.tray, combiner=None))
     with pytest.raises(ValueError, match="ask Preston"):
         build.generate_shell_table([unit])
+
+
+def _art_scene(unit, lanes=None):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * (lanes or unit.lanes), "full")
+    return scene
+
+
+def _inside_cylinder(g, x, y, radius):
+    """Whether (x, y), in shares of the drawing's width, lies on the lane's spool cylinder."""
+    det = g.ey[0] * g.ez[1] - g.ey[1] * g.ez[0]
+
+    def q(px, py):
+        return ((px * g.ez[1] - py * g.ez[0]) / det, (g.ey[0] * py - g.ey[1] * px) / det)
+
+    p = q(x - g.far[0], y - g.far[1])
+    d = q(g.near[0] - g.far[0], g.near[1] - g.far[1])
+    t = max(0.0, min(1.0, (p[0] * d[0] + p[1] * d[1]) / (d[0] ** 2 + d[1] ** 2)))
+    return math.hypot(p[0] - t * d[0], p[1] - t * d[1]) <= radius
+
+
+@pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u.id in ("ace_pro", "box_turtle", "ams_2_pro", "qidi_box", "cfs")], ids=lambda u: u.id)
+def test_every_lane_records_its_spool_and_outlet(unit):
+    scene = _art_scene(unit)
+    geoms = build.art_lane_geometry(scene, unit.lanes)
+    assert len(geoms) == unit.lanes
+    vx, vy, vw, vh = scene._viewbox()
+    for lane, g in enumerate(geoms):
+        # Wound filament sits between the core and the flange's rim.
+        assert 0 < g.core < g.wound < 1
+        # Every point of the lane's filament lies on its spool's cylinder.
+        for item in scene.items:
+            if item.lane != lane:
+                continue
+            for px, py in item.points:
+                assert _inside_cylinder(g, (px - vx) / vw, (py - vy) / vw, 1.0001)
+        # The outlet lies in the frame, below the spool's top.
+        assert 0 <= g.outlet[0] <= 1
+        assert g.box[1] < g.outlet[1] <= vh / vw
+        # Lanes run left to right.
+        if lane:
+            assert geoms[lane - 1].box[0] < g.box[0]
+
+
+def test_the_shell_table_carries_each_arts_lane_geometry():
+    table = build.generate_shell_table(build.UNITS)
+    assert "constexpr ArtLaneGeom k_box_turtle_4_lanes[]" in table
+    assert '{"box_turtle", 4, ' in table
+    # A rail draws no spools and records none.
+    assert "k_ercf_rail_6_lanes" not in table
+
+
+@pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u.id in ("ace_pro", "box_turtle", "ams_2_pro", "qidi_box", "cfs")], ids=lambda u: u.id)
+def test_the_bake_records_the_units_bottom_edge(unit):
+    scene = _art_scene(unit)
+    x0, y0, x1, y1 = build.art_bottom_edge(scene)
+    vx, vy, vw, vh = scene._viewbox()
+    assert x0 < x1
+    # Nothing of the drawing hangs below the edge across its span.
+    for item in scene.items:
+        if item.blur:
+            continue
+        for px, py in item.points:
+            sx, sy = (px - vx) / vw, (py - vy) / vw
+            if x0 <= sx <= x1:
+                assert sy <= y0 + (y1 - y0) * (sx - x0) / (x1 - x0) + 1e-6
+    # It is the unit's front bottom edge: it runs along the row, as world x projects.
+    cam = kit.ART_CAMERA
+    ax, ay = cam.project((0, 0, 0))
+    bx, by = cam.project((1, 0, 0))
+    assert math.atan2(y1 - y0, x1 - x0) == pytest.approx(math.atan2(by - ay, bx - ax), abs=math.radians(5))
+    # And it spans every lane's column.
+    for g in build.art_lane_geometry(scene, unit.lanes):
+        assert x0 <= g.outlet[0] <= x1
+
+
+def test_the_shell_table_carries_each_arts_bottom_edge():
+    table = build.generate_shell_table(build.UNITS)
+    row = next(line for line in table.splitlines() if line.startswith('    {"box_turtle", 4, '))
+    assert row.count("{") == 3  # the row, its drawn box and its bottom edge
+
+
+def test_every_item_of_a_spool_belongs_to_its_lane():
+    scene = _art_scene(box_turtle.UNIT)
+    spool_items = [i for i in scene.items if i.spool is not None]
+    # Flanges, core, filament and vents: far more than the lane's tintable filament alone.
+    for lane in range(4):
+        mine = [i for i in spool_items if i.spool == lane]
+        tinted = [i for i in scene.items if i.lane == lane]
+        assert len(mine) > len(tinted) > 0
+        assert all(i.spool == lane for i in tinted)
+    # Nothing outside draw_spool claims a spool.
+    assert all(i.spool is None for i in scene.items if i.layer == "front")
+
+
+@pytest.mark.parametrize("unit", SPOOL_UNITS, ids=lambda u: u.id)
+def test_the_back_layer_and_each_lanes_stack_split_the_drawing_in_painter_order(unit):
+    scene = _art_scene(unit)
+    if not scene.spools:
+        pytest.skip("draws no spools")
+    back = scene.back_items()
+    stacks = [scene.lane_items(lane) for lane in range(unit.lanes)]
+    # Every back-layer item lands in exactly one place, in its drawing order.
+    painted = back + [i for stack in stacks for i in stack]
+    assert painted == [i for i in scene.items if i.layer == "back"]
+    # The back holds no part of any spool; a lane's stack holds its whole spool, and lanes run
+    # left to right, the farthest first.
+    assert all(i.spool is None for i in back)
+    for lane, stack in enumerate(stacks):
+        assert stack and stack[0].spool == lane
+        assert all(i.spool in (None, lane) for i in stack)
+    centers = [scene.spools[lane]["far"][0] for lane in range(unit.lanes)]
+    assert centers == sorted(centers)
+
+
+def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    build.bake_unit(box_turtle.UNIT, tmp_path, render=fake_render)
+    manifest = json.loads((tmp_path / "box_turtle" / "manifest.json").read_text())
+    for tier in ("full", "thumb"):
+        for lane, names in enumerate(manifest["tiers"][tier]["lanes"]):
+            assert names["body"] == f"{tier}_lane{lane}_body.png"
+            assert (tmp_path / "box_turtle" / names["body"]).is_file()
+    for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
+        assert names["glow"] == f"full_lane{lane}_glow.png"
+        # Its stacks hold nothing but spools, so a dim recolors the stack itself.
+        assert "silhouette" not in names
+    assert all("glow" not in n for n in manifest["tiers"]["thumb"]["lanes"])
+
+
+def test_only_a_drawing_with_more_than_spools_in_its_stacks_bakes_silhouettes(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    emu = next(u for u in build.UNITS if u.id == "emu")
+    build.bake_unit(emu, tmp_path, render=fake_render)
+    manifest = json.loads((tmp_path / "emu" / "2" / "manifest.json").read_text())
+    for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
+        assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
+    table = build.generate_shell_table(build.UNITS)
+    rows = [line for line in table.splitlines() if line.startswith("    {\"") and "_lanes" in line]
+    assert any(r.startswith('    {"emu", 2, ') and r.endswith("_lanes, true},") for r in rows)
+    assert any(r.startswith('    {"box_turtle", 4, ') and r.endswith("_lanes},") for r in rows)
+
+
+def test_a_baked_png_is_recompressed_losslessly(tmp_path):
+    from PIL import Image
+
+    scene = _art_scene(box_turtle.UNIT)
+    png = tmp_path / "back.png"
+    subprocess.run(["rsvg-convert", "-w", "300", "-o", str(png), "/dev/stdin"], input=scene.layer_svg("back", 300).encode(), check=True)
+    plain = png.read_bytes()
+    before = Image.open(png)
+    before.load()
+    build.optimize_png(png)
+    after = Image.open(png)
+    after.load()
+    assert len(png.read_bytes()) < len(plain)
+    assert (after.mode, after.size) == (before.mode, before.size)
+    assert after.tobytes() == before.tobytes()

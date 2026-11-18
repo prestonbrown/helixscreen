@@ -422,6 +422,9 @@ class AmsBackendMock : public AmsBackend,
      */
     void force_slot_status(int slot_index, SlotStatus status);
 
+    /// Clear a slot to an empty bay with nothing known about a spool (for testing).
+    void force_slot_cleared(int slot_index);
+
     /**
      * @brief Force a slot's remaining filament length in metres (for testing)
      *
