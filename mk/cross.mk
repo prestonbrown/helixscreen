@@ -1975,8 +1975,11 @@ pi-test: pi-docker deploy-pi-fg
 
 # Pi-side ASAN runtime config. detect_leaks=0 because LSan trips on every
 # normal LVGL image cache entry; abort_on_error=1 so the first UAF takes the
-# process down with a coredump-style report; fast_unwind_on_malloc=0 makes
-# stack traces reliable at the cost of speed (worth it for a stress run).
+# process down with a coredump-style report. Allocation stacks use the fast
+# unwinder: the slow one runs on every malloc and costs well over a core on a
+# Pi-class board (130-160% CPU at idle on a CB1), enough that Moonraker drops
+# the WebSocket. For complete allocation stacks, pass PI_ASAN_OPTIONS with
+# fast_unwind_on_malloc=0 instead.
 #
 # asan.supp holds LeakSanitizer (`leak:`) rules, which belong in LSAN_OPTIONS,
 # NOT ASAN_OPTIONS:suppressions= — feeding a leak-only file to ASAN's own
@@ -1984,7 +1987,7 @@ pi-test: pi-docker deploy-pi-fg
 # suppressions" (hit while reproducing 783DVYKD, 2026-06-16). Keep them split.
 # (LSAN_OPTIONS is only consulted when detect_leaks=1, but homing the file there
 # keeps it correct if leak detection is re-enabled.)
-PI_ASAN_OPTIONS ?= detect_leaks=0:abort_on_error=1:fast_unwind_on_malloc=0:print_stacktrace=1:halt_on_error=1:strip_path_prefix=/src/
+PI_ASAN_OPTIONS ?= detect_leaks=0:abort_on_error=1:fast_unwind_on_malloc=1:malloc_context_size=8:print_stacktrace=1:halt_on_error=1:strip_path_prefix=/src/
 PI_LSAN_OPTIONS ?= suppressions=$(PI_DEPLOY_DIR)/asan.supp
 
 deploy-pi-asan:
