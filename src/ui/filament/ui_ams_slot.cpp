@@ -1166,6 +1166,16 @@ lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj) {
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
+std::string ui_ams_slot_get_material_text(lv_obj_t* obj) {
+    const auto* data = get_slot_data(obj);
+    if (!data || !data->material_label)
+        return {};
+    if (data->slot_index < 0)
+        return lv_label_get_text(data->material_label);
+    return card_lines(data).lower;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_hide_leader(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     if (data && data->leader_line)

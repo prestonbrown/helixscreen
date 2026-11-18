@@ -24,6 +24,7 @@
 #include "app_globals.h" // get_printer_state: the print lifecycle the clear guard reads
 #include "buffer_reading.h"
 #include "clog_meter_geometry.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_op_dispatch.h"      // kExternalSpoolSlot: the bypass sentinel
 #include "filament_op_slot_resolver.h" // clear_spool_blocked_by_print: the print guard
@@ -249,9 +250,10 @@ bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
 } // namespace
 
 namespace {
-/// The width a label's whole text takes.
-int32_t label_whole(lv_obj_t* label) {
-    return helix::ui::text_width(lv_label_get_text(label),
+/// The width the whole text of @p slot's material label takes.
+int32_t label_whole(lv_obj_t* slot) {
+    lv_obj_t* label = ui_ams_slot_get_material_label(slot);
+    return helix::ui::text_width(ui_ams_slot_get_material_text(slot).c_str(),
                                  lv_obj_get_style_text_font(label, LV_PART_MAIN),
                                  lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)) +
            1;
@@ -260,16 +262,17 @@ int32_t label_whole(lv_obj_t* label) {
 /// Characters a label over a drawn unit keeps before its ellipsis, at the least.
 constexpr int kLabelReadableChars = 3;
 
-/// The width a label over a drawn unit asks for: its whole text, or at least its first
-/// kLabelReadableChars characters and an ellipsis.
-int32_t label_need(lv_obj_t* label) {
-    const char* text = lv_label_get_text(label);
+/// The width @p slot's material label over a drawn unit asks for: its whole text, or at least
+/// its first kLabelReadableChars characters and an ellipsis.
+int32_t label_need(lv_obj_t* slot) {
+    lv_obj_t* label = ui_ams_slot_get_material_label(slot);
+    const std::string text = ui_ams_slot_get_material_text(slot);
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     const int32_t space = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
-    const int32_t whole = helix::ui::text_width(text, font, space);
+    const int32_t whole = helix::ui::text_width(text.c_str(), font, space);
     std::string head;
     int chars = 0;
-    for (const char* p = text; *p && chars <= kLabelReadableChars; ++p) {
+    for (const char* p = text.c_str(); *p && chars <= kLabelReadableChars; ++p) {
         if ((static_cast<unsigned char>(*p) & 0xC0) != 0x80 && ++chars > kLabelReadableChars)
             break;
         head += *p;
@@ -378,8 +381,8 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
             if (!label || !lane_shows_label(slot_widgets[i]))
                 continue;
             x[shown] = (float)(i * (result.layout.slot_width - result.layout.overlap));
-            whole[shown] = label_whole(label);
-            need[shown++] = label_need(label);
+            whole[shown] = label_whole(slot_widgets[i]);
+            need[shown++] = label_need(slot_widgets[i]);
         }
         const float row_w = (float)lv_obj_get_content_width(lv_obj_get_parent(w.slot_grid));
         const float start = (float)(result.layout.centering_offset + result.layout.slot_width / 2);
@@ -835,6 +838,26 @@ void refresh_unit_view_marks() {
     helix::ui::unit_art_set_lane_marks(art, marks);
 }
 
+/// How the lane numbers under the art stand, their left edges at @p left: the numbers of
+/// @p slots as they show now, and an empty lane's "+" (lane_shows_label) beside its number.
+helix::ui::AmsLaneBadgeLayout art_badge_layout(const helix::ui::WidgetRef slots[],
+                                               const float left[], int n) {
+    int32_t number[kAmsDetailMaxSlots] = {}, with_plus[kAmsDetailMaxSlots] = {};
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* badge = slots[i] ? ui_ams_slot_get_status_badge(slots[i]) : nullptr;
+        if (!badge)
+            continue;
+        lv_obj_update_layout(badge);
+        lv_obj_t* plus = lv_obj_find_by_name(badge, "badge_plus");
+        const int32_t plus_w = plus ? lv_obj_get_width(plus) : 0;
+        const bool plus_shown = plus && !lv_obj_is_hidden(plus);
+        number[i] = lv_obj_get_width(badge) - (plus_shown ? plus_w : 0);
+        with_plus[i] = number[i] + (lane_shows_label(slots[i]) ? 0 : plus_w);
+    }
+    return helix::ui::ams_lane_badge_layout(left, number, with_plus, n,
+                                            theme_manager_get_spacing("space_xs"));
+}
+
 /// Lays the labels over the unit out from s_tray: which lanes show one (an empty lane's "+"
 /// badge says it), each over its own spool, centered where the room allows, in the fewest rows
 /// (cycling label by label) that give every label its text or at least a few readable
@@ -868,8 +891,8 @@ int32_t place_unit_labels() {
         if (!show)
             continue;
         shown_x[shown] = s_tray.label_x[i];
-        need[shown] = label_need(label);
-        text_w[shown] = label_whole(label);
+        need[shown] = label_need(slot);
+        text_w[shown] = label_whole(slot);
         lane_of[shown++] = i;
     }
     const int32_t label_gap = theme_manager_get_spacing("space_xs");
@@ -985,29 +1008,61 @@ void place_tool_badges() {
 }
 
 /// A lane filled or emptied while the unit is shown: its label comes or goes, and the labels
-/// and ticks are laid out again, without placing the whole tray again.
+/// and ticks are laid out again. Where the labels then rise past the unit row's top, or the
+/// numbers under the art need another row or lose their "+", the whole tray is laid out again
+/// (ams_detail_update_tray), which makes the room; otherwise only the labels move.
 void relabel_if_lanes_changed() {
-    if (!s_tray.valid || !s_tray.labels_layer)
+    if (!s_tray.valid || !s_tray.labels_layer || !s_tray.container)
         return;
+    const int n = s_tray.lane_count;
     bool changed = false;
-    for (int i = 0; i < s_tray.lane_count && !changed; ++i) {
+    for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
         lv_obj_t* label = slot ? ui_ams_slot_get_material_label(slot) : nullptr;
         if (label && lv_obj_get_parent(label) == s_tray.labels_layer)
-            changed = lane_shows_label(slot) != s_tray.label_shown[i];
+            changed |= lane_shows_label(slot) != s_tray.label_shown[i];
     }
     if (!changed)
         return;
-    place_unit_labels();
+    const int32_t highest = place_unit_labels();
+    lv_area_t c;
+    lv_obj_get_coords(s_tray.container, &c);
+    bool relayout = highest != INT32_MAX && highest < c.y1;
+    if (s_tray.art && s_tray.badge_layer) {
+        const helix::ui::AmsLaneBadgeLayout badges =
+            art_badge_layout(s_tray.slot, s_tray.badge_left, n);
+        relayout |= badges.rows != s_tray.badge_rows || badges.plus != s_tray.badge_plus;
+    }
+    if (relayout && s_tray.slot_grid && s_tray.slot_tray) {
+        AmsDetailWidgets w;
+        w.slot_grid = s_tray.slot_grid;
+        w.slot_tray = s_tray.slot_tray;
+        w.labels_layer = s_tray.labels_layer;
+        w.badge_layer = s_tray.badge_layer;
+        w.env_indicator = s_tray.env_indicator;
+        helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+        for (int i = 0; i < n; ++i)
+            slots[i].reset(s_tray.slot[i]);
+        ams_detail_update_tray(w, slots, n, s_tray.unit_index);
+        return;
+    }
     place_tool_badges();
-    if (s_tray.container)
-        lv_obj_invalidate(s_tray.container);
+    lv_obj_invalidate(s_tray.container);
 }
 
+bool s_relabel_queued = false;
+
 /// A lane's spool changed what it shows: its label comes or goes; on the art, its color and fill
-/// reach the drawing and its glow the marks.
+/// reach the drawing and its glow the marks. The labels are laid out on the next UI update,
+/// once the lane's label text, which the same backend update sets after its spool, is in.
 void unit_view_lane_changed(void* /*user*/) {
-    relabel_if_lanes_changed();
+    if (!s_relabel_queued) {
+        s_relabel_queued = true;
+        helix::ui::queue_update("AmsDetail::relabel", [] {
+            s_relabel_queued = false;
+            relabel_if_lanes_changed();
+        });
+    }
     lv_obj_t* art = s_tray.art_obj;
     if (!s_tray.art || !art)
         return;
@@ -1221,6 +1276,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     s_tray.lane_count = n;
     s_tray.box = box;
     s_tray.container = container;
+    s_tray.slot_grid = w.slot_grid;
+    s_tray.slot_tray = w.slot_tray;
+    s_tray.badge_layer = w.badge_layer;
+    s_tray.env_indicator = w.env_indicator;
     s_tray.valid = true;
 
     UnitViewArt art;
@@ -1332,22 +1391,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             // Neighbouring numbers never touch: they alternate rows where the outlets stand
             // closer than a number and a gap, and drop an empty lane's "+" where even that
             // crowds them.
-            float left[kAmsDetailMaxSlots] = {};
-            int32_t number[kAmsDetailMaxSlots] = {}, with_plus[kAmsDetailMaxSlots] = {};
-            for (int i = 0; i < n; ++i) {
-                lv_obj_t* badge = ui_ams_slot_get_status_badge(slot_widgets[i]);
-                left[i] = (float)art.outlet[i].x + tube_half + inset;
-                if (!badge)
-                    continue;
-                lv_obj_update_layout(badge);
-                lv_obj_t* plus = lv_obj_find_by_name(badge, "badge_plus");
-                const int32_t plus_w = plus ? lv_obj_get_width(plus) : 0;
-                const bool plus_shown = plus && !lv_obj_is_hidden(plus);
-                number[i] = lv_obj_get_width(badge) - (plus_shown ? plus_w : 0);
-                with_plus[i] = number[i] + (lane_shows_label(slot_widgets[i]) ? 0 : plus_w);
-            }
-            const helix::ui::AmsLaneBadgeLayout layout = helix::ui::ams_lane_badge_layout(
-                left, number, with_plus, n, theme_manager_get_spacing("space_xs"));
+            for (int i = 0; i < n; ++i)
+                s_tray.badge_left[i] = (float)art.outlet[i].x + tube_half + inset;
+            const helix::ui::AmsLaneBadgeLayout layout =
+                art_badge_layout(slot_widgets, s_tray.badge_left, n);
             s_tray.badge_rows = layout.rows;
             s_tray.badge_plus = layout.plus;
             refresh_unit_view_marks();

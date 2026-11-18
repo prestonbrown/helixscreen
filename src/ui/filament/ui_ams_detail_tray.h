@@ -56,6 +56,7 @@ struct TrayState {
     int badge_rows = 1;      // lane numbers under the art: one row, or alternating two
     bool badge_plus = true;  // an empty lane's number carries its "+"
     int32_t badge_slant = 0; // how much higher an odd lane starts than its neighbours, at most
+    float badge_left[kAmsDetailMaxSlots] = {};     // each lane number's left edge under the art
     helix::ui::WidgetRef art_obj;                  // the drawing, while it is shown
     helix::ui::WidgetRef slot[kAmsDetailMaxSlots]; // the slots it stands under
     int unit_index = -1;
@@ -67,6 +68,8 @@ struct TrayState {
     // fills or empties: each lane's spool column and tick end (relative to the container),
     // the nearest row's bottom (absolute), and which lanes show a label.
     helix::ui::WidgetRef labels_layer;
+    // The rest of the unit view the tray was laid out in, to lay it out again in place.
+    helix::ui::WidgetRef slot_grid, slot_tray, badge_layer, env_indicator;
     float label_x[kAmsDetailMaxSlots] = {};
     float tick_end_y[kAmsDetailMaxSlots] = {};
     int32_t label_bottom = 0;
