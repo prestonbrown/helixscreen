@@ -1488,6 +1488,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
@@ -1650,6 +1652,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
@@ -1837,6 +1841,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -1921,6 +1927,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
@@ -2063,6 +2071,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       run: |
         [[ "$R2_PREFIX" == dry-run/?*/ ]] || { echo "::error::R2_PREFIX='${R2_PREFIX}' is not a dry-run prefix"; exit 1; }
@@ -2088,6 +2098,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       run: |
         [[ "$R2_PREFIX" == dry-run/?*/ ]] || { echo "::error::R2_PREFIX='${R2_PREFIX}' is not a dry-run prefix"; exit 1; }
