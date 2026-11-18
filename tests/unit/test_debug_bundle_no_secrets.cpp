@@ -393,6 +393,16 @@ TEST_CASE("A local moonraker.log reaches the bundle with its credentials redacte
               "token: eyJ0eXAiOiJKV1QiLCJhbGciOi\n"
               "[webcam cam1]\n"
               "stream_url = http://cam:CamPass9@192.168.1.41/stream\n"
+              "[notifier print_done]\n"
+              "url = tgram://123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw/987654321\n"
+              "events = complete\n"
+              "[notifier failed]\n"
+              "url = discord://4174216298/JHMHI8qBe7bk2ZwO5U711o3dV_js\n"
+              "[notifier mail]\n"
+              "url = mailto://ownername:MailPass7@gmail.com?to=owner@example.com\n"
+              "[notifier phone]\n"
+              "url = pover://uQiRzpo4DXghDmr9QzzfQu27cmVRsG@azGDORePK8gMaC0QOYAMyEEuzJnyUi\n"
+              "klippy_ws = ws://192.168.1.50:7125/websocket\n"
               "#################################################################\n"
               "2026-11-16 10:00:05,120 [app.py:log_request()] - 101 GET "
               "/websocket?token=Q8F2K1ZP7XWM&client=mainsail (192.168.1.50) 2.31ms\n"
@@ -410,12 +420,23 @@ TEST_CASE("A local moonraker.log reaches the bundle with its credentials redacte
     REQUIRE(bundle.contains("moonraker_log"));
     const std::string log = bundle["moonraker_log"].get<std::string>();
     INFO(log);
-    for (const char* secret : {"Hunter2-mqtt", "eyJ0eXAiOiJKV1QiLCJhbGciOi", "CamPass9",
-                               "Q8F2K1ZP7XWM", "6b1d3c9fa0e24e57", "eyJhbGciOiJSUzI1Nb"}) {
+    for (const char* secret :
+         {"Hunter2-mqtt", "eyJ0eXAiOiJKV1QiLCJhbGciOi", "CamPass9", "Q8F2K1ZP7XWM",
+          "6b1d3c9fa0e24e57", "eyJhbGciOiJSUzI1Nb", "AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw",
+          "JHMHI8qBe7bk2ZwO5U711o3dV_js", "MailPass7", "ownername",
+          "uQiRzpo4DXghDmr9QzzfQu27cmVRsG", "azGDORePK8gMaC0QOYAMyEEuzJnyUi"}) {
         INFO("secret: " << secret);
         CHECK(log.find(secret) == std::string::npos);
     }
     CHECK(log.find("\npassword = [REDACTED]\n") != std::string::npos);
+    // A notifier URL keeps its scheme, so the line still names the service.
+    CHECK(log.find("\nurl = tgram://[REDACTED]\n") != std::string::npos);
+    CHECK(log.find("\nurl = discord://[REDACTED]\n") != std::string::npos);
+    CHECK(log.find("\nurl = mailto://[REDACTED]\n") != std::string::npos);
+    CHECK(log.find("\nurl = pover://[REDACTED]\n") != std::string::npos);
+    // Web and websocket URLs are diagnostic and keep their host and path.
+    CHECK(log.find("\nklippy_ws = ws://192.168.1.50:7125/websocket\n") != std::string::npos);
+    CHECK(log.find("http://[REDACTED_CREDENTIALS]@192.168.1.41/stream") != std::string::npos);
     CHECK(log.find("\ntoken: [REDACTED]\n") != std::string::npos);
     CHECK(log.find("/websocket?token=[REDACTED]&client=mainsail (192.168.1.50)") !=
           std::string::npos);

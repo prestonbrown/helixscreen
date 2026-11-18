@@ -893,6 +893,15 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         static const helix::Regex cred_url_re(R"(://[^@/\s]+:[^@/\s]+@)");
         result = helix::regex_replace(result, cred_url_re, "://[REDACTED_CREDENTIALS]@");
 
+        // A notification URL (Apprise: tgram://, discord://, pover://,
+        // mailto://...) carries its bot token, webhook key or login in the
+        // part after "://". Only web and websocket URLs keep a host and path
+        // worth reading; any other scheme keeps just its name.
+        static const helix::Regex service_url_re(
+            R"(\b(?!(?:https?|wss?)://)([A-Za-z][A-Za-z0-9+.-]*)://[^\s"'<>]+)",
+            helix::Regex::ICase);
+        result = helix::regex_replace(result, service_url_re, "$1://[REDACTED]");
+
         // Redact the value of a credential-named key, keeping the key so the
         // line still reads: Moonraker writes its config back to its log as
         // `key = value`, request URIs carry `?token=`, Python dicts print
