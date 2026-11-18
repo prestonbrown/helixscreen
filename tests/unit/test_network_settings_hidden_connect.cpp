@@ -153,3 +153,15 @@ TEST_CASE_METHOD(HiddenConnectFixture, "Add Hidden Network in network settings o
     REQUIRE(modal != nullptr);
     CHECK(lv_obj_find_by_name(modal, "hidden_form_container") != nullptr);
 }
+
+TEST_CASE_METHOD(HiddenConnectFixture,
+                 "Add Hidden Network reopens the modal after the modal stack is cleared behind it",
+                 "[network_settings][hidden][1975]") {
+    open("Guest-Access");
+    // A screen rebuild clears the stack without the modal's own hide.
+    ModalStack::instance().clear();
+    REQUIRE(Modal::get_top() == nullptr);
+
+    open("Guest-Access");
+    CHECK(Modal::get_top() != nullptr);
+}
