@@ -357,6 +357,16 @@ unit the canvas reaches up into the unit and still ends at its container's botto
 is `buffer_control_height(hub_h)` tall: the capsule (`buffer_capsule_height()`); its thumb
 stands into the gaps.
 
+**A drawing too tall for its path.** The canvas reports the least height that lays its path
+out at full size (`ui_filament_path_canvas_required_height()`, from
+`linear_hub_required_height()`: a full-size head and the buffer kept on the trunk). Where the
+path below a drawn unit falls short of it, or (in portrait, whose path grows to it) the diagram
+then runs past what is on screen, `ams_detail_sync_lane_entry()` caps the unit's spools for that
+unit, slot count, width and screen, and the panel lays the unit out again; a unit that fits is
+untouched. The drawing keeps at least half the size its width gives it; past that the head
+gives up the rest. In portrait the AMS panels scroll, so the sidebar's actions stand below
+the diagram at their own height.
+
 `src/ui/filament/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
 `draw_sensor_band`, so `[filament-path][plan]` tests it without a display.
 

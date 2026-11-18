@@ -216,6 +216,38 @@ static void ams_detail_add_slot_press_feedback(lv_obj_t* slot) {
     lv_obj_add_event_cb(slot, slot_released_cb, LV_EVENT_PRESS_LOST, nullptr);
 }
 
+namespace {
+/// A drawn unit too tall for the path below it at full size takes smaller spools: the size
+/// ams_detail_sync_lane_entry() found for one unit, slot count, width and screen.
+struct SpoolHeightCap {
+    int unit = -2;
+    int slot_count = 0;
+    int32_t available_width = 0, screen_w = 0, screen_h = 0;
+    int32_t spool = 0;
+};
+SpoolHeightCap s_spool_cap;
+SpoolHeightCap s_last_layout; // what the shown unit's spools were last sized for
+int s_layout_unit = -2;       // the unit ams_detail_create_slots() lays out
+
+SpoolHeightCap spool_cap_key(int32_t available_width, int slot_count) {
+    SpoolHeightCap k;
+    k.unit = s_layout_unit;
+    k.slot_count = slot_count;
+    k.available_width = available_width;
+    if (lv_display_t* disp = lv_display_get_default()) {
+        k.screen_w = lv_display_get_horizontal_resolution(disp);
+        k.screen_h = lv_display_get_vertical_resolution(disp);
+    }
+    return k;
+}
+
+bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
+    return a.unit == b.unit && a.slot_count == b.slot_count &&
+           a.available_width == b.available_width && a.screen_w == b.screen_w &&
+           a.screen_h == b.screen_h;
+}
+} // namespace
+
 AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                                             helix::ui::WidgetRef slot_widgets[], int max_slots,
                                             int unit_index, lv_event_cb_t click_cb,
@@ -272,6 +304,7 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     helix::ui::ams_detail_sync_slot_states(slot_widgets, count);
 
     // Calculate and apply slot sizing
+    s_layout_unit = unit_index;
     lv_obj_t* slot_area = lv_obj_get_parent(w.slot_grid);
     lv_obj_update_layout(slot_area);
     int32_t available_width = lv_obj_get_content_width(slot_area);
@@ -410,9 +443,111 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
     helix::ui::safe_delete_deferred(condemned);
 }
 
-void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
+namespace {
+/// How tall @p obj's content stands, though a flex parent may have squeezed it shorter:
+/// down to the lowest visible descendant, and its bottom padding.
+int32_t natural_height(lv_obj_t* obj) {
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    int32_t lowest = a.y2;
+    std::vector<lv_obj_t*> pending{obj};
+    while (!pending.empty()) {
+        lv_obj_t* o = pending.back();
+        pending.pop_back();
+        for (uint32_t i = 0; i < lv_obj_get_child_count(o); ++i) {
+            lv_obj_t* c = lv_obj_get_child(o, (int32_t)i);
+            if (lv_obj_is_hidden(c))
+                continue;
+            lv_area_t ca;
+            lv_obj_get_coords(c, &ca);
+            lowest = std::max(lowest, ca.y2);
+            pending.push_back(c);
+        }
+    }
+    return lowest - a.y1 + 1 + lv_obj_get_style_pad_bottom(obj, LV_PART_MAIN);
+}
+
+/// The lowest the diagram holding @p obj may reach on screen: the bottom of the nearest
+/// ancestor that scrolls (what lies below it there is reached by scrolling), else of its
+/// topmost ancestor below the screen; less, in each column that does not scroll, what stands
+/// below the diagram at its natural height.
+int32_t on_screen_bottom(lv_obj_t* obj) {
+    int32_t below = 0;
+    lv_obj_t* top = obj;
+    for (lv_obj_t* o = obj; lv_obj_get_parent(o) && lv_obj_get_parent(lv_obj_get_parent(o));
+         o = lv_obj_get_parent(o)) {
+        lv_obj_t* parent = lv_obj_get_parent(o);
+        top = parent;
+        if (lv_obj_is_scrollable(parent) && (lv_obj_get_scroll_dir(parent) & LV_DIR_VER))
+            break;
+        if (lv_obj_get_style_flex_flow(parent, LV_PART_MAIN) != LV_FLEX_FLOW_COLUMN)
+            continue;
+        bool after = false;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(parent); ++i) {
+            lv_obj_t* sibling = lv_obj_get_child(parent, (int32_t)i);
+            if (sibling == o)
+                after = true;
+            else if (after && !lv_obj_is_hidden(sibling) && !lv_obj_is_floating(sibling))
+                below += natural_height(sibling);
+        }
+    }
+    lv_area_t a;
+    lv_obj_get_coords(top, &a);
+    return a.y2 - below;
+}
+
+/// The path under a drawn unit gets its full-size height; see ams_detail_sync_lane_entry().
+bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach) {
+    const int32_t need = ui_filament_path_canvas_required_height(canvas);
+    if (need <= 0 || !s_tray.art || s_tray.art_drawn_h <= 0)
+        return false;
+    lv_obj_t* box = lv_obj_get_parent(canvas);
+    const bool fills_column = lv_obj_get_style_flex_grow(box, LV_PART_MAIN) > 0;
+    if (!fills_column) {
+        // DECLARATIVE_OK: measured layout; a fixed-height path grows to what its stack needs
+        const int32_t token = theme_manager_get_spacing("ams_portrait_path_h");
+        const int32_t want = std::max(token, need - reach);
+        if (lv_obj_get_height(box) != want) {
+            lv_obj_set_height(box, want);
+            lv_obj_update_layout(lv_obj_get_parent(box));
+            const int32_t h = lv_obj_get_content_height(box) + reach;
+            if (lv_obj_get_style_height(canvas, LV_PART_MAIN) != h && reach > 0)
+                lv_obj_set_height(canvas, h);
+            lv_obj_update_layout(lv_obj_get_parent(box));
+        }
+    }
+    lv_area_t cc, bc;
+    lv_obj_get_coords(canvas, &cc);
+    lv_obj_get_coords(box, &bc);
+    const int32_t bottom = cc.y1 + std::max(lv_area_get_height(&cc), need) - 1;
+    int32_t limit = on_screen_bottom(canvas);
+    if (fills_column)
+        limit = std::min(limit, bc.y2);
+    const int32_t overflow = bottom - limit;
+    if (overflow <= 0)
+        return false;
+    // The drawing scales with its spools: shrinking it by the overflow gives the path that room.
+    const int32_t art_h = s_tray.art_drawn_h;
+    // A unit keeps at least half the size its width gives it, so its drawing still
+    // reads; where that is not enough the head below gives up the rest.
+    const int32_t floor_spool = s_last_layout.spool / 2;
+    const int32_t spool =
+        std::max<int32_t>(floor_spool, (int32_t)((float)s_tray.spool_size *
+                                                 (float)(art_h - overflow) / (float)art_h));
+    const bool same = same_key(s_spool_cap, s_last_layout);
+    if (spool >= s_tray.spool_size || (same && s_spool_cap.spool > 0 && spool >= s_spool_cap.spool))
+        return false;
+    s_spool_cap = s_last_layout;
+    s_spool_cap.spool = spool;
+    spdlog::debug("[AmsDetail] Unit {} overflows its path by {} px: spools capped at {}",
+                  s_spool_cap.unit, overflow, spool);
+    return true;
+}
+} // namespace
+
+bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
     if (!canvas)
-        return;
+        return false;
     int32_t offset = INT32_MIN;
     if (slot_grid && s_tray.valid && s_tray.container == lv_obj_get_parent(slot_grid)) {
         lv_area_t c, g;
@@ -457,7 +592,7 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
             ui_filament_path_canvas_set_lane_entry_rise(canvas, i, 0);
             ui_filament_path_canvas_set_lane_band_drop(canvas, i, 0);
         }
-        return;
+        return false;
     }
     // Under a drawn unit each lane's tube starts on the unit's bottom edge, slanted as drawn,
     // where it crosses the lane's column; its band and number stand on a line parallel to it.
@@ -479,7 +614,7 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         highest = std::min(highest, start[i]);
     }
     if (n <= 0)
-        return;
+        return false;
     const int32_t entry = (int32_t)std::lround(lowest);
     ui_filament_path_canvas_set_lane_entry(canvas, entry - g.y1);
     for (int i = 0; i < kAmsDetailMaxSlots; ++i) {
@@ -509,6 +644,7 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         // DECLARATIVE_OK: measured layout; the badge's row is the canvas's band row
         lv_obj_set_y(badge, lv_obj_get_style_y(badge, LV_PART_MAIN) + band_y - (ba.y1 + ba.y2) / 2);
     }
+    return ams_detail_fit_unit_to_path(canvas, reach);
 }
 
 bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int unit_index) {
@@ -545,7 +681,11 @@ int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count
                                             lv_display_get_vertical_resolution(disp))
                                  : 0;
     const int32_t cap = shorter > 0 ? shorter / 5 : token;
-    return tray::fit_spool_size((float)available_width, slot_count, cap);
+    s_last_layout = spool_cap_key(available_width, slot_count);
+    s_last_layout.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
+    if (s_spool_cap.spool > 0 && same_key(s_spool_cap, s_last_layout))
+        return std::min(s_last_layout.spool, s_spool_cap.spool);
+    return s_last_layout.spool;
 }
 
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
@@ -703,6 +843,7 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     helix::ui::unit_art_set_unit(art, *info, u, dryer);
     if (!helix::ui::unit_art_drawn_area(art, out.drawn))
         return false;
+    s_tray.art_drawn_h = lv_area_get_height(&out.drawn);
     // The drawing's foot stands on the container's bottom edge, where the path below takes
     // the lanes on.
     lv_obj_update_layout(container);

@@ -1282,6 +1282,15 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
 }
 
 // NAMESPACE_OK: the widget's C getter API, beside its siblings
+int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead)
+        return 0;
+    // Sizes are read at creation; the colors do not enter into it.
+    return linear_hub_required_height(*data, compute_base_geometry(obj, data));
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
 bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* start_out,
                                            int32_t* band_out) {
     auto* data = get_data(obj);

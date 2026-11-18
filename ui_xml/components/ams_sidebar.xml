@@ -53,12 +53,19 @@
     <style name="status_row" layout="flex" flex_flow="row"/>
     <style name="status_wrap" layout="flex" flex_flow="row_wrap"/>
     <style name="status_text_floor" min_width="50%"/>
+    <!-- In landscape the sidebar fills its column; in portrait it stands under the diagram at
+         its own height, in a panel that scrolls to it. Bound both ways: an inline height
+         would override the bound one. -->
+    <style name="height_landscape" height="100%"/>
+    <style name="height_portrait" height="content"/>
   </styles>
   <view name="ams_sidebar"
-        extends="lv_obj" width="100%" height="100%" style_pad_all="0" scrollable="true" scroll_dir="ver"
-        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_pad_column="#space_sm">
+        extends="lv_obj" width="100%" style_pad_all="0" scrollable="true" scroll_dir="ver" flex_flow="column"
+        style_flex_main_place="start" style_flex_cross_place="center" style_pad_column="#space_sm">
     <bind_style_if_eq name="gap_landscape" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="gap_portrait" subject="ui_is_portrait" ref_value="1"/>
+    <bind_style_if_eq name="height_landscape" subject="ui_is_portrait" ref_value="0"/>
+    <bind_style_if_eq name="height_portrait" subject="ui_is_portrait" ref_value="1"/>
     <!-- Which head is on the carriage, where several dock -->
     <text_body name="mounted_line"
                width="100%" bind_text="ams_sidebar_mounted_text" style_text_align="center" long_mode="dots">

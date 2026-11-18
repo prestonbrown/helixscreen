@@ -222,7 +222,9 @@ class AmsPanel : public PanelBase {
 
     // === Dynamic Slot State ===
 
-    int current_slot_count_ = 0;    ///< Number of slots currently created
+    int current_slot_count_ = 0; ///< Number of slots currently created
+    static constexpr int kMaxRelayoutPasses = 2;
+    int relayout_passes_ = 0; ///< how deep create_slots() is in laying a too-tall unit out again
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots
 
     // === Filament Path Canvas ===

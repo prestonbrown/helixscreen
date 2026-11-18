@@ -150,7 +150,13 @@ bool ams_detail_error_in_view(const AmsSystemInfo& info, int unit_index);
 /// Tell the path canvas where the spool box's front edge is, so its lanes enter
 /// there. Call after ams_detail_update_tray(); no box leaves the canvas's own
 /// entry row.
-void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
+///
+/// Under a drawn unit the path needs its full-size height
+/// (ui_filament_path_canvas_required_height()). A path of fixed height (portrait) grows to it;
+/// where the diagram then runs past what is on screen, or a path that fills the column is
+/// short of it, the unit must shrink: the spool size that fits is recorded for this unit and
+/// screen, and true asks the caller to lay the unit out again. False when it fits.
+bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 
 /// Slot sizing for the detail view: in a box, spools stand at the tray pitch
 /// (ams_tray_projection.h) instead of spreading across the width.

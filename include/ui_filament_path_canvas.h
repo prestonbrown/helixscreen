@@ -431,6 +431,11 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out);
  */
 bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out);
 
+/// The height the canvas needs to lay its path out at full size, its top where it is
+/// (linear_hub_required_height()): its own height when that fits. 0 for a topology without a
+/// hub-and-toolhead path.
+int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj);
+
 /**
  * @brief Set the unit's hub (or selector) output sensor
  *

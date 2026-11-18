@@ -334,6 +334,29 @@ int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int l
                       std::max(start, f.prep_y - kBandThickness));
 }
 
+int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g) {
+    const auto fits = [&](int32_t height) {
+        g.height = height;
+        const int32_t nozzle = linear_hub_nozzle_y(g, data.theme.extruder_scale);
+        const LinearHubFrame f =
+            compute_linear_hub_frame(data, g, toolhead_top_y(nozzle, data.theme.extruder_scale));
+        return f.tool_scale == data.theme.extruder_scale && (!data.buffer_present || f.has_buffer);
+    };
+    if (g.height <= 0 || fits(g.height))
+        return g.height;
+    int32_t lo = g.height + 1, hi = g.height * 4;
+    if (!fits(hi))
+        return hi;
+    while (lo < hi) {
+        const int32_t mid = lo + (hi - lo) / 2;
+        if (fits(mid))
+            hi = mid;
+        else
+            lo = mid + 1;
+    }
+    return lo;
+}
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top) {
     LinearHubFrame f;

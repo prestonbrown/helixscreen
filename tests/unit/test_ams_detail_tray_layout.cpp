@@ -66,7 +66,8 @@ class AmsTrayPanelFixture : public XMLTestFixture {
   public:
     /// A tool changer has no housing, and flat spools stand in none, so build()
     /// finds no tray for either.
-    void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false) {
+    void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false,
+               bool openams = false, bool buffer = false) {
         helix::Config::get_instance()->set<std::string>("/ams/spool_style", flat_ ? "flat" : "3d");
         auto mock = std::make_unique<AmsBackendMock>(gates);
         if (tool_changer)
@@ -78,7 +79,11 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         mock->rename_unit(0, unit_name_);
         if (ace)
             mock->set_ace_identity();
+        if (openams)
+            mock->set_openams_identity();
         REQUIRE(mock->start().success());
+        if (buffer)
+            mock->set_unit_buffer_health(0, BufferHealth{});
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);
         AmsState::instance().sync_from_backend();
@@ -844,7 +849,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(path != nullptr);
     CHECK(lv_obj_get_style_flex_grow(path, LV_PART_MAIN) == 0);
     CHECK(lv_obj_get_style_height(path, LV_PART_MAIN) > 0);
-    CHECK(lv_obj_get_style_flex_grow(right, LV_PART_MAIN) == 1);
+    // The sidebar stands at its own height below the diagram, in a panel that scrolls to it.
+    CHECK(lv_obj_get_style_flex_grow(right, LV_PART_MAIN) == 0);
+    CHECK(lv_obj_is_scrollable(panel_obj_));
+    CHECK(lv_obj_get_height(right) > 0);
     lv_area_t toolhead, cc;
     REQUIRE(ui_filament_path_canvas_get_toolhead_box(canvas, &toolhead));
     lv_obj_get_coords(canvas, &cc);
@@ -1016,6 +1024,56 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
     CHECK_FALSE(lv_obj_is_hidden(arrows));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: the path below gets the height its stack needs, the head on screen",
+                 "[ams][tray][ui_integration][unit-art][art-fit]") {
+    // Screens, and the panel area each gives the AMS panel: short enough that the drawing,
+    // at the size its width gives it, leaves its path too little room.
+    const int size = GENERATE(0, 1, 2, 3);
+    const int32_t sizes[4][4] = {
+        {320, 480, 320, 410}, {800, 480, 800, 400}, {1024, 600, 1024, 500}, {480, 272, 480, 220}};
+    const bool smallest = size == 3;
+    CAPTURE(sizes[size][0], sizes[size][1], sizes[size][3]);
+    helix::test::ScopedGeometry scoped(sizes[size][0], sizes[size][1]);
+    host_ = lv_obj_create(test_screen());
+    lv_obj_set_size(host_, sizes[size][2], sizes[size][3]);
+    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    // OpenAMS's AMS 2 Pro: a tall drawing over a hub with an FPS buffer.
+    unit_name_ = "AMS2";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/true,
+          /*buffer=*/true);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE((drawing != nullptr && !lv_obj_is_hidden(drawing)));
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    REQUIRE(canvas != nullptr);
+    lv_area_t cc, head, screen;
+    lv_obj_get_coords(canvas, &cc);
+    lv_obj_get_coords(host_ ? host_ : test_screen(), &screen);
+    REQUIRE(ui_filament_path_canvas_get_toolhead_box(canvas, &head));
+    const int32_t need = ui_filament_path_canvas_required_height(canvas);
+    CAPTURE(cc.y1, cc.y2, need, head.y1, head.y2, screen.y2);
+    // The head is on screen, and the unit shrinks until the canvas holds the full-size stack.
+    // At 480x272 even a unit at half its size leaves too little, and the head gives up the rest.
+    CHECK(head.y2 <= screen.y2);
+    CHECK(head.y2 <= cc.y2);
+    if (!smallest)
+        CHECK(lv_area_get_height(&cc) >= need);
+    // The hub stands clear of every lane's number.
+    auto* cd = helix::ui::fpath::get_data(canvas);
+    REQUIRE((cd != nullptr && cd->hits.hub_valid));
+    for (int i = 0; i < 4; ++i) {
+        lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
+        if (!badge || lv_obj_is_hidden(badge))
+            continue;
+        lv_area_t ba;
+        lv_obj_get_coords(badge, &ba);
+        CAPTURE(i, ba.y2, cd->hits.hub.y1);
+        CHECK(ba.y2 < cd->hits.hub.y1);
+    }
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,

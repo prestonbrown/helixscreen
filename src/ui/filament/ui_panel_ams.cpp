@@ -816,7 +816,14 @@ void AmsPanel::create_slots(int count) {
 
     // Update tray
     ams_detail_update_tray(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits);
-    helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_);
+    // A unit too tall for its path is laid out again at the size that fits; the drawing
+    // scales with its spools only roughly, so it may take a second pass.
+    if (helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_) &&
+        relayout_passes_ < kMaxRelayoutPasses) {
+        ++relayout_passes_;
+        create_slots(count);
+        --relayout_passes_;
+    }
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {
