@@ -7,11 +7,11 @@
 // so the config is the one place that ties a hotend fan to its extruder. On a
 // toolchanger every tool's hotend fan names its own extruder.
 
+#include "json_fwd.h"
+
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix::fan_heaters {
 
