@@ -269,13 +269,15 @@ void restart_into_active_printer() {
     esp_restart();
 }
 
-// A panic or watchdog reset. The switch fallback's esp_restart() and a power-on are not crashes.
+// A panic, or an interrupt or task watchdog: firmware that stopped making progress. The switch
+// fallback's esp_restart(), a power-on, a brownout and ESP_RST_WDT are not crashes. ESP_RST_WDT
+// covers the RTC watchdog reset, which is how the K-Touch reports a supply sag at the WiFi RF
+// spike, so counting it would hold the connection on a panel that is only underpowered.
 bool reset_was_crash() {
     switch (esp_reset_reason()) {
     case ESP_RST_PANIC:
     case ESP_RST_INT_WDT:
     case ESP_RST_TASK_WDT:
-    case ESP_RST_WDT:
         return true;
     default:
         return false;
