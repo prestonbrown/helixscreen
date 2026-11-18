@@ -680,11 +680,11 @@ def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
         png_path.write_bytes(b"png")
 
     build.bake_unit(box_turtle.UNIT, tmp_path, render=fake_render)
-    manifest = json.loads((tmp_path / "box_turtle" / "manifest.json").read_text())
+    manifest = json.loads((tmp_path / "box_turtle" / "4" / "manifest.json").read_text())
     for tier in ("full", "thumb"):
         for lane, names in enumerate(manifest["tiers"][tier]["lanes"]):
             assert names["body"] == f"{tier}_lane{lane}_body.png"
-            assert (tmp_path / "box_turtle" / names["body"]).is_file()
+            assert (tmp_path / "box_turtle" / "4" / names["body"]).is_file()
     for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
         assert names["glow"] == f"full_lane{lane}_glow.png"
         # Its stacks hold nothing but spools, so a dim recolors the stack itself.
