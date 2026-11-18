@@ -699,6 +699,12 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             if (AmsBackend* backend = AmsState::instance().get_backend();
                 backend && backend->requires_preprint_send()) {
                 remap = reprint_routing(*backend, routing, start_tools);
+                // With the routing unknown, a firmware that returns to identity
+                // at each print end runs tool n on head n, which the unrouted
+                // pre-print step relies on too.
+                if (!remap && backend->print_routing_resets_to_identity()) {
+                    remap = std::map<int, int>{};
+                }
             }
             reprint_gates_ =
                 ReprintGateRun{std::move(facts),

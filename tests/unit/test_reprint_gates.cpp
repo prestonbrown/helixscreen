@@ -387,3 +387,58 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a Print Files start ends a reprint waitin
         CHECK(params.value("filename", std::string()) != file.name());
     }
 }
+
+namespace {
+
+/// A pre-print-send backend with no recorded routing, whose firmware returns
+/// to identity (tool n on head n) at each print end.
+class UnroutedResetsToIdentity : public AmsBackendMock {
+  public:
+    UnroutedResetsToIdentity() : AmsBackendMock(4) {
+        set_snapmaker_mode(true);
+    }
+    std::vector<int> last_print_tool_mapping() const override {
+        return {};
+    }
+    bool default_print_routing_is_identity() const override {
+        return false;
+    }
+    bool print_routing_resets_to_identity() const override {
+        return true;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ReprintGatesFixture,
+                 "an unrouted reprint's gates judge head n for tool n where the firmware resets",
+                 "[reprint_gates][reprint][print_start][preprint]") {
+    AmsState::instance().init_subjects(false);
+    helix::test::RegisteredBackend<UnroutedResetsToIdentity> backend;
+    backend->set_operation_delay(0);
+    backend->start();
+    helix::ui::UpdateQueue::instance().drain();
+    struct Stop {
+        AmsBackendMock& b;
+        ~Stop() {
+            helix::ui::UpdateQueue::instance().drain();
+            b.stop();
+        }
+    } stop{*backend};
+    // Tool 0 prints on head 0, which has plenty; color matching alone would
+    // pick head 1, which is short.
+    fill_head(*backend, 0, 0x0000FF, 500.0F, SlotStatus::LOADED);
+    fill_head(*backend, 1, 0xFF0000, 60.0F, SlotStatus::LOADED);
+    fill_head(*backend, 2, 0x00FF00, 60.0F, SlotStatus::LOADED);
+    fill_head(*backend, 3, 0xFFFF00, 60.0F, SlotStatus::LOADED);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(backend->requires_preprint_send());
+    PlantedGcode file("reprint_unrouted_reset.gcode", "", kRedPla140g);
+
+    reprint(file.name());
+
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(controller()) == nullptr);
+    REQUIRE(start_params.size() == 1);
+    CHECK(started == 1);
+    CHECK(errors == 0);
+}

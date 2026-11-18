@@ -406,8 +406,10 @@ class PrintStartController {
         helix::FileStartFacts facts;
         std::function<void()> start;
         std::function<void()> on_end;
-        /// The heads the reprint's pre-print send routes to; unset when it
-        /// sends none, and the auto-seeded mapping stands.
+        /// The heads the reprint will print on: its pre-print send's routing,
+        /// or identity when the routing is unknown and the firmware returns to
+        /// identity at each print end. Unset when neither is known (or no
+        /// pre-print send happens), and the auto-seeded mapping stands.
         std::optional<std::map<int, int>> remap;
     };
     std::optional<ReprintGateRun> reprint_gates_;
