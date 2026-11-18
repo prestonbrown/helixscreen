@@ -4,6 +4,7 @@
 #include "ams_unit_shell.h"
 
 #include <string>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -69,6 +70,21 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     CHECK(unit_shell_for(family, 0) == nullptr);
     family.units[0].slot_count = 1;
     CHECK(unit_shell_for(family, 0) == nullptr);
+}
+
+TEST_CASE("unit shell: an OpenAMS unit with no reported model draws the same under AFC and openams",
+          "[ams][unit-art][openams][afc]") {
+    // No model reported: the single-lane unit is the AMS HT, the rest the original AMS.
+    for (const auto& [type, name] :
+         {std::pair{AmsType::AFC, "OpenAMS oams1"}, std::pair{AmsType::OPENAMS, "oams1"}}) {
+        CAPTURE(name);
+        AmsSystemInfo info = one_unit(type, name);
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == "ams");
+        info.units[0].slot_count = 1;
+        REQUIRE(unit_shell_for(info, 0) != nullptr);
+        CHECK(std::string(unit_shell_for(info, 0)->id) == "ams_ht");
+    }
 }
 
 TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firmwares",
