@@ -44,6 +44,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -1132,11 +1133,12 @@ namespace {
 /// sleep and wake. No init(): the test display sleeps under the software overlay.
 struct ActiveDisplay {
     DisplayManager dm;
+    std::optional<ActiveDisplayManagerScope> published;
     ActiveDisplay() {
-        DisplayManagerTestAccess::set_active_instance(&dm);
+        published.emplace(&dm);
     }
     ~ActiveDisplay() {
-        DisplayManagerTestAccess::set_active_instance(nullptr);
+        published.reset(); // the settings reinit below must see no published manager
         DisplaySettingsManager::instance().deinit_subjects();
         DisplaySettingsManager::instance().init_subjects();
     }

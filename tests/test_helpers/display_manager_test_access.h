@@ -248,3 +248,20 @@ class DisplayManagerTestAccess {
     }
 #endif
 };
+
+/// Publishes @p dm as DisplayManager::instance() for a scope and restores the manager that
+/// was published before it, for a test that never runs init().
+class ActiveDisplayManagerScope {
+  public:
+    explicit ActiveDisplayManagerScope(DisplayManager* dm) : previous_(DisplayManager::instance()) {
+        DisplayManagerTestAccess::set_active_instance(dm);
+    }
+    ~ActiveDisplayManagerScope() {
+        DisplayManagerTestAccess::set_active_instance(previous_);
+    }
+    ActiveDisplayManagerScope(const ActiveDisplayManagerScope&) = delete;
+    ActiveDisplayManagerScope& operator=(const ActiveDisplayManagerScope&) = delete;
+
+  private:
+    DisplayManager* previous_;
+};
