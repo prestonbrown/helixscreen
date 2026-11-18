@@ -263,19 +263,22 @@ TEST_CASE("an unidentifiable executable beside a PAXX package is firmware-manage
     CHECK_FALSE(firmware_manages_updates(Board::SnapmakerU1, ours.string(), tmp.path.string()));
 }
 
-TEST_CASE("firmware_package_root names the PAXX version dir its binary runs from",
+TEST_CASE("firmware_package_root names the PAXX package through latest when latest runs",
           "[board][install_root]") {
     using helix::board::firmware_package_root;
     helix::test::InstallTreeFixture tree;
     const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
-    const std::string version_dir = tree.root + "/oem/apps/helixscreen/1.1.0";
+    const std::string apps = tree.root + "/oem/apps/helixscreen";
 
-    // Through the bind mount, and by the package paths: always the real version dir,
-    // never `latest`, which the next package upgrade re-points.
-    CHECK(firmware_package_root(Board::SnapmakerU1, gui.string(), tree.root) == version_dir);
-    CHECK(firmware_package_root(Board::SnapmakerU1,
-                                tree.root + "/oem/apps/helixscreen/latest/bin/helix-screen",
-                                tree.root) == version_dir);
+    // latest is the path PAXX keeps pointing at what it runs, so a plugin linked
+    // through it survives the upgrade that deletes the version dir.
+    CHECK(firmware_package_root(Board::SnapmakerU1, gui.string(), tree.root) == apps + "/latest");
+    CHECK(firmware_package_root(Board::SnapmakerU1, apps + "/1.1.0/bin/helix-screen", tree.root) ==
+          apps + "/latest");
+
+    // A version dir latest does not name is only reachable by its own path.
+    const fs::path older = tree.make_tree("oem/apps/helixscreen/1.0.9");
+    CHECK(firmware_package_root(Board::SnapmakerU1, older.string(), tree.root) == apps + "/1.0.9");
 
     // Our own install beside it is not the package, and no other board has one.
     const fs::path ours = tree.make_tree("userdata/helixscreen");
