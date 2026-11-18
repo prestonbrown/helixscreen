@@ -44,7 +44,7 @@ On a single-nozzle printer the row simply says **Nozzle** and the header has no 
 
 ![The Temperature card on a multi-head printer](../../images/user/controls-nozzle-chooser.png)
 
-1. The tool button, which opens the tool picker.
+1. The tool chip in the card header, which opens the tool picker.
 2. The nozzle row for the tool the card is aimed at.
 
 ---
