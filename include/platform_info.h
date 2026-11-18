@@ -15,20 +15,32 @@ bool is_android_platform();
 /// is seeded from it and the shutdown widget/dialog gate on that.
 bool platform_host_power_supported();
 
-/// True when this platform's software is owned by something other than HelixScreen
+/// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
-/// The Snapmaker U1 is the case: the PAXX Extended Firmware ships HelixScreen as a
-/// selectable component, downloading a pinned, sha256-verified tarball into
-/// /oem/apps/helixscreen via extended-pkg. Self-updating there rewrites a package the
-/// firmware believes it owns. Suppression used to rely entirely on the firmware hook
-/// exporting HELIX_DISABLE_AUTO_UPDATES, which it never did — so every U1 install
-/// checked for updates and raised the update modal, which is the bug this closes.
+/// Today only a Snapmaker U1 running PAXX Extended Firmware's own HelixScreen package
+/// (u1_firmware_manages_updates), which extended-pkg downloads as a pinned,
+/// sha256-verified tarball into /oem/apps/helixscreen. Self-updating there rewrites a
+/// package the firmware believes it owns, and the firmware hook does not export
+/// HELIX_DISABLE_AUTO_UPDATES. A U1 on stock firmware, where our installer owns
+/// /userdata/helixscreen, self-updates.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,
 /// which is how a dev box force-enables self-update.
 bool platform_defaults_to_external_updates();
+
+/// True when a Snapmaker U1's firmware owns the HelixScreen install that is running.
+/// Decided under @p probe_root, failing toward "managed" because self-updating a
+/// firmware's package is the worse mistake:
+///  - no /oem/apps/helixscreen directory: false;
+///  - @p running_exe is the same file (device and inode) as
+///    `/oem/apps/helixscreen/<any>/bin/helix-screen`: true. Identity rather than a
+///    path, because the firmware launches the package through a bind mount;
+///  - otherwise true unless @p running_exe resolves inside /userdata/helixscreen, so an
+///    exe that cannot be stat'd or resolved counts as the firmware's.
+bool u1_firmware_manages_updates(const std::string& running_exe = "/proc/self/exe",
+                                 const std::string& probe_root = "/");
 
 /// True when HelixScreen runs ON the printer it drives, rather than beside it.
 ///

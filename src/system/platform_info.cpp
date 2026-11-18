@@ -3,8 +3,12 @@
 
 #include <spdlog/spdlog.h>
 
+#include <climits>
 #include <cstdio>
+#include <cstdlib>
+#include <dirent.h>
 #include <string>
+#include <sys/stat.h>
 #include <sys/utsname.h>
 
 namespace helix {
@@ -30,12 +34,72 @@ void set_platform_override(int override_value) {
 // -1 = use compile-time default, 0 = force self-managed, 1 = force externally managed
 static int s_external_updates_default_override = -1;
 
+namespace {
+
+/// @p abs_path under @p probe_root ("/" or empty probes the real path).
+std::string rooted(const std::string& probe_root, const char* abs_path) {
+    std::string root = probe_root;
+    while (!root.empty() && root.back() == '/')
+        root.pop_back();
+    return root + abs_path;
+}
+
+bool same_file(const struct stat& a, const std::string& path) {
+    struct stat b {};
+    return ::stat(path.c_str(), &b) == 0 && a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+}
+
+/// Resolved absolute path of @p path, or empty when it cannot be resolved.
+std::string canonical_or_empty(const std::string& path) {
+    char buf[PATH_MAX];
+    return ::realpath(path.c_str(), buf) ? std::string(buf) : std::string();
+}
+
+} // namespace
+
+bool u1_firmware_manages_updates(const std::string& running_exe, const std::string& probe_root) {
+    // PAXX Extended Firmware installs its HelixScreen package in version
+    // subdirectories of /oem/apps/helixscreen; on stock firmware our installer
+    // owns /userdata/helixscreen.
+    const std::string package_dir = rooted(probe_root, "/oem/apps/helixscreen");
+    struct stat dir_st {};
+    if (::stat(package_dir.c_str(), &dir_st) != 0 || !S_ISDIR(dir_st.st_mode))
+        return false;
+
+    // Identity rather than path: the firmware's lmd hook bind-mounts the package
+    // binary over /usr/bin/gui.
+    struct stat exe_st {};
+    if (::stat(running_exe.c_str(), &exe_st) == 0) {
+        if (DIR* dir = ::opendir(package_dir.c_str())) {
+            bool match = false;
+            while (const struct dirent* entry = ::readdir(dir)) {
+                const std::string name = entry->d_name;
+                if (name == "." || name == "..")
+                    continue;
+                if (same_file(exe_st, package_dir + "/" + name + "/bin/helix-screen")) {
+                    match = true;
+                    break;
+                }
+            }
+            ::closedir(dir);
+            if (match)
+                return true;
+        }
+    }
+
+    // Fail toward managed: self-updating a firmware's package is the worse
+    // mistake, so an exe that cannot be resolved counts as the firmware's.
+    const std::string exe = canonical_or_empty(running_exe);
+    const std::string ours = canonical_or_empty(rooted(probe_root, "/userdata/helixscreen"));
+    return exe.empty() || ours.empty() || exe.compare(0, ours.size() + 1, ours + "/") != 0;
+}
+
 bool platform_defaults_to_external_updates() {
     if (s_external_updates_default_override >= 0) {
         return s_external_updates_default_override != 0;
     }
 #ifdef HELIX_PLATFORM_SNAPMAKER_U1
-    return true;
+    return u1_firmware_manages_updates();
 #else
     return false;
 #endif

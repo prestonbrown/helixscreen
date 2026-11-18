@@ -147,8 +147,8 @@ If something goes wrong and the printer comes up with a blank screen and is unre
 
 On stock Snapmaker firmware, SSH only runs because the stock screen starts it at boot while **Root access** is on. Older HelixScreen versions disabled the stock screen without taking over that job, so after the next reboot `ssh` answers "Connection refused". Fluidd and Mainsail keep working, but they give you no shell.
 
-1. **Update HelixScreen from the printer's screen**: **Settings > About**, check for updates and install. The updated HelixScreen starts SSH whenever **Root access** was on; if `ssh` still refuses afterwards, reboot the printer once.
-2. **If you can't update from the screen**, reinstall the stock firmware the way Snapmaker's documentation describes. A firmware update clears HelixScreen's system changes, so the stock screen comes back. Then turn **Root access** back on in the stock screen (**Settings > Maintenance**) and reinstall HelixScreen.
+1. **Update HelixScreen from the printer's screen, if it offers one**: **Settings > About**, check for updates and install. The updated HelixScreen starts SSH whenever **Root access** was on; if `ssh` still refuses afterwards, reboot the printer once. Versions 0.99.116 through 1.0.9 hide in-app updates on every U1 and read **Managed by your firmware** there, so on those versions skip to step 2.
+2. **If you can't update from the screen**, reinstall the stock firmware the way Snapmaker's documentation describes. A firmware update clears HelixScreen's system changes, so the stock screen comes back. Then turn **Root access** back on in the stock screen (**Settings > Maintenance**) and reinstall HelixScreen. The installer gives you a current version, which keeps SSH working and updates itself from the screen.
 
 ## Quirks and Notes
 
