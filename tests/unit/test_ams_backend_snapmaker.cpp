@@ -3623,6 +3623,33 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker takes a hand load as the load a fa
     CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
 }
 
+// A head fed past its feeder (a BMCU, a passive reloader) never reaches load_finish: its
+// toolhead switch is the only witness, and its empty port leaves a refeed nothing to feed.
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past its feeder",
+                 "[ams][snapmaker][resume][load_unconfirmed]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    ResumeRecoveryHarness h;
+    const json switch_on{{"filament_motion_sensor e0_filament", {{"filament_detected", true}}}};
+    const json switch_off{{"filament_motion_sensor e0_filament", {{"filament_detected", false}}}};
+    SnapmakerTestAccess::handle_status(
+        h.backend, make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+
+    SECTION("pushed in after a refeed found nothing to feed") {
+        fail_refeed_then_switch_present(h);
+        SnapmakerTestAccess::handle_status(h.backend, switch_on);
+        CHECK(resume_once(h, 0).success());
+    }
+    SECTION("ran out: Resume asks for a hand load instead of a refeed") {
+        SnapmakerTestAccess::handle_status(h.backend, switch_on);
+        SnapmakerTestAccess::handle_status(h.backend, switch_off);
+        const AmsError err = resume_once(h, 0);
+        CHECK_FALSE(err.success());
+        CHECK(err.suggestion == "Push filament into the toolhead by hand, then tap Resume.");
+    }
+    CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+}
+
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker refuses RESUME into a head its feeder is still loading",
                  "[ams][snapmaker][resume][load_unconfirmed]") {
@@ -6391,6 +6418,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker says nothing when every used head 
         FileToolsProbe probe(h.backend, {0, 2});
         slicer_print_ready(h);
         h.frame(feeder(2, "load_feeding"));
+        h.print("printing");
+    }
+    SECTION("a head loaded by hand past its feeder") {
+        FileToolsProbe probe(h.backend, {0, 2});
+        slicer_print_ready(h);
+        h.frame(json{{"filament_feed right", {{"extruder2", {{"filament_detected", false}}}}}});
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", true}}}});
         h.print("printing");
     }
     CHECK(warnings.seen.empty());

@@ -395,6 +395,7 @@ void AmsBackendSnapmaker::on_started() {
         pending_insert_passes_.fill(0);
         insert_verdict_.fill(InsertIdentity::NotRead);
         feed_presence_seen_.fill(false);
+        hand_fed_head_.fill(false);
         // The sink names the store being replaced; the new one's first read rebinds it.
         rfid_tracker_.set_baseline_sink(nullptr);
     }
@@ -1122,16 +1123,21 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
         }
     }
 
-    // The presence switch cannot vouch for a head whose last load failed:
-    // filament can reach it and stop short of the nozzle. Resume is the retry
-    // for the head it resumes on; any other head has to be loaded first, since
-    // loading it would leave it picked up when RESUME runs.
+    // The presence switch cannot vouch for a head whose last load failed: filament can stop
+    // short of the nozzle. Resume is the retry for the head it resumes on; any other head has
+    // to be loaded first, or loading it would leave it picked up when RESUME runs. A head fed
+    // past its feeder never reaches load_finish, and its feeder has nothing to refeed.
     int unconfirmed = -1;
     bool may_refeed = false;
+    bool hand_fed = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        hand_fed = slot >= 0 && slot < kNumTools && hand_fed_head_[slot];
+        if (hand_fed && sensor_present) {
+            load_unconfirmed_[slot] = false;
+        }
         unconfirmed = unconfirmed_load_head_locked(slot);
-        may_refeed = slot >= 0 && slot < kNumTools && resume_may_refeed_locked(slot);
+        may_refeed = slot >= 0 && slot < kNumTools && !hand_fed && resume_may_refeed_locked(slot);
     }
     if (unconfirmed >= 0 && unconfirmed == slot && may_refeed) {
         spdlog::warn("{} prepare_for_resume: tool {} last load unconfirmed — retrying it "
@@ -1166,7 +1172,9 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
                              helix::ui::tool_label_in_form(tool_noun(), helix::ui::tool_label(slot),
                                                            slot, helix::ui::ToolLabelForm::Full) +
                                  ": " + lv_tr("Filament runout"),
-                             lv_tr("Load it in the filament panel, then tap Resume.")));
+                             hand_fed ? lv_tr("Push filament into the toolhead by hand, then tap "
+                                              "Resume.")
+                                      : lv_tr("Load it in the filament panel, then tap Resume.")));
             }
             return;
         }
@@ -1184,7 +1192,7 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
         // fails, so on a head an automatic feeder serves, a feeder reporting a
         // failure outranks it. RESUME extrudes into the head before it prints,
         // which is the wrong thing to do to a jam.
-        if (feeder_serves_head(snap) && feed_failure_reported(snap)) {
+        if (!hand_fed && feeder_serves_head(snap) && feed_failure_reported(snap)) {
             spdlog::warn("{} prepare_for_resume: tool {} sensor reads present but the feeder "
                          "reads '{}' (error '{}') — {} before RESUME",
                          backend_log_tag(), slot, snap.state, snap.error,
@@ -1502,6 +1510,7 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
                 const bool firmware_loads = static_cast<size_t>(head) < extruders_used_.size() &&
                                             extruders_used_[static_cast<size_t>(head)];
                 if (!feeder_serves_head(snap) || firmware_loads || feeder_reports_loaded(snap) ||
+                    fed_past_feeder_locked(head) ||
                     helix::snapmaker::channel_state_in_progress(snap.state)) {
                     continue;
                 }
@@ -2207,19 +2216,14 @@ void AmsBackendSnapmaker::apply_channel_outcome_locked(int i, const std::string&
                                                        const ChannelStateInfo& op_info,
                                                        const std::string& error,
                                                        bool outcome_is_new, FrameEffects& fx) {
-    // Error surfacing: either a firmware channel_error token OR
-    // a *_fail channel_state (Change 2). Preserve the multi-color
-    // false-alarm guard — the firmware reports
-    // channel_error="no_filament" for ANY empty lane, and briefly
-    // a *_fail channel_state when it auto-feeds a lane deliberately
-    // left unloaded for a multi-color print (heads 0+2 used, head 1
-    // empty). Neither must latch the whole backend into
-    // action=Error and pop a spurious modal on such an idle empty
-    // non-active lane. An error is real when the lane holds
-    // filament (lane not empty), is the active lane, or an
-    // operation is genuinely underway on it (an in-progress
-    // LOADING/UNLOADING state — a *_fail is terminal, so the same
-    // empty-lane guard applies to it as to the no_filament token).
+    // Error surfacing: either a firmware channel_error token OR a *_fail channel_state (Change 2).
+    // Preserve the multi-color false-alarm guard — the firmware reports channel_error="no_filament"
+    // for ANY empty lane, and briefly a *_fail channel_state when it auto-feeds a lane deliberately
+    // left unloaded for a multi-color print (heads 0+2 used, head 1 empty). Neither must latch the
+    // whole backend into action=Error and pop a spurious modal on such an idle empty non-active
+    // lane. An error is real when the lane holds filament (lane not empty), is the active lane, or
+    // an operation is genuinely underway on it (an in-progress LOADING/UNLOADING state — a *_fail
+    // is terminal, so the same empty-lane guard applies to it as to the no_filament token).
     const bool has_error_token = error != "ok" && !error.empty() && error != "none";
     if (has_error_token || op_info.is_fail) {
         const auto* slot = system_info_.units[0].get_slot(i);
@@ -2257,18 +2261,13 @@ void AmsBackendSnapmaker::apply_channel_outcome_locked(int i, const std::string&
             // tool's LOADED status and filament_loaded are
             // derived from it after the sensor parse.
             //
-            // current_slot / current_tool are NOT reset here:
-            // they track which toolhead is picked up on the
-            // carriage (toolhead.extruder is the authority, set
-            // in the extruder-pin parse above), which is
-            // independent of whether feeder filament is at the
-            // nozzle. A tool fed without the feeders (TPU loaded
-            // straight into the toolhead) stays picked up while
-            // its channel reports unload_finish permanently, and
-            // unload_active_filament() needs current_slot to
-            // name that tool: with no slot it dispatches the
-            // bare INNER_FILAMENT_UNLOAD, which the firmware
-            // runs on T0.
+            // current_slot / current_tool are NOT reset here: they track which toolhead is picked
+            // up on the carriage (toolhead.extruder is the authority, set in the extruder-pin parse
+            // above), which is independent of whether feeder filament is at the nozzle. A tool fed
+            // without the feeders (TPU loaded straight into the toolhead) stays picked up while its
+            // channel reports unload_finish permanently, and unload_active_filament() needs
+            // current_slot to name that tool: with no slot it dispatches the bare
+            // INNER_FILAMENT_UNLOAD, which the firmware runs on T0.
             if (op_state == "unload_finish" && outcome_is_new) {
                 // Deferred to after the lock, as emit_event is:
                 // calls into AmsState stay outside our mutex,

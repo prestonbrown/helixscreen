@@ -2273,6 +2273,7 @@ translations:
   Load filament first: Laden Sie zuerst Filament
   Load filament to the toolhead, then tap Resume.: 'Laden Sie Filament bis zum Werkzeugkopf und tippen Sie dann auf Fortsetzen.'
   Load into which tool?: 'In welches Werkzeug laden?'
+  Push filament into the toolhead by hand, then tap Resume.: "Schieben Sie das Filament von Hand in den Werkzeugkopf und tippen Sie dann auf Fortsetzen."
   Load it in the filament panel, then tap Resume.: 'Laden Sie es im Filament-Panel und tippen Sie dann auf Fortsetzen.'
   Load or unload filament.: Filament laden oder entladen.
   Load Profile: 'Profil laden'

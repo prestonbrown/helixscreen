@@ -2207,6 +2207,7 @@ translations:
   Load filament first: Load filament first
   Load filament to the toolhead, then tap Resume.: Load filament to the toolhead, then tap Resume.
   Load into which tool?: Load into which tool?
+  Push filament into the toolhead by hand, then tap Resume.: Push filament into the toolhead by hand, then tap Resume.
   Load it in the filament panel, then tap Resume.: Load it in the filament panel, then tap Resume.
   Load or unload filament.: Load or unload filament.
   Load Profile: Load Profile

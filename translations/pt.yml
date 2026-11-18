@@ -2266,6 +2266,7 @@ translations:
   Load filament first: Carregue filamento primeiro
   Load filament to the toolhead, then tap Resume.: 'Carregue filamento até o cabeçote e toque em Retomar.'
   Load into which tool?: 'Carregar em qual ferramenta?'
+  Push filament into the toolhead by hand, then tap Resume.: "Empurre o filamento manualmente para o cabeçote e toque em Retomar."
   Load it in the filament panel, then tap Resume.: 'Carregue-o no painel de filamento e toque em Retomar.'
   Load or unload filament.: Carregue ou descarregue o filamento.
   Load Profile: 'Carregar perfil'
