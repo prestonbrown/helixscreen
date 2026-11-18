@@ -2799,6 +2799,7 @@ void AmsBackendSnapmaker::converge_locked(FrameEffects& fx) {
     derive_active_tool_loaded_locked(fx);
     demote_runout_slots_locked(fx);
     converge_lanes_locked(fx);
+    converge_hand_fed_slots_locked(fx);
     track_active_port_present_locked(fx);
 }
 
