@@ -98,7 +98,13 @@ double PrintEtaEstimator::smooth(double raw_remaining, int duration_s, double fr
         anchor_fraction_ = fraction;
     }
 
-    smoothed_remaining_ = std::max(0.0, smoothed_remaining_);
+    // A stall that outlasts the estimate (a long tool change or reheat near
+    // the end) keeps the print clock running while progress stands still, and
+    // the countdown alone would read 0:00 with work left. The extrapolation
+    // grows during a stall, so half of it keeps a number on the screen until
+    // progress moves and the correction above takes over. In steady printing
+    // this floor sits far below the countdown and never binds.
+    smoothed_remaining_ = std::max(smoothed_remaining_, 0.5 * raw_remaining);
     return smoothed_remaining_;
 }
 

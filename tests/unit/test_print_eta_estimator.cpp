@@ -201,6 +201,28 @@ TEST_CASE("ETA: a print that slows down is followed within a few minutes", "[pri
     CHECK(now > 1560);
 }
 
+TEST_CASE("ETA: a stall near the end never reads as finished", "[print][eta]") {
+    // 95% of a 3600s job, 180s left. A 300s tool change follows: print time
+    // runs, progress does not. Counting down alone would reach 0:00 two
+    // minutes into it with the job still unfinished.
+    PrintEtaEstimator est;
+    REQUIRE(est.remaining_seconds(fine_job(0.95, 3420)) == 180);
+    int lowest = 180;
+    for (int t = 1; t <= 300; ++t) {
+        lowest = std::min(lowest, est.remaining_seconds(fine_job(0.95, 3420 + t)));
+    }
+    CHECK(lowest > 0);
+}
+
+TEST_CASE("ETA: a print clock that runs backwards starts the estimate over", "[print][eta]") {
+    // A new print the reset never reached: its clock restarts below the last
+    // sample. Counting down by a negative interval would add the old print's
+    // time to the new one's estimate.
+    PrintEtaEstimator est;
+    REQUIRE(est.remaining_seconds(fine_job(0.5, 3000)) == 3000);
+    CHECK(est.remaining_seconds(fine_job(0.25, 100)) == 300);
+}
+
 TEST_CASE("ETA: reset forgets the previous print", "[print][eta]") {
     PrintEtaEstimator est;
     REQUIRE(est.remaining_seconds(job(50, 600, 0)) == 600);
