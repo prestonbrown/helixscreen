@@ -1374,6 +1374,7 @@
   <translation tag="Extra distance to move once sensors clear" zh="传感器解除后额外移动的距离"/>
   <translation tag="Extra prime to compensate ooze" zh="额外挤出以补偿溢料"/>
   <translation tag="Extrude" zh="挤出"/>
+  <translation tag="Extrude Length" zh="挤出长度"/>
   <translation tag="Extrude Speed" zh="挤出速度"/>
   <translation tag="Extrude failed: {}" zh="挤出失败: {}"/>
   <translation tag="Extrude may still be running — response timed out" zh="挤出可能仍在运行 — 响应超时"/>

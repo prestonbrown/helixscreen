@@ -80,6 +80,16 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // mm/s
     {"settings_extrude_speed", "filament/extrude_speed", Scope::PerPrinter, false, 5, 1, 50,
      "extrude_speed"},
+    // Filament panel length buttons, mm
+    {"settings_extrude_length_0", "filament/extrude_length_0", Scope::PerPrinter, false, 5,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_0"},
+    {"settings_extrude_length_1", "filament/extrude_length_1", Scope::PerPrinter, false, 10,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_1"},
+    {"settings_extrude_length_2", "filament/extrude_length_2", Scope::PerPrinter, false, 25,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_2"},
     // Jog feedrates in mm/min; defaults are the motion panel's shipped speeds.
     {"settings_jog_speed_xy", "motion/jog_speed_xy", Scope::PerPrinter, false, 6000, 60, 60000,
      "jog_speed_xy"},

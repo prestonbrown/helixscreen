@@ -1438,6 +1438,7 @@ translations:
   Extra distance to move once sensors clear: '传感器解除后额外移动的距离'
   Extra prime to compensate ooze: 额外挤出以补偿溢料
   Extrude: 挤出
+  Extrude Length: 挤出长度
   Extrude Speed: 挤出速度
   'Extrude failed: {}': '挤出失败: {}'
   Extrude may still be running — response timed out: 挤出可能仍在运行 — 响应超时

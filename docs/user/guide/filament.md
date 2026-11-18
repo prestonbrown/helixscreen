@@ -31,7 +31,7 @@ Manual filament control:
 | **Extrude** | Push filament through the nozzle |
 | **Retract** | Pull filament back |
 
-Pick the **Length** to move first: 5mm, 10mm or 25mm.
+Pick the **Length** to move first: 5mm, 10mm or 25mm. To change a button's length, press and hold it, type a length from 1 to 500 mm and confirm. The button keeps that length for this printer and becomes the chosen one. The dropdown at the end of that row sets the speed of Extrude and Retract, from 1 to 50 mm/s. It changes the same setting as **Settings > Printing > Machine Limits > Extrude Speed**, where you can type any whole speed in that range, and the dropdown always shows the speed in use. The speed is remembered for each printer. On the smallest screens the **Length** label is hidden to make room, and the units on the buttons tell the two choices apart.
 
 > **Safety:** Extrusion requires the hotend to be at minimum temperature (usually 180°C for PLA, higher for other materials). If HelixScreen knows what filament is loaded, either from an [external spool](filament.md#external-spool-configuration) or an active AMS slot, it skips the cold-nozzle safety warning and auto-preheats to the correct temperature instead.
 

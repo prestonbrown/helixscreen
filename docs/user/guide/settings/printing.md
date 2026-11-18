@@ -30,7 +30,7 @@ Opens sliders for your printer's speed and acceleration limits. Use them to test
 | **Max Acceleration** | 500 to 50000 mm/s² | How quickly it speeds up |
 | **Accel to Decel** | 500 to 50000 mm/s² | How hard moves slow down |
 | **Square Corner Velocity** | 1.0 to 20.0 mm/s | The speed carried through a sharp corner. Half steps such as 5.5 can be typed on the keypad |
-| **Extrude Speed** | 1 to 50 mm/s | The speed of the manual extrude and retract buttons |
+| **Extrude Speed** | 1 to 50 mm/s | The speed of the manual extrude and retract buttons. The speed dropdown on the Filament panel sets it too. |
 
 > **Extrude Speed is kept.** Unlike the limits above, it's a HelixScreen setting. It's remembered after a restart.
 

@@ -365,6 +365,10 @@ class FilamentPanel : public PanelBase {
      */
     bool handle_preset_longpress(int slot);
 
+    /// Opens the keypad that sets length button @p index's length.
+    /// @return true when the keypad opened, so the hold ends its press
+    bool handle_extrude_length_longpress(int index);
+
   private:
     //
     // === Subjects (owned by this panel) ===
@@ -467,9 +471,7 @@ class FilamentPanel : public PanelBase {
 
     // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values
-    helix::Subject extrude_length_5mm_active_subject_{};
-    helix::Subject extrude_length_10mm_active_subject_{};
-    helix::Subject extrude_length_25mm_active_subject_{};
+    helix::Subject extrude_length_index_subject_{}; ///< which length button is chosen
 
     // Per-op button feedback state (int: 0=idle, 1=busy/spinner, 2=done/check).
     // Drives ui_button bind_op_state so the triggering button shows on-button
@@ -532,7 +534,7 @@ class FilamentPanel : public PanelBase {
     void handle_operation_timeout(); ///< main-thread: toast + tear down the stalled op
 
     // Extrude length state
-    int extrude_length_ = 10; // Default 10mm
+    int extrude_length_index_ = 1; ///< length button chosen; its length is a setting
 
     // Preset slot identity and the name/temps label subjects now live in
     // helix::presets (include/preset_materials.h). They used to be panel-scoped
@@ -635,6 +637,10 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* spool_card_ = nullptr;
     lv_obj_t* extruder_selector_group_ = nullptr;
     helix::ui::WidgetRef extruder_dropdown_;
+    /// Extrude/retract speed presets beside the length choice. It edits
+    /// SettingsManager's extrude_speed, the value Machine Limits also sets.
+    helix::ui::WidgetRef extrude_speed_dropdown_;
+    ObserverGuard extrude_speed_observer_;
     lv_obj_t* btn_manage_slots_ = nullptr;
     // 1 with no AMS and one tool: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
@@ -778,7 +784,11 @@ class FilamentPanel : public PanelBase {
     void handle_extrude_button();
     void handle_purge_button();
     void handle_retract_button();
-    void handle_extrude_length_select(int amount);
+    void handle_extrude_length_select(int index);
+    /// The chosen length button's length in mm.
+    [[nodiscard]] int extrude_length_mm() const;
+    /// Shows the setting's current speed on the dropdown, a preset or not.
+    void sync_extrude_speed_dropdown();
     void handle_cooldown();
     void update_material_temp_display();
     void update_chamber_temp_display();

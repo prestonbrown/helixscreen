@@ -1442,6 +1442,7 @@ translations:
   Extra distance to move once sensors clear: 'センサーが解除された後に追加で移動する距離'
   Extra prime to compensate ooze: 滲み出しを補正するための追加プライム
   Extrude: 押し出し
+  Extrude Length: 押し出し長
   Extrude Speed: 押し出し速度
   'Extrude failed: {}': '押出に失敗しました: {}'
   Extrude may still be running — response timed out: 押出がまだ実行中の可能性があります — 応答タイムアウト

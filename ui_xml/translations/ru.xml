@@ -1419,6 +1419,7 @@
   <translation tag="Extra distance to move once sensors clear" ru="Дополнительное расстояние после освобождения датчиков"/>
   <translation tag="Extra prime to compensate ooze" ru="Дополнительная подача для компенсации вытекания"/>
   <translation tag="Extrude" ru="Экструзия"/>
+  <translation tag="Extrude Length" ru="Длина экструзии"/>
   <translation tag="Extrude Speed" ru="Скорость экструзии"/>
   <translation tag="Extrude failed: {}" ru="Ошибка экструзии: {}"/>
   <translation tag="Extrude may still be running — response timed out" ru="Экструзия может ещё выполняться — время ожидания истекло"/>

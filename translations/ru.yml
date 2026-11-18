@@ -1563,6 +1563,7 @@ translations:
   Extra distance to move once sensors clear: 'Дополнительное расстояние после освобождения датчиков'
   Extra prime to compensate ooze: Дополнительная подача для компенсации вытекания
   Extrude: Экструзия
+  Extrude Length: Длина экструзии
   Extrude Speed: Скорость экструзии
   'Extrude failed: {}': 'Ошибка экструзии: {}'
   Extrude may still be running — response timed out: Экструзия может ещё выполняться

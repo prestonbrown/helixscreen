@@ -118,6 +118,14 @@ static void preset_hold(lv_event_t* e, int slot) {
     }
 }
 
+/// A hold on length button @p index opens the keypad for its length; the hold
+/// ends its press so the release is not also a tap on the button.
+static void length_hold(lv_event_t* e, int index) {
+    if (get_global_filament_panel().handle_extrude_length_longpress(index)) {
+        helix::ui::end_press(e);
+    }
+}
+
 // ============================================================================
 // CONSTRUCTOR
 // ============================================================================
@@ -179,12 +187,21 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         {"on_filament_chamber_target_tap",
          [](lv_event_t*) { get_global_filament_panel().handle_chamber_temp_tap(); }},
         // Extrude length buttons
-        {"on_filament_extrude_length_5mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(5); }},
-        {"on_filament_extrude_length_10mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(10); }},
-        {"on_filament_extrude_length_25mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(25); }},
+        {"on_filament_extrude_length_0",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(0); }},
+        {"on_filament_extrude_length_1",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(1); }},
+        {"on_filament_extrude_length_2",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(2); }},
+        {"on_filament_extrude_length_0_hold", [](lv_event_t* e) { length_hold(e, 0); }},
+        {"on_filament_extrude_length_1_hold", [](lv_event_t* e) { length_hold(e, 1); }},
+        {"on_filament_extrude_length_2_hold", [](lv_event_t* e) { length_hold(e, 2); }},
+        {"on_filament_extrude_speed_changed",
+         [](lv_event_t* e) {
+             auto* dd = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             helix::SettingsManager::instance().set_extrude_speed_preset(
+                 lv_dropdown_get_selected(dd));
+         }},
         // Cooldown button
         {"on_filament_cooldown",
          [](lv_event_t*) { get_global_filament_panel().handle_cooldown(); }},
@@ -330,6 +347,12 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         [](FilamentPanel* self, int) { self->update_filament_op_buttons(); },
         printer_state_.print_state().get_static_subjects_lifetime());
 
+    // Machine Limits edits the same setting while this panel lives.
+    extrude_speed_observer_ = observe<int>(
+        helix::SettingsManager::instance().subject_extrude_speed(), this,
+        [](FilamentPanel* self, int) { self->sync_extrude_speed_dropdown(); },
+        helix::SettingsManager::instance().get_subjects_lifetime());
+
     // Note: Chamber temperature display is initialized by observer callbacks
     // and refresh_all_displays() on panel activation.
     // We don't call update_chamber_temp_display() here because subjects
@@ -434,12 +457,8 @@ void FilamentPanel::init_subjects() {
 
         // Extrude length button active states (boolean: 0=inactive, 1=active)
         // Using separate subjects because bind_style doesn't work well with multiple ref_values
-        UI_MANAGED_SUBJECT_INT(extrude_length_5mm_active_subject_, 0,
-                               "filament_extrude_length_5mm_active", subjects_);
-        UI_MANAGED_SUBJECT_INT(extrude_length_10mm_active_subject_, 1,
-                               "filament_extrude_length_10mm_active", subjects_);
-        UI_MANAGED_SUBJECT_INT(extrude_length_25mm_active_subject_, 0,
-                               "filament_extrude_length_25mm_active", subjects_);
+        UI_MANAGED_SUBJECT_INT(extrude_length_index_subject_, extrude_length_index_,
+                               "filament_extrude_length_index", subjects_);
 
         // Per-op button feedback state (0=idle, 1=busy spinner, 2=done check).
         // Bound to each op button's bind_op_state in filament_panel.xml.
@@ -508,6 +527,7 @@ void FilamentPanel::deinit_subjects() {
     // Watches PrinterState's print_state_enum, a subject tests deinit between
     // cases — must be released alongside the AmsState guards above.
     print_active_observer_.reset();
+    extrude_speed_observer_.reset();
     temp_observers_.clear();
     deinit_subjects_base(subjects_);
 }
@@ -665,6 +685,8 @@ void FilamentPanel::bind_widgets() {
     extruder_selector_group_ =
         helix::ui::find_required(panel_, "extruder_selector_group", get_name());
     extruder_dropdown_ = helix::ui::find_required(panel_, "extruder_dropdown", get_name());
+    extrude_speed_dropdown_ =
+        helix::ui::find_required(panel_, "extrude_speed_dropdown", get_name());
     btn_manage_slots_ = helix::ui::find_required(panel_, "btn_manage_slots", get_name());
 
     // Find external spool row widgets
@@ -699,7 +721,8 @@ void FilamentPanel::bind_widgets() {
     update_safety_state();
 
     // Trigger initial extrude length selection (notifies bind_style observers)
-    handle_extrude_length_select(extrude_length_);
+    handle_extrude_length_select(extrude_length_index_);
+    sync_extrude_speed_dropdown();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -1542,13 +1565,68 @@ void FilamentPanel::update_status_icon_for_state() {
 
 // set_operation_in_progress removed — replaced by OperationTimeoutGuard
 
-void FilamentPanel::handle_extrude_length_select(int amount) {
-    extrude_length_ = amount;
-    // Update boolean subjects for each button (only one active at a time)
-    lv_subject_set_int(&extrude_length_5mm_active_subject_, amount == 5 ? 1 : 0);
-    lv_subject_set_int(&extrude_length_10mm_active_subject_, amount == 10 ? 1 : 0);
-    lv_subject_set_int(&extrude_length_25mm_active_subject_, amount == 25 ? 1 : 0);
-    spdlog::debug("[{}] Extrude length set to {}mm", get_name(), amount);
+void FilamentPanel::handle_extrude_length_select(int index) {
+    if (index < 0 || index >= helix::SettingsManager::kExtrudeLengthPresetCount) {
+        return;
+    }
+    extrude_length_index_ = index;
+    lv_subject_set_int(&extrude_length_index_subject_, index);
+    spdlog::debug("[{}] Extrude length set to {}mm", get_name(), extrude_length_mm());
+}
+
+int FilamentPanel::extrude_length_mm() const {
+    return helix::SettingsManager::instance().get_extrude_length_preset(extrude_length_index_);
+}
+
+bool FilamentPanel::handle_extrude_length_longpress(int index) {
+    auto& settings = helix::SettingsManager::instance();
+    if (index < 0 || index >= helix::SettingsManager::kExtrudeLengthPresetCount) {
+        return false;
+    }
+    ui_keypad_config_t config{};
+    config.initial_value = static_cast<float>(settings.get_extrude_length_preset(index));
+    config.min_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMinMm);
+    config.max_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMaxMm);
+    config.title_label = lv_tr("Extrude Length");
+    config.unit_label = "mm";
+    // The keypad edits the button it was opened from, which also becomes the
+    // length Extrude and Retract use.
+    config.on_confirm = [this, index](float mm) {
+        helix::SettingsManager::instance().set_extrude_length_preset(index, static_cast<int>(mm));
+        handle_extrude_length_select(index);
+    };
+    return ui_keypad_show(&config);
+}
+
+void FilamentPanel::sync_extrude_speed_dropdown() {
+    if (!extrude_speed_dropdown_) {
+        return;
+    }
+    const auto& presets = helix::SettingsManager::kExtrudeSpeedPresets;
+    const int speed = helix::SettingsManager::instance().get_extrude_speed();
+
+    std::string options;
+    uint32_t selected = LV_DROPDOWN_POS_LAST;
+    for (size_t i = 0; i < std::size(presets); ++i) {
+        if (!options.empty()) {
+            options += '\n';
+        }
+        options += fmt::format("{} mm/s", presets[i]);
+        if (presets[i] == speed) {
+            selected = static_cast<uint32_t>(i);
+        }
+    }
+    if (lv_dropdown_get_option_count(extrude_speed_dropdown_) != std::size(presets)) {
+        lv_dropdown_set_options(extrude_speed_dropdown_, options.c_str());
+    }
+    if (selected != LV_DROPDOWN_POS_LAST) {
+        lv_dropdown_set_selected(extrude_speed_dropdown_, selected);
+    }
+
+    // A speed set in Machine Limits need not be a preset: the closed dropdown
+    // always names the speed Extrude and Retract will use.
+    lv_dropdown_set_text(extrude_speed_dropdown_, fmt::format("{} mm/s", speed).c_str());
+    helix::ui::fit_dropdown_to_text(extrude_speed_dropdown_);
 }
 
 // ============================================================================
@@ -1689,7 +1767,7 @@ void FilamentPanel::begin_manual_motion(helix::FilamentMotion motion, int speed_
     motion_timer_.reset();
     motion_rpc_pending_ = true;
     lv_subject_set_int(&manual_motion_subject_, static_cast<int>(motion));
-    const uint32_t ms = helix::manual_motion_duration_ms(extrude_length_, speed_mm_s);
+    const uint32_t ms = helix::manual_motion_duration_ms(extrude_length_mm(), speed_mm_s);
     // `this` is an immortal singleton, and motion_timer_ neuters the timer on
     // reset and destruction.
     lv_timer_t* t = lv_timer_create(
@@ -1894,7 +1972,7 @@ void FilamentPanel::handle_extrude_button() {
 }
 
 void FilamentPanel::execute_extrude() {
-    spdlog::info("[{}] Extruding {}mm", get_name(), extrude_length_);
+    spdlog::info("[{}] Extruding {}mm", get_name(), extrude_length_mm());
 
     if (!api_) {
         return;
@@ -1903,8 +1981,8 @@ void FilamentPanel::execute_extrude() {
     // Inline G-code: M83 = relative extrusion, G1 E{amount} F{speed}
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
-    spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = helix::ui::extrude_gcode(extrude_length_, speed_mm_min);
+    spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_mm(), speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(extrude_length_mm(), speed_mm_min);
     op_started(FilamentOp::Extrude); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Extrude, speed_mm_min / 60);
 
@@ -2061,7 +2139,7 @@ void FilamentPanel::handle_retract_button() {
 }
 
 void FilamentPanel::execute_retract() {
-    spdlog::info("[{}] Retracting {}mm", get_name(), extrude_length_);
+    spdlog::info("[{}] Retracting {}mm", get_name(), extrude_length_mm());
 
     if (!api_) {
         return;
@@ -2070,8 +2148,8 @@ void FilamentPanel::execute_retract() {
     // Inline G-code: M83 = relative extrusion, negative E = retract
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
-    spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = helix::ui::extrude_gcode(-extrude_length_, speed_mm_min);
+    spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_mm(), speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(-extrude_length_mm(), speed_mm_min);
     op_started(FilamentOp::Retract); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Retract, speed_mm_min / 60);
 
