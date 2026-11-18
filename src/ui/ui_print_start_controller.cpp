@@ -689,6 +689,13 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             const std::set<int> start_tools = tools_used.empty() && archive_plate == 0
                                                   ? helix::file_tools_used(facts)
                                                   : tools_used;
+            // The lanes this reprint's pre-print send will route to, which are
+            // the lanes the gates must judge.
+            std::optional<std::map<int, int>> remap;
+            if (AmsBackend* backend = AmsState::instance().get_backend();
+                backend && backend->requires_preprint_send()) {
+                remap = reprint_routing(*backend, routing, start_tools);
+            }
             reprint_gates_ =
                 ReprintGateRun{std::move(facts),
                                [this, filename, path, start_tools, routing, on_started, on_error,
@@ -696,10 +703,26 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                                    start_reprint(filename, path, start_tools, routing, on_started,
                                                  on_error, archive_plate, native_plate);
                                },
-                               on_error};
+                               on_error, std::move(remap)};
             run_gates_from(0);
         },
         nullptr, nullptr, reprint_file_read(tools_used, archive_plate));
+}
+
+std::optional<std::map<int, int>>
+PrintStartController::reprint_routing(const AmsBackend& backend,
+                                      const std::optional<std::map<int, int>>& routing,
+                                      const std::set<int>& tools_used) {
+    auto remap = routing ? routing
+                         : helix::FilamentMapper::reprint_remap(backend.last_print_tool_mapping(),
+                                                                tools_used);
+    if (!remap && backend.default_print_routing_is_identity()) {
+        // The firmware's own default is tool n = slot n, so the empty remap
+        // sends exactly that for the file's tools and overwrites any map the
+        // printer still holds for its next print.
+        remap = std::map<int, int>{};
+    }
+    return remap;
 }
 
 void PrintStartController::abandon_pending_reprint() {
@@ -866,15 +889,8 @@ void PrintStartController::start_reprint(const std::string& filename, const std:
             // which is what last_print_tool_mapping() snapshots. An empty remap is
             // not "no routing": build_preprint_gcode resolves a tool it is not told
             // about to that tool's firmware-default head.
-            auto remap = routing ? routing
-                                 : helix::FilamentMapper::reprint_remap(
-                                       backend->last_print_tool_mapping(), tools_used);
-            if (!remap && backend->default_print_routing_is_identity()) {
-                // The firmware's own default is tool n = slot n, so the empty remap
-                // sends exactly that for the file's tools and overwrites any map the
-                // printer still holds for its next print.
-                remap = std::map<int, int>{};
-            } else if (!remap) {
+            auto remap = reprint_routing(*backend, routing, tools_used);
+            if (!remap) {
                 // Not known (no configured task observed, e.g. the app started after
                 // the print ended). Sending a map here means inventing a routing: an
                 // identity map is a confident wrong answer for exactly the files that
@@ -926,6 +942,26 @@ void PrintStartController::start_reprint(const std::string& filename, const std:
 // Gate Pipeline
 // ============================================================================
 
+namespace {
+/// Point @p ctx at the heads a reprint's pre-print send routes to
+/// (PrintStartController::reprint_routing()): @p remap's head for each tool it
+/// names, and the firmware-default head (tool n = head n) for a tool it leaves
+/// out, which only an identity-default backend's empty remap does.
+void apply_reprint_routing(helix::PrintStartContext& ctx, const std::map<int, int>& remap) {
+    ctx.effective_remap = remap;
+    for (auto& m : ctx.mappings) {
+        if (m.tool_index < 0) {
+            continue;
+        }
+        const auto it = remap.find(m.tool_index);
+        m.mapped_slot = it != remap.end() ? it->second : m.tool_index;
+        m.mapped_backend = 0;
+        m.is_auto = false;
+        m.reason = helix::ToolMapping::MatchReason::FIRMWARE_MAPPING;
+    }
+}
+} // namespace
+
 helix::PrintStartContext PrintStartController::gather_print_start_context() const {
     helix::PrintStartContext ctx;
     ctx.filament_color_count = filament_colors_.size();
@@ -960,6 +996,9 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         // filament_colors_ is the file Print Files has open, not this one.
         ctx.filament_color_count = reprint_gates_->facts.palette.colors.size();
         helix::fill_file_context(ctx, reprint_gates_->facts);
+        if (const auto& remap = reprint_gates_->remap) {
+            apply_reprint_routing(ctx, *remap);
+        }
     } else if (detail_view_) {
         ctx.has_file_facts = true;
         ctx.metadata = detail_view_->get_file_metadata();

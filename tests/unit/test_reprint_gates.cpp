@@ -20,7 +20,9 @@
 #include "../test_helpers/planted_gcode.h"
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/queued_start_fixture.h"
+#include "../test_helpers/registered_backend.h"
 #include "../test_helpers/scoped_mock_ams.h"
+#include "ams_backend_mock.h"
 #include "app_constants.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
@@ -280,4 +282,60 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a reprint whose file checks stall gives u
     CHECK(start_params.empty());
     CHECK(started == 0);
     CHECK(errors == 1);
+}
+
+namespace {
+
+/// A pre-print-send backend that last routed tool 0 to head 3.
+class RoutedToHead3 : public AmsBackendMock {
+  public:
+    RoutedToHead3() : AmsBackendMock(4) {
+        set_snapmaker_mode(true);
+    }
+    std::vector<int> last_print_tool_mapping() const override {
+        return {3, 1, 2, 0};
+    }
+};
+
+void fill_head(AmsBackendMock& backend, int head, uint32_t rgb, float grams, SlotStatus status) {
+    auto slot = backend.get_slot_info(head);
+    slot.color_rgb = rgb;
+    slot.material = "PLA";
+    slot.remaining_weight_g = grams;
+    helix::test::apply_edit(backend, head, slot);
+    backend.force_slot_status(head, status);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a reprint's gates judge the head its routing sends it to",
+                 "[reprint_gates][reprint][print_start][preprint]") {
+    AmsState::instance().init_subjects(false);
+    helix::test::RegisteredBackend<RoutedToHead3> backend;
+    backend->set_operation_delay(0);
+    backend->start();
+    helix::ui::UpdateQueue::instance().drain();
+    struct Stop {
+        AmsBackendMock& b;
+        ~Stop() {
+            helix::ui::UpdateQueue::instance().drain();
+            b.stop();
+        }
+    } stop{*backend};
+    // Only head 3, where the last print ran tool 0, has enough filament; the
+    // seed alone (tool 0 on head 0, or color matching on head 1) is short.
+    fill_head(*backend, 0, 0x0000FF, 60.0F, SlotStatus::LOADED);
+    fill_head(*backend, 1, 0xFF0000, 60.0F, SlotStatus::LOADED);
+    fill_head(*backend, 2, 0x00FF00, 60.0F, SlotStatus::LOADED);
+    fill_head(*backend, 3, 0xEE1010, 500.0F, SlotStatus::LOADED);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(backend->requires_preprint_send());
+    PlantedGcode file("reprint_routed.gcode", "", kRedPla140g);
+
+    reprint(file.name());
+
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(controller()) == nullptr);
+    REQUIRE(start_params.size() == 1);
+    CHECK(started == 1);
+    CHECK(errors == 0);
 }

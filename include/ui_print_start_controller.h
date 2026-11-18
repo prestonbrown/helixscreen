@@ -235,6 +235,14 @@ class PrintStartController {
     /// The on_error of a reprint whose facts load has not answered; empty otherwise.
     std::function<void()> pending_reprint_on_error_;
 
+    /// The tool-to-head map a reprint's pre-print send writes on @p backend:
+    /// @p routing when the caller knows it, else the last print's routing
+    /// (FilamentMapper::reprint_remap()), else the empty map on a backend whose
+    /// default routing is identity. Unset when none is known.
+    [[nodiscard]] static std::optional<std::map<int, int>>
+    reprint_routing(const AmsBackend& backend, const std::optional<std::map<int, int>>& routing,
+                    const std::set<int>& tools_used);
+
     /// Drop a reprint whose facts load has not answered, telling its caller
     /// through its on_error. Nothing when none is pending.
     void abandon_pending_reprint();
@@ -392,6 +400,9 @@ class PrintStartController {
         helix::FileStartFacts facts;
         std::function<void()> start;
         std::function<void()> on_end;
+        /// The heads the reprint's pre-print send routes to; unset when it
+        /// sends none, and the auto-seeded mapping stands.
+        std::optional<std::map<int, int>> remap;
     };
     std::optional<ReprintGateRun> reprint_gates_;
 
