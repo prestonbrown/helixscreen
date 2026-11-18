@@ -168,6 +168,11 @@ class GCodeGLESRenderer {
     /// fatal GL error, so the owner can schedule a redraw. Must not touch LVGL.
     void set_frame_ready_callback(std::function<void()> cb);
 
+    /// Copy the newest finished frame into the draw buffer, if there is one.
+    /// LVGL thread, outside a refresh: the frame-ready callback's hop is the
+    /// place. Returns true when a frame was adopted.
+    bool adopt_ready_frame();
+
     void set_viewport_size(int width, int height);
     void set_interaction_mode(bool interacting);
     bool is_interaction_mode() const {
@@ -196,6 +201,12 @@ class GCodeGLESRenderer {
     /// destroyed.
     bool render_failed() const {
         return gl_render_failed_ || gl_init_failed_;
+    }
+
+    /// True when render_failed() fired because moving frames stayed too slow to
+    /// rotate (render_schedule::moving_too_slow), not because GL broke.
+    bool too_slow() const {
+        return too_slow_;
     }
 
     /// Which half of render_failed() fired: true when GL could not be brought
@@ -509,6 +520,8 @@ class GCodeGLESRenderer {
     void release_sdl_video();
     bool gl_initialized_ = false;             // LVGL thread; fixed while the worker runs
     std::atomic<bool> gl_init_failed_{false}; // Prevents repeated init attempts
+    std::atomic<bool> too_slow_{false};
+    int slow_moving_streak_ = 0; ///< worker thread, under the state mutex
     std::atomic<bool> gl_render_failed_{
         false}; // Set on a fatal GL draw error; sticky for the session
 

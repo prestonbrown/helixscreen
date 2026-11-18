@@ -96,6 +96,23 @@ inline MovingPlan hold_half_resolution(MovingPlan plan, bool held) {
     return plan;
 }
 
+/// A moving frame slower than this, already at half resolution, leaves the
+/// model unusable to rotate: under ~7 frames a second.
+constexpr float kMaxUsableMovingFrameMs = 150.0f;
+/// Consecutive such frames before the 3D preview gives way to 2D.
+constexpr int kSlowMovingFramesToFallBack = 5;
+
+/// Count one moving frame's wall time (draw and readback) into `slow_streak`;
+/// true once enough consecutive frames were too slow to rotate. A frame still
+/// at full resolution never counts: the plan has a cheaper rung left for it.
+inline bool moving_too_slow(int& slow_streak, float frame_ms, bool half_resolution) {
+    if (!half_resolution || frame_ms <= kMaxUsableMovingFrameMs) {
+        slow_streak = 0;
+        return false;
+    }
+    return ++slow_streak >= kSlowMovingFramesToFallBack;
+}
+
 /// How the moving mesh is banded.
 struct BandPlan {
     int band_layers;           ///< layers one shell band covers (1 = off)
