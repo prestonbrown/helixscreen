@@ -21,6 +21,7 @@ signature, so it cannot be moved onto another channel's signature.
 | `lib/monocypher/` | Monocypher 4.0.2, vendored unmodified (CC0 / BSD-2) |
 | `scripts/sign-release-manifest.sh` | Signs and checks each channel manifest in CI |
 | `.github/workflows/release.yml` (`upload-r2`) | Generates, signs, verifies and uploads each manifest, behind the `release-signing` environment |
+| `.github/workflows/recover-r2.yml` | Republishes a tag's R2 upload, signing its regenerated manifests the same way; dispatched from the tag (`--ref vX.Y.Z`), since the environment admits only tags |
 | helix-installer `crates/core/src/keys.rs` (`RELEASE_PUBKEY`) | The same key compiled into the easy installer |
 
 The release key is `RWRXImmr5YYfqd5aaV48WN+50k5e83NgKuEtxECC6agLUBkXG7t7AH9S` (key id
@@ -151,7 +152,7 @@ Tests use throwaway keys only (`tests/fixtures/release_signing/README.md`), neve
 |------|--------|
 | `tests/unit/test_release_signature.cpp` (`[release_signature]`) | Good prehashed signature, tampered manifest, wrong key, legacy signature, edited trusted comment, malformed input, compiled-in key equals `.github/release-minisign.pub` |
 | `tests/unit/test_update_checker_signature.cpp` (`[update_checker][signature]`) | Unsigned and badly signed manifests refused, a good one parsed as verified, GitHub releases never installable, and a full check against a loopback server |
-| `tests/shell/test_release_manifest_signing.bats` | The workflow's signing step, upload order, secret gating and environment |
+| `tests/shell/test_release_manifest_signing.bats` | The release and recovery workflows' signing step, upload order, secret gating and environment |
 
 Signing a test manifest by hand:
 
