@@ -41,9 +41,10 @@ TEST_CASE("unit art geometry: the bake records every spool unit's lanes", "[unit
                 CHECK(geom->lane[i - 1].box_x0 < g.box_x0);
         }
     }
-    // A selector rail draws no spools.
+    // A selector rail draws no spools, and no unit is baked past the lanes it is built with.
     CHECK(unit_art_geometry("ercf_rail", 6) == nullptr);
-    CHECK(unit_art_geometry("box_turtle", 7) == nullptr);
+    CHECK(unit_art_geometry("box_turtle", 7) != nullptr);
+    CHECK(unit_art_geometry("box_turtle", 9) == nullptr);
 }
 
 namespace {
