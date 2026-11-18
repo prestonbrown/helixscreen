@@ -86,6 +86,7 @@ bool row_is_checked(lv_obj_t* row) {
 class ThermistorPickerFixture : public XMLTestFixture {
   public:
     ThermistorPickerFixture() {
+        helix::test::init_panel_widget_subjects();
         helix::ui::ContextMenu::register_shared_callbacks();
         REQUIRE(register_component("components/thermistor_picker_row"));
         REQUIRE(register_component("thermistor_configure_picker"));

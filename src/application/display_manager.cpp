@@ -743,14 +743,13 @@ void DisplayManager::debug_touch_tick(lv_timer_t* t) {
     lv_point_t point;
     lv_indev_get_point(indev, &point);
 
-    static int32_t last_x = -100, last_y = -100;
-    int32_t dx = point.x - last_x;
-    int32_t dy = point.y - last_y;
+    lv_point_t& last = dm->m_debug_touch_last;
+    int32_t dx = point.x - last.x;
+    int32_t dy = point.y - last.y;
     if (dx * dx + dy * dy < 25) // <5px movement
         return;
 
-    last_x = point.x;
-    last_y = point.y;
+    last = point;
     helix::ui::create_ripple(lv_layer_top(), point.x, point.y, 10, 40, 300);
 }
 

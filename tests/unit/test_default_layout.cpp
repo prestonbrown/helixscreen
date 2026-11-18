@@ -5,6 +5,7 @@
 #include "../test_helpers/measured_grids.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_int_subject.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "ams_state.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
@@ -441,13 +442,7 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
                  "[default_layout][regression]") {
     // Mimic an AMS test leaving the singleton's gate subject >0. If AmsState
     // already registered the real subject this finds it; otherwise stand one in.
-    lv_subject_t* ams = lv_xml_get_subject(nullptr, "ams_slot_count");
-    static helix::Subject stand_in;
-    if (!ams) {
-        stand_in.init_int(0);
-        lv_xml_register_subject(nullptr, "ams_slot_count", &stand_in);
-        ams = lv_xml_get_subject(nullptr, "ams_slot_count");
-    }
+    lv_subject_t* ams = helix::test::xml_stand_in("ams_slot_count", 0);
     REQUIRE(ams != nullptr);
     lv_subject_set_int(ams, 4); // 4 slots "discovered"
     REQUIRE(lv_subject_get_int(ams) == 4);

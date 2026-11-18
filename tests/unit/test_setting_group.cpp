@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_status_pill.h"
 
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "../ui_test_utils.h"
 #include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -250,15 +251,8 @@ TEST_CASE_METHOD(SettingGroupFixture, "setting_group: header follows whether any
 TEST_CASE_METHOD(SettingGroupFixture, "setting_group_header: badge_subject binds the badge text",
                  "[setting_group]") {
     REQUIRE(register_component("setting_group_header"));
-    // The XML subject registry never forgets a name, so the storage outlives the test.
-    static helix::Subject count;
-    static bool registered = false;
-    if (!registered) {
-        count.init_int(0);
-        lv_xml_register_subject(nullptr, "setting_group_test_badge_count", &count);
-        registered = true;
-    }
-    lv_subject_set_int(&count, 4);
+    lv_subject_t* count = helix::test::xml_stand_in("setting_group_test_badge_count", 0);
+    lv_subject_set_int(count, 4);
 
     const char* attrs[] = {"title",       "SENSORS",       "badge_name",
                            "bound_badge", "badge_subject", "setting_group_test_badge_count",
@@ -270,7 +264,7 @@ TEST_CASE_METHOD(SettingGroupFixture, "setting_group_header: badge_subject binds
     REQUIRE(badge != nullptr);
     REQUIRE(find_label_with_text(badge, "4") != nullptr);
 
-    lv_subject_set_int(&count, 12);
+    lv_subject_set_int(count, 12);
     process_lvgl(10);
     CHECK(find_label_with_text(badge, "12") != nullptr);
 }

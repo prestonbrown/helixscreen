@@ -158,6 +158,9 @@ class ToolState {
 
     void init_subjects(bool register_xml = true);
     void deinit_subjects();
+    [[nodiscard]] bool subjects_initialized() const {
+        return subjects_initialized_;
+    }
 
     void init_tools(const helix::PrinterDiscovery& hardware);
 

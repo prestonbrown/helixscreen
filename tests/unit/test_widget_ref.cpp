@@ -13,6 +13,7 @@
 #include "../lvgl_test_fixture.h"
 #include "core/update_queue.h"
 
+#include <algorithm>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -59,12 +60,14 @@ TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef clears itself on a deferred delete"
 }
 
 namespace {
-int timer_count() {
-    int n = 0;
+/// Every live LVGL timer. Other cases' one-shot timers come and go inside
+/// process_lvgl(), so a check names the timers it owns rather than counting all.
+std::vector<lv_timer_t*> live_timers() {
+    std::vector<lv_timer_t*> all;
     for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
-        ++n;
+        all.push_back(t);
     }
-    return n;
+    return all;
 }
 } // namespace
 
@@ -74,11 +77,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "Deleting an object cancels its pending async 
                  "[widget_ref][1983]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_t* child = lv_obj_create(parent);
-    const int before = timer_count();
+    const std::vector<lv_timer_t*> before = live_timers();
 
     lv_obj_delete_async(child);
     lv_obj_delete_async(parent);
-    REQUIRE(timer_count() == before + 2);
+    std::vector<lv_timer_t*> pending;
+    for (lv_timer_t* t : live_timers()) {
+        if (std::find(before.begin(), before.end(), t) == before.end()) {
+            pending.push_back(t);
+        }
+    }
+    REQUIRE(pending.size() == 2);
 
     SECTION("a sync delete of the ancestor takes the child's entry with it") {
         lv_obj_delete(parent);
@@ -86,7 +95,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "Deleting an object cancels its pending async 
     SECTION("the ancestor's own async delete does too") {
         process_lvgl(20);
     }
-    CHECK(timer_count() == before);
+    const std::vector<lv_timer_t*> after = live_timers();
+    for (lv_timer_t* t : pending) {
+        CHECK(std::find(after.begin(), after.end(), t) == after.end());
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "WidgetRef rebind unhooks the previous widget", "[widget_ref]") {

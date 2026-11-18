@@ -5,6 +5,7 @@
 #include "../test_helpers/panel_widget_manager_test_access.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/scoped_xml_component_stub.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "core/subject.h"
@@ -156,11 +157,7 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
     // the hardware_gate_subject for every registered widget def. Any subject
     // that doesn't already exist gets created here so the observer chain has
     // something to attach to. nullptr scope = global.
-    static helix::Subject klippy_state_subj;
-    if (!lv_xml_get_subject(nullptr, "klippy_state")) {
-        klippy_state_subj.init_int(0);
-        lv_xml_register_subject(nullptr, "klippy_state", &klippy_state_subj);
-    }
+    helix::test::xml_stand_in("klippy_state", 0);
 
     // Static so registrations persist across SECTION re-entries; otherwise the
     // second SECTION sees the global registrations from the first but its
@@ -1263,13 +1260,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         "test_gate_swap_widget",
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
 
-    lv_subject_t* gate = lv_xml_get_subject(nullptr, "led_controllable");
-    static helix::Subject s_fallback_gate;
-    if (!gate) {
-        s_fallback_gate.init_int(0);
-        lv_xml_register_subject(nullptr, "led_controllable", &s_fallback_gate);
-        gate = &s_fallback_gate;
-    }
+    lv_subject_t* gate = helix::test::xml_stand_in("led_controllable", 0);
     const int gate_before = lv_subject_get_int(gate);
 
     const WidgetFactory orig_clock = helix::find_widget_def("clock")->factory;

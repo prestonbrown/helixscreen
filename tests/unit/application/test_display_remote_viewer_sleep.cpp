@@ -10,6 +10,8 @@
  * DisplayManager feeds it the service's viewer signal.
  */
 
+#include "ui_nav_manager.h"
+
 #include "../../test_helpers/config_test_access.h"
 #include "config.h"
 #include "core/update_queue.h"
@@ -59,11 +61,13 @@ class RemoteViewerSleepFixture : public LVGLTestFixture {
     }
 
     ~RemoteViewerSleepFixture() override {
-        // A display held out of sleep runs the screensaver; it outlives the case's
-        // DisplayManager, and the next start() would take it for its own.
+        // A display held out of sleep runs the screensaver and suspends the active
+        // panel; both outlive the case's DisplayManager. A stale saver is taken by
+        // the next start(), and a suspended navigation never activates a panel again.
 #if HELIX_ENABLE_SCREENSAVER
         ScreensaverManager::instance().stop();
 #endif
+        NavigationManager::instance().resume_active();
         auto& ds = DisplaySettingsManager::instance();
         ds.set_display_dim_sec(prev_dim_sec_);
         ds.set_display_sleep_sec(prev_sleep_sec_);

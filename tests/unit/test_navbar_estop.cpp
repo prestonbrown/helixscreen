@@ -25,6 +25,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -589,14 +590,10 @@ namespace {
 
 struct DryingNavbarFixture : public NavbarFixture {
     DryingNavbarFixture() {
-        drying_state_ = lv_xml_get_subject(nullptr, "bed_drying_state");
-        if (!drying_state_) {
-            // The registry keeps the pointer past this fixture, so it is static.
-            static helix::Subject own_state;
-            own_state.init_int(0);
-            lv_xml_register_subject(nullptr, "bed_drying_state", &own_state);
-            drying_state_ = &own_state;
-            // The navbar binds at creation, so rebuild it against the subject.
+        const bool published = lv_xml_get_subject(nullptr, "bed_drying_state") != nullptr;
+        drying_state_ = helix::test::xml_stand_in("bed_drying_state", 0);
+        if (!published) {
+            // The navbar binds at creation, so rebuild it against the stand-in.
             auto& nav = NavigationManager::instance();
             nav.deinit_subjects();
             nav.init();

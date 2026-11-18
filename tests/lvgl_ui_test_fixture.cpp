@@ -82,6 +82,9 @@ LVGLUITestFixture::LVGLUITestFixture() {
     // Phase 6: XML components (now subjects and callbacks are ready)
     register_xml_components();
 
+    // Phase 7: panel widget subjects, after component registration as in the app
+    helix::test::init_panel_widget_subjects();
+
     // Recreate test screen (with theme applied)
     m_test_screen = lv_obj_create(nullptr);
     if (m_test_screen != nullptr) {

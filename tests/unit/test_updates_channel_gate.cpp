@@ -27,6 +27,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -55,11 +56,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         // this tree's condition would resolve to nothing and the container would
         // never hide. Supply it the way the stub supplies platform_host_power_supported:
         // register if absent, function-local static so it outlives the fixture.
-        static helix::Subject beta_subject;
-        if (!lv_xml_get_subject(nullptr, "show_beta_features")) {
-            beta_subject.init_int(1);
-            lv_xml_register_subject(nullptr, "show_beta_features", &beta_subject);
-        }
+        helix::test::xml_stand_in("show_beta_features", 1);
         get_global_settings_panel().init_subjects();
         helix::settings::get_updates_settings_overlay().init_subjects();
         root_ = static_cast<lv_obj_t*>(

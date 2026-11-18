@@ -13,6 +13,7 @@
 #include "../test_helpers/settings_panel_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../test_helpers/wifi_manager_test_access.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/subject.h"
@@ -57,11 +58,7 @@ struct RootFixture : LVGLUITestFixture {
         // Nothing in this fixture runs PrinterCapabilitiesState::init_subjects(),
         // so printer_has_speaker is otherwise absent and the Sound row's gate
         // resolves to nothing.
-        static helix::Subject speaker_subject;
-        if (!lv_xml_get_subject(nullptr, "printer_has_speaker")) {
-            speaker_subject.init_int(1);
-            lv_xml_register_subject(nullptr, "printer_has_speaker", &speaker_subject);
-        }
+        helix::test::xml_stand_in("printer_has_speaker", 1);
         SettingsManager::instance().init_subjects();
         get_global_settings_panel().init_subjects();
         root_ = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "settings_panel", nullptr));

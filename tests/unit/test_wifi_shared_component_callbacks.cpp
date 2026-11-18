@@ -95,7 +95,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "wifi rows and password buttons dispatch to 
 TEST_CASE_METHOD(LVGLUITestFixture, "wifi password modal withdraws Connect while connecting",
                  "[wifi][callbacks]") {
     auto& overlay = get_network_settings_overlay();
-    overlay.init_subjects();
+    // The overlay is process-wide: an earlier case may have initialized it already.
+    overlay.ensure_subjects();
     overlay.register_callbacks();
     lv_subject_t* connecting = lv_xml_get_subject(nullptr, "wifi_connecting");
     REQUIRE(connecting != nullptr);

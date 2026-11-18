@@ -18,6 +18,7 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "boot_crash_guard.h"
@@ -664,13 +665,8 @@ TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: the switch card is painted bef
 TEST_CASE_METHOD(SwitchFlowFixture,
                  "Switch flow: the switch card spinner moves only on full render tiers",
                  "[multi-printer][switch_flow][switch_interstitial]") {
-    lv_subject_t* tier = lv_xml_get_subject(nullptr, "platform_tier");
-    static helix::Subject s_tier;
-    if (!tier) {
-        s_tier.init_int(static_cast<int>(helix::PlatformTier::STANDARD));
-        lv_xml_register_subject(nullptr, "platform_tier", &s_tier);
-        tier = &s_tier;
-    }
+    lv_subject_t* tier =
+        helix::test::xml_stand_in("platform_tier", static_cast<int>(helix::PlatformTier::STANDARD));
     const int saved = lv_subject_get_int(tier);
 
     helix::PlatformTier set_tier = helix::PlatformTier::STANDARD;

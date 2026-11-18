@@ -38,6 +38,7 @@
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
 #include "post_op_cooldown_manager.h"
+#include "printer_discovery.h"
 #include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
@@ -60,6 +61,7 @@
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
 #include "thermal_rate_model.h"
+#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -533,6 +535,12 @@ void HelixTestFixture::reset_all() {
     // A displaced tool map one test leaves pending would be the next test's
     // print-start snapshot and seed routing.
     helix::AmsState::instance().clear_pending_tool_map_restore();
+
+    // ToolState is a singleton: the tools one case installs would be every later
+    // case's (a toolhead chip on Print Status, a multi-tool dropdown).
+    if (helix::ToolState::instance().subjects_initialized()) {
+        helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+    }
 
     // DisplaySettingsManager's animations_enabled is a process-global subject
     // that defaults to the platform value (true on desktop). A fixture-less

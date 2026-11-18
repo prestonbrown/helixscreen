@@ -11,6 +11,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "first_run_tour.h"
 #include "printer_image_manager.h"
@@ -42,34 +43,59 @@ void reset_tour_settings() {
     cfg->set<bool>("/wizard_completed", true);
     // Edit mode gates the tour, and the subject is global, so a case that leaves
     // it set would decide every case that runs after it.
-    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    if (helix::subject_is_live(&get_home_edit_mode_subject())) {
+        lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    }
     FirstRunTour::instance().set_printer_ready(true);
     // In-memory singleton state is left clean by the public API used in these
     // tests: start()/skip() always pair, and advance() past the last step calls
     // finish() which resets running_. No explicit reset needed.
 }
+
+/// A running tour drives the real navigation, so it gets the app's: every panel
+/// exists and Home is active. Without it start() binds whatever screen and
+/// navigation an earlier case left behind.
+class TourNavFixture : public LVGLUITestFixture {
+  public:
+    TourNavFixture() {
+        reset_tour_settings();
+        std::array<lv_obj_t*, kUiPanelCount> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        nav.set_panels(panels.data());
+        nav.set_active(helix::PanelId::Home);
+    }
+    ~TourNavFixture() override {
+        nav.shutdown();
+    }
+    NavigationManager& nav = NavigationManager::instance();
+};
 } // namespace
 
-TEST_CASE("FirstRunTour gate: blocks when tour already completed", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks when tour already completed",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", helix::tour::kTourVersion);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 }
 
-TEST_CASE("FirstRunTour gate: blocks when wizard not complete", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks when wizard not complete",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/wizard_completed", false);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 }
 
-TEST_CASE("FirstRunTour gate: allows auto-start when fresh and wizards done", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: allows auto-start when fresh and wizards done", "[tour]") {
     reset_tour_settings();
     REQUIRE(FirstRunTour::should_auto_start() == true);
 }
 
-TEST_CASE("FirstRunTour gate: re-triggers when last_seen_version is behind TOUR_VERSION",
-          "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: re-triggers when last_seen_version is behind TOUR_VERSION",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", 0);
@@ -87,7 +113,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks while home grid e
     lv_subject_set_int(&get_home_edit_mode_subject(), 1);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 
-    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    if (helix::subject_is_live(&get_home_edit_mode_subject())) {
+        lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    }
     REQUIRE(FirstRunTour::should_auto_start() == true);
 }
 
@@ -240,7 +268,8 @@ TEST_CASE("auto_start_seen_version: only a finished tour counts as seen", "[tour
     CHECK(helix::tour::auto_start_seen_version(true, 1) == 1);
 }
 
-TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
     reset_tour_settings();
     FirstRunTour::instance().set_printer_ready(false);
     CHECK_FALSE(FirstRunTour::should_auto_start());
@@ -248,7 +277,8 @@ TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[to
     CHECK(FirstRunTour::should_auto_start());
 }
 
-TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: a 1.0 upgrader is offered the tour",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", 1);
@@ -256,16 +286,8 @@ TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
     CHECK(FirstRunTour::should_auto_start());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels and stays there",
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: navigating elsewhere cancels and stays there",
                  "[tour]") {
-    reset_tour_settings();
-    auto& nav = NavigationManager::instance();
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels)
-        p = lv_obj_create(lv_screen_active());
-    nav.set_panels(panels.data());
-    nav.set_active(helix::PanelId::Home);
-
     auto& t = FirstRunTour::instance();
     t.start();
     REQUIRE(t.is_running());
@@ -277,19 +299,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: navigating elsewhere cancels 
     CHECK_FALSE(t.is_running());
     CHECK(nav.get_active() == helix::PanelId::Controls);
     CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
-    nav.shutdown();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: steps open their panel, skip returns Home",
                  "[tour]") {
-    reset_tour_settings();
-    auto& nav = NavigationManager::instance();
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels)
-        p = lv_obj_create(lv_screen_active());
-    nav.set_panels(panels.data());
-    nav.set_active(helix::PanelId::Home);
-
     auto& t = FirstRunTour::instance();
     t.start();
     const auto t_list = titles(build_tour_steps(helix::tour::hardware_has_ams()));
@@ -305,11 +318,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip 
     t.skip();
     CHECK(nav.get_active() == helix::PanelId::Home);
     CHECK_FALSE(t.is_running());
-    nav.shutdown();
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: start() sets is_running", "[tour]") {
     auto& t = FirstRunTour::instance();
     REQUIRE(!t.is_running());
     t.start();
@@ -318,16 +329,14 @@ TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[to
     REQUIRE(!t.is_running());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: skip writes tour.completed", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: skip writes tour.completed", "[tour]") {
     auto& t = FirstRunTour::instance();
     t.start();
     t.skip();
     REQUIRE(Config::get_instance()->get<bool>("/tour/completed", false) == true);
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: advance past last step finishes", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: advance past last step finishes", "[tour]") {
     auto& t = FirstRunTour::instance();
     t.start();
     const auto count = build_tour_steps(helix::tour::hardware_has_ams()).size();
@@ -458,9 +467,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: hide_card lasts until the next
     CHECK_FALSE(lv_obj_is_hidden(tooltip_of(overlay)));
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: a running tour holds back the plugin prompt",
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: a running tour holds back the plugin prompt",
                  "[tour]") {
-    reset_tour_settings();
     CHECK_FALSE(PrintSelectPanel::plugin_screen_state().modal_up);
     auto& t = FirstRunTour::instance();
     t.start();

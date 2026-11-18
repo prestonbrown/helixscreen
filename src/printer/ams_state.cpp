@@ -397,6 +397,9 @@ void AmsState::clear_backends() {
     // The bypass record goes with them; the next printer's is read afresh.
     restart_bypass_reads();
     refresh_bypass_record();
+    // So does a 1.0 import still waiting on the departing backend's lanes: the next
+    // discovery starts its own, and this one would finish against the next backend.
+    legacy_import_ = LegacyImport{};
 
     // The runout edge state describes a specific backend's flag history. A new
     // backend's first sample must re-seed rather than read as a transition.
