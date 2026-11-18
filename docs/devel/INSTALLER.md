@@ -576,16 +576,22 @@ On a verified mod host a bare install is the payload contract, no flags:
   guard protects the *mod's* files, and this root is ours.
 - Contents are replaced **in place** - the root's inode never changes; `config/` and
   `platform/` survive every update; an existing `helixscreen.env` is preserved byte-identical
-  (the incoming one lands beside it as `.env.new`).
+  (the incoming one lands beside it as `.env.new`). Inside `config/` the incoming release
+  merges at file level: a name the payload lacks lands, and a file the release ships and owns
+  (the init script the chroot service is installed from, the helper scripts) replaces the old
+  copy, while a user config name (`HELIX_USER_CONFIG_FILES`, `HELIX_USER_CONFIG_DIRS`, tested by
+  `scripts/lib/installer/platform.sh#helix_is_user_config_name`) is never overwritten.
 - **No service is installed on the host.** The service lands inside the mod chroot's
   `/etc/init.d`, which the mod's own bootstrap (`<chroot>/.root/start.sh`) starts at boot; nothing
   host-side iterates an `/etc/init.d`. An update that replaced a running UI (`mod_payload_restarts_ui`)
   restarts it through that same script, run with `chroot`, since the display is already ours. A fresh
   install leaves the first start to the reboot: the display mode and the disabled stock UI only settle
   at boot. So does an adopted legacy root, which boots from the host's S90, and a root whose binary the
-  chroot cannot reach. Only a `helix-screen` process confirms the start (the init script exits 0 with
-  nothing running when its `DAEMON_DIR` does not resolve); an unconfirmed start is a warning, and the
-  summary asks for a reboot.
+  chroot cannot reach. Only a `helix-screen` process confirms the start, polled with `pidof` from
+  the host whatever the init script's exit status (it exits 0 with nothing running when its
+  `DAEMON_DIR` does not resolve, and non-zero over a running UI when it cannot write its pid
+  file); an unconfirmed start is a warning, and the summary asks for a reboot. A confirmed start
+  sets `HELIX_UI_CONFIRMED`, which also suppresses the "You may need to reboot" hedge (`scripts/lib/installer/plan.sh#print_reboot_note`).
 - **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
   git-tracked - dirtying it breaks their OTA. The sanctioned include point is
   `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`
@@ -874,7 +880,7 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
 
 2. **release_info.json** written to `$INSTALL_DIR/` -- Moonraker `type:web` needs this to detect the installed version
 
-3. **`moonraker.asvc`** -- HelixScreen added to Moonraker's service allowlist so it can restart the service after updates
+3. **`moonraker.asvc`** -- HelixScreen added to Moonraker's service allowlist so it can restart the service after updates. Moonraker reads the allowlist only at startup, so when `ensure_moonraker_asvc` appends `helixscreen` it sets `_MOONRAKER_ASVC_CHANGED`, and the run restarts Moonraker once, together with any restart it needed for its own stanza edits (`scripts/lib/installer/moonraker.sh#ensure_moonraker_asvc`)
 
 ### Config Survival on Updates
 
@@ -898,9 +904,13 @@ The installer detects old `type: git_repo` and `type: zip` configurations and au
 
 ### moonraker.conf Discovery
 
-The `find_moonraker_conf()` function searches in this order:
-1. `$KLIPPER_HOME/printer_data/config/moonraker.conf` (detected user)
-2. Static fallbacks: `/home/pi/...`, `/home/biqu/...`, `/home/mks/...`, `/root/...`, `/opt/config/...`, `/usr/data/...`
+`find_moonraker_conf()` (`scripts/lib/installer/moonraker.sh#find_moonraker_conf`) answers the file the installer may write, in this order:
+1. On a verified mod host, the user conf the payload contract names (`HOST_MOONRAKER_USER_CONF`)
+2. `moonraker.conf` in the platform's config dir: `KLIPPER_CONFIG_DIR` when a firmware declares one (COSMOS), else `<KLIPPER_HOME>/printer_data/config`
+3. The conf the running Moonraker loads, from its command line
+4. Static fallbacks (`MOONRAKER_CONF_PATHS`): `/home/pi/...`, `/home/biqu/...`, `/home/mks/...`, `/root/...`, `/opt/config/...`, `/usr/data/...`
+
+**A mod's own conf is never the answer.** Each candidate goes through `moonraker_conf_answer`: a conf inside a mod's tree (`host_path_is_mod_owned`) answers the `user.moonraker.conf` it `[include]`s instead (`mod_user_moonraker_conf`, resolved beside the conf as given, the way Moonraker resolves it), and nothing when it includes none. This is what keeps Z-Mod's AD5X working: Z-Mod keeps its git tree at `/usr/data/zmod/zmod` (found by its entry script, `<zmod tree>/.shell/zmod.sh`, and recorded in `HOST_ZMOD_ROOT`; `/usr/data/zmod` is a canonical mod root) and links its `moonraker.conf` from there into the config dir. A stanza written into that file marks Z-Mod's tree modified, and Moonraker then refuses to update Z-Mod. When the user conf is the target, the stanza search starts at the mod's conf (`mod_conf_including_user_conf`), so a stanza an earlier install appended there is found; it is left in place, and `warn_mod_conf_stanza` names the blocked mod updates and prints the `git checkout` that restores the file. Moonraker merges a section across files and rejects a repeat only within one file, so the two copies coexist. `HOST_MOD_ROOT` stays the Forge-X tree: `detect_mod_flavor`, the payload contract and the Forge-X flows key on it.
 
 ### Skipped Platforms
 
