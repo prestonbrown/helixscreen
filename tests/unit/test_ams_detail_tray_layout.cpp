@@ -1227,6 +1227,25 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap
     }
 }
 
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots it was on",
+                 "[ams][tray][ui_integration][unit-art][lane-picker]") {
+    namespace at = helix::ui::ams_tray;
+    host_at(0);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_send_event(slot(1), LV_EVENT_PRESSED, nullptr);
+    REQUIRE(at::s_tray.pressed_lane == 1);
+    // The slots are rebuilt under the finger: no release ever reaches the old ones.
+    lv_obj_t* old = slot(1);
+    helix::AmsPanelTestAccess::rebuild_slots(*panel_);
+    CHECK(old != slot(1));
+    CHECK(at::s_tray.pressed_lane == -1);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit art: lanes narrower than a finger are picked from a list",
                  "[ams][tray][ui_integration][unit-art][lane-picker]") {
@@ -1258,6 +1277,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         CHECK(lv_obj_is_clickable(slot(i)) == !narrow);
     if (!narrow)
         return;
+    // A second backend numbers its lanes from 0 too; the picker lists only this unit's.
+    auto other = std::make_unique<AmsBackendMock>(4);
+    other->set_operation_delay(0);
+    other->start();
+    helix::AmsState::instance().add_backend(std::move(other));
     lv_obj_send_event(drawing, LV_EVENT_CLICKED, nullptr);
     process_lvgl(20);
     lv_obj_t* card = lv_obj_find_by_name(lv_screen_active(), "filament_picker_card");

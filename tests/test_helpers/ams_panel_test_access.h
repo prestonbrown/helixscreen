@@ -34,6 +34,10 @@ class AmsPanelTestAccess {
     static void tap_lane(AmsPanel& p, int slot) {
         AmsPanel::on_path_slot_clicked(slot, &p);
     }
+    /// Tear the lane slots down and build them again, as a new lane count does.
+    static void rebuild_slots(AmsPanel& p) {
+        p.create_slots(0);
+    }
     static bool context_menu_open(const AmsPanel& p) {
         return p.context_menu_ && p.context_menu_->is_visible();
     }

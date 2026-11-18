@@ -370,6 +370,8 @@ void helix::ui::ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[],
 void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_widgets[],
                               int& slot_count) {
     (void)w; // Reserved for future use (e.g. labels_layer cleanup)
+    // A slot deleted under a finger is never told the press ended.
+    s_tray.pressed_lane = -1;
 
     if (slot_count <= 0)
         return;
@@ -540,11 +542,13 @@ void pick_lane_cb(lv_event_t* e) {
     std::vector<helix::AvailableSlot> lanes;
     const std::vector<helix::AvailableSlot> all =
         helix::AmsState::instance().collect_available_slots();
+    // Slot indices restart in every backend: this unit's lanes are the active backend's.
+    const int backend = helix::AmsState::instance().active_backend_index();
     for (int i = 0; i < s_tray.lane_count; ++i) {
         lv_obj_t* slot = s_tray.slot[i].get();
         const int global = slot ? (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)) : -1;
         for (const helix::AvailableSlot& a : all)
-            if (a.slot_index == global)
+            if (a.backend_index == backend && a.slot_index == global)
                 lanes.push_back(a);
     }
     if (lanes.empty())
@@ -634,6 +638,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         return;
     s_tray.valid = false;
     s_tray.leader_count = 0;
+    if (unit_index != s_tray.unit_index)
+        s_tray.pressed_lane = -1;
     lv_obj_t* container = lv_obj_get_parent(w.slot_grid);
 
     if (!draws_tray()) {
