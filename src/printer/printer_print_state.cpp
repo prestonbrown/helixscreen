@@ -408,6 +408,7 @@ void PrinterPrintState::reset_for_new_print() {
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
+    file_progress_fraction_ = -1.0;
     lv_subject_set_string(&print_message_, "");
     set_print_stop_reason("");
     lv_subject_set_int(&print_duration_, 0);

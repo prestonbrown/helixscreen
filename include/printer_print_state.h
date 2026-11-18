@@ -1543,6 +1543,9 @@ class PrinterPrintState {
     // When active, preferred over virtual_sdcard file-position progress
     double slicer_progress_ = 0.0;        // Raw 0.0-1.0 from display_status
     bool slicer_progress_active_ = false; // True once non-zero value seen during print
+    // virtual_sdcard.progress at full resolution (0.0-1.0), -1 until one arrives
+    // for this print. Feeds the ETA, which a whole percent makes jump.
+    double file_progress_fraction_ = -1.0;
 
     // Display message from Klipper (M117 gcode / display_status.message)
     helix::Subject display_message_{};         // String subject for UI binding
