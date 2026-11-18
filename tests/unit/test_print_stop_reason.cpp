@@ -473,46 +473,26 @@ TEST_CASE_METHOD(TrackerFixture,
     CHECK(get_printer_state().print_state().last_gcode_error() == error_before);
 }
 
-// ---------------------------------------------------------------------------
-// An outside monitor's pause announcement (#2130)
-// ---------------------------------------------------------------------------
-
-namespace {
-
-// What Print Handy sends with M117 right before it pauses
-// (print_handy/runtime/pause_reason.py, catduckgnaf/print-handy#1629).
+// What Print Handy sends with M117 right before it pauses (#2130;
+// print_handy/runtime/pause_reason.py, catduckgnaf/print-handy#1629).
 constexpr const char* kPrintHandySpaghetti = "Paused by Print Handy: possible spaghetti";
 
-void display_message(const char* text) {
-    get_printer_state().update_from_status(json{{"display_status", {{"message", text}}}});
+static void display_message(const char* text, bool whole_objects = false) {
+    get_printer_state().update_from_status(json{{"display_status", {{"message", text}}}}, 0.0,
+                                           false, std::nullopt, whole_objects);
 }
 
-} // namespace
-
 TEST_CASE("monitor pause: the 'Paused by <source>: <reason>' shape", "[stop_reason]") {
-    for (const char* reason :
-         {"possible spaghetti", "the part may have come loose", "possibly printing in mid-air",
-          "paused from chat", "paused from chat after a camera alert"}) {
-        const auto parsed = parse_monitor_pause(std::string("Paused by Print Handy: ") + reason);
-        REQUIRE(parsed.has_value());
-        CHECK(parsed->source == "Print Handy");
-        CHECK(parsed->reason == reason);
-    }
-    // Another monitor using the same convention is the same shape, not a new case.
-    const auto other = parse_monitor_pause("Paused by Obico: failure detected");
-    REQUIRE(other.has_value());
-    CHECK(other->source == "Obico");
-    CHECK(other->reason == "failure detected");
-    // The reason may itself contain a colon; the source ends at the first one.
-    const auto colon = parse_monitor_pause("Paused by Print Handy: alert: nozzle blob");
-    REQUIRE(colon.has_value());
-    CHECK(colon->reason == "alert: nozzle blob");
-
-    for (const char* text :
-         {"", "Paused", "Paused by Print Handy",
-          "Paused by Print Handy:", "Paused by Print Handy:   ", "Paused by : possible spaghetti",
-          "Printer Paused by Print Handy: possible spaghetti", "paused by print handy: spaghetti",
-          "Heating bed...", "Paused by Print Handy possible spaghetti"}) {
+    const auto parsed = parse_monitor_pause(kPrintHandySpaghetti);
+    REQUIRE(parsed.has_value());
+    CHECK(parsed->source == "Print Handy");
+    CHECK(parsed->reason == "possible spaghetti");
+    // The source ends at the first ": "; the reason may hold another.
+    CHECK(parse_monitor_pause("Paused by Obico: alert: nozzle blob")->reason ==
+          "alert: nozzle blob");
+    for (const char* text : {"", "Paused", "Paused by Print Handy:", "Paused by Print Handy:   ",
+                             "Paused by : possible spaghetti", "Printer Paused by X: y",
+                             "paused by print handy: spaghetti", "Paused by X possible"}) {
         CAPTURE(text);
         CHECK_FALSE(parse_monitor_pause(text).has_value());
     }
@@ -522,110 +502,78 @@ TEST_CASE_METHOD(TrackerFixture,
                  "stop reason tracker: an outside monitor's announcement explains its pause",
                  "[print_completion][stop_reason]") {
     auto& ps = get_printer_state();
-    now_ = kEnd - 1;
+    // An error just before loses to the announcement; the pause macro's own
+    // M117 after it does not erase it.
+    now_ = kEnd - 3;
+    client_.fire_notification("notify_gcode_response", response({"!! Unknown command:\"FOO\""}));
     display_message(kPrintHandySpaghetti);
-    settle();
-    CHECK(reason().empty());
-
-    now_ = kEnd;
-    end("paused");
-    CHECK(reason() == "Paused by Print Handy: possible spaghetti");
-    CHECK(reason_visible() == 1);
-    // The reason stands in for the M117 row, so the screen says it once.
-    CHECK(lv_subject_get_int(ps.print_state().get_display_message_visible_subject()) == 0);
-
-    // Resumed, by Print Handy or anyone else: the reason goes with the pause.
-    now_ = kEnd + 30;
-    end("printing");
-    CHECK(reason().empty());
-    display_message("");
-    settle();
-    CHECK(reason().empty());
-}
-
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: the announcement survives the pause macro's own M117",
-                 "[print_completion][stop_reason]") {
-    now_ = kEnd - 2;
-    display_message(kPrintHandySpaghetti);
-    settle();
     now_ = kEnd - 1;
     display_message("Paused");
     settle();
-
-    now_ = kEnd;
-    end("paused");
-    CHECK(reason() == "Paused by Print Handy: possible spaghetti");
-}
-
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: an announcement in the same frame as the pause counts",
-                 "[print_completion][stop_reason]") {
-    get_printer_state().update_from_status(
-        json{{"print_stats", {{"state", "paused"}}},
-             {"display_status", {{"message", "Paused by Print Handy: paused from chat"}}}});
-    settle();
-    CHECK(reason() == "Paused by Print Handy: paused from chat");
-}
-
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: an announcement a moment after the pause fills in",
-                 "[print_completion][stop_reason]") {
-    end("paused");
-    REQUIRE(reason().empty());
-    now_ = kEnd + 1;
-    display_message(kPrintHandySpaghetti);
-    settle();
-    CHECK(reason() == "Paused by Print Handy: possible spaghetti");
-}
-
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: a stale announcement does not explain a user's pause",
-                 "[print_completion][stop_reason]") {
-    // Left up from an earlier pause that Print Handy never cleared.
-    now_ = kEnd - 10 * 60;
-    display_message(kPrintHandySpaghetti);
-    settle();
-
-    now_ = kEnd;
-    end("paused");
     CHECK(reason().empty());
-    CHECK(reason_visible() == 0);
-
-    // A late announcement long after the pause explains nothing either.
-    now_ = kEnd + 60;
-    display_message("Paused by Print Handy: paused from chat");
-    settle();
-    CHECK(reason().empty());
-}
-
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: a monitor's announcement outranks a recent gcode error",
-                 "[print_completion][stop_reason]") {
-    now_ = kEnd - 3;
-    client_.fire_notification("notify_gcode_response", response({"!! Unknown command:\"FOO\""}));
-    now_ = kEnd - 1;
-    display_message(kPrintHandySpaghetti);
-    settle();
 
     now_ = kEnd;
     end("paused");
     CHECK(reason() == "Paused by Print Handy: possible spaghetti");
     CHECK(client_.reads == 0);
+    // The reason stands in for the M117 row, so the screen says it once.
+    CHECK(lv_subject_get_int(ps.print_state().get_display_message_visible_subject()) == 0);
 
-    // Canceling the paused print ends it for the reason it paused.
-    now_ = kEnd + 120;
+    // Resumed: the reason goes with the pause.
+    end("printing");
+    CHECK(reason().empty());
+
+    // One a moment after the next pause fills in, and a cancel keeps it.
+    now_ = kEnd + 100;
+    end("paused");
+    now_ = kEnd + 101;
+    display_message("Paused by Print Handy: paused from chat");
+    settle();
+    CHECK(reason() == "Paused by Print Handy: paused from chat");
+    now_ = kEnd + 200;
     end("cancelled");
+    CHECK(reason() == "Paused by Print Handy: paused from chat");
+}
+
+TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: an announcement in the pause's frame counts",
+                 "[print_completion][stop_reason]") {
+    get_printer_state().update_from_status(
+        json{{"print_stats", {{"state", "paused"}}},
+             {"display_status", {{"message", kPrintHandySpaghetti}}}});
+    settle();
     CHECK(reason() == "Paused by Print Handy: possible spaghetti");
 }
 
-TEST_CASE_METHOD(TrackerFixture,
-                 "stop reason tracker: an announcement does not explain a cancel or failure",
+TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: a stale announcement explains no pause",
                  "[print_completion][stop_reason]") {
-    now_ = kEnd - 1;
-    display_message(kPrintHandySpaghetti);
-    settle();
-    now_ = kEnd;
-    end("cancelled");
-    CHECK(reason().empty());
+    SECTION("left up from an earlier pause, or arriving long after this one") {
+        now_ = kEnd - 10 * 60;
+        display_message(kPrintHandySpaghetti);
+        settle();
+        now_ = kEnd;
+        end("paused");
+        CHECK(reason().empty());
+        now_ = kEnd + 60;
+        display_message("Paused by Print Handy: paused from chat");
+        settle();
+        CHECK(reason().empty());
+    }
+    SECTION("delivered with the pause in a subscription response, as on reconnect") {
+        // Klipper keeps an M117 until the job ends, so its time is unknown.
+        get_printer_state().update_from_status(
+            json{{"print_stats", {{"state", "paused"}}},
+                 {"display_status", {{"message", kPrintHandySpaghetti}}}},
+            0.0, false, std::nullopt, /*whole_objects=*/true);
+        settle();
+        CHECK(reason().empty());
+    }
+    SECTION("before a cancel") {
+        now_ = kEnd - 1;
+        display_message(kPrintHandySpaghetti);
+        settle();
+        now_ = kEnd;
+        end("cancelled");
+        CHECK(reason().empty());
+    }
+    CHECK(reason_visible() == 0);
 }

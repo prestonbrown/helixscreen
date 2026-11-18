@@ -176,10 +176,12 @@ PrintStopReasonTracker::PrintStopReasonTracker(IMoonrakerClient& client, Printer
         ps.get_print_message_subject(), this,
         [](PrintStopReasonTracker* self, const char*) { self->publish(); },
         state_.get_subjects_lifetime());
+    // Immediate: whether the text came from a subscription response belongs to
+    // the frame that set it. The handler only records; publishing is deferred.
     display_message_observer_ = ui::observe<const char*>(
         ps.get_display_message_subject(), this,
         [](PrintStopReasonTracker* self, const char* text) { self->on_display_message(text); },
-        state_.get_subjects_lifetime());
+        state_.get_subjects_lifetime(), ui::Dispatch::Immediate);
 }
 
 PrintStopReasonTracker::~PrintStopReasonTracker() {
@@ -254,6 +256,11 @@ void PrintStopReasonTracker::on_gcode_error(JournalEntry e) {
 }
 
 void PrintStopReasonTracker::on_display_message(const char* text) {
+    // A subscription response's text has no arrival time to place against a
+    // pause: it may be an announcement left up since an earlier one.
+    if (state_.print_state().display_message_from_snapshot()) {
+        return;
+    }
     auto pause = parse_monitor_pause(text ? text : "");
     if (!pause) {
         return;
@@ -262,9 +269,11 @@ void PrintStopReasonTracker::on_display_message(const char* text) {
     e.time = now_();
     e.text = monitor_pause_reason_text(*pause);
     monitor_ = std::move(e);
-    if (stopped()) {
-        publish();
-    }
+    lifetime_.defer("PrintStopReason::monitor_pause", [this] {
+        if (stopped()) {
+            publish();
+        }
+    });
 }
 
 void PrintStopReasonTracker::on_gcode_store(const std::vector<GcodeStoreEntry>& store,
