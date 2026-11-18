@@ -3,6 +3,7 @@
 
 #include "geometry_budget_manager.h"
 
+#include <atomic>
 #include <cstddef>
 
 namespace helix::gcode::render_schedule {
@@ -37,6 +38,19 @@ inline float update_rate(float prev_rate, size_t triangles, float elapsed_ms) {
     return prev_rate + kRateSmoothing * (sample - prev_rate);
 }
 
+/// Triangles one moving frame may draw at `rate`: the moving plan's budget, and
+/// the size the moving mesh is built to.
+inline size_t moving_budget_triangles(float rate) {
+    return static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+}
+
+/// The rate the latest 3D draw in this process measured, 0 before any. One GPU
+/// serves every viewer, so a file opened later sizes its moving mesh from it.
+inline std::atomic<float>& last_measured_rate() {
+    static std::atomic<float> rate{0.0f};
+    return rate;
+}
+
 /// Triangles the next still-frame slice may submit.
 inline size_t slice_quota(float rate) {
     const auto quota = static_cast<size_t>(effective_rate(rate) * kSliceTargetMs);
@@ -56,7 +70,7 @@ struct MovingPlan {
 /// when it fits, at half resolution when even it overflows); with no mesh the
 /// smallest layer stride that fits, at half resolution.
 inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, float rate) {
-    auto budget = static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+    auto budget = moving_budget_triangles(rate);
     if (budget == 0) {
         budget = 1;
     }

@@ -105,7 +105,8 @@ static BandSegmentCounts count_band_segments(const helix::gcode::ParsedGCodeFile
 /// Pass default_3d_extrusion_rgb(), resolved on the main thread.
 static std::unique_ptr<helix::gcode::RibbonGeometry>
 build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const char* context_tag,
-                            uint32_t default_rgb, const std::function<bool()>& should_cancel = {}) {
+                            uint32_t default_rgb, float measured_rate,
+                            const std::function<bool()>& should_cancel = {}) {
     helix::gcode::GeometryBudgetManager budget_mgr;
     size_t available_kb = budget_mgr.read_system_available_kb();
     size_t budget = budget_mgr.calculate_budget(available_kb);
@@ -195,13 +196,13 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
                  geometry->extrusion_triangle_count + geometry->travel_triangle_count,
                  budget_config.tier);
 
-    // Moving mesh: what a finger-down frame draws on a GPU too slow for the
-    // strided view to read as the model. The gate is the seed-rate budget of
-    // the weakest GPU class the app plans for, so a fast desktop builds it
-    // too and simply never draws it.
+    // Moving mesh: what a finger-down frame draws on a GPU too slow to draw the
+    // whole model. It is sized to the rate an earlier 3D draw measured, so a
+    // faster GPU gets a denser mesh, and one that draws the whole model in a
+    // moving frame gets none. Before any measurement the seed rate stands in:
+    // the weakest GPU class the app plans for.
     const size_t moving_budget =
-        static_cast<size_t>(helix::gcode::render_schedule::kSeedRateTrisPerMs *
-                            helix::gcode::render_schedule::kMovingBudgetMs);
+        helix::gcode::render_schedule::moving_budget_triangles(measured_rate);
     const size_t main_triangles =
         geometry->extrusion_triangle_count + geometry->travel_triangle_count;
     if (main_triangles > moving_budget) {
@@ -233,6 +234,9 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
                              "triangles",
                              band_layers, bands.surfaces_every_layer ? "every" : "band",
                              mesh_triangles);
+                spdlog::debug("[GCode Viewer] Moving mesh budget {} triangles at {:.0f} tris/ms{}",
+                              moving_budget, measured_rate,
+                              measured_rate > 0.0f ? "" : " (unmeasured, seed rate)");
             }
         }
     }
@@ -521,7 +525,8 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread
     const uint32_t default_rgb = default_3d_extrusion_rgb();
-    st->start_build([st, obj, path = std::string(file_path), gen, default_rgb]() {
+    const float measured_rate = helix::gcode::render_schedule::last_measured_rate().load();
+    st->start_build([st, obj, path = std::string(file_path), gen, default_rgb, measured_rate]() {
         auto result = std::make_unique<AsyncBuildResult>();
 
         try {
@@ -591,7 +596,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // renderer can walk them when the user switches back.
                 if (!st->is_using_2d_mode()) {
                     result->geometry = build_3d_geometry_in_budget(
-                        *result->gcode_file, "Initial load", default_rgb,
+                        *result->gcode_file, "Initial load", default_rgb, measured_rate,
                         [st]() { return st->is_cancelled(); });
                     if (!result->geometry) {
                         result->force_2d = true;
@@ -601,6 +606,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 }
 #else
                 (void)default_rgb;
+                (void)measured_rate;
                 spdlog::debug("[GCode Viewer] 2D renderer - skipping geometry build");
 #endif
             }
@@ -764,6 +770,7 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
     const uint64_t gen = st->load_generation();
     const helix::gcode::ParsedGCodeFile* file = st->gcode_file.get();
     const uint32_t default_rgb = default_3d_extrusion_rgb();
+    const float measured_rate = helix::gcode::render_schedule::last_measured_rate().load();
 
     struct OnDemandBuild {
         std::unique_ptr<helix::gcode::RibbonGeometry> geometry;
@@ -776,10 +783,11 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
 
     // Every path that frees st->gcode_file joins this thread first
     // (cancel_build), so `file` outlives the build.
-    st->start_build([st, obj, file, gen, default_rgb]() {
+    st->start_build([st, obj, file, gen, default_rgb, measured_rate]() {
         auto result = std::make_unique<OnDemandBuild>();
-        result->geometry = build_3d_geometry_in_budget(*file, "On-demand 3D switch", default_rgb,
-                                                       [st]() { return st->is_cancelled(); });
+        result->geometry =
+            build_3d_geometry_in_budget(*file, "On-demand 3D switch", default_rgb, measured_rate,
+                                        [st]() { return st->is_cancelled(); });
         if (st->is_cancelled()) {
             return;
         }
