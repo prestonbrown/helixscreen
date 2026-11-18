@@ -1398,8 +1398,9 @@ void PrintStatusPanel::on_root_deleted(lv_event_t* e) {
 }
 
 void PrintStatusPanel::disarm_viewer_callbacks() {
-    // The callback carries `this`; the viewer can outlive this panel.
-    if (gcode_viewer_ && lv_obj_is_in_widget_tree(gcode_viewer_)) {
+    // The callback carries `this`; the viewer can outlive this panel. The
+    // WidgetRef is null once the viewer is gone.
+    if (gcode_viewer_) {
         helix::ui::gcode_viewer_set_render_path_callback(gcode_viewer_, nullptr, nullptr);
     }
 }
