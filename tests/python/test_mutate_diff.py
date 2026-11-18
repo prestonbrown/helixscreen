@@ -384,7 +384,7 @@ def test_a_capped_run_ends_on_a_summary_naming_what_it_never_reached(tmp_path, g
     assert "src/feature.cpp:1" in r.stdout[r.stdout.index("FAIL: 1 hunk(s) survived"):]
     tail = r.stdout[r.stdout.rindex("=" * 68):]
     assert "1 hunk(s) UNEXAMINED: --max-minutes 0.1 reached" in tail, r.stdout
-    assert "Hunks SURVIVED above" in tail, r.stdout
+    assert "1 hunk(s) SURVIVED above" in tail, r.stdout
 
 
 # A baseline suite that takes 30s while the change is in place, noting each start.
@@ -2350,10 +2350,23 @@ def test_a_surviving_group_makes_the_whole_run_fail(tmp_path):
     assert r.returncode == 1, r.stdout
     assert "exit 1  [oth]" in r.stdout
     assert "exit 0  [feat]" in r.stdout
+    verdict = r.stdout[r.stdout.rindex("VERDICT:"):]
+    assert verdict.startswith("VERDICT: SURVIVED - 1 hunk(s)"), verdict
+    assert "src/other.cpp:1" in verdict
+
+
+def test_survivors_in_two_groups_are_counted_together(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    (work / "build" / "bin" / "helix-tests").write_text("#!/usr/bin/env bash\nexit 0\n")
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]")
+    assert r.returncode == 1, r.stdout
+    verdict = r.stdout[r.stdout.rindex("VERDICT:"):]
+    assert verdict.startswith("VERDICT: SURVIVED - 2 hunk(s)"), verdict
 
 
 @pytest.mark.parametrize("other_detected, code, says", [
-    (False, 1, "Hunks SURVIVED above"),
+    (False, 1, "1 hunk(s) SURVIVED above"),
     (True, 3, "Nothing survived"),
 ])
 def test_an_incomplete_group_run_tells_the_truth_about_survivors(

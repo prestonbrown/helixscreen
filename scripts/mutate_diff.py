@@ -4062,6 +4062,7 @@ def main():
     if args.group_child:
         RUN_STATE.flaky_file = f'{args.log}.flaky'
         Path(RUN_STATE.flaky_file).unlink(missing_ok=True)
+        Path(f'{args.log}.survived').unlink(missing_ok=True)
     root = repo_root()
     if args.probe_workers:
         args.workers = 'auto'
@@ -4553,6 +4554,11 @@ def main():
     print(f'log: {args.log}')
 
     survived = [r for r in results if r[1] == 'survived']
+    if args.group_child and (survived or inside_survived):
+        # The parent counts every group's survivors from these files, so its verdict
+        # does not rest on how each child exited.
+        Path(f'{args.log}.survived').write_text(''.join(
+            f'{label}\n' for label in [r[0] for r in survived] + inside_survived))
     unproven = [r for r in results if r[1] in ('uncompilable', 'unreversible')]
     unjudged = [r for r in results if r[1] == 'inconclusive']
     if unproven or unjudged or uncovered or deferred or unexamined:
@@ -4563,7 +4569,7 @@ def main():
         # the change this run never judged.
         print(report_incomplete(uncovered, deferred, unproven, unjudged,
                                 unexamined=len(unexamined), stop_reason=stop_reason,
-                                survived=True))
+                                survived=len(survived) + len(inside_survived)))
     if inside_survived and not survived:
         sys.stdout.flush()
         print(f'\nFAIL: {len(inside_survived)} inside mutant(s) survived, and no test detects them:',
@@ -4645,7 +4651,7 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         passthrough += ['--worker-dir', args.worker_dir]
     for pattern in args.first or ():
         passthrough += ['--first', pattern]
-    codes, not_started = [], 0
+    codes, not_started, survivors = [], 0, []
     for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
         if args.max_minutes > 0 and left < 1:
@@ -4677,6 +4683,10 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                 print(f'  RESTORED      {path}: the group left it changed', flush=True)
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
+        child_survived = Path(f'{args.log}.g{i}.survived')
+        if child_survived.is_file():
+            survivors += [s for s in child_survived.read_text().split('\n') if s]
+            child_survived.unlink()
         child_flaky = Path(f'{args.log}.g{i}.flaky')
         if child_flaky.is_file():
             RUN_STATE.flaky_sites |= set(child_flaky.read_text().split('\n')) - {''}
@@ -4688,15 +4698,23 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         print(f'  exit {3 if code is None else code}  {describe_key(key)}  '
               f'({len(paths)} file(s))')
     short_groups = codes.count(3)
+    # A group that named survivors fails the run however it exited; one that exited 1
+    # without naming them still has survivors, of a count only its own output shows.
+    n_survived = len(survivors) or (1 in codes and 'Some')
     if incomplete or not_started or short_groups:
         print(report_incomplete(
-            uncovered, deferred, survived=1 in codes, short_groups=short_groups,
+            uncovered, deferred, survived=n_survived, short_groups=short_groups,
             not_started=not_started,
             stop_reason=f'--max-minutes {args.max_minutes:g} reached before their group started'))
     codes = [3 if code is None else code for code in codes]
-    worst = combine_exits(codes + ([3] if incomplete else []))
+    worst = combine_exits(codes + ([3] if incomplete else []) + ([1] if survivors else []))
     if worst == 3 and args.allow_incomplete:
         return 0
+    if worst == 1 and not (incomplete or not_started or short_groups):
+        print(f'\nVERDICT: SURVIVED - {n_survived} hunk(s) across the groups above, '
+              'each needs a test that pins it:')
+        for label in survivors:
+            print(f'  {label}')
     if worst == 0:
         print(f'\nVERDICT: CLEAN{flaky_clause()} - every group mutated every hunk and killed '
               'every mutant (not recorded as proven: each group saw only its own files)')
@@ -4704,10 +4722,11 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,
-                      stop_reason='', survived=False, short_groups=0, not_started=0):
+                      stop_reason='', survived=0, short_groups=0, not_started=0):
     """The line that stops a partial run from reading like a whole one.
 
-    `survived`: the run has survivors, listed above. `short_groups`: groups that
+    `survived`: how many survivors the run has, listed above ('Some' when
+    a group exited 1 without naming them). `short_groups`: groups that
     ran but did not examine all of their own files. `not_started`: files whose
     group never started, for `stop_reason`.
     """
@@ -4728,7 +4747,7 @@ def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=
         parts.append(f'{not_started} file(s) UNEXAMINED: {stop_reason}')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
             + '; '.join(parts) + '.\n'
-            + ('Hunks SURVIVED above: each needs a test that pins it. '
+            + (f'{survived} hunk(s) SURVIVED above: each needs a test that pins it. '
                if survived else
                'Nothing survived, but that is not evidence for the part above. ')
             + 'Mutate it by hand and say so in the commit body, or accept it with '
