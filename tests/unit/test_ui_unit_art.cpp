@@ -580,8 +580,73 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a lane's glow hides behind wh
     REQUIRE(tray::art_lane_distance(geom->lane[2], x, y) < 0.95f);
     CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) ==
           0);
-    // Lane 0 stands behind lane 1, so the rim shows over it.
+    // The bloom lights open space only: not lane 0's spool behind it either, but the air
+    // above the spool's top.
     past_end(false, 1.06f, x, y);
-    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) >
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) ==
           0);
+    const float ax = (g.far_x + g.near_x) / 2 + 1.12f * g.ez_x;
+    const float ay = (g.far_y + g.near_y) / 2 + 1.12f * g.ez_y;
+    for (int i = 0; i < 4; ++i)
+        REQUIRE(tray::art_lane_distance(geom->lane[i], ax, ay) > 1.02f);
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(ax * dw), (int32_t)std::lround(ay * dw)) >
+          0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art marks: the active spool's own visible rim lights, nearer spools stay",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 300;
+    const float dw = (float)w;
+    AmsSystemInfo info = ace_system();
+    info.type = AmsType::AFC;
+    info.units[0].name = "Turtle_1";
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
+    unit_art_set_unit(art, info, 0);
+    REQUIRE(unit_art_aspect(art) == Catch::Approx(geom->aspect));
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].glow = true;
+    marks[1].color = lv_color_hex(0x2080ff);
+    unit_art_set_lane_marks(art, marks);
+
+    // Somewhere on the rim of lane 1's near flange that lane 2 does not cover lights strongly.
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    const tray::ArtLaneGeom& next = geom->lane[2];
+    int lit = 0, seen = 0;
+    for (int k = 0; k < 72; ++k) {
+        const float a = 2.0f * 3.14159265f * (float)k / 72.0f;
+        const float r = 0.96f;
+        const float x = g.near_x + r * (std::cos(a) * g.ey_x + std::sin(a) * g.ez_x);
+        const float y = g.near_y + r * (std::cos(a) * g.ey_y + std::sin(a) * g.ez_y);
+        if (tray::art_lane_distance(next, x, y) < 1.1f || tray::art_lane_distance(g, x, y) > 0.99f)
+            continue;
+        ++seen;
+        lit += unit_art_marks_alpha(art, (int32_t)std::lround(x * dw),
+                                    (int32_t)std::lround(y * dw)) > 150;
+    }
+    REQUIRE(seen > 0);
+    CHECK(lit * 2 >= seen);
+    // Lane 2 stands in front: its own spool keeps its look.
+    const float cx = (next.far_x + next.near_x) / 2, cy = (next.far_y + next.near_y) / 2;
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(cx * dw), (int32_t)std::lround(cy * dw)) ==
+          0);
+
+    // Marked again, the old marks neither hide the new ones nor bake into the drawing: the
+    // same rim lights as at first.
+    marks[1].color = lv_color_hex(0xff8020);
+    unit_art_set_lane_marks(art, marks);
+    int relit = 0;
+    for (int k = 0; k < 72; ++k) {
+        const float a = 2.0f * 3.14159265f * (float)k / 72.0f;
+        const float x = g.near_x + 0.96f * (std::cos(a) * g.ey_x + std::sin(a) * g.ez_x);
+        const float y = g.near_y + 0.96f * (std::cos(a) * g.ey_y + std::sin(a) * g.ez_y);
+        if (tray::art_lane_distance(next, x, y) < 1.1f || tray::art_lane_distance(g, x, y) > 0.99f)
+            continue;
+        relit += unit_art_marks_alpha(art, (int32_t)std::lround(x * dw),
+                                      (int32_t)std::lround(y * dw)) > 150;
+    }
+    CHECK(relit == lit);
 }

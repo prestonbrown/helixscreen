@@ -24,6 +24,10 @@ float wound_radius(float core, float full, float fill);
 /// Distance, in flange radii, from (@p x, @p y) to @p g's spool axis.
 float art_lane_distance(const ArtLaneGeom& g, float x, float y);
 
+/// Distance, in flange radii, from (@p x, @p y) to the center of @p g's near flange (or its
+/// far one): within 1, the point is on that flange's disc.
+float art_lane_flange_distance(const ArtLaneGeom& g, float x, float y, bool near_flange);
+
 /// Coverage (0..1) of the pixel at (@p x, @p y) by @p g's cylinder of radius @p radius,
 /// softened over @p px_per_unit pixels per flange radius.
 float art_lane_coverage(const ArtLaneGeom& g, float x, float y, float radius, float px_per_unit);

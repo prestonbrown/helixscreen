@@ -96,6 +96,27 @@ void box_blur(std::vector<uint8_t>& px, int line_len, int lines, int step, int l
     }
 }
 
+/// Each pixel the least of the (2 @p radius + 1)-square around it: erodes a mask.
+void min_filter(std::vector<uint8_t>& px, int w, int h, int radius) {
+    std::vector<uint8_t> tmp(px.size());
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint8_t m = 255;
+            for (int dx = -radius; dx <= radius; ++dx)
+                m = std::min(m, px[static_cast<size_t>(y) * w + std::clamp(x + dx, 0, w - 1)]);
+            tmp[static_cast<size_t>(y) * w + x] = m;
+        }
+    }
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            uint8_t m = 255;
+            for (int dy = -radius; dy <= radius; ++dy)
+                m = std::min(m, tmp[static_cast<size_t>(std::clamp(y + dy, 0, h - 1)) * w + x]);
+            px[static_cast<size_t>(y) * w + x] = m;
+        }
+    }
+}
+
 ArtData* data_of(lv_obj_t* art) {
     return static_cast<ArtData*>(lv_obj_get_user_data(art));
 }
@@ -331,6 +352,9 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     const bool glow_shown = data->glow && !lv_obj_is_hidden(data->glow);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, true); // the glow must not bake into the drawing
+    const bool marks_shown = data->marks && !lv_obj_is_hidden(data->marks);
+    if (marks_shown)
+        lv_obj_set_hidden(data->marks, true); // nor the lane marks, which change on their own
     // The carriage moves on its own, so it stays out of the flat image.
     if (data->carriage) {
         lv_obj_set_hidden(data->carriage, true);
@@ -339,6 +363,8 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, false);
+    if (marks_shown)
+        lv_obj_set_hidden(data->marks, false);
     if (!snap) {
         if (data->carriage)
             lv_obj_set_hidden(live_carriage(data), false);
@@ -371,15 +397,20 @@ std::vector<uint8_t> layer_alpha(lv_obj_t* art, ArtData* data, const std::vector
     const bool layers_hidden = lv_obj_is_hidden(data->layers);
     const bool flat_hidden = lv_obj_is_hidden(data->flat);
     const bool glow_hidden = !data->glow || lv_obj_is_hidden(data->glow);
+    const bool marks_hidden = !data->marks || lv_obj_is_hidden(data->marks);
     lv_obj_set_hidden(data->layers, false);
     lv_obj_set_hidden(data->flat, true);
     if (data->glow)
         lv_obj_set_hidden(data->glow, true);
+    if (data->marks)
+        lv_obj_set_hidden(data->marks, true);
 
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
 
     if (data->glow)
         lv_obj_set_hidden(data->glow, glow_hidden);
+    if (data->marks)
+        lv_obj_set_hidden(data->marks, marks_hidden);
     lv_obj_set_hidden(data->flat, flat_hidden);
     lv_obj_set_hidden(data->layers, layers_hidden);
     for (uint32_t i = 0; i < count; ++i)
@@ -667,6 +698,8 @@ constexpr int kLaneHaloDivisor = 40; ///< glow spread per pass: the drawing's wi
 constexpr int kLaneHaloPasses = 3;   ///< box blurs that soften the spread toward a Gaussian
 constexpr int kLaneHaloGain = 2;     ///< lifts the falloff so the glow reads at the outline
 constexpr int kLaneHaloPeak = 210;   ///< the glow's strongest alpha
+constexpr int kLaneRimDivisor = 110; ///< rim width: the drawing's width over this
+constexpr int kLaneRimPeak = 245;    ///< the rim's alpha on the spool's visible edges
 } // namespace
 
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
@@ -764,22 +797,55 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             }
         }
         if (m.glow) {
-            // Light around the spool: its silhouette, blurred into a soft falloff and lifted,
-            // less the spool itself.
-            std::vector<uint8_t> halo = spool;
+            const tray::ArtLaneGeom& g = data->geom->lane[i];
+            const float k = tray::art_lane_px_per_unit(g, c.w);
+            // What of the spool shows: its silhouette less everything standing in front, and
+            // less the nearer spools alone, whose edges are the spool's own visible outline.
+            std::vector<uint8_t> visible(pixels), unhidden(pixels), near_disc(pixels), open(pixels);
+            for (int32_t y = 0; y < h; ++y) {
+                const float sy = ((float)y + 0.5f - c.y) / c.w;
+                for (int32_t x = 0; x < w; ++x) {
+                    const float sx = ((float)x + 0.5f - c.x) / c.w;
+                    const size_t idx = static_cast<size_t>(y) * w + x;
+                    visible[idx] = static_cast<uint8_t>(spool[idx] * clear[idx] / 255);
+                    uint8_t nearer = 0;
+                    for (int j = i + 1; j < data->geom->lanes; ++j)
+                        nearer = std::max(nearer, spools[static_cast<size_t>(j)][idx]);
+                    unhidden[idx] = static_cast<uint8_t>(spool[idx] * (255 - nearer) / 255);
+                    const float d = tray::art_lane_flange_distance(g, sx, sy, true);
+                    near_disc[idx] = static_cast<uint8_t>(
+                        std::lround(255.0f * std::clamp((1.0f - d) * k + 0.5f, 0.0f, 1.0f)));
+                    // Open space: no spool and nothing of the unit's front.
+                    uint8_t any = 0;
+                    for (const std::vector<uint8_t>& other : spools)
+                        any = std::max(any, other[idx]);
+                    open[idx] = static_cast<uint8_t>((255 - any) * (255 - front[idx]) / 255);
+                }
+            }
+            // A crisp rim along the edges of the spool where the spools in front leave it,
+            // and of its near flange; the unit's front parts then cover it like the spool.
+            const int rim = std::max(1, (int)c.w / kLaneRimDivisor);
+            std::vector<uint8_t> inner = unhidden, disc_inner = near_disc;
+            min_filter(inner, w, h, rim);
+            min_filter(disc_inner, w, h, rim);
+            // And a soft bloom from it into the open space around.
+            std::vector<uint8_t> bloom = visible;
             const int radius = std::max(1, (int)c.w / kLaneHaloDivisor);
             for (int pass = 0; pass < kLaneHaloPasses; ++pass) {
-                box_blur(halo, w, h, 1, w, radius);
-                box_blur(halo, h, w, w, 1, radius);
+                box_blur(bloom, w, h, 1, w, radius);
+                box_blur(bloom, h, w, w, 1, radius);
             }
             for (int32_t y = 0; y < h; ++y) {
                 for (int32_t x = 0; x < w; ++x) {
                     const size_t idx = static_cast<size_t>(y) * w + x;
-                    const int lifted =
-                        std::min(255, halo[idx] * kLaneHaloGain) * kLaneHaloPeak / 255;
-                    blend(
-                        x, y, m.color,
-                        static_cast<uint8_t>(lifted * (255 - spool[idx]) / 255 * clear[idx] / 255));
+                    const int edge =
+                        std::max<int>(unhidden[idx] - inner[idx],
+                                      (near_disc[idx] - disc_inner[idx]) * unhidden[idx] / 255) *
+                        (255 - front[idx]) / 255;
+                    const int rim_a = edge * kLaneRimPeak / 255;
+                    const int bloom_a = std::min(255, bloom[idx] * kLaneHaloGain) * kLaneHaloPeak /
+                                        255 * open[idx] / 255;
+                    blend(x, y, m.color, static_cast<uint8_t>(std::max(rim_a, bloom_a)));
                 }
             }
         }

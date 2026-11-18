@@ -29,6 +29,15 @@ float art_lane_distance(const ArtLaneGeom& g, float x, float y) {
     return std::hypot(pu - t * du, pv - t * dv);
 }
 
+float art_lane_flange_distance(const ArtLaneGeom& g, float x, float y, bool near_flange) {
+    const float det = g.ey_x * g.ez_y - g.ey_y * g.ez_x;
+    if (det == 0.0f)
+        return INFINITY;
+    const float px = x - (near_flange ? g.near_x : g.far_x);
+    const float py = y - (near_flange ? g.near_y : g.far_y);
+    return std::hypot((px * g.ez_y - py * g.ez_x) / det, (g.ey_x * py - g.ey_y * px) / det);
+}
+
 float art_lane_px_per_unit(const ArtLaneGeom& g, float drawn_w) {
     // The flange's vertical radius on screen, the basis's shortest reach.
     return std::min(std::hypot(g.ey_x, g.ey_y), std::hypot(g.ez_x, g.ez_y)) * drawn_w;
