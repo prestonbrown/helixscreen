@@ -12,6 +12,8 @@
  *   - Wrong CWD:    Binary launched from / but data root exists at exe parent
  */
 
+#include "../../test_helpers/install_tree_fixture.h"
+#include "../../test_helpers/scoped_board.h"
 #include "../../test_helpers/scoped_env.h"
 #include "data_root_resolver.h"
 
@@ -386,4 +388,40 @@ TEST_CASE_METHOD(DataRootFixture,
     // missing → config_dir/relpath = "config/foo.json"
     std::string p = helix::find_readable("foo.json");
     REQUIRE(p == "config/foo.json");
+}
+
+// ============================================================================
+// resolve_install_root: the install tree, wherever the binary is launched from
+// ============================================================================
+
+TEST_CASE("resolve_install_root finds a PAXX package launched through its bind mount",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
+    const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
+
+    // /usr/bin/gui strips to /usr, which is no install tree; the package dir is.
+    CHECK(helix::resolve_install_root(gui.string(), tree.root) ==
+          tree.root + "/oem/apps/helixscreen/latest");
+}
+
+TEST_CASE("resolve_install_root keeps an install found from the exe path",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
+    tree.make_paxx_bind_mount("1.1.0");
+    const fs::path ours = tree.make_tree("userdata/helixscreen");
+
+    CHECK(helix::resolve_install_root(ours.string(), tree.root) ==
+          tree.root + "/userdata/helixscreen");
+}
+
+TEST_CASE("resolve_install_root finds nothing for a bind-mounted binary on a board with no "
+          "firmware package",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    helix::test::ScopedBoard generic(helix::board::Board::Generic);
+    const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
+
+    CHECK(helix::resolve_install_root(gui.string(), tree.root).empty());
 }

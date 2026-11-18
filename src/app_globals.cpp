@@ -459,9 +459,18 @@ std::function<void()> get_wizard_cancel_callback() {
 
 std::string app_get_install_root() {
     static const std::string cached = []() {
-        return helix::resolve_data_root_from_exe(g_executable_path);
+        return helix::resolve_install_root(g_executable_path);
     }();
     return cached;
+}
+
+std::string helix::writable_install_root(const std::string& install_root) {
+    return platform_defaults_to_external_updates() ? std::string() : install_root;
+}
+
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_writable_install_root() {
+    return helix::writable_install_root(app_get_install_root());
 }
 
 std::string app_get_cache_dir() {

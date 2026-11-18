@@ -20,6 +20,22 @@ namespace helix {
 std::string resolve_data_root_from_exe(const std::string& exe_path);
 
 /**
+ * @brief The install tree the running binary belongs to
+ *
+ * resolve_data_root_from_exe(@p exe_path) when the binary's own path leads to one.
+ * Otherwise the current board's firmware package directory that @p exe_path is the
+ * binary of (board::firmware_package_root), when it is a valid data root: a firmware
+ * can launch the package binary through a bind mount over another path, which names
+ * no install tree. Every caller that needs "where is my install" asks this, never
+ * /proc/self/exe's directory.
+ *
+ * @param exe_path Absolute path to the running binary (readlink of /proc/self/exe)
+ * @param probe_root Root the firmware package directory is probed under
+ * @return The install root, or empty when none is found
+ */
+std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root = "/");
+
+/**
  * @brief Check whether a directory is a valid HelixScreen data root
  *
  * A valid data root must contain a ui_xml/ subdirectory.
