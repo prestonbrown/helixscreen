@@ -405,29 +405,18 @@ R2 upload uses `continue-on-error: true`, so GitHub releases are always created 
 
 ### Manual Recovery
 
-If R2 upload fails during CI, you can manually upload from a local machine:
+If a release's R2 upload fails, republish it with `recover-r2.yml`, dispatched from the tag itself
+and approved when it waits on the `release-signing` environment:
 
 ```bash
-# Download release assets from GitHub
-gh release download v1.0.0 -D release-files/
-
-# Generate manifest for each channel
-scripts/generate-manifest.sh \
-  --version "1.0.0" --tag "v1.0.0" --notes "Release" \
-  --dir release-files \
-  --base-url "https://releases.helixscreen.org/stable" \
-  --output release-files/manifest-stable.json
-
-# Upload via AWS CLI (configured for R2 endpoint)
-export AWS_ENDPOINT_URL="https://{account-id}.r2.cloudflarestorage.com"
-for f in release-files/*.zip release-files/*.tar.gz; do
-  [ -e "$f" ] || continue
-  aws s3 cp "$f" "s3://helixscreen-releases/stable/$(basename $f)"
-done
-aws s3 cp release-files/manifest-stable.json \
-  s3://helixscreen-releases/stable/manifest.json \
-  --content-type "application/json"
+gh workflow run recover-r2.yml --ref v1.2.0 -f tag=v1.2.0
 ```
+
+It pulls the tag's artifacts from the GitHub release, regenerates and **signs** each channel's
+manifest with the release key, and uploads `manifest.json.minisig` before `manifest.json`. Never
+upload a hand-generated manifest: clients refuse one whose signature does not verify
+(`docs/devel/RELEASE_SIGNING.md`). The workflow that runs is the one at the tag, so a tag cut
+before recover-r2 learned to sign cannot be recovered this way on a signed channel.
 
 ## Troubleshooting
 

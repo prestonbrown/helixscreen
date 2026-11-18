@@ -17,10 +17,13 @@ setup() {
     echo '{"version":"1.2.3","assets":{}}' > "$M"
 }
 
-@test "every channel manifest is signed after it is generated and before anything uploads" {
-    run python3 - "$YML" <<'PY'
+# check_signed_before_upload YML JOB MODE: in JOB, minisign is installed, every channel
+# manifest is generated and signed with --mode MODE, and only then does anything upload.
+check_signed_before_upload() {
+    run python3 - "$@" <<'PY'
 import re, sys, yaml
-steps = yaml.safe_load(open(sys.argv[1]))["jobs"]["upload-r2"]["steps"]
+yml, job, mode = sys.argv[1:4]
+steps = yaml.safe_load(open(yml))["jobs"][job]["steps"]
 names = [s.get("name", "") for s in steps]
 bad = []
 try:
@@ -28,36 +31,39 @@ try:
     sign = names.index("Generate and sign channel manifests")
     up = names.index("Upload artifacts and manifests to R2")
 except ValueError as e:
-    sys.exit(f"missing step: {e}")
+    sys.exit(f"{job}: missing step: {e}")
 if not inst < sign < up:
     bad.append(f"order is install={inst} sign={sign} upload={up}")
 run = steps[sign]["run"]
 gen = run.find('--output "release-files/manifest-${CHANNEL}.json"')
-call = run.find('scripts/sign-release-manifest.sh --mode "$RELEASE_MODE" "${manifests[@]}"')
+call = run.find('scripts/sign-release-manifest.sh --mode %s "${manifests[@]}"' % mode)
 if gen < 0 or call < 0 or call < gen:
     bad.append("the signing step does not sign the manifests it generates")
 if 'manifests+=("release-files/manifest-${CHANNEL}.json")' not in run:
     bad.append("not every channel's manifest is collected for signing")
 if "generate-manifest.sh" in steps[up]["run"]:
     bad.append("the upload step generates a manifest after signing")
-print("\n".join(bad)); sys.exit(1 if bad else 0)
+print("\n".join(f"{job}: {b}" for b in bad)); sys.exit(1 if bad else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"
 }
 
-@test "each channel's signature is uploaded beside its manifest, first, and checked as served" {
-    run python3 - "$YML" <<'PY'
+# check_signature_uploaded_first YML JOB PREFIX: each channel's .minisig goes up before its
+# manifest, under PREFIX, and the served signature is compared with the one signed, retried.
+check_signature_uploaded_first() {
+    run python3 - "$@" <<'PY'
 import re, sys, yaml
-steps = yaml.safe_load(open(sys.argv[1]))["jobs"]["upload-r2"]["steps"]
+yml, job, pfx = sys.argv[1:4]
+steps = yaml.safe_load(open(yml))["jobs"][job]["steps"]
 run = next(s["run"] for s in steps if s.get("name") == "Upload artifacts and manifests to R2")
 # Join backslash continuations so each command is one line.
 run = re.sub(r"\s*\\\n\s*", " ", run)
 sig = run.find('s3cp "release-files/manifest-${CHANNEL}.json.minisig" '
-               '"s3://${R2_BUCKET}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig"')
+               '"s3://${R2_BUCKET}/%s${CHANNEL}/manifest.json.minisig"' % pfx)
 man = run.find('s3cp "release-files/manifest-${CHANNEL}.json" '
-               '"s3://${R2_BUCKET}/${R2_PREFIX}${CHANNEL}/manifest.json"')
-served = run.find('${R2_PREFIX}${CHANNEL}/manifest.json.minisig" '
-                  '| cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"')
+               '"s3://${R2_BUCKET}/%s${CHANNEL}/manifest.json"' % pfx)
+served = run.find('%s${CHANNEL}/manifest.json.minisig" '
+                  '| cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"' % pfx)
 bad = []
 if sig < 0: bad.append("no upload of the channel's manifest.json.minisig")
 if man < 0: bad.append("no upload of the channel's manifest.json")
@@ -67,9 +73,17 @@ if served < 0: bad.append("the served signature is not compared with the one sig
 loop = run.rfind("for attempt in 1 2 3 4; do", 0, served)
 if served >= 0 and (loop < 0 or "sig_served=true; break" not in run[served:served + 200]):
     bad.append("the served-signature check is not retried")
-print("\n".join(bad)); sys.exit(1 if bad else 0)
+print("\n".join(f"{job}: {b}" for b in bad)); sys.exit(1 if bad else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "every channel manifest is signed after it is generated and before anything uploads" {
+    check_signed_before_upload "$YML" upload-r2 '"$RELEASE_MODE"'
+}
+
+@test "each channel's signature is uploaded beside its manifest, first, and checked as served" {
+    check_signature_uploaded_first "$YML" upload-r2 '${R2_PREFIX}'
 }
 
 @test "the release key reaches only the signing step, only in a release, behind its environment" {
@@ -101,6 +115,60 @@ if "HELIX_RELEASE_MINISIGN_KEY" not in seen:
 env = jobs["upload-r2"].get("environment")
 if env != "${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}":
     bad.append(f"upload-r2 is not gated on the release-signing environment: {env}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+# ------------------------------------------------------------- recover-r2.yml
+
+# A recovery republishes a tag's manifest; an unsigned one beside the previous release's
+# signature is refused by every client, so it signs exactly as a release does.
+RECOVER=.github/workflows/recover-r2.yml
+
+@test "a recovery signs every channel manifest before anything uploads" {
+    check_signed_before_upload "$RECOVER" recover publish
+}
+
+@test "a recovery uploads each channel's signature first and checks it as served" {
+    check_signature_uploaded_first "$RECOVER" recover ""
+}
+
+@test "a recovery reads the release key only in its signing step, behind release-signing, from the tag" {
+    run python3 - "$RECOVER" <<'PY'
+import re, sys, yaml
+wf = yaml.safe_load(open(sys.argv[1]))
+jobs = wf["jobs"]
+bad, seen = [], set()
+for jname, job in jobs.items():
+    if "HELIX_RELEASE_MINISIGN" in yaml.safe_dump(job.get("env") or {}):
+        bad.append(f"{jname}: job env carries the release key")
+    for s in job.get("steps", []):
+        where = f"{jname} / {s.get('name', '?')}"
+        for k, v in (s.get("env") or {}).items():
+            m = re.search(r"secrets\.(HELIX_RELEASE_MINISIGN_\w+)", str(v))
+            if not m:
+                continue
+            if where != "recover / Generate and sign channel manifests":
+                bad.append(f"{where}: reads {m.group(1)}")
+            seen.add(m.group(1))
+        if "secrets.HELIX_RELEASE_MINISIGN" in str(s.get("run", "")):
+            bad.append(f"{where}: run text reads the release key")
+if "HELIX_RELEASE_MINISIGN_KEY" not in seen:
+    bad.append("no step is given HELIX_RELEASE_MINISIGN_KEY")
+rec = jobs["recover"]
+if rec.get("environment") != "release-signing":
+    bad.append(f"recover is not gated on the release-signing environment: {rec.get('environment')}")
+# release-signing admits only v* tags, so a dispatch from a branch is refused by name before
+# the environment would refuse it with nothing said about how to run it.
+needs = rec.get("needs") or []
+needs = [needs] if isinstance(needs, str) else needs
+guard = next((jobs[n] for n in needs if n in jobs), None)
+guard_run = "".join(str(s.get("run", "")) for s in (guard or {}).get("steps", []))
+if guard is None or guard.get("environment"):
+    bad.append("recover does not wait on a guard job outside the environment")
+elif '"$REF" != "refs/tags/$TAG"' not in guard_run or "--ref" not in guard_run:
+    bad.append("the guard does not refuse a dispatch whose ref is not the tag, naming --ref")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     [ "$status" -eq 0 ] || fail "$output"

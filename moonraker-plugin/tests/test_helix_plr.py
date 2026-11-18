@@ -2859,6 +2859,9 @@ def test_a_waiting_qidi_snapshots_external_index_is_protected(plr, helix, tmp_pa
     printed = cache / "part.gcode"
     printed.write_bytes(layered_gcode())
     (helix.gc_path / "sub" / "part.gcode").write_bytes(layered_gcode())
+    # The job start prunes too; on a pool thread it could run after the
+    # indexes below exist, with only the job start's paths protected.
+    plr._follow_executor = SyncExecutor()
     added(plr)
     plr.job["print_path"] = str(printed)
     plr.job["print_identity"] = helix_plr.file_identity(printed)
@@ -2869,7 +2872,6 @@ def test_a_waiting_qidi_snapshots_external_index_is_protected(plr, helix, tmp_pa
     for path in (index, other):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         open(path, "w").write("{}\n")
-    plr._follow_executor = SyncExecutor()
     plr._prune_indexes()
     assert os.path.exists(index) and not os.path.exists(other)
 
