@@ -20,6 +20,7 @@
 #include "core/observer_factory.h"
 #include "core/timer_guard.h"
 #include "hardware_role_registry.h"
+#include "hardware_validator.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_detector.h"
@@ -225,17 +226,25 @@ void HardwareSetupPrompter::reset_for_new_connection() {
 HardwarePrompt HardwareSetupPrompter::run_discovery_prompts(const PrinterDiscovery& hw,
                                                             bool hw_changed, bool print_active,
                                                             bool hardware_setup_deferred) {
-    // Route unresolved GUIDED hardware roles (a saved fan/heater role with no
-    // confident live substitute) into the targeted reconfig wizard, only the
-    // affected step(s). Skipped while the first-run wizard is required/active.
-    // Unresolved steps are purely a function of (saved config, current hardware), so
-    // an unchanged shape would only harass the user again.
-    auto reconfig_steps = helix::unresolved_guided_steps(Config::get_instance(), hw);
-
     HardwarePromptGates gates;
     gates.hw_changed = hw_changed;
     gates.print_active = print_active;
     gates.wizard_blocked = Config::get_instance()->is_wizard_required() || is_wizard_active();
+
+    // Route unresolved GUIDED hardware roles (a saved fan/heater role whose hardware
+    // went away, with no confident live substitute) into the targeted reconfig
+    // wizard, only the affected step(s). Skipped while the first-run wizard is
+    // required/active. Unresolved steps are purely a function of (saved config,
+    // current hardware, last session's hardware), so an unchanged shape would only
+    // harass the user again.
+    std::vector<wizard::StepId> reconfig_steps;
+    if (!gates.wizard_blocked) {
+        PreviousSessionHardware previous;
+        if (auto snapshot = HardwareValidator::load_session_snapshot(Config::get_instance())) {
+            previous = {std::move(snapshot->fans), std::move(snapshot->heaters)};
+        }
+        reconfig_steps = helix::guided_reconfig_steps(Config::get_instance(), hw, previous);
+    }
     gates.reconfig_steps_pending = !reconfig_steps.empty();
     gates.hardware_setup_deferred = hardware_setup_deferred;
     gates.reconfig_shown = guards.reconfig_shown;

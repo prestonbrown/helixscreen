@@ -49,7 +49,7 @@ The same FlowGuard bar sits across the top, so the modal shows everything the wi
 - Flow rate
 
 **AFC printers also show:**
-- Advancing/trailing buffer state
+- Whether the buffer is compressed (filament arriving faster than it is used) or expanded (the toolhead pulling faster than filament arrives)
 - Distance to fault (in mm)
 
 Where your printer has a filament buffer with a proportional reading, the modal also shows it live: the tall slider on the left (a fill gauge for an OpenAMS pressure sensor), then the reading, its target and whether the filament is running tight, loose or balanced (at, above or below target for OpenAMS), with the last minute as a trace underneath. The modal closes with the **X** in its corner. See [Filament Buffer Widget](#filament-buffer-widget).

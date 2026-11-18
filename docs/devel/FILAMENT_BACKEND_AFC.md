@@ -184,7 +184,7 @@ reader, `afc::read_lane_identity`, and apply it through one step,
 | `material` | string | Material type from Spoolman |
 | `spool_id` | int | Spoolman spool ID |
 | `weight` | float | Remaining weight in grams |
-| `buffer_status` | string | Buffer state (e.g., "Advancing") |
+| `buffer_status` | string | What the buffer's motor is doing: "Advancing" (buffer expanded), "Trailing" (buffer compressed) |
 | `filament_status` | string | Readiness (e.g., "Ready", "Not Ready") |
 | `dist_hub` | float | Distance to hub in mm |
 
@@ -733,7 +733,10 @@ Each `AFC_stepper` object provides sensor states (`prep`, `load`, `loaded_to_hub
 #### Buffer Objects
 
 Each lane's `AFC_stepper`/`AFC_lane` object carries a `buffer_status` string naming the
-current buffer operation (e.g. "Advancing"). The buffer's own health lives on separate
+current buffer operation. AFC's words name the motor's response, not the buffer's shape:
+"Advancing" feeds faster because the buffer is expanded, "Trailing" feeds slower because it
+is compressed; `afc::buffer_motion()` maps them onto `BufferMotion::Expanded` and
+`BufferMotion::Compressed`. The buffer's own health lives on separate
 `AFC_buffer {name}` objects, discovered from the Klipper object list.
 
 **Buffer health is per buffer, attributed to a unit.** `apply_buffer()` accumulates

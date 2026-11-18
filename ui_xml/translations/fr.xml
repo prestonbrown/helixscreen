@@ -857,6 +857,7 @@
   <translation tag="Completed {}m ago" fr="Terminé il y a {} min"/>
   <translation tag="Completed: {}" fr="Terminé : {}"/>
   <translation tag="Compressed" fr="Compressé"/>
+  <translation tag="Compressed: filament arrives faster than it is used" fr="Compressé : le filament arrive plus vite qu&apos;il n&apos;est utilisé"/>
   <translation tag="Computing calibration..." fr="Calcul de la calibration..."/>
   <translation tag="Config Dir" fr="Dossier de configuration"/>
   <translation tag="Config Edit Failed" fr="Échec de la modification de la configuration"/>
@@ -1372,6 +1373,7 @@
   <translation tag="Exhaust: keep chamber at or below" fr="Extraction : garder la chambre au plus à"/>
   <translation tag="Exit Code" fr="Code de sortie"/>
   <translation tag="Expanded" fr="Détendu"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" fr="Détendu : la tête tire le filament plus vite qu&apos;il n&apos;arrive"/>
   <translation tag="Expected boolean" fr="Valeur booléenne attendue"/>
   <translation tag="Expected float" fr="Nombre décimal attendu"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." fr="Explorez comment la palette sélectionnée façonne les couleurs du texte, des contrôles et des statuts."/>
@@ -1553,7 +1555,6 @@
   <translation tag="Feed the filament back" fr="Réinsérer le filament"/>
   <translation tag="Feeder" fr="Alimentateur"/>
   <translation tag="Feeders" fr="Alimentateurs"/>
-  <translation tag="Feeding filament forward" fr="Avancement du filament"/>
   <translation tag="Feeding filament to nozzle" fr="Avancement du filament vers la buse"/>
   <translation tag="Filament" fr="Filament"/>
   <translation tag="Filament Buffer" fr="Tampon de filament"/>
@@ -3127,7 +3128,6 @@
   <translation tag="Pull" fr="Tirer"/>
   <translation tag="Pull now" fr="Tirez maintenant"/>
   <translation tag="Pulled" fr="Tiré"/>
-  <translation tag="Pulling filament back" fr="Rétraction du filament"/>
   <translation tag="Purge" fr="Purger"/>
   <translation tag="Purge &amp; Wipe" fr="Purge et essuyage"/>
   <translation tag="Purge Chute Calibration" fr="Calibration de la goulotte de purge"/>

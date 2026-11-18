@@ -793,18 +793,18 @@ SpoolMotorAction spool_motor_action(const std::string& state) {
     return SpoolMotorAction::Other;
 }
 
-/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt
-/// when sync feedback is absent or "disabled"; "compressed" advances,
-/// "tension" trails, anything else ("neutral") has no direction.
+/// Happy Hare's sync_feedback_state as the system buffer's shape: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" is compressed,
+/// "tension" is expanded, anything else ("neutral") has no direction.
 std::optional<BufferMotion> sync_feedback_motion(const std::string& state) {
     if (state.empty() || state == "disabled") {
         return std::nullopt;
     }
     if (state == "compressed") {
-        return BufferMotion::Advancing;
+        return BufferMotion::Compressed;
     }
     if (state == "tension") {
-        return BufferMotion::Trailing;
+        return BufferMotion::Expanded;
     }
     return BufferMotion::Unknown;
 }

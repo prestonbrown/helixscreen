@@ -219,12 +219,11 @@ bool heal_heater_roles(Config* config, const std::vector<std::string>& heaters) 
     return changed;
 }
 
-std::vector<helix::wizard::StepId> unresolved_guided_steps(Config* config,
-                                                           const PrinterDiscovery& hw) {
-    std::vector<helix::wizard::StepId> out;
-    if (!config) {
-        return out;
-    }
+namespace {
+/// Calls @p fn(desc, key, saved) for every guided role whose present (non-empty)
+/// saved value resolve_role() leaves Unresolved against @p hw.
+template <typename Fn>
+void for_each_unresolved_guided_role(Config* config, const PrinterDiscovery& hw, Fn&& fn) {
     for (const auto& desc : hardware_role_registry()) {
         if (!desc.guided) {
             continue;
@@ -243,14 +242,28 @@ std::vector<helix::wizard::StepId> unresolved_guided_steps(Config* config,
         // key). Absent must NOT be treated as a problem to reconfigure.
         const std::string saved = config->get<std::string>(key, "");
         if (saved.empty()) {
-            continue; // role not configured for this printer → nothing to reconfigure
+            continue;
         }
         if (resolve_role(desc, saved, *discovered).status == RoleResolutionStatus::Unresolved) {
+            fn(desc, key, saved);
+        }
+    }
+}
+} // namespace
+
+std::vector<helix::wizard::StepId> unresolved_guided_steps(Config* config,
+                                                           const PrinterDiscovery& hw) {
+    std::vector<helix::wizard::StepId> out;
+    if (!config) {
+        return out;
+    }
+    for_each_unresolved_guided_role(
+        config, hw,
+        [&out](const HardwareRoleDescriptor& desc, const std::string&, const std::string&) {
             if (std::find(out.begin(), out.end(), desc.wizard_step) == out.end()) {
                 out.push_back(desc.wizard_step);
             }
-        }
-    }
+        });
     return out;
 }
 
@@ -259,36 +272,45 @@ bool decline_unresolved_guided_roles(Config* config, const PrinterDiscovery& hw)
         return false;
     }
     bool changed = false;
-    for (const auto& desc : hardware_role_registry()) {
-        if (!desc.guided) {
-            continue;
-        }
-        const std::vector<std::string>* discovered =
-            desc.category == HardwareCategory::Fan      ? &hw.fans()
-            : desc.category == HardwareCategory::Heater ? &hw.heaters()
-                                                        : nullptr;
-        if (!discovered) {
-            continue;
-        }
-        const std::string key = config->df() + desc.config_key;
-        // Only a present (non-empty) saved key can be "declined". An absent key is
-        // already unconfigured — leave it alone (it isn't re-nagged after C1a).
-        const std::string saved = config->get<std::string>(key, "");
-        if (saved.empty()) {
-            continue;
-        }
-        if (resolve_role(desc, saved, *discovered).status == RoleResolutionStatus::Unresolved) {
-            // No confident substitute exists against current hardware. Record the
-            // user's cancel as "declined/unconfigured" ("") so this role is skipped
-            // on the next connection instead of re-launching the wizard forever.
+    // No confident substitute exists against current hardware. Record the user's
+    // cancel as "declined/unconfigured" ("") so this role is skipped on the next
+    // connection instead of re-launching the wizard forever.
+    for_each_unresolved_guided_role(
+        config, hw, [&](const HardwareRoleDescriptor&, const std::string& key, const std::string&) {
             config->set<std::string>(key, std::string(""));
             changed = true;
-        }
-    }
+        });
     if (changed && !config->save()) {
         spdlog::warn("[HardwareRole] Failed to persist declined role(s)");
     }
     return changed;
+}
+
+std::vector<helix::wizard::StepId> guided_reconfig_steps(Config* config, const PrinterDiscovery& hw,
+                                                         const PreviousSessionHardware& previous) {
+    if (config) {
+        bool changed = false;
+        for_each_unresolved_guided_role(
+            config, hw,
+            [&](const HardwareRoleDescriptor& desc, const std::string& key,
+                const std::string& saved) {
+                const std::vector<std::string>& seen =
+                    desc.category == HardwareCategory::Fan ? previous.fans : previous.heaters;
+                if (seen.empty() || std::find(seen.begin(), seen.end(), saved) != seen.end()) {
+                    return;
+                }
+                spdlog::info(
+                    "[HardwareRole] Role '{}' (saved '{}') was not discovered last session "
+                    "either; leaving it unconfigured",
+                    desc.config_key, saved);
+                config->set<std::string>(key, std::string(""));
+                changed = true;
+            });
+        if (changed && !config->save()) {
+            spdlog::warn("[HardwareRole] Failed to persist settled role(s)");
+        }
+    }
+    return unresolved_guided_steps(config, hw);
 }
 
 bool settle_targeted_reconfig(Config* config, const PrinterDiscovery& hw) {

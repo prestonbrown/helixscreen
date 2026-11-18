@@ -933,6 +933,7 @@ translations:
   Completed {}h ago: 'Завершено {} ч назад'
   Completed {}m ago: 'Завершено {} мин назад'
   Compressed: Сжат
+  'Compressed: filament arrives faster than it is used': 'Сжат: филамент поступает быстрее, чем расходуется'
   Computing calibration...: Вычисление калибровки...
   Config Dir: Директория конфигурации
   Config Edit Failed: 'Не удалось изменить конфигурацию'
@@ -1489,6 +1490,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Вытяжка: держать камеру не выше'
   Exit Code: Код выхода
   Expanded: Растянут
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Растянут: голова тянет филамент быстрее, чем он поступает'
   Expected boolean: 'Ожидалось логическое значение'
   Expected float: 'Ожидалось дробное число'
   Explore how the selected palette shapes text, controls, and status colors.: Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса.
@@ -1673,7 +1675,6 @@ translations:
   Feed the filament back: "Верните филамент"
   Feeder: Фидер
   Feeders: Фидеры
-  Feeding filament forward: Подача филамента вперёд
   Feeding filament to nozzle: "Подача филамента к соплу"
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
@@ -3286,7 +3287,6 @@ translations:
   Pull: "Вытянуть"
   Pull now: "Тяните сейчас"
   Pulled: "Вытянуто"
-  Pulling filament back: Откат филамента
   Purge: Продуть
   Purge & Wipe: 'Продувка и очистка'
   Purge Chute Calibration: Калибровка жёлоба продувки
