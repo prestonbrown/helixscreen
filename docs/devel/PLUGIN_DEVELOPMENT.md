@@ -460,6 +460,7 @@ the starting value and its constraints and gets back the accepted value or a can
 ```lua
 helix.ui.edit_number({
     title = "Interval", value = interval, min = 1, max = 1000, decimals = 0, unit = "h",
+    default = 200,
     validate = function(v)
         if v % 10 ~= 0 then return false, "Use a multiple of 10 hours" end
         return true
@@ -476,6 +477,7 @@ helix.ui.edit_text({title = "Task name", value = name, max_length = 32,
 | `value` | starting value (the keypad opens empty, as everywhere in the app) | starting text, no longer than `max_length` |
 | `min`, `max` | required; `-99999 <= min < max <= 99999` | |
 | `decimals` | `0` (default), `1` or `2`: digits after the decimal point; `0` hides the point and hands back an integer | |
+| `default` | optional; the value a reset key beside the display types, within `min`..`max` and with no more places than `decimals` | |
 | `unit` | shown inside the display, at most 15 bytes | |
 | `placeholder` | | hint shown while the field is empty |
 | `max_length` | | 1 to 1023 characters, default 256 |

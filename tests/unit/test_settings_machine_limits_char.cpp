@@ -20,6 +20,7 @@
 #include "ui_settings_machine_limits.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/keypad_reset_key.h"
 #include "calibration_types.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -149,6 +150,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Machine Limits: the Z rows show the printer
     REQUIRE(overlay.show(lv_screen_active()));
     helix::ui::UpdateQueue::instance().drain();
     CHECK(client.call_count("printer.objects.query") > queries);
+
+    // Only the app's own extrude speed has a shipped value; the printer owns the limits.
+    ui_keypad_init(lv_screen_active());
+    helix::test::keypad_open_from("extrude_speed_field");
+    CHECK(helix::test::keypad_press_reset() == "5");
+    helix::test::keypad_open_from("max_velocity_field");
+    CHECK_FALSE(helix::test::keypad_reset_key_shown());
+    ui_keypad_hide();
 
     overlay.set_api(nullptr);
     StaticPanelRegistry::instance().destroy_all();
