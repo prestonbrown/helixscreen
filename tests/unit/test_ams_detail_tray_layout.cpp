@@ -1239,9 +1239,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots
         SKIP("no art for this unit here");
     lv_obj_send_event(slot(1), LV_EVENT_PRESSED, nullptr);
     REQUIRE(at::s_tray.pressed_lane == 1);
-    // The slots are rebuilt under the finger: no release ever reaches the old ones.
+    // A new lane count rebuilds the slots under the finger: no release reaches the old ones.
     lv_obj_t* old = slot(1);
-    helix::AmsPanelTestAccess::rebuild_slots(*panel_);
+    lv_subject_set_int(AmsState::instance().get_slot_count_subject(), 5);
+    process_lvgl(20);
     CHECK(old != slot(1));
     CHECK(at::s_tray.pressed_lane == -1);
 }
