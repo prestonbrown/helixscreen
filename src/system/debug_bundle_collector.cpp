@@ -893,6 +893,20 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         static const helix::Regex cred_url_re(R"(://[^@/\s]+:[^@/\s]+@)");
         result = helix::regex_replace(result, cred_url_re, "://[REDACTED_CREDENTIALS]@");
 
+        // Redact the value of a credential-named key, keeping the key so the
+        // line still reads: Moonraker writes its config back to its log as
+        // `key = value`, request URIs carry `?token=`, Python dicts print
+        // `'api_key': '...'`, wpa_supplicant writes `psk="..."`. A boolean is
+        // a setting about a credential (`enable_api_key = True`), not one.
+        static const helix::Regex key_value_re(
+            R"(\b((?:[\w.-]{0,40}[_.-])?)"
+            R"((?:password|passwd|passphrase|psk|secret|token|api[_-]?key|apikey|auth|authorization))"
+            R"(["']?\s*[:=]\s*))"
+            R"((?!(?:true|false|yes|no|none|null|on|off)\b))"
+            R"((?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+[^\s,;&"'}\]]+|[^\s,;&"'}\]]+))",
+            helix::Regex::ICase);
+        result = helix::regex_replace(result, key_value_re, "$1[REDACTED]");
+
         // Redact email addresses. The last label must be alphabetic, because a
         // bare `<word>@<number>.<number><unit>` is a diagnostic value, not an
         // address: an input shaper logs its result as `mzv@40.2Hz`, and a

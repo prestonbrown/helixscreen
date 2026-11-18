@@ -227,6 +227,8 @@ const char* const kKlippyLog =
     "Read 1781.2: 'NOTIFY URL=https://discord.com/api/webhooks/112233/AbCdEfGhIjKlMnOp\\n'\n"
     "ghp_aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5\n"
     "Echo: print started by owner.name@example.com\n"
+    "webhooks client 4321: Client info {'program': 'Mainsail', 'access_token': "
+    "'eyJhbGciOiJIUzI1'}\n"
     "webhooks client 1234: New connection from 8.8.4.4\n"
     "webhooks client 5678: New connection from 192.168.1.50\n"
     "Host network: wlan0 ether dc:a6:32:12:34:56\n"
@@ -274,6 +276,9 @@ TEST_CASE("A local klippy.log reaches the bundle scrubbed and otherwise intact",
 
         CHECK(log.find("dc:a6:32:12:34:56") == std::string::npos);
         CHECK(log.find("wlan0 ether [REDACTED_MAC]") != std::string::npos);
+
+        CHECK(log.find("eyJhbGciOiJIUzI1") == std::string::npos);
+        CHECK(log.find("'program': 'Mainsail', 'access_token': [REDACTED]") != std::string::npos);
 
         CHECK(log.find("8.8.4.4") == std::string::npos);
         CHECK(log.find("webhooks client 1234: New connection from ip#") != std::string::npos);
@@ -361,4 +366,64 @@ TEST_CASE("The bundle's launcher_log comes from the located launcher.log",
     CHECK(log.find("admin@example.com") == std::string::npos);
     // Klipper logs were not asked for, so none ship.
     CHECK_FALSE(bundle.contains("klipper_log"));
+}
+
+/**
+ * moonraker.log opens with Moonraker's whole configuration, written back as
+ * `key = value`, and logs every request URI. Both carry credentials: an MQTT
+ * or smart-plug password and token, a webcam's basic-auth URL, a one-shot
+ * websocket token, an API key header. The key names stay so the config reads.
+ */
+TEST_CASE("A local moonraker.log reaches the bundle with its credentials redacted",
+          "[debug-bundle][security]") {
+    LocalLogDir dir;
+    dir.write("moonraker.log",
+              "2026-11-16 10:00:00,001 [server.py:main()] - Starting Moonraker on (0.0.0.0, 7125)\n"
+              "#################### Moonraker Configuration ####################\n"
+              "[authorization]\n"
+              "force_logins = False\n"
+              "enable_api_key = True\n"
+              "trusted_clients = 192.168.1.0/24\n"
+              "[mqtt]\n"
+              "address = 192.168.1.20\n"
+              "username = printer\n"
+              "password = Hunter2-mqtt\n"
+              "[power plug]\n"
+              "type = homeassistant\n"
+              "token: eyJ0eXAiOiJKV1QiLCJhbGciOi\n"
+              "[webcam cam1]\n"
+              "stream_url = http://cam:CamPass9@192.168.1.41/stream\n"
+              "#################################################################\n"
+              "2026-11-16 10:00:05,120 [app.py:log_request()] - 101 GET "
+              "/websocket?token=Q8F2K1ZP7XWM&client=mainsail (192.168.1.50) 2.31ms\n"
+              "2026-11-16 10:00:06,200 [app.py:log_request()] - X-Api-Key: 6b1d3c9fa0e24e57 "
+              "Authorization: Bearer eyJhbGciOiJSUzI1Nb\n"
+              "2026-11-16 10:00:07,300 [klippy_connection.py:_on_connection_established()] - "
+              "Klippy Connection Established\n",
+              std::time(nullptr));
+
+    helix::BundleOptions opts;
+    opts.include_moonraker_logs = true;
+    opts.log_locator = dir.locator();
+    const json bundle = helix::DebugBundleCollector::collect(opts);
+
+    REQUIRE(bundle.contains("moonraker_log"));
+    const std::string log = bundle["moonraker_log"].get<std::string>();
+    INFO(log);
+    for (const char* secret : {"Hunter2-mqtt", "eyJ0eXAiOiJKV1QiLCJhbGciOi", "CamPass9",
+                               "Q8F2K1ZP7XWM", "6b1d3c9fa0e24e57", "eyJhbGciOiJSUzI1Nb"}) {
+        INFO("secret: " << secret);
+        CHECK(log.find(secret) == std::string::npos);
+    }
+    CHECK(log.find("\npassword = [REDACTED]\n") != std::string::npos);
+    CHECK(log.find("\ntoken: [REDACTED]\n") != std::string::npos);
+    CHECK(log.find("/websocket?token=[REDACTED]&client=mainsail (192.168.1.50)") !=
+          std::string::npos);
+    CHECK(log.find("X-Api-Key: [REDACTED] Authorization: [REDACTED]\n") != std::string::npos);
+    // Settings that only name a credential are diagnostic and stay.
+    CHECK(log.find("\nenable_api_key = True\n") != std::string::npos);
+    CHECK(log.find("\nforce_logins = False\n") != std::string::npos);
+    CHECK(log.find("\nusername = printer\n") != std::string::npos);
+    CHECK(log.find("\n[authorization]\n") != std::string::npos);
+    CHECK(log.find("Klippy Connection Established") != std::string::npos);
 }
