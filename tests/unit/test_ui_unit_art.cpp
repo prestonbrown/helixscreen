@@ -41,11 +41,11 @@ AmsSystemInfo ace_system(int lanes = 4) {
     return info;
 }
 
-AmsSystemInfo quattro_system(int lanes) {
+AmsSystemInfo emu_system(int lanes) {
     AmsSystemInfo info;
     info.type = AmsType::AFC;
     AmsUnit unit;
-    unit.name = "Quattro_Box QuattroBox_1";
+    unit.name = "EMU Turtle_1";
     unit.slot_count = lanes;
     for (int i = 0; i < lanes; ++i)
         unit.slots.push_back(slot(SlotStatus::AVAILABLE, 0x00ff00));
@@ -172,9 +172,8 @@ TEST_CASE("unit art: drawn only at the lane counts its art is baked in", "[ams][
     CHECK(unit_art_available(ace_system(), 0));
     CHECK_FALSE(unit_art_available(ace_system(6), 0));
     CHECK_FALSE(unit_art_available(ace_system(), 3));
-    for (int lanes : {1, 2, 3, 4, 5, 6})
-        CHECK(unit_art_available(quattro_system(lanes), 0) ==
-              (lanes == 2 || lanes == 4 || lanes == 5));
+    for (int lanes : {1, 2, 3, 4, 5, 6, 7, 8, 9})
+        CHECK(unit_art_available(emu_system(lanes), 0) == (lanes != 7 && lanes != 9));
     for (int gates : {3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14})
         CHECK(unit_art_available(rail_system("MMU", "ERCF", gates), 0) ==
               (gates == 4 || gates == 6 || gates == 8 || gates == 9 || gates == 12));
@@ -273,17 +272,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens again at a new size
 TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a new lane count builds that count's layers",
                  "[ams][unit-art]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
-    unit_art_set_unit(art, quattro_system(5), 0);
+    unit_art_set_unit(art, emu_system(5), 0);
     CHECK_FALSE(lv_obj_is_hidden(art));
     REQUIRE(unit_art_lane_color_obj(art, 4) != nullptr);
     const auto* src = static_cast<const char*>(lv_image_get_src(unit_art_lane_color_obj(art, 4)));
-    CHECK(std::string(src).find("units/quattro_box/5/thumb_lane4.png") != std::string::npos);
+    CHECK(std::string(src).find("units/emu/5/thumb_lane4.png") != std::string::npos);
 
-    unit_art_set_unit(art, quattro_system(2), 0);
+    unit_art_set_unit(art, emu_system(2), 0);
     CHECK(unit_art_lane_color_obj(art, 1) != nullptr);
     CHECK(unit_art_lane_color_obj(art, 2) == nullptr);
 
-    unit_art_set_unit(art, quattro_system(3), 0);
+    unit_art_set_unit(art, emu_system(7), 0);
     CHECK(lv_obj_is_hidden(art));
 }
 
@@ -427,7 +426,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: a new drawing gets a new glow"
     CHECK(lv_image_get_src(glow) != before);
     CHECK_FALSE(lv_obj_is_hidden(glow));
 
-    unit_art_set_unit(art, quattro_system(4), 0); // another shell rebuilds every child
+    unit_art_set_unit(art, emu_system(4), 0); // another shell rebuilds every child
     CHECK(unit_art_glow_obj(art) == nullptr);
 }
 

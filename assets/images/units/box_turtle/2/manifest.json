@@ -1,0 +1,116 @@
+{
+  "id": "box_turtle",
+  "lanes": 2,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
+        }
+      ]
+    }
+  },
+  "drawn": [
+    0.22423,
+    0.27864,
+    0.74756,
+    0.81119
+  ],
+  "bottom_edge": [
+    0.22423,
+    0.75429,
+    0.50711,
+    0.80359
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.35723,
+        0.45112
+      ],
+      "near": [
+        0.46626,
+        0.47012
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.27786,
+        0.27841,
+        0.54563,
+        0.64282
+      ],
+      "outlet": [
+        0.32444,
+        0.61911
+      ]
+    },
+    {
+      "far": [
+        0.50552,
+        0.47696
+      ],
+      "near": [
+        0.61456,
+        0.49596
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.42615,
+        0.30426,
+        0.69393,
+        0.66867
+      ],
+      "outlet": [
+        0.47273,
+        0.64495
+      ]
+    }
+  ]
+}

@@ -3590,6 +3590,8 @@ constexpr AfcMockLane kStealthLanes[] = {
     {"lane16", "", 0x000000, "", SlotStatus::EMPTY, 15, "extruder6", 0.0f},
     {"lane17", "PLA", 0xFDD835, "Yellow", SlotStatus::AVAILABLE, 16, "extruder6", 280.0f},
     {"lane18", "", 0x000000, "", SlotStatus::EMPTY, 17, "extruder6", 0.0f},
+    {"lane19", "", 0x000000, "", SlotStatus::EMPTY, 18, "extruder6", 0.0f},
+    {"lane20", "", 0x000000, "", SlotStatus::EMPTY, 19, "extruder6", 0.0f},
 };
 
 constexpr AfcMockUnit kStealthUnits[] = {
@@ -3597,7 +3599,7 @@ constexpr AfcMockUnit kStealthUnits[] = {
     {"OpenAMS AMS_1", "AMS 1", PathTopology::HUB, true, false, 4, 4},
     {"Box_Turtle Turtle_1", "Turtle 1", PathTopology::HUB, true, true, 8, 4},
     {"Bambu Bambu_1", "Bambu 1", PathTopology::HUB, true, false, 12, 4},
-    {"Bambu Bambu_2", "Bambu 2", PathTopology::HUB, true, false, 16, 2},
+    {"Bambu Bambu_2", "Bambu 2", PathTopology::HUB, true, false, 16, 4},
 };
 
 // A toolchanger with five hub units and a one-lane "Tools" unit whose lane

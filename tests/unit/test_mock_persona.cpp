@@ -99,6 +99,21 @@ TEST_CASE("effective_mock_ams: explicit wins, else the persona default", "[mock]
     CHECK(effective_mock_ams(nullptr, "snapmaker_u1") == "snapmaker");
 }
 
+TEST_CASE("mock_real_lane_count: a product's mock builds the lanes it is sold with",
+          "[mock][persona][ams]") {
+    using helix::mock::mock_real_lane_count;
+    CHECK(mock_real_lane_count("quattro_box", 6) == 4);
+    CHECK(mock_real_lane_count("hh_night_owl", 4) == 2);
+    CHECK(mock_real_lane_count("afc_cfs", 8) == 4);
+    // One Box Turtle is built with two to eight lanes.
+    CHECK(mock_real_lane_count("afc", 1) == 2);
+    CHECK(mock_real_lane_count("afc", 6) == 6);
+    CHECK(mock_real_lane_count("hh_box_turtle", 12) == 8);
+    // A count the product leaves free passes through.
+    CHECK(mock_real_lane_count("ercf", 9) == 9);
+    CHECK(mock_real_lane_count("kms", 6) == 6);
+}
+
 TEST_CASE("A persona's own probe stands in for the default cartographer", "[mock][persona]") {
     for (const auto& p : helix::mock::kPersonas) {
         const auto d = helix::mock::descriptor(p.type);

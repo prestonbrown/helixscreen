@@ -6,6 +6,7 @@
 
 #include "core/text_io.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -396,6 +397,29 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
 [[nodiscard]] inline int toolchanger_start_tool(const char* env, int tool_count) {
     const int tool = env ? helix::text_io::parse_leading<int>(env).value_or(0) : 0;
     return tool >= 0 && tool < tool_count ? tool : 0;
+}
+
+/// The lane count a mock AMS mode builds when HELIX_AMS_GATES asks for `requested`: a mode
+/// that stands for a real product keeps the count inside the range that product is built in.
+/// Modes whose count is free (selector rails, KMS, HTLF, the scenario rigs) keep `requested`.
+[[nodiscard]] inline int mock_real_lane_count(std::string_view mode, int requested) {
+    struct Row {
+        std::string_view mode;
+        int min_lanes;
+        int max_lanes;
+    };
+    static constexpr Row kRows[] = {
+        {"quattro_box", 4, 4}, {"quattrobox", 4, 4},    {"ace", 4, 4},     {"afc_ace", 4, 4},
+        {"afc-ace", 4, 4},     {"afc_cfs", 4, 4},       {"afc-cfs", 4, 4}, {"hh_qidi", 4, 4},
+        {"hh_vivid", 4, 4},    {"hh_night_owl", 2, 2},  {"afc", 2, 8},     {"box_turtle", 2, 8},
+        {"boxturtle", 2, 8},   {"hh_box_turtle", 2, 8},
+    };
+    for (const Row& row : kRows) {
+        if (mode == row.mode) {
+            return std::clamp(requested, row.min_lanes, row.max_lanes);
+        }
+    }
+    return requested;
 }
 
 /// Which MedusaHC shipping configuration a mock AMS mode emulates. Every

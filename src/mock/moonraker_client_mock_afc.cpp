@@ -12,6 +12,7 @@
 // AFC_ACE_DRY_STOP.
 
 #include "core/text_io.h"
+#include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
@@ -109,9 +110,15 @@ bool afc_cfs_mode() {
 } // namespace
 
 void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
+    const std::string mode = effective_mock_ams_env();
+    const int real = helix::mock::mock_real_lane_count(mode, lanes);
+    if (real != lanes) {
+        spdlog::info("[MoonrakerClientMock] AFC mock {} is built with {} lanes; ignoring {} gates",
+                     mode, real, lanes);
+    }
     std::lock_guard<std::mutex> lock(afc_mutex_);
     afc_lanes_.clear();
-    for (int i = 0; i < std::clamp(lanes, 1, kMaxLanes); ++i) {
+    for (int i = 0; i < std::clamp(real, 1, kMaxLanes); ++i) {
         const LaneSpool& s = kLaneSpools[i];
         afc_lanes_.push_back(
             {s.name, s.material, s.color, s.spool_id, s.weight, i, true, "", 0, 0});

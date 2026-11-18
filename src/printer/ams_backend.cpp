@@ -675,6 +675,15 @@ const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
 // printer.mmu.tool / toolchanger.tool_number).
 static std::unique_ptr<AmsBackendMock>
 create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullptr) {
+    const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
+                                                                 std::getenv("HELIX_MOCK_PRINTER"));
+    const bool quattro_box = ams_type == "quattro_box" || ams_type == "quattrobox";
+    if (const int real = helix::mock::mock_real_lane_count(ams_type, gate_count);
+        real != gate_count) {
+        spdlog::info("[AMS Backend] Mock {} is built with {} lanes; ignoring {} gates", ams_type,
+                     real, gate_count);
+        gate_count = real;
+    }
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
     // Find the moonraker mock to subscribe to. get_moonraker_client_mock() is
@@ -704,11 +713,8 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     // ========================================================================
     // HELIX_MOCK_AMS — topology/type selection
     // ========================================================================
-    const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
-                                                                 std::getenv("HELIX_MOCK_PRINTER"));
-
     if (!ams_type.empty()) {
-        if (ams_type == "quattro_box" || ams_type == "quattrobox") {
+        if (quattro_box) {
             mock->set_afc_mode(true);
             mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
             spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
