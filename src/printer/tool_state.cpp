@@ -508,10 +508,9 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // view — the logical T-number is driven by the backend, not the printer.
     const bool frame_owns_active_tool = !ams_topology_active_ && !backend_owns_active_tool_;
     if (frame_owns_active_tool) {
-        if (status.contains("toolchanger") && status["toolchanger"].is_object()) {
-            const auto& tc = status["toolchanger"];
-            if (tc.contains("tool_number") && tc["tool_number"].is_number_integer()) {
-                const int number = tc["tool_number"].get<int>();
+        if (const auto* tc = json_util::find_object(status, "toolchanger")) {
+            if (const auto tool_number = json_util::read_integer_field(*tc, "tool_number")) {
+                const int number = *tool_number;
                 const int new_index = index_for_tool_number(number);
                 if (new_index < 0 && number >= 0) {
                     spdlog::debug("[ToolState] toolchanger.tool_number {} names no listed tool",
@@ -535,10 +534,9 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // klipper-toolchanger's tool_number is the authority on what is mounted:
     // toolhead.extruder still names "extruder" on an empty carriage (#2058).
     if (frame_owns_active_tool && !toolchanger_reports_mount_) {
-        if (status.contains("toolhead") && status["toolhead"].is_object()) {
-            const auto& toolhead = status["toolhead"];
-            if (toolhead.contains("extruder") && toolhead["extruder"].is_string()) {
-                std::string ext_name = toolhead["extruder"].get<std::string>();
+        if (const auto* toolhead = json_util::find_object(status, "toolhead")) {
+            if (const auto extruder = json_util::read_field<std::string>(*toolhead, "extruder")) {
+                const std::string& ext_name = *extruder;
                 // Find which tool maps to this extruder
                 for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
                     if (tools_[i].extruder_name.has_value() &&
@@ -561,29 +559,31 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // Parse per-tool status updates
     for (auto& tool : tools_) {
         std::string key = "tool " + tool.name;
-        if (!status.contains(key) || !status[key].is_object()) {
+        const auto* tool_obj = json_util::find_object(status, key.c_str());
+        if (!tool_obj) {
             continue;
         }
-        const auto& tool_status = status[key];
+        const auto& tool_status = *tool_obj;
 
-        if (tool_status.contains("active") && tool_status["active"].is_boolean()) {
-            bool val = tool_status["active"].get<bool>();
+        if (const auto active = json_util::read_field<bool>(tool_status, "active")) {
+            bool val = *active;
             if (val != tool.active) {
                 tool.active = val;
                 changed = true;
             }
         }
 
-        if (tool_status.contains("mounted") && tool_status["mounted"].is_boolean()) {
-            bool val = tool_status["mounted"].get<bool>();
+        if (const auto mounted = json_util::read_field<bool>(tool_status, "mounted")) {
+            bool val = *mounted;
             if (val != tool.mounted) {
                 tool.mounted = val;
                 changed = true;
             }
         }
 
-        if (tool_status.contains("detect_state") && tool_status["detect_state"].is_string()) {
-            std::string ds = tool_status["detect_state"].get<std::string>();
+        if (const auto detect_state =
+                json_util::read_field<std::string>(tool_status, "detect_state")) {
+            const std::string& ds = *detect_state;
             DetectState new_state = DetectState::UNAVAILABLE;
             // klipper-toolchanger spells DETECT_PRESENT "mounted"
             // (klipper/extras/toolchanger.py). "present" is what forks that
@@ -606,8 +606,8 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         // MedusaHC the value on this object is not the one the machine prints
         // with. The per-tool offsets are read from the whole frame below.
 
-        if (tool_status.contains("extruder") && tool_status["extruder"].is_string()) {
-            std::string ext = tool_status["extruder"].get<std::string>();
+        if (const auto extruder = json_util::read_field<std::string>(tool_status, "extruder")) {
+            const std::string& ext = *extruder;
             std::optional<std::string> new_val = ext.empty() ? std::nullopt : std::optional(ext);
             if (new_val != tool.extruder_name) {
                 tool.extruder_name = new_val;
@@ -616,8 +616,8 @@ void ToolState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (tool_status.contains("fan") && tool_status["fan"].is_string()) {
-            std::string fan = tool_status["fan"].get<std::string>();
+        if (const auto fan_name = json_util::read_field<std::string>(tool_status, "fan")) {
+            const std::string& fan = *fan_name;
             std::optional<std::string> new_val = fan.empty() ? std::nullopt : std::optional(fan);
             if (new_val != tool.fan_name) {
                 tool.fan_name = new_val;
@@ -717,11 +717,12 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
     // subjects were torn down while the request was in flight.
     auto cb = async_lifetime_.bg_cb(
         "ToolState::query_tool_offsets", [this](const nlohmann::json& response) {
-            if (!response.contains("result") || !response["result"].contains("status")) {
+            const auto* status = json_util::find_path(response, "result", "status");
+            if (!status) {
                 spdlog::debug("[ToolState] Tool offset query returned no status");
                 return;
             }
-            update_from_status(response["result"]["status"]);
+            update_from_status(*status);
             for (const auto& tool : tools_) {
                 spdlog::debug(
                     "[ToolState] Seeded per-tool offsets from query: {} x={:.3f}{} "

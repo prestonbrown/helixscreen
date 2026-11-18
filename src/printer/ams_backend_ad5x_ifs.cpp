@@ -15,6 +15,7 @@
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_fs.h"
@@ -453,8 +454,8 @@ void AmsBackendAd5xIfs::on_started() {
             bool klippy_ready = false;
             bool have_status = false;
             json status_copy;
-            if (response.contains("result") && response["result"].contains("status")) {
-                const auto& status = response["result"]["status"];
+            if (const json* status_obj = json_util::find_path(response, "result", "status")) {
+                const auto& status = *status_obj;
                 // Klipper/Kalico's webhooks _do_query() (klippy/webhooks.py)
                 // returns `{}` for objects that don't exist — the key is
                 // still present in the response. So `status.contains(...)` is
@@ -467,12 +468,12 @@ void AmsBackendAd5xIfs::on_started() {
                 // Only the existence bool is extracted here; the dict itself
                 // survives into status_copy below and handle_status()
                 // reads its `variable_*` payload (apply_ifs_vars_macro_locked).
-                macro_exists = status.contains("gcode_macro _ifs_vars") &&
-                               status["gcode_macro _ifs_vars"].is_object() &&
-                               !status["gcode_macro _ifs_vars"].empty();
-                if (status.contains("webhooks") && status["webhooks"].contains("state") &&
-                    status["webhooks"]["state"].is_string()) {
-                    klippy_ready = status["webhooks"]["state"].get<std::string>() == "ready";
+                const json* ifs_vars = json_util::find_object(status, "gcode_macro _ifs_vars");
+                macro_exists = ifs_vars && !ifs_vars->empty();
+                if (const json* webhooks = json_util::find_member(status, "webhooks")) {
+                    if (const auto state = json_util::read_field<std::string>(*webhooks, "state")) {
+                        klippy_ready = *state == "ready";
+                    }
                 }
                 status_copy = status;
                 have_status = true;
@@ -4224,9 +4225,8 @@ void AmsBackendAd5xIfs::register_zcolor_listener() {
             // BG THREAD: extract the line from the JSON envelope into a local;
             // no `this` access here.
             std::string line;
-            if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty() &&
-                msg["params"][0].is_string()) {
-                line = msg["params"][0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             } else {
@@ -4338,17 +4338,15 @@ void AmsBackendAd5xIfs::recheck_ifs_vars_macro() {
             // variables dict.
             bool macro_exists = false;
             json macro_status;
-            if (response.contains("result") && response["result"].contains("status")) {
-                const auto& status = response["result"]["status"];
-                macro_exists = status.contains("gcode_macro _ifs_vars") &&
-                               status["gcode_macro _ifs_vars"].is_object() &&
-                               !status["gcode_macro _ifs_vars"].empty();
+            if (const json* status = json_util::find_path(response, "result", "status")) {
+                const json* ifs_vars = json_util::find_object(*status, "gcode_macro _ifs_vars");
+                macro_exists = ifs_vars && !ifs_vars->empty();
                 // Keep the dict, not just the existence bool: `gcode_macro
                 // _ifs_vars` is NOT in the standing objects.subscribe set, so the
                 // initial on_started() query and this recheck are the only two
                 // places variable_backup ever reaches us (#1250).
                 if (macro_exists) {
-                    macro_status = status["gcode_macro _ifs_vars"];
+                    macro_status = *ifs_vars;
                 }
             }
             token.defer("Ad5xIfsBackend::recheck_macro_apply",

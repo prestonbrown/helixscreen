@@ -5,6 +5,7 @@
 
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "lvgl.h"
 
 #include <spdlog/spdlog.h>
@@ -337,30 +338,26 @@ bool PrintStartProfile::evaluate_status_signal(const json& object_status,
 
 bool PrintStartProfile::parse_json(const json& j, const std::string& source_path) {
     // Name (required)
-    if (!j.contains("name") || !j["name"].is_string()) {
+    auto name = json_util::read_field<std::string>(j, "name");
+    if (!name) {
         spdlog::warn("[PrintStartProfile] Missing or invalid 'name' in {}", source_path);
         return false;
     }
-    name_ = j["name"].get<std::string>();
+    name_ = std::move(*name);
 
     // Description (optional)
-    if (j.contains("description") && j["description"].is_string()) {
-        description_ = j["description"].get<std::string>();
-    }
+    description_ = json_util::read_field<std::string>(j, "description").value_or(description_);
 
     // Adaptive bed-mesh probing (optional, defaults to false)
-    if (j.contains("adaptive_meshing") && j["adaptive_meshing"].is_boolean()) {
-        adaptive_meshing_ = j["adaptive_meshing"].get<bool>();
-    }
+    adaptive_meshing_ =
+        json_util::read_field<bool>(j, "adaptive_meshing").value_or(adaptive_meshing_);
 
     // Start sequence inlined in the print file (optional, defaults to false)
-    if (j.contains("scripted_start") && j["scripted_start"].is_boolean()) {
-        scripted_start_ = j["scripted_start"].get<bool>();
-    }
+    scripted_start_ = json_util::read_field<bool>(j, "scripted_start").value_or(scripted_start_);
 
     // Console lines a start-block command prints while it runs (optional)
-    if (j.contains("start_block_owned_lines") && j["start_block_owned_lines"].is_object()) {
-        for (const auto& [command, lines] : j["start_block_owned_lines"].items()) {
+    if (const json* owned_lines = json_util::find_object(j, "start_block_owned_lines")) {
+        for (const auto& [command, lines] : owned_lines->items()) {
             if (!lines.is_array()) {
                 continue;
             }
@@ -374,13 +371,12 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     }
 
     // Silent-window position inference (optional, defaults to false)
-    if (j.contains("position_signals") && j["position_signals"].is_boolean()) {
-        position_signals_ = j["position_signals"].get<bool>();
-    }
+    position_signals_ =
+        json_util::read_field<bool>(j, "position_signals").value_or(position_signals_);
 
     // Progress mode (optional, defaults to weighted)
-    if (j.contains("progress_mode") && j["progress_mode"].is_string()) {
-        std::string mode_str = helix::text_io::to_upper(j["progress_mode"].get<std::string>());
+    if (auto progress_mode = json_util::read_field<std::string>(j, "progress_mode")) {
+        std::string mode_str = helix::text_io::to_upper(*progress_mode);
         if (mode_str == "WEIGHTED") {
             progress_mode_ = ProgressMode::WEIGHTED;
         } else if (mode_str == "SEQUENTIAL") {
@@ -388,30 +384,31 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
         } else {
             spdlog::warn("[PrintStartProfile] Unknown progress_mode '{}' in {}, defaulting to "
                          "weighted",
-                         j["progress_mode"].get<std::string>(), source_path);
+                         *progress_mode, source_path);
         }
     }
 
     // Signal formats (optional)
-    if (j.contains("signal_formats") && j["signal_formats"].is_array()) {
-        for (const auto& sf_json : j["signal_formats"]) {
+    if (const json* signal_formats = json_util::find_array(j, "signal_formats")) {
+        for (const auto& sf_json : *signal_formats) {
             if (!sf_json.is_object()) {
                 spdlog::warn("[PrintStartProfile] Skipping non-object signal_format in {}",
                              source_path);
                 continue;
             }
 
-            if (!sf_json.contains("prefix") || !sf_json["prefix"].is_string()) {
+            auto prefix = json_util::read_field<std::string>(sf_json, "prefix");
+            if (!prefix) {
                 spdlog::warn("[PrintStartProfile] Signal format missing 'prefix' in {}",
                              source_path);
                 continue;
             }
 
             SignalFormat fmt;
-            fmt.prefix = sf_json["prefix"].get<std::string>();
+            fmt.prefix = std::move(*prefix);
 
-            if (sf_json.contains("mappings") && sf_json["mappings"].is_object()) {
-                for (auto it = sf_json["mappings"].begin(); it != sf_json["mappings"].end(); ++it) {
+            if (const json* mappings = json_util::find_object(sf_json, "mappings")) {
+                for (auto it = mappings->begin(); it != mappings->end(); ++it) {
                     const auto& mapping = it.value();
                     if (!mapping.is_object()) {
                         spdlog::warn("[PrintStartProfile] Skipping non-object mapping '{}' in {}",
@@ -422,26 +419,20 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
                     MatchResult mr;
 
                     // Parse phase (required)
-                    if (!mapping.contains("phase") || !mapping["phase"].is_string()) {
+                    const auto phase = json_util::read_field<std::string>(mapping, "phase");
+                    if (!phase) {
                         spdlog::warn("[PrintStartProfile] Mapping '{}' missing 'phase' in {}",
                                      it.key(), source_path);
                         continue;
                     }
-                    mr.phase = parse_phase_name(mapping["phase"].get<std::string>());
+                    mr.phase = parse_phase_name(*phase);
 
                     // Parse message (optional, default to key name)
-                    if (mapping.contains("message") && mapping["message"].is_string()) {
-                        mr.message = mapping["message"].get<std::string>();
-                    } else {
-                        mr.message = it.key();
-                    }
+                    mr.message =
+                        json_util::read_field<std::string>(mapping, "message").value_or(it.key());
 
                     // Parse progress (optional, default 0)
-                    if (mapping.contains("progress") && mapping["progress"].is_number()) {
-                        mr.progress = mapping["progress"].get<int>();
-                    } else {
-                        mr.progress = 0;
-                    }
+                    mr.progress = json_util::read_field<int>(mapping, "progress").value_or(0);
 
                     fmt.mappings[it.key()] = std::move(mr);
                 }
@@ -452,15 +443,14 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     }
 
     // Response patterns (optional)
-    if (j.contains("response_patterns") && j["response_patterns"].is_array()) {
-        parse_pattern_array(j["response_patterns"], response_patterns_, "response_pattern",
-                            source_path);
+    if (const json* patterns = json_util::find_array(j, "response_patterns")) {
+        parse_pattern_array(*patterns, response_patterns_, "response_pattern", source_path);
     }
 
     // Tag patterns (optional) — lines that announce a step outright, matched
     // ahead of the response patterns. Same entry shape.
-    if (j.contains("tag_patterns") && j["tag_patterns"].is_array()) {
-        parse_pattern_array(j["tag_patterns"], tag_patterns_, "tag_pattern", source_path);
+    if (const json* patterns = json_util::find_array(j, "tag_patterns")) {
+        parse_pattern_array(*patterns, tag_patterns_, "tag_pattern", source_path);
     }
 
     // Phase object (optional) — a status object whose field carries structured
@@ -468,13 +458,13 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
     // feed the same matching pipeline console lines take. Malformed entries
     // warn and leave the profile without a phase object, which is exactly the
     // behavior of a profile that never declared one.
-    if (j.contains("phase_object") && j["phase_object"].is_object()) {
-        const auto& po = j["phase_object"];
-        const bool has_object = po.contains("object") && po["object"].is_string();
-        const bool has_field = po.contains("field") && po["field"].is_string();
-        if (has_object && has_field) {
-            phase_object_name_ = po["object"].get<std::string>();
-            phase_object_field_ = po["field"].get<std::string>();
+    if (const json* po_json = json_util::find_object(j, "phase_object")) {
+        const auto& po = *po_json;
+        auto object = json_util::read_field<std::string>(po, "object");
+        auto field = json_util::read_field<std::string>(po, "field");
+        if (object && field) {
+            phase_object_name_ = std::move(*object);
+            phase_object_field_ = std::move(*field);
             if (phase_object_name_.empty() || phase_object_field_.empty()) {
                 spdlog::warn("[PrintStartProfile] Empty phase_object name/field in {} - ignored",
                              source_path);
@@ -484,8 +474,8 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
             // A bad context qualifier drops the whole phase object: its
             // state_patterns are written against "<context>/<state>" keys, so
             // matching bare states against them would only ever miss.
-            if (po.contains("context_field")) {
-                const auto& cf = po["context_field"];
+            if (const json* cf_json = json_util::find_member(po, "context_field")) {
+                const auto& cf = *cf_json;
                 if (cf.is_string() && !cf.get_ref<const std::string&>().empty()) {
                     phase_object_context_field_ = cf.get<std::string>();
                 } else {
@@ -509,42 +499,41 @@ bool PrintStartProfile::parse_json(const json& j, const std::string& source_path
 
     // State patterns (optional) — matched against the phase object's state
     // string. Same entry shape as response_patterns.
-    if (j.contains("state_patterns") && j["state_patterns"].is_array()) {
-        parse_pattern_array(j["state_patterns"], state_patterns_, "state_pattern", source_path);
+    if (const json* patterns = json_util::find_array(j, "state_patterns")) {
+        parse_pattern_array(*patterns, state_patterns_, "state_pattern", source_path);
     }
 
     // Status signals (optional) — physical phase-inference rules over status
     // objects. Malformed entries warn and are skipped whole, exactly like the
     // other blocks.
-    if (j.contains("status_signals") && j["status_signals"].is_array()) {
-        parse_status_signals(j["status_signals"], source_path);
+    if (const json* status_signals = json_util::find_array(j, "status_signals")) {
+        parse_status_signals(*status_signals, source_path);
     }
 
     // Silent-phase progression (optional) — time-based phase advancement
     // for firmwares that run cleaning/purge as silent macros (no gcode
     // response between heat-complete and first layer).
-    if (j.contains("silent_progression") && j["silent_progression"].is_array()) {
-        for (const auto& entry_json : j["silent_progression"]) {
+    if (const json* silent_progression = json_util::find_array(j, "silent_progression")) {
+        for (const auto& entry_json : *silent_progression) {
             if (!entry_json.is_object()) {
                 spdlog::warn(
                     "[PrintStartProfile] Skipping non-object silent_progression entry in {}",
                     source_path);
                 continue;
             }
-            if (!entry_json.contains("phase") || !entry_json["phase"].is_string()) {
+            const auto phase = json_util::read_field<std::string>(entry_json, "phase");
+            if (!phase) {
                 spdlog::warn("[PrintStartProfile] silent_progression entry missing 'phase' in {}",
                              source_path);
                 continue;
             }
             SilentPhaseEntry e;
-            e.phase = parse_phase_name(entry_json["phase"].get<std::string>());
-            if (entry_json.contains("after_temps_ready_seconds") &&
-                entry_json["after_temps_ready_seconds"].is_number()) {
-                e.after_temps_ready_seconds = entry_json["after_temps_ready_seconds"].get<int>();
-            }
-            if (entry_json.contains("message") && entry_json["message"].is_string()) {
-                e.message = entry_json["message"].get<std::string>();
-            }
+            e.phase = parse_phase_name(*phase);
+            e.after_temps_ready_seconds =
+                json_util::read_field<int>(entry_json, "after_temps_ready_seconds")
+                    .value_or(e.after_temps_ready_seconds);
+            e.message =
+                json_util::read_field<std::string>(entry_json, "message").value_or(e.message);
             silent_progression_.push_back(std::move(e));
         }
         std::sort(silent_progression_.begin(), silent_progression_.end(),
@@ -569,7 +558,8 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
             continue;
         }
 
-        if (!rp_json.contains("pattern") || !rp_json["pattern"].is_string()) {
+        auto pattern = json_util::read_field<std::string>(rp_json, "pattern");
+        if (!pattern) {
             spdlog::warn("[PrintStartProfile] {} missing 'pattern' in {}", kind, source_path);
             continue;
         }
@@ -577,17 +567,22 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
         ResponsePattern rp;
 
         // Case-insensitive unless the entry asks otherwise
-        std::string pattern_str = rp_json["pattern"].get<std::string>();
-        bool case_sensitive = false;
-        if (rp_json.contains("case_sensitive")) {
-            if (rp_json["case_sensitive"].is_boolean()) {
-                case_sensitive = rp_json["case_sensitive"].get<bool>();
-            } else {
-                spdlog::warn(
-                    "[PrintStartProfile] Ignoring non-boolean case_sensitive for {} '{}' in {}",
-                    kind, pattern_str, source_path);
+        std::string pattern_str = std::move(*pattern);
+        // An optional boolean flag: a value of another type is ignored with a warning.
+        const auto read_flag = [&](const char* key, bool& out) {
+            const json* flag = json_util::find_member(rp_json, key);
+            if (!flag) {
+                return;
             }
-        }
+            if (flag->is_boolean()) {
+                out = flag->get<bool>();
+            } else {
+                spdlog::warn("[PrintStartProfile] Ignoring non-boolean {} for {} '{}' in {}", key,
+                             kind, pattern_str, source_path);
+            }
+        };
+        bool case_sensitive = false;
+        read_flag("case_sensitive", case_sensitive);
         rp.pattern =
             helix::Regex(pattern_str, case_sensitive ? helix::Regex::None : helix::Regex::ICase);
         if (!rp.pattern.ok()) {
@@ -597,57 +592,28 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
         }
 
         // Parse phase (required)
-        if (!rp_json.contains("phase") || !rp_json["phase"].is_string()) {
+        const auto phase = json_util::read_field<std::string>(rp_json, "phase");
+        if (!phase) {
             spdlog::warn("[PrintStartProfile] {} missing 'phase' for regex '{}' in {}", kind,
                          pattern_str, source_path);
             continue;
         }
-        rp.phase = parse_phase_name(rp_json["phase"].get<std::string>());
+        rp.phase = parse_phase_name(*phase);
 
         // Parse message template (optional)
-        if (rp_json.contains("message") && rp_json["message"].is_string()) {
-            rp.message_template = rp_json["message"].get<std::string>();
-        }
+        rp.message_template =
+            json_util::read_field<std::string>(rp_json, "message").value_or(rp.message_template);
 
         // Parse weight (optional, default 0)
-        if (rp_json.contains("weight") && rp_json["weight"].is_number()) {
-            rp.weight = rp_json["weight"].get<int>();
-        } else {
-            rp.weight = 0;
-        }
+        rp.weight = json_util::read_field<int>(rp_json, "weight").value_or(0);
 
-        if (rp_json.contains("narrates")) {
-            if (rp_json["narrates"].is_boolean()) {
-                rp.narrates = rp_json["narrates"].get<bool>();
-            } else {
-                spdlog::warn("[PrintStartProfile] Ignoring non-boolean narrates for {} '{}' in {}",
-                             kind, pattern_str, source_path);
-            }
-        }
-
-        if (rp_json.contains("announces_start")) {
-            if (rp_json["announces_start"].is_boolean()) {
-                rp.announces_start = rp_json["announces_start"].get<bool>();
-            } else {
-                spdlog::warn(
-                    "[PrintStartProfile] Ignoring non-boolean announces_start for {} '{}' in {}",
-                    kind, pattern_str, source_path);
-            }
-        }
-
-        if (rp_json.contains("counts_probes")) {
-            if (rp_json["counts_probes"].is_boolean()) {
-                rp.counts_probes = rp_json["counts_probes"].get<bool>();
-            } else {
-                spdlog::warn(
-                    "[PrintStartProfile] Ignoring non-boolean counts_probes for {} '{}' in {}",
-                    kind, pattern_str, source_path);
-            }
-        }
+        read_flag("narrates", rp.narrates);
+        read_flag("announces_start", rp.announces_start);
+        read_flag("counts_probes", rp.counts_probes);
 
         // Silent minutes the text announces, from a capture group (optional)
-        if (rp_json.contains("hold_minutes_group")) {
-            const auto& group = rp_json["hold_minutes_group"];
+        if (const json* group_json = json_util::find_member(rp_json, "hold_minutes_group")) {
+            const auto& group = *group_json;
             if (group.is_number_integer() && group.get<int>() >= 1 &&
                 static_cast<unsigned>(group.get<int>()) <= rp.pattern.mark_count()) {
                 rp.hold_minutes_group = group.get<int>();
@@ -659,8 +625,8 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
         }
 
         // Progress the text reports, from a capture group (optional)
-        if (rp_json.contains("progress_group")) {
-            const auto& group = rp_json["progress_group"];
+        if (const json* group_json = json_util::find_member(rp_json, "progress_group")) {
+            const auto& group = *group_json;
             if (group.is_number_integer() && group.get<int>() >= 1 &&
                 static_cast<unsigned>(group.get<int>()) <= rp.pattern.mark_count()) {
                 rp.progress_group = group.get<int>();
@@ -672,8 +638,8 @@ void PrintStartProfile::parse_pattern_array(const nlohmann::json& array,
         }
 
         // Phases the step this text begins emits signals for (optional)
-        if (rp_json.contains("owns")) {
-            const auto& owns = rp_json["owns"];
+        if (const json* owns_json = json_util::find_member(rp_json, "owns")) {
+            const auto& owns = *owns_json;
             if (!owns.is_array()) {
                 spdlog::warn("[PrintStartProfile] Ignoring non-array owns for {} '{}' in {}", kind,
                              pattern_str, source_path);
@@ -725,34 +691,35 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
                          source_path);
             continue;
         }
-        if (!rule_json.contains("name") || !rule_json["name"].is_string() ||
-            rule_json["name"].get<std::string>().empty()) {
+        const auto name_field = json_util::read_field<std::string>(rule_json, "name");
+        if (!name_field || name_field->empty()) {
             spdlog::warn("[PrintStartProfile] status_signal missing 'name' in {}", source_path);
             continue;
         }
-        const std::string name = rule_json["name"].get<std::string>();
+        const std::string name = *name_field;
         const auto skip = [&](const char* why) {
             spdlog::warn("[PrintStartProfile] Skipping status_signal '{}' - {} in {}", name, why,
                          source_path);
         };
 
-        if (!rule_json.contains("object") || !rule_json["object"].is_string() ||
-            rule_json["object"].get<std::string>().empty()) {
+        auto object = json_util::read_field<std::string>(rule_json, "object");
+        if (!object || object->empty()) {
             skip("missing 'object'");
             continue;
         }
-        if (!rule_json.contains("when") || !rule_json["when"].is_array() ||
-            rule_json["when"].empty()) {
+        const json* when = json_util::find_array(rule_json, "when");
+        if (!when || when->empty()) {
             skip("'when' must be a non-empty array");
             continue;
         }
-        if (!rule_json.contains("phase") || !rule_json["phase"].is_string()) {
+        const auto phase_field = json_util::read_field<std::string>(rule_json, "phase");
+        if (!phase_field) {
             skip("missing 'phase'");
             continue;
         }
         // A rule targeting IDLE has nothing to say — the phase stream starts
         // at INITIALIZING — so it is a malformed target, not a mapping.
-        const std::string phase_name = rule_json["phase"].get<std::string>();
+        const std::string phase_name = *phase_field;
         if (helix::text_io::to_upper(phase_name) == "IDLE") {
             skip("phase may not be IDLE");
             continue;
@@ -766,32 +733,32 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
 
         StatusSignalRule rule;
         rule.name = name;
-        rule.object = rule_json["object"].get<std::string>();
+        rule.object = std::move(*object);
         rule.phase = parse_phase_name(phase_name);
 
         bool predicates_ok = true;
-        for (const auto& predicate_json : rule_json["when"]) {
+        for (const auto& predicate_json : *when) {
             if (!predicate_json.is_object()) {
                 skip("'when' contains a non-object predicate");
                 predicates_ok = false;
                 break;
             }
             StatusPredicate predicate;
-            if (!predicate_json.contains("field") || !predicate_json["field"].is_string() ||
-                predicate_json["field"].get<std::string>().empty()) {
+            auto field = json_util::read_field<std::string>(predicate_json, "field");
+            if (!field || field->empty()) {
                 skip("predicate missing 'field'");
                 predicates_ok = false;
                 break;
             }
-            predicate.field = predicate_json["field"].get<std::string>();
+            predicate.field = std::move(*field);
 
-            if (predicate_json.contains("index")) {
-                if (!predicate_json["index"].is_number_integer()) {
+            if (const json* index = json_util::find_member(predicate_json, "index")) {
+                if (!index->is_number_integer()) {
                     skip("predicate 'index' must be an integer");
                     predicates_ok = false;
                     break;
                 }
-                predicate.index = predicate_json["index"].get<int>();
+                predicate.index = index->get<int>();
                 if (predicate.index < 0) {
                     skip("predicate 'index' must be >= 0");
                     predicates_ok = false;
@@ -799,18 +766,17 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
                 }
             }
 
-            if (!predicate_json.contains("op") || !predicate_json["op"].is_string() ||
-                !op_from_name(predicate_json["op"].get<std::string>(), predicate.op)) {
+            const auto op = json_util::read_field<std::string>(predicate_json, "op");
+            if (!op || !op_from_name(*op, predicate.op)) {
                 skip("predicate 'op' must be one of eq/ne/gt/lt/near");
                 predicates_ok = false;
                 break;
             }
 
-            const bool has_value =
-                predicate_json.contains("value") && predicate_json["value"].is_number();
-            const bool has_ref = predicate_json.contains("ref_field") &&
-                                 predicate_json["ref_field"].is_string() &&
-                                 !predicate_json["ref_field"].get<std::string>().empty();
+            const auto value = json_util::read_field<double>(predicate_json, "value");
+            auto ref_field = json_util::read_field<std::string>(predicate_json, "ref_field");
+            const bool has_value = value.has_value();
+            const bool has_ref = ref_field && !ref_field->empty();
             if (has_value && has_ref) {
                 skip("predicate has both 'value' and 'ref_field'");
                 predicates_ok = false;
@@ -822,29 +788,28 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
                 break;
             }
             if (has_value) {
-                predicate.value = predicate_json["value"].get<double>();
+                predicate.value = *value;
             } else {
-                predicate.ref_field = predicate_json["ref_field"].get<std::string>();
+                predicate.ref_field = std::move(*ref_field);
             }
 
-            if (predicate_json.contains("offset")) {
-                if (!predicate_json["offset"].is_number()) {
+            if (const json* offset = json_util::find_member(predicate_json, "offset")) {
+                if (!offset->is_number()) {
                     skip("predicate 'offset' must be a number");
                     predicates_ok = false;
                     break;
                 }
-                predicate.offset = predicate_json["offset"].get<double>();
+                predicate.offset = offset->get<double>();
             }
 
             if (predicate.op == StatusPredicate::Op::NEAR) {
-                if (!predicate_json.contains("tolerance") ||
-                    !predicate_json["tolerance"].is_number() ||
-                    predicate_json["tolerance"].get<double>() <= 0.0) {
+                const auto tolerance = json_util::read_field<double>(predicate_json, "tolerance");
+                if (!tolerance || *tolerance <= 0.0) {
                     skip("'near' needs a positive 'tolerance'");
                     predicates_ok = false;
                     break;
                 }
-                predicate.tolerance = predicate_json["tolerance"].get<double>();
+                predicate.tolerance = *tolerance;
             }
 
             rule.when.push_back(std::move(predicate));
@@ -853,15 +818,12 @@ void PrintStartProfile::parse_status_signals(const json& array, const std::strin
             continue;
         }
 
-        if (rule_json.contains("message") && rule_json["message"].is_string()) {
-            rule.message = rule_json["message"].get<std::string>();
-        }
-        if (rule_json.contains("weight") && rule_json["weight"].is_number()) {
-            rule.weight = rule_json["weight"].get<int>();
-        }
-        if (rule_json.contains("after_heat")) {
-            if (rule_json["after_heat"].is_boolean()) {
-                rule.after_heat = rule_json["after_heat"].get<bool>();
+        rule.message =
+            json_util::read_field<std::string>(rule_json, "message").value_or(rule.message);
+        rule.weight = json_util::read_field<int>(rule_json, "weight").value_or(rule.weight);
+        if (const json* after_heat = json_util::find_member(rule_json, "after_heat")) {
+            if (after_heat->is_boolean()) {
+                rule.after_heat = after_heat->get<bool>();
             } else {
                 spdlog::warn("[PrintStartProfile] Ignoring non-boolean after_heat for status "
                              "signal '{}' in {}",

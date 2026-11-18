@@ -16,6 +16,7 @@
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_slot_resolver.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lane_source_store.h"
@@ -258,9 +259,8 @@ void AmsBackendToolChanger::register_zmod_marker_listener() {
         "notify_gcode_response", handler_name, [this, token](const json& msg) {
             // BG THREAD: extract the line into a local; no `this` access here.
             std::string line;
-            if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty() &&
-                msg["params"][0].is_string()) {
-                line = msg["params"][0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             } else {
@@ -935,13 +935,10 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
 
-        if (params.contains("toolchanger")) {
-            const auto& tc_data = params["toolchanger"];
-            if (tc_data.is_object()) {
-                spdlog::trace("[AMS ToolChanger] Received toolchanger status update");
-                parse_toolchanger_state(tc_data);
-                state_changed = true;
-            }
+        if (const auto* tc_data = json_util::find_object(params, "toolchanger")) {
+            spdlog::trace("[AMS ToolChanger] Received toolchanger status update");
+            parse_toolchanger_state(*tc_data);
+            state_changed = true;
         }
 
         // Dock sensors, when the machine has them, are the physical truth and
@@ -981,13 +978,10 @@ void AmsBackendToolChanger::handle_status(const nlohmann::json& params) {
         // Check for individual tool updates (e.g., "tool T0", "tool T1")
         for (const auto& tool_name : tool_names_) {
             std::string key = "tool " + tool_name;
-            if (params.contains(key)) {
-                const auto& tool_data = params[key];
-                if (tool_data.is_object()) {
-                    spdlog::trace("[AMS ToolChanger] Received {} status update", key);
-                    parse_tool_state(tool_name, tool_data);
-                    state_changed = true;
-                }
+            if (const auto* tool_data = json_util::find_object(params, key.c_str())) {
+                spdlog::trace("[AMS ToolChanger] Received {} status update", key);
+                parse_tool_state(tool_name, *tool_data);
+                state_changed = true;
             }
         }
 
@@ -1418,8 +1412,8 @@ std::optional<std::vector<std::string>> AmsBackendToolChanger::get_supported_mat
 void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_data) {
     // Parse status: toolchanger.status
     // Values: "ready", "changing", "error", "uninitialized"
-    if (tc_data.contains("status") && tc_data["status"].is_string()) {
-        std::string status_str = tc_data["status"].get<std::string>();
+    if (const auto status = json_util::read_field<std::string>(tc_data, "status")) {
+        const std::string& status_str = *status;
         const AmsAction status_action = status_to_action(status_str);
         // klipper-toolchanger knows nothing of the docks, so its "ready" says
         // nothing about a dock-sensor fault: only the sensors agreeing ends it.
@@ -1452,19 +1446,19 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
     // (T0, T2, T3) and ASSIGN_TOOL rewrites the listing, so it, not a tool's
     // position, says which tool a number selects.
     bool listing_changed = false;
-    if (tc_data.contains("tool_numbers") && tc_data["tool_numbers"].is_array()) {
+    if (const auto* tool_numbers = json_util::find_array(tc_data, "tool_numbers")) {
         std::vector<int> numbers;
-        for (const auto& n : tc_data["tool_numbers"]) {
+        for (const auto& n : *tool_numbers) {
             numbers.push_back(n.is_number_integer() ? n.get<int>() : -1);
         }
         listing_changed = listing_changed || numbers != listed_tool_numbers_;
         listed_tool_numbers_ = std::move(numbers);
         spdlog::trace("[AMS ToolChanger] Tool numbers: {}",
-                      helix::json_util::safe_dump(tc_data["tool_numbers"]));
+                      helix::json_util::safe_dump(*tool_numbers));
     }
-    if (tc_data.contains("tool_names") && tc_data["tool_names"].is_array()) {
+    if (const auto* tool_names = json_util::find_array(tc_data, "tool_names")) {
         std::vector<std::string> names;
-        for (const auto& n : tc_data["tool_names"]) {
+        for (const auto& n : *tool_names) {
             names.push_back(n.is_string() ? n.get<std::string>() : std::string());
         }
         listing_changed = listing_changed || names != listed_tool_names_;
@@ -1487,8 +1481,8 @@ void AmsBackendToolChanger::parse_toolchanger_state(const nlohmann::json& tc_dat
     // sends it in deltas of its own, so it never names the carriage: the
     // sensors do (apply_tool_sensor_locked()).
     if (!tool_sensor_.present) {
-        if (tc_data.contains("tool_number") && tc_data["tool_number"].is_number_integer()) {
-            seat_tool_number_locked(tc_data["tool_number"].get<int>());
+        if (const auto tool_number = json_util::read_integer_field(tc_data, "tool_number")) {
+            seat_tool_number_locked(*tool_number);
         } else if (listing_changed && system_info_.current_tool >= 0) {
             // A remap of the carriage tool can arrive as a listing alone.
             seat_tool_number_locked(system_info_.current_tool);
@@ -1589,8 +1583,8 @@ void AmsBackendToolChanger::parse_tool_state(const std::string& tool_name,
     // ourselves in mock mode — writing `mounted ? LOADED : AVAILABLE` straight
     // into slot.status marked every tool loaded at once (#1199). The stamp is
     // re-derived from the carriage tool instead, so the two writers agree.
-    if (tool_data.contains("mounted") && tool_data["mounted"].is_boolean()) {
-        bool mounted = tool_data["mounted"].get<bool>();
+    if (const auto mounted_field = json_util::read_field<bool>(tool_data, "mounted")) {
+        bool mounted = *mounted_field;
         if (slot_idx < static_cast<int>(tool_mounted_.size())) {
             tool_mounted_[slot_idx] = mounted;
         }
@@ -1599,8 +1593,8 @@ void AmsBackendToolChanger::parse_tool_state(const std::string& tool_name,
     }
 
     // Parse active state: tool.active
-    if (tool_data.contains("active") && tool_data["active"].is_boolean()) {
-        bool active = tool_data["active"].get<bool>();
+    if (const auto active_field = json_util::read_field<bool>(tool_data, "active")) {
+        bool active = *active_field;
         spdlog::trace("[AMS ToolChanger] Tool {} active: {}", tool_name, active);
     }
 }
@@ -2685,9 +2679,8 @@ void AmsBackendToolChanger::register_mount_feed_listener() {
         "notify_gcode_response", handler_name, [this, token](const json& msg) {
             // BG THREAD: extract the line into a local; no `this` access here.
             std::string line;
-            if (msg.contains("params") && msg["params"].is_array() && !msg["params"].empty() &&
-                msg["params"][0].is_string()) {
-                line = msg["params"][0].get<std::string>();
+            if (const std::string* first = helix::first_gcode_response_param(msg)) {
+                line = *first;
             } else if (msg.is_array() && !msg.empty() && msg[0].is_string()) {
                 line = msg[0].get<std::string>();
             }

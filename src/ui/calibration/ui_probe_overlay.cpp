@@ -15,8 +15,10 @@
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -612,11 +614,11 @@ void ProbeOverlay::run_probe_accuracy() {
     api_->register_method_callback(
         "notify_gcode_response", probe_acc_handler_name_,
         [handler_name = probe_acc_handler_name_, api = api_](const json& msg) {
-            if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-                !msg["params"][0].is_string()) {
+            const std::string* line_param = helix::first_gcode_response_param(msg);
+            if (!line_param) {
                 return;
             }
-            const std::string& line = msg["params"][0].get_ref<const std::string&>();
+            const std::string& line = *line_param;
 
             // Check for individual probe sample: "probe at X,Y is z=Z"
             auto z_pos = line.find(" is z=");

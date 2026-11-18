@@ -8,6 +8,7 @@
 #include "core/update_queue.h"
 #include "i_moonraker_client.h"
 #include "i_moonraker_sub_apis.h"
+#include "json_utils.h"
 #include "pa_tuning.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -185,12 +186,13 @@ void sync_from_status(ISpoolmanAPI& spoolman, bool connected, int active_spool_i
 
 void on_active_spool_set(ISpoolmanAPI& spoolman, const nlohmann::json& data) {
     // Callback receives full JSON-RPC message — extract params
-    const auto& params_arr = data.contains("params") ? data["params"] : data;
+    const nlohmann::json* params_member = json_util::find_member(data, "params");
+    const auto& params_arr = params_member ? *params_member : data;
     int spool_id = 0;
     if (params_arr.is_array() && !params_arr.empty()) {
-        const auto& params = params_arr[0];
-        if (params.contains("spool_id") && !params["spool_id"].is_null()) {
-            spool_id = params["spool_id"].get<int>();
+        const auto* sid = json_util::find_member(params_arr[0], "spool_id");
+        if (sid && !sid->is_null()) {
+            spool_id = sid->get<int>();
         }
     }
 
@@ -244,7 +246,8 @@ void on_active_spool_set(ISpoolmanAPI& spoolman, const nlohmann::json& data) {
 }
 
 void on_spoolman_status_changed(ISpoolmanAPI& spoolman, const nlohmann::json& msg) {
-    const auto& params = msg.contains("params") ? msg["params"] : msg;
+    const nlohmann::json* params_member = json_util::find_member(msg, "params");
+    const auto& params = params_member ? *params_member : msg;
     if (!params.is_array() || params.empty() || !params[0].is_object()) {
         return;
     }

@@ -8,6 +8,7 @@
 
 #include "printer_motion_state.h"
 
+#include "json_utils.h"
 #include "state/subject_macros.h"
 #include "unit_conversions_json.h"
 #include "z_offset_persistence.h"
@@ -78,11 +79,11 @@ void PrinterMotionState::deinit_subjects() {
 }
 
 void PrinterMotionState::update_from_status(const nlohmann::json& status) {
-    if (status.contains("toolhead")) {
-        const auto& toolhead = status["toolhead"];
+    if (const auto* toolhead_obj = json_util::find_member(status, "toolhead")) {
+        const auto& toolhead = *toolhead_obj;
 
-        if (toolhead.contains("position") && toolhead["position"].is_array()) {
-            const auto& pos = toolhead["position"];
+        if (const auto* position = json_util::find_array(toolhead, "position")) {
+            const auto& pos = *position;
             // Note: Klipper can send null position values before homing or during errors
             // Store positions as centimillimeters (×100) for 0.01mm precision
             if (pos.size() >= 3 && pos[0].is_number() && pos[1].is_number() && pos[2].is_number()) {
@@ -95,18 +96,18 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (toolhead.contains("max_velocity") && toolhead["max_velocity"].is_number()) {
-            int max_vel = static_cast<int>(toolhead["max_velocity"].get<double>());
+        if (const auto max_velocity = json_util::read_field<double>(toolhead, "max_velocity")) {
+            int max_vel = static_cast<int>(*max_velocity);
             lv_subject_set_int(&max_velocity_, max_vel);
         }
 
         // Kinematic envelope — set has-bits when first values arrive so jog
         // clamping can tell "Klipper hasn't told us yet" from "limit is 0".
-        if (toolhead.contains("axis_minimum") && toolhead.contains("axis_maximum") &&
-            toolhead["axis_minimum"].is_array() && toolhead["axis_maximum"].is_array() &&
-            toolhead["axis_minimum"].size() >= 3 && toolhead["axis_maximum"].size() >= 3) {
-            const auto& mn = toolhead["axis_minimum"];
-            const auto& mx = toolhead["axis_maximum"];
+        const auto* axis_min = json_util::find_array(toolhead, "axis_minimum");
+        const auto* axis_max = json_util::find_array(toolhead, "axis_maximum");
+        if (axis_min && axis_max && axis_min->size() >= 3 && axis_max->size() >= 3) {
+            const auto& mn = *axis_min;
+            const auto& mx = *axis_max;
             if (mn[0].is_number() && mx[0].is_number()) {
                 axis_bounds_.x_min = mn[0].get<float>();
                 axis_bounds_.x_max = mx[0].get<float>();
@@ -124,8 +125,8 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (toolhead.contains("homed_axes") && toolhead["homed_axes"].is_string()) {
-            std::string axes = toolhead["homed_axes"].get<std::string>();
+        if (const auto homed_axes = json_util::read_field<std::string>(toolhead, "homed_axes")) {
+            const std::string& axes = *homed_axes;
             if (strcmp(lv_subject_get_string(&homed_axes_), axes.c_str()) != 0) {
                 lv_subject_set_string(&homed_axes_, axes.c_str());
             }
@@ -135,14 +136,14 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
     }
 
     // Update gcode_move data (commanded position, speed/flow factors, z-offset)
-    if (status.contains("gcode_move")) {
-        const auto& gcode_move = status["gcode_move"];
+    if (const auto* gcode_move_obj = json_util::find_member(status, "gcode_move")) {
+        const auto& gcode_move = *gcode_move_obj;
 
         // Parse commanded position from gcode_move.gcode_position
         // Note: gcode_move.position is raw commanded, gcode_move.gcode_position is effective
         // (after offset adjustments). UI should display gcode_position to match Mainsail.
-        if (gcode_move.contains("gcode_position") && gcode_move["gcode_position"].is_array()) {
-            const auto& pos = gcode_move["gcode_position"];
+        if (const auto* gcode_position = json_util::find_array(gcode_move, "gcode_position")) {
+            const auto& pos = *gcode_position;
             if (pos.size() >= 3 && pos[0].is_number() && pos[1].is_number() && pos[2].is_number()) {
                 int new_x = helix::units::to_centimm(pos[0].get<double>());
                 int new_y = helix::units::to_centimm(pos[1].get<double>());
@@ -153,19 +154,20 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
             }
         }
 
-        if (gcode_move.contains("speed_factor") && gcode_move["speed_factor"].is_number()) {
-            int factor_pct = helix::units::json_to_percent(gcode_move, "speed_factor");
+        if (const auto speed_factor = json_util::read_field<double>(gcode_move, "speed_factor")) {
+            int factor_pct = helix::units::to_percent(*speed_factor);
             lv_subject_set_int(&speed_factor_, factor_pct);
         }
 
-        if (gcode_move.contains("extrude_factor") && gcode_move["extrude_factor"].is_number()) {
-            int factor_pct = helix::units::json_to_percent(gcode_move, "extrude_factor");
+        if (const auto extrude_factor =
+                json_util::read_field<double>(gcode_move, "extrude_factor")) {
+            int factor_pct = helix::units::to_percent(*extrude_factor);
             lv_subject_set_int(&flow_factor_, factor_pct);
         }
 
         // Parse Z-offset from homing_origin[2] (baby stepping / SET_GCODE_OFFSET Z=)
-        if (gcode_move.contains("homing_origin") && gcode_move["homing_origin"].is_array()) {
-            const auto& origin = gcode_move["homing_origin"];
+        if (const auto* homing_origin = json_util::find_array(gcode_move, "homing_origin")) {
+            const auto& origin = *homing_origin;
             // Full origin per axis (mm): machine = gcode + homing_origin, so the
             // G-code envelope the motion panel clamps against is the machine
             // one shifted by minus each component (see to_gcode_space()).
@@ -200,10 +202,10 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
     }
 
     // Update motion_report data (live toolhead and extruder velocity)
-    if (status.contains("motion_report")) {
-        const auto& mr = status["motion_report"];
-        if (mr.contains("live_position") && mr["live_position"].is_array()) {
-            const auto& pos = mr["live_position"];
+    if (const auto* motion_report = json_util::find_member(status, "motion_report")) {
+        const auto& mr = *motion_report;
+        if (const auto* live_position = json_util::find_array(mr, "live_position")) {
+            const auto& pos = *live_position;
             // Where the nozzle physically is, mesh and z-offset included,
             // updating during moves. Stored as centimillimeters like the
             // toolhead/gcode positions.
@@ -216,12 +218,12 @@ void PrinterMotionState::update_from_status(const nlohmann::json& status) {
                 lv_subject_set_int(&live_position_z_, new_z);
             }
         }
-        if (mr.contains("live_extruder_velocity") && mr["live_extruder_velocity"].is_number()) {
-            int vel_centimm = static_cast<int>(mr["live_extruder_velocity"].get<double>() * 100.0);
+        if (const auto velocity = json_util::read_field<double>(mr, "live_extruder_velocity")) {
+            int vel_centimm = static_cast<int>(*velocity * 100.0);
             lv_subject_set_int(&live_extruder_velocity_, vel_centimm);
         }
-        if (mr.contains("live_velocity") && mr["live_velocity"].is_number()) {
-            int vel_mm_s = static_cast<int>(std::lround(mr["live_velocity"].get<double>()));
+        if (const auto velocity = json_util::read_field<double>(mr, "live_velocity")) {
+            int vel_mm_s = static_cast<int>(std::lround(*velocity));
             lv_subject_set_int(&live_velocity_, vel_mm_s);
         }
     }

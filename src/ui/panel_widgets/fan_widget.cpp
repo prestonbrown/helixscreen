@@ -11,6 +11,7 @@
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
@@ -80,8 +81,8 @@ FanWidget::~FanWidget() {
 void FanWidget::set_config(const nlohmann::json& config) {
     config_ = config;
 
-    if (config.contains("fan") && config["fan"].is_string()) {
-        selected_fan_ = config["fan"].get<std::string>();
+    if (auto fan = helix::json_util::read_field<std::string>(config, "fan")) {
+        selected_fan_ = *fan;
         resolve_display_name();
         spdlog::debug("[FanWidget] Config: fan={}", selected_fan_);
     }

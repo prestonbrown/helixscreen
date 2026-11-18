@@ -21,6 +21,7 @@
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -123,15 +124,9 @@ PowerDeviceWidget::~PowerDeviceWidget() {
 }
 
 void PowerDeviceWidget::set_config(const nlohmann::json& config) {
-    if (config.contains("device") && config["device"].is_string()) {
-        device_name_ = config["device"].get<std::string>();
-    }
-    if (config.contains("icon") && config["icon"].is_string()) {
-        icon_name_ = config["icon"].get<std::string>();
-    }
-    if (config.contains("sensor") && config["sensor"].is_string()) {
-        sensor_id_ = config["sensor"].get<std::string>();
-    }
+    device_name_ = json_util::read_field<std::string>(config, "device").value_or(device_name_);
+    icon_name_ = json_util::read_field<std::string>(config, "icon").value_or(icon_name_);
+    sensor_id_ = json_util::read_field<std::string>(config, "sensor").value_or(sensor_id_);
     color_ = tile_color::color_from_config(config);
     spdlog::debug("[PowerDeviceWidget] Config: {}={} icon={} color=0x{:06X}", instance_id_,
                   device_name_.empty() ? "(unconfigured)" : device_name_,

@@ -525,7 +525,8 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
     // A record with a wrongly typed field is dropped; the rest of the history
     // stays, and a zero-filled record never enters a prediction.
     const auto wrongly_typed = [](const nlohmann::json& ej, const char* key) {
-        return ej.contains(key) && !ej[key].is_number();
+        const auto* v = json_util::find_member(ej, key);
+        return v && !v->is_number();
     };
     for (const auto& ej : entries_json) {
         if (!ej.is_object() || wrongly_typed(ej, "total") || wrongly_typed(ej, "timestamp") ||
@@ -552,8 +553,8 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
             ++dropped_legacy;
             continue;
         }
-        if (ej.contains("phases") && ej["phases"].is_object()) {
-            for (auto& [key, val] : ej["phases"].items()) {
+        if (const auto* phases = json_util::find_object(ej, "phases")) {
+            for (const auto& [key, val] : phases->items()) {
                 // A name this build does not know belongs to a newer one.
                 // The rest of the entry is still a real measurement, so the
                 // key is dropped rather than the entry.
@@ -565,12 +566,12 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
                 entry.phase_durations[static_cast<int>(*phase)] = val.get<int>();
             }
         }
-        if (ej.contains("heating") && ej["heating"].is_number()) {
-            entry.heating_seconds = ej["heating"].get<int>();
+        if (auto heating = json_util::read_field<int>(ej, "heating")) {
+            entry.heating_seconds = *heating;
         }
-        if (ej.contains("skipped") && ej["skipped"].is_array()) {
+        if (const auto* skipped_names = json_util::find_array(ej, "skipped")) {
             std::set<int> skipped;
-            for (const auto& name : ej["skipped"]) {
+            for (const auto& name : *skipped_names) {
                 const auto phase = name.is_string()
                                        ? print_start_phase_from_name(name.get<std::string>())
                                        : std::nullopt;
@@ -582,9 +583,9 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
             }
             entry.skipped_phases = std::move(skipped);
         }
-        if (ej.contains("declared") && ej["declared"].is_object()) {
+        if (const auto* declared_json = json_util::find_object(ej, "declared")) {
             PreprintDeclaredDurations declared;
-            for (auto& [key, val] : ej["declared"].items()) {
+            for (const auto& [key, val] : declared_json->items()) {
                 const auto phase = print_start_phase_from_name(key);
                 const auto seconds = val.is_number()
                                          ? declared_seconds_from_number(val.get<double>())

@@ -7,6 +7,7 @@
 #include "format_utils.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 
 #include <spdlog/spdlog.h>
@@ -66,13 +67,8 @@ void BedMeshState::attach(IMoonrakerAPI* api) {
         api->subscribe_notifications([this, api, token](const nlohmann::json& notification) {
             // Runs on the WebSocket thread: look only at the key, then hand the read to
             // the main thread.
-            if (!notification.contains("params") || !notification["params"].is_array() ||
-                notification["params"].empty()) {
-                return;
-            }
-            const nlohmann::json& params = notification["params"][0];
-            if (!params.is_object() || !params.contains("bed_mesh") ||
-                !params["bed_mesh"].is_object()) {
+            const nlohmann::json* params = json_util::notification_payload(notification);
+            if (!params || !json_util::find_object(*params, "bed_mesh")) {
                 return;
             }
             token.defer("BedMeshState::bed_mesh_update", [this, api]() { refresh_from_api(api); });

@@ -2,6 +2,8 @@
 
 #include "macro_fan_analyzer.h"
 
+#include "json_utils.h"
+
 #include <spdlog/spdlog.h>
 
 #include <cctype>
@@ -14,26 +16,23 @@ MacroFanAnalysis MacroFanAnalyzer::analyze(const nlohmann::json& config_settings
     MacroFanAnalysis result;
 
     // Parse M106 macro for SET_PIN PIN=fanN patterns
-    if (config_settings.contains("gcode_macro m106")) {
-        const auto& m106 = config_settings["gcode_macro m106"];
-        if (m106.contains("gcode") && m106["gcode"].is_string()) {
-            extract_set_pin_fans(m106["gcode"].get<std::string>(), result);
+    if (const auto* m106 = json_util::find_member(config_settings, "gcode_macro m106")) {
+        if (const auto gcode = json_util::read_field<std::string>(*m106, "gcode")) {
+            extract_set_pin_fans(*gcode, result);
         }
     }
 
     // Parse M107 macro for additional SET_PIN PIN=fanN patterns
-    if (config_settings.contains("gcode_macro m107")) {
-        const auto& m107 = config_settings["gcode_macro m107"];
-        if (m107.contains("gcode") && m107["gcode"].is_string()) {
-            extract_set_pin_fans(m107["gcode"].get<std::string>(), result);
+    if (const auto* m107 = json_util::find_member(config_settings, "gcode_macro m107")) {
+        if (const auto gcode = json_util::read_field<std::string>(*m107, "gcode")) {
+            extract_set_pin_fans(*gcode, result);
         }
     }
 
     // Parse M141 macro for chamber circulation fan hints
-    if (config_settings.contains("gcode_macro m141")) {
-        const auto& m141 = config_settings["gcode_macro m141"];
-        if (m141.contains("gcode") && m141["gcode"].is_string()) {
-            extract_m141_roles(m141["gcode"].get<std::string>(), result);
+    if (const auto* m141 = json_util::find_member(config_settings, "gcode_macro m141")) {
+        if (const auto gcode = json_util::read_field<std::string>(*m141, "gcode")) {
+            extract_m141_roles(*gcode, result);
         }
     }
 

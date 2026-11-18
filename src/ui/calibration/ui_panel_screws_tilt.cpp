@@ -18,6 +18,7 @@
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "lv_draw_buf_guard.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
@@ -780,16 +781,15 @@ void ScrewsTiltPanel::query_screw_thread() {
             }
             // const operator[] on a missing key asserts rather than throws,
             // so the chain has to be guarded level by level.
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings") ||
-                !response["result"]["status"]["configfile"]["settings"].is_object()) {
+            const json* settings_obj =
+                helix::json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings_obj || !settings_obj->is_object()) {
                 spdlog::debug("[ScrewsTilt] No configfile settings — assuming {:.1f}mm/turn",
                               screw_pitch_mm_);
                 return;
             }
 
-            const auto& settings = response["result"]["status"]["configfile"]["settings"];
+            const auto& settings = *settings_obj;
             // Upstream first, then the U1's own module, which carries the
             // same screw_thread key. No U1 config spells it yet; the default
             // stands until one does, and only the displayed turn count would

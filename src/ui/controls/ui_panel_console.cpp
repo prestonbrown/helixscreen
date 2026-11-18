@@ -17,7 +17,9 @@
 #include "console_line.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -132,15 +134,11 @@ ConsolePanel::GcodeEntry ConsolePanel::entry_from_store(const GcodeStoreEntry& s
 std::optional<ConsolePanel::GcodeEntry>
 ConsolePanel::entry_from_gcode_response(const nlohmann::json& msg) {
     // Parse notify_gcode_response format: {"method": "...", "params": ["line"]}
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const std::string* line_param = helix::first_gcode_response_param(msg);
+    if (!line_param) {
         return std::nullopt;
     }
-
-    // I4: Type-check params[0] before extracting string reference
-    if (!msg["params"][0].is_string()) {
-        return std::nullopt;
-    }
-    const std::string& line = msg["params"][0].get_ref<const std::string&>();
+    const std::string& line = *line_param;
 
     // Skip empty lines and common noise
     if (line.empty() || line == "ok") {

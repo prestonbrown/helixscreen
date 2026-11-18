@@ -140,6 +140,33 @@ inline const nlohmann::json* find_member(const nlohmann::json& j, const char* ke
     return it == j.end() ? nullptr : &*it;
 }
 
+/// The value under @p key when it is a JSON object, else nullptr.
+inline const nlohmann::json* find_object(const nlohmann::json& j, const char* key) {
+    const auto* v = find_member(j, key);
+    return v && v->is_object() ? v : nullptr;
+}
+
+/// The value under @p key when it is a JSON array, else nullptr.
+inline const nlohmann::json* find_array(const nlohmann::json& j, const char* key) {
+    const auto* v = find_member(j, key);
+    return v && v->is_array() ? v : nullptr;
+}
+
+/// The value reached by walking @p key then each of @p rest through nested
+/// objects, or nullptr when any step is missing or not an object. A Moonraker
+/// reply nests what a caller wants two or three levels down
+/// (`find_path(reply, "result", "status")`), and every level needs the same
+/// guard.
+template <typename... Rest>
+const nlohmann::json* find_path(const nlohmann::json& j, const char* key, Rest... rest) {
+    const auto* v = find_member(j, key);
+    if constexpr (sizeof...(rest) == 0) {
+        return v;
+    } else {
+        return v ? find_path(*v, rest...) : nullptr;
+    }
+}
+
 /// A string value. @p accept_number also takes a JSON integer, returned as its
 /// decimal text. Off by default because a number arriving where a string was
 /// declared is usually a bug worth defaulting away. Some firmwares do send one

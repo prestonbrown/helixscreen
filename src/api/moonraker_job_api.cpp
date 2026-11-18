@@ -146,8 +146,8 @@ void MoonrakerJobAPI::check_helix_plugin(PluginInfoCallback on_result, ErrorCall
             helix::HelixPluginInfo info;
             info.present = true;
             info.available = true;
-            if (response.contains("result")) {
-                const auto& r = response["result"];
+            if (const json* result = helix::json_util::find_member(response, "result")) {
+                const json& r = *result;
                 info.available = helix::json_util::safe_bool(r, "enabled", true);
                 // Empty when the plugin does not say: an unknown version is no
                 // mismatch to restart Moonraker for.
@@ -176,8 +176,8 @@ namespace {
 ModifiedPrintResult linked_print_result(const json& response,
                                         const std::string& original_filename) {
     ModifiedPrintResult result;
-    if (response.contains("result")) {
-        const auto& r = response["result"];
+    if (const json* reply = helix::json_util::find_member(response, "result")) {
+        const json& r = *reply;
         result.original_filename =
             helix::json_util::safe_string(r, "original_filename", original_filename);
         result.print_filename = helix::json_util::safe_string(r, "print_filename", "");

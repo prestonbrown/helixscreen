@@ -584,6 +584,25 @@ TEST_CASE("safe_* on a non-object returns the default", "[json_utils]") {
     CHECK(ju::safe_double(json(nullptr), "k", 1.5) == 1.5);
 }
 
+TEST_CASE("find_object find_array and find_path accept only the container they name",
+          "[json_utils]") {
+    json j = {{"o", {{"inner", {{"leaf", 3}}}}}, {"a", json::array({1})}, {"n", 4}};
+    REQUIRE(ju::find_object(j, "o") == &j["o"]);
+    CHECK(ju::find_object(j, "a") == nullptr);
+    CHECK(ju::find_object(j, "missing") == nullptr);
+    REQUIRE(ju::find_array(j, "a") == &j["a"]);
+    CHECK(ju::find_array(j, "o") == nullptr);
+    CHECK(ju::find_array(json::array({1}), "a") == nullptr);
+
+    CHECK(ju::find_path(j, "o", "inner", "leaf") == &j["o"]["inner"]["leaf"]);
+    CHECK(ju::find_path(j, "o", "inner") == &j["o"]["inner"]);
+    CHECK(ju::find_path(j, "n") == &j["n"]);
+    CHECK(ju::find_path(j, "o", "missing", "leaf") == nullptr);
+    // A step through a non-object stops the walk, whatever its keys spell.
+    CHECK(ju::find_path(j, "n", "leaf") == nullptr);
+    CHECK(ju::find_path(j, "a", "0") == nullptr);
+}
+
 // ============================================================================
 // read_field / read_integer_field: strict readers, nullopt on any mismatch
 // ============================================================================

@@ -1019,11 +1019,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
             std::string key = sensor.klipper_name;
 
             // Moonraker keys status by the full object name
-            if (!status.contains(key)) {
+            const json* sensor_json = json_util::find_member(status, key.c_str());
+            if (!sensor_json) {
                 continue;
             }
 
-            const auto& sensor_data = status[key];
+            const auto& sensor_data = *sensor_json;
             auto& state = readings_[sensor.klipper_name];
             FilamentSensorState old_state = state;
             state.reported = true;

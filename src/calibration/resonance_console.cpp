@@ -5,6 +5,7 @@
 #include "core/text_io.h"
 #include "helix_regex.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,14 +25,13 @@ void query_resonance_tester_config(IMoonrakerClient& client,
     client.send_jsonrpc(
         "printer.objects.query", params,
         [on_done](const json& response) {
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings")) {
+            const json* settings =
+                json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings) {
                 on_done(ResonanceTesterConfig{});
                 return;
             }
-            on_done(parse_resonance_tester_config(
-                response["result"]["status"]["configfile"]["settings"]));
+            on_done(parse_resonance_tester_config(*settings));
         },
         [on_done](const MoonrakerError&) { on_done(ResonanceTesterConfig{}); });
 }

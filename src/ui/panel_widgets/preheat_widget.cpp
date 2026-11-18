@@ -17,6 +17,7 @@
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "macro_executor.h"
 #include "material_settings_manager.h"
@@ -71,8 +72,8 @@ PreheatWidget::~PreheatWidget() {
 
 void PreheatWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config_.contains("material_index") && config_["material_index"].is_number_integer()) {
-        selected_material_ = config_["material_index"].get<int>();
+    if (auto index = helix::json_util::read_integer_field(config_, "material_index")) {
+        selected_material_ = *index;
         if (selected_material_ < 0 || selected_material_ >= kPresetCount) {
             selected_material_ = 0;
         }

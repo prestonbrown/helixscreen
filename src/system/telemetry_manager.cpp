@@ -1235,9 +1235,9 @@ void TelemetryManager::check_previous_crash() {
 
     // Client-side dedup: skip if we already sent a report with the same fingerprint
     std::string bt0;
-    if (crash_data.contains("backtrace") && crash_data["backtrace"].is_array() &&
-        !crash_data["backtrace"].empty()) {
-        bt0 = crash_data["backtrace"][0].get<std::string>();
+    const json* backtrace = helix::json_util::find_array(crash_data, "backtrace");
+    if (backtrace && !backtrace->empty()) {
+        bt0 = (*backtrace)[0].get<std::string>();
     }
     std::string fp = helix::crash_fingerprint(crash_data.value("signal_name", ""),
                                               crash_data.value("app_version", ""), bt0);
@@ -1288,30 +1288,32 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
     event["device_id"] = get_hashed_device_id();
 
     // Use timestamp from crash file if available, otherwise current time
-    event["timestamp"] =
-        crash_data.contains("timestamp") ? crash_data["timestamp"] : json(get_timestamp());
+    const json* timestamp = helix::json_util::find_member(crash_data, "timestamp");
+    event["timestamp"] = timestamp ? *timestamp : json(get_timestamp());
 
     // Copy crash-specific fields (signal info, backtrace, register state).
     // "app_version" is in this list on purpose: it carries the version that crashed.
     for (const char* key : {"signal", "signal_name", "app_version", "uptime_sec", "recorded_by",
                             "backtrace", "fault_addr", "fault_code", "fault_code_name", "reg_pc",
                             "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
-        if (crash_data.contains(key)) {
-            event[key] = crash_data[key];
+        if (const json* value = helix::json_util::find_member(crash_data, key)) {
+            event[key] = *value;
         }
     }
     // MIPS spells the link register "ra". Forward it under "reg_lr" so the
     // crash worker's Registers table shows the return address alongside PC.
-    if (!event.contains("reg_lr") && crash_data.contains("reg_ra")) {
-        event["reg_lr"] = crash_data["reg_ra"];
+    if (!event.contains("reg_lr")) {
+        if (const json* reg_ra = helix::json_util::find_member(crash_data, "reg_ra")) {
+            event["reg_lr"] = *reg_ra;
+        }
     }
 
     // Filter memory map to executable mappings (.so files, main binary) to keep
     // telemetry payload small while retaining the data needed to identify which
     // library a crash PC belongs to.
-    if (crash_data.contains("memory_map") && crash_data["memory_map"].is_array()) {
+    if (const json* memory_map = helix::json_util::find_array(crash_data, "memory_map")) {
         json filtered_maps = json::array();
-        for (const auto& line : crash_data["memory_map"]) {
+        for (const auto& line : *memory_map) {
             const auto& s = line.get_ref<const std::string&>();
             // Only include executable mappings (r-xp) that map a file
             if (s.find("r-xp") != std::string::npos &&

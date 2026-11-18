@@ -35,11 +35,9 @@ void MoonrakerAPI::get_print_state(StringCallback on_result, ErrorCallback on_er
         "printer.objects.query", params,
         [on_result](const json& response) {
             std::string state = "unknown";
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("print_stats") &&
-                response["result"]["status"]["print_stats"].contains("state") &&
-                response["result"]["status"]["print_stats"]["state"].is_string()) {
-                state = response["result"]["status"]["print_stats"]["state"].get<std::string>();
+            if (const json* stats =
+                    helix::json_util::find_path(response, "result", "status", "print_stats")) {
+                state = helix::json_util::read_field<std::string>(*stats, "state").value_or(state);
             }
             on_result(state);
         },

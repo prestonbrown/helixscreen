@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "json_utils.h"
+
 #include <cstdlib>
 #include <string>
 #include <string_view>
@@ -15,10 +17,11 @@ namespace helix {
 /// params is `[["l1", "l2"]]` or `["l1", "l2"]`; Moonraker has sent both. A frame without a
 /// non-empty params array, and any non-string element, is skipped.
 template <typename Fn> void for_each_gcode_response_line(const nlohmann::json& msg, Fn&& fn) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* params_field = json_util::find_array(msg, "params");
+    if (!params_field || params_field->empty()) {
         return;
     }
-    const auto& params = msg["params"];
+    const auto& params = *params_field;
     const auto& lines = params[0].is_array() ? params[0] : params;
     if (!params[0].is_array() && !params[0].is_string()) {
         return;
@@ -28,6 +31,17 @@ template <typename Fn> void for_each_gcode_response_line(const nlohmann::json& m
             fn(line.get<std::string>());
         }
     }
+}
+
+/// The first element of a `notify_gcode_response` frame's params when it is a string, else
+/// nullptr. Moonraker sends one line per frame as `{"params": ["line"]}`; the pointer is into
+/// @p msg, so it lives as long as the frame does.
+inline const std::string* first_gcode_response_param(const nlohmann::json& msg) {
+    const nlohmann::json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty() || !(*params)[0].is_string()) {
+        return nullptr;
+    }
+    return &(*params)[0].get_ref<const std::string&>();
 }
 
 /// The text of a respond_info() line: Klipper sends "// <text>", and a firmware

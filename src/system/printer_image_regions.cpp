@@ -212,10 +212,12 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         return out;
     }
     for (const auto& [name, e] : doc.items()) {
-        const auto size = e.is_object() && e.contains("size") ? read_pair(e["size"]) : std::nullopt;
-        const auto nozzle =
-            e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
-        const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();
+        const auto* size_field = helix::json_util::find_member(e, "size");
+        const auto* nozzle_field = helix::json_util::find_member(e, "nozzle");
+        const auto* bed_field = helix::json_util::find_member(e, "bed");
+        const auto size = size_field ? read_pair(*size_field) : std::nullopt;
+        const auto nozzle = nozzle_field ? read_point(*nozzle_field) : std::nullopt;
+        const auto& bed = bed_field ? *bed_field : nlohmann::json();
         // Two points are the plate's near edge; four go on round its far edge.
         const bool bed_ok = bed.is_array() && (bed.size() == 2 || bed.size() == 4);
         const auto bl = bed_ok ? read_point(bed[0]) : std::nullopt;
@@ -234,16 +236,16 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         r.bed_right = *br;
         if (fr && fl)
             r.bed_far = ImageRegions::FarEdge{*fr, *fl};
-        if (e.contains("part_fan"))
-            r.part_fan = read_point(e["part_fan"]);
-        if (e.contains("chamber"))
-            r.chamber = read_point(e["chamber"]);
-        if (e.contains("light"))
-            r.light = read_point(e["light"]);
-        if (e.contains("windows"))
-            r.windows = read_quads(e["windows"], name, "window");
-        if (e.contains("cutouts"))
-            r.cutouts = read_quads(e["cutouts"], name, "cutout");
+        if (const auto* part_fan = helix::json_util::find_member(e, "part_fan"))
+            r.part_fan = read_point(*part_fan);
+        if (const auto* chamber = helix::json_util::find_member(e, "chamber"))
+            r.chamber = read_point(*chamber);
+        if (const auto* light = helix::json_util::find_member(e, "light"))
+            r.light = read_point(*light);
+        if (const auto* windows = helix::json_util::find_member(e, "windows"))
+            r.windows = read_quads(*windows, name, "window");
+        if (const auto* cutouts = helix::json_util::find_member(e, "cutouts"))
+            r.cutouts = read_quads(*cutouts, name, "cutout");
         out.emplace(name, r);
     }
     return out;

@@ -43,6 +43,16 @@ TEST_CASE("for_each_gcode_response_line walks both params shapes",
     }
 }
 
+TEST_CASE("first_gcode_response_param reads only a leading string",
+          "[gcode_response_lines][application]") {
+    const auto frame = J(R"({"params":["ok","x"]})");
+    REQUIRE(first_gcode_response_param(frame) != nullptr);
+    CHECK(*first_gcode_response_param(frame) == "ok");
+    CHECK(first_gcode_response_param(J(R"({"params":[["a"]]})")) == nullptr);
+    CHECK(first_gcode_response_param(J(R"({"params":[]})")) == nullptr);
+    CHECK(first_gcode_response_param(J(R"({"params":"ok"})")) == nullptr);
+}
+
 TEST_CASE("parse_layer_line truth table", "[gcode_response_lines][application]") {
     struct Row {
         const char* line;

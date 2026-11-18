@@ -18,6 +18,7 @@
 #include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "klipper_error_table.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
@@ -45,10 +46,11 @@ constexpr const char* kFaultNotifyHandlerName = "fault_raise_notifier";
 /// Moonraker notify frames carry their payload as the first element of a
 /// params array; a frame without a non-empty one has nothing to read.
 const nlohmann::json* first_notify_param(const nlohmann::json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* params = helix::json_util::find_array(msg, "params");
+    if (!params || params->empty()) {
         return nullptr;
     }
-    return &msg["params"][0];
+    return &(*params)[0];
 }
 
 /// How long a coded raise displaces a pending prose copy of the same fault.

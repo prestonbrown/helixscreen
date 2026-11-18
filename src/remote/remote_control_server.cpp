@@ -19,6 +19,7 @@
 #include "display_settings_manager.h"
 #include "grid_edit_drop.h"
 #include "input_settings_manager.h"
+#include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "logging_init.h"
 #include "mock_scenarios.h"
@@ -193,6 +194,29 @@ void RemoteControlServer::register_handler(const std::string& method, CommandHan
     handlers_[method] = std::move(handler);
 }
 
+namespace {
+
+/// The string parameter @p key; throws invalid_argument naming it when absent or not a string.
+std::string required_string(const nlohmann::json& params, const char* key) {
+    auto value = json_util::read_field<std::string>(params, key);
+    if (!value) {
+        throw std::invalid_argument(std::string("Missing required parameter: ") + key);
+    }
+    return std::move(*value);
+}
+
+/// The x and y parameters as a point; throws invalid_argument when either is absent.
+std::pair<int32_t, int32_t> required_point(const nlohmann::json& params) {
+    const nlohmann::json* x = json_util::find_member(params, "x");
+    const nlohmann::json* y = json_util::find_member(params, "y");
+    if (!x || !y) {
+        throw std::invalid_argument("Missing required parameters: x and y");
+    }
+    return {x->get<int32_t>(), y->get<int32_t>()};
+}
+
+} // namespace
+
 std::string RemoteControlServer::process_request(const std::string& request_line) {
     nlohmann::json response;
 
@@ -200,7 +224,7 @@ std::string RemoteControlServer::process_request(const std::string& request_line
         auto request = nlohmann::json::parse(request_line);
 
         // Validate JSON-RPC 2.0
-        if (!request.contains("jsonrpc") || request["jsonrpc"] != "2.0") {
+        if (json_util::read_field<std::string>(request, "jsonrpc") != "2.0") {
             response = {
                 {"jsonrpc", "2.0"},
                 {"error", {{"code", -32600}, {"message", "Invalid Request: missing jsonrpc 2.0"}}},
@@ -208,7 +232,8 @@ std::string RemoteControlServer::process_request(const std::string& request_line
             return response.dump();
         }
 
-        if (!request.contains("method") || !request["method"].is_string()) {
+        const auto method_field = json_util::read_field<std::string>(request, "method");
+        if (!method_field) {
             response = {
                 {"jsonrpc", "2.0"},
                 {"error", {{"code", -32600}, {"message", "Invalid Request: missing method"}}},
@@ -216,7 +241,7 @@ std::string RemoteControlServer::process_request(const std::string& request_line
             return response.dump();
         }
 
-        std::string method = request["method"];
+        std::string method = *method_field;
         nlohmann::json params = request.value("params", nlohmann::json::object());
         nlohmann::json id = request.value("id", nlohmann::json(nullptr));
 
@@ -396,11 +421,7 @@ nlohmann::json RemoteControlServer::handle_ping(const nlohmann::json& /*params*/
 }
 
 nlohmann::json RemoteControlServer::handle_navigate(const nlohmann::json& params) {
-    if (!params.contains("panel") || !params["panel"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: panel");
-    }
-
-    std::string target = params["panel"];
+    std::string target = required_string(params, "panel");
 
     // 1. Base panel -> take the same path a navbar tap takes.
     //
@@ -571,9 +592,7 @@ nlohmann::json RemoteControlServer::handle_log(const nlohmann::json& params) {
     // Serve the in-memory ring buffer the debug bundle already fills, so a
     // scripted run can read the app's own log without tee-ing it to a file.
     int lines = 50;
-    if (params.contains("lines") && params["lines"].is_number_integer()) {
-        lines = params["lines"].get<int>();
-    }
+    lines = json_util::read_integer_field(params, "lines").value_or(lines);
     if (lines <= 0) {
         lines = 50;
     }
@@ -787,10 +806,7 @@ nlohmann::json RemoteControlServer::handle_screenshot(const nlohmann::json& para
 }
 
 nlohmann::json RemoteControlServer::handle_demo(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-    std::string name = params["name"];
+    std::string name = required_string(params, "name");
 
     return execute_on_ui_thread([name]() -> nlohmann::json {
         wake_display();
@@ -849,11 +865,7 @@ static lv_subject_t* find_subject_by_name(const std::string& name) {
 }
 
 nlohmann::json RemoteControlServer::handle_get_subject(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-
-    std::string name = params["name"];
+    std::string name = required_string(params, "name");
 
     return execute_on_ui_thread([name]() -> nlohmann::json {
         lv_subject_t* subject = find_subject_by_name(name);
@@ -877,15 +889,13 @@ nlohmann::json RemoteControlServer::handle_get_subject(const nlohmann::json& par
 }
 
 nlohmann::json RemoteControlServer::handle_set_subject(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-    if (!params.contains("value")) {
+    std::string name = required_string(params, "name");
+    const nlohmann::json* value = json_util::find_member(params, "value");
+    if (!value) {
         throw std::invalid_argument("Missing required parameter: value");
     }
 
-    std::string name = params["name"];
-    auto value_json = params["value"];
+    auto value_json = *value;
 
     return execute_on_ui_thread([name, value_json]() -> nlohmann::json {
         lv_subject_t* subject = find_subject_by_name(name);
@@ -955,20 +965,18 @@ nlohmann::json RemoteControlServer::handle_list_subjects(const nlohmann::json& /
 }
 
 nlohmann::json RemoteControlServer::handle_wait_for(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-    if (!params.contains("value")) {
+    std::string name = required_string(params, "name");
+    const nlohmann::json* value = json_util::find_member(params, "value");
+    if (!value) {
         throw std::invalid_argument("Missing required parameter: value");
     }
 
-    std::string name = params["name"];
     int timeout_secs = params.value("timeout", 30);
     std::string target_str;
-    if (params["value"].is_string()) {
-        target_str = params["value"].get<std::string>();
+    if (value->is_string()) {
+        target_str = value->get<std::string>();
     } else {
-        target_str = params["value"].dump();
+        target_str = value->dump();
     }
 
     // Shared state between observer callback (UI thread) and waiting thread
@@ -1247,11 +1255,11 @@ static std::string active_screen_label() {
 // stale under it (the panel rebuilt, the overlay closed), and falling back to a
 // screen-wide search is far better than refusing every subsequent command.
 static lv_obj_t* scope_root(const nlohmann::json& params) {
-    if (!params.contains("scope") || !params["scope"].is_string()) {
+    const auto scope = json_util::read_field<std::string>(params, "scope");
+    if (!scope) {
         return nullptr;
     }
-    const std::string scope = params["scope"].get<std::string>();
-    return scope.empty() ? nullptr : resolve_path(scope);
+    return scope->empty() ? nullptr : resolve_path(*scope);
 }
 
 // Every widget with this exact resolved name, confined to @p scope when given.
@@ -1271,11 +1279,11 @@ static std::vector<lv_obj_t*> matches_for_name(const std::string& name, lv_obj_t
 static lv_obj_t* resolve_widget(const nlohmann::json& params) {
     lv_obj_t* scope = scope_root(params);
 
-    if (params.contains("path") && params["path"].is_string()) {
+    if (auto path = json_util::read_field<std::string>(params, "path")) {
         // A locator starting "s/" or "t/" is absolute and ignores the scope, so
         // a path pasted out of `ls` means the same thing wherever you are cd'd.
         std::vector<lv_obj_t*> ambiguous;
-        lv_obj_t* found = resolve_path(params["path"].get<std::string>(), scope, &ambiguous);
+        lv_obj_t* found = resolve_path(*path, scope, &ambiguous);
         if (!found && !ambiguous.empty()) {
             std::string msg = "Ambiguous path segment — " + std::to_string(ambiguous.size()) +
                               " siblings share that name: ";
@@ -1288,8 +1296,8 @@ static lv_obj_t* resolve_widget(const nlohmann::json& params) {
         return found;
     }
 
-    if (params.contains("name") && params["name"].is_string()) {
-        std::string name = params["name"];
+    if (auto name_field = json_util::read_field<std::string>(params, "name")) {
+        std::string name = std::move(*name_field);
         if (is_glob(name)) {
             std::vector<lv_obj_t*> matches = glob_widgets(name, scope);
             if (matches.empty()) {
@@ -1340,11 +1348,11 @@ static lv_obj_t* resolve_widget(const nlohmann::json& params) {
 
 // Human-readable label for a target (path or name), for result messages.
 static std::string target_label(const nlohmann::json& params) {
-    if (params.contains("path") && params["path"].is_string()) {
-        return params["path"].get<std::string>();
+    if (auto path = json_util::read_field<std::string>(params, "path")) {
+        return *path;
     }
-    if (params.contains("name") && params["name"].is_string()) {
-        return params["name"].get<std::string>();
+    if (auto name = json_util::read_field<std::string>(params, "name")) {
+        return *name;
     }
     return "?";
 }
@@ -1867,10 +1875,9 @@ nlohmann::json RemoteControlServer::handle_describe_screen(const nlohmann::json&
             // Unlike click/set_value, a glob here is not ambiguous — listing
             // several subtrees is exactly what `ls row_*` should do.
             std::vector<lv_obj_t*> roots;
-            if (params.contains("name") && params["name"].is_string() &&
-                is_glob(params["name"].get<std::string>())) {
-                roots = drop_nested_matches(
-                    glob_widgets(params["name"].get<std::string>(), scope_root(params)));
+            const auto name = json_util::read_field<std::string>(params, "name");
+            if (name && is_glob(*name)) {
+                roots = drop_nested_matches(glob_widgets(*name, scope_root(params)));
             } else if (lv_obj_t* one = resolve_widget(params)) {
                 roots.push_back(one);
             }
@@ -2030,7 +2037,8 @@ nlohmann::json RemoteControlServer::handle_home(const nlohmann::json& params) {
                 index >= 0
                     ? &config.page_entries(static_cast<size_t>(page))[static_cast<size_t>(index)]
                     : nullptr;
-            page = params.contains("page") ? params["page"].get<int>() : std::max(page, 0);
+            const nlohmann::json* page_field = json_util::find_member(params, "page");
+            page = page_field ? page_field->get<int>() : std::max(page, 0);
             if (page < 0 || page >= static_cast<int>(config.page_count())) {
                 throw std::invalid_argument("No page " + std::to_string(page));
             }
@@ -2188,10 +2196,7 @@ nlohmann::json RemoteControlServer::handle_set_text(const nlohmann::json& params
     if (!params.contains("name") && !params.contains("path")) {
         throw std::invalid_argument("Missing required parameter: name or path");
     }
-    if (!params.contains("text") || !params["text"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: text");
-    }
-    const std::string text = params["text"].get<std::string>();
+    const std::string text = required_string(params, "text");
 
     return execute_on_ui_thread([params, text]() -> nlohmann::json {
         lv_obj_t* widget = resolve_widget(params);
@@ -2228,13 +2233,14 @@ nlohmann::json RemoteControlServer::handle_state(const nlohmann::json& params) {
 
     return execute_on_ui_thread([params]() -> nlohmann::json {
         lv_obj_t* target = resolve_widget(params);
-        if (!target && params.contains("name") && params["name"].is_string()) {
+        const auto name_field = json_util::read_field<std::string>(params, "name");
+        if (!target && name_field) {
             // Name lookup skips hidden subtrees so `click <name>` never hits an
             // invisible widget — but "is it hidden?" is a question `state`
             // exists to answer. Retry with hidden matches included (plain
             // names only: a @path already resolves hidden widgets, and a glob
             // is a discovery aid like `ls`, which also filters).
-            const std::string name = params["name"].get<std::string>();
+            const std::string& name = *name_field;
             if (!is_glob(name)) {
                 std::vector<lv_obj_t*> matches =
                     matches_for_name(name, scope_root(params), /*include_hidden=*/true);
@@ -2329,54 +2335,43 @@ nlohmann::json RemoteControlServer::apply_pointer_state(int32_t x, int32_t y, bo
 }
 
 nlohmann::json RemoteControlServer::handle_pointer_press(const nlohmann::json& params) {
-    if (!params.contains("x") || !params.contains("y")) {
-        throw std::invalid_argument("Missing required parameters: x and y");
-    }
-    return apply_pointer_state(params["x"].get<int32_t>(), params["y"].get<int32_t>(), true,
-                               "press");
+    const auto [x, y] = required_point(params);
+    return apply_pointer_state(x, y, true, "press");
 }
 
 nlohmann::json RemoteControlServer::handle_pointer_move(const nlohmann::json& params) {
-    if (!params.contains("x") || !params.contains("y")) {
-        throw std::invalid_argument("Missing required parameters: x and y");
-    }
+    const auto [x, y] = required_point(params);
     // Keeps the current button state, so this is a drag while pressed and a hover
     // while released.
-    return apply_pointer_state(params["x"].get<int32_t>(), params["y"].get<int32_t>(),
-                               helix::remote::RemotePointer::instance().pressed(), "move");
+    return apply_pointer_state(x, y, helix::remote::RemotePointer::instance().pressed(), "move");
 }
 
 nlohmann::json RemoteControlServer::handle_pointer_release(const nlohmann::json& params) {
     auto& pointer = helix::remote::RemotePointer::instance();
     // Release where the pointer already is unless told otherwise — the common case
     // is lifting after a drag, and repeating the coordinates is noise.
-    const int32_t x = params.contains("x") ? params["x"].get<int32_t>() : pointer.x();
-    const int32_t y = params.contains("y") ? params["y"].get<int32_t>() : pointer.y();
+    const nlohmann::json* x_field = json_util::find_member(params, "x");
+    const nlohmann::json* y_field = json_util::find_member(params, "y");
+    const int32_t x = x_field ? x_field->get<int32_t>() : pointer.x();
+    const int32_t y = y_field ? y_field->get<int32_t>() : pointer.y();
     return apply_pointer_state(x, y, false, "release");
 }
 
 nlohmann::json RemoteControlServer::handle_pointer_tap(const nlohmann::json& params) {
-    if (!params.contains("x") || !params.contains("y")) {
-        throw std::invalid_argument("Missing required parameters: x and y");
-    }
-    const int32_t x = params["x"].get<int32_t>();
-    const int32_t y = params["y"].get<int32_t>();
+    const auto [x, y] = required_point(params);
     apply_pointer_state(x, y, true, "tap");
     return apply_pointer_state(x, y, false, "tap");
 }
 
 nlohmann::json RemoteControlServer::handle_pointer_long_press(const nlohmann::json& params) {
-    if (!params.contains("x") || !params.contains("y")) {
-        throw std::invalid_argument("Missing required parameters: x and y");
-    }
-    const int32_t x = params["x"].get<int32_t>();
-    const int32_t y = params["y"].get<int32_t>();
+    const auto [x, y] = required_point(params);
 
     // Default the hold to comfortably past LVGL's own threshold rather than
     // hardcoding a duration here: the threshold is a user setting (Touch & Input)
     // and a hold tuned to the default would silently stop being a long press if
     // someone raised it.
-    int32_t hold_ms = params.contains("hold_ms") ? params["hold_ms"].get<int32_t>() : 0;
+    const nlohmann::json* hold_field = json_util::find_member(params, "hold_ms");
+    int32_t hold_ms = hold_field ? hold_field->get<int32_t>() : 0;
     if (hold_ms <= 0) {
         hold_ms = helix::remote::pointer_long_press_hold_ms(
             helix::InputSettingsManager::instance().get_long_press_time());
@@ -2562,10 +2557,7 @@ nlohmann::json RemoteControlServer::handle_wake(const nlohmann::json& /*params*/
 // saver too heavy for the board runs its fallback, named in "runs". No wake: a wake dismisses
 // the saver. A saver already up is left running and reported, as the button would leave it.
 nlohmann::json RemoteControlServer::handle_preview_screensaver(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-    const std::string name = params["name"];
+    const std::string name = required_string(params, "name");
     const std::optional<ScreensaverType> type = helix::ui::screensaver_from_name(name);
     if (!type || *type == ScreensaverType::OFF) {
         throw std::invalid_argument("Unknown screensaver: " + name);
@@ -2593,11 +2585,7 @@ nlohmann::json RemoteControlServer::handle_preview_screensaver(const nlohmann::j
 }
 
 nlohmann::json RemoteControlServer::handle_scenario(const nlohmann::json& params) {
-    if (!params.contains("name") || !params["name"].is_string()) {
-        throw std::invalid_argument("Missing required parameter: name");
-    }
-
-    std::string scenario_name = params["name"];
+    std::string scenario_name = required_string(params, "name");
     const auto* scenario = find_scenario(scenario_name);
     if (!scenario) {
         throw std::invalid_argument("Unknown scenario: " + scenario_name);

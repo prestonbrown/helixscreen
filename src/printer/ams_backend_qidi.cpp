@@ -12,6 +12,7 @@
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_macro_profiles.h"
+#include "json_utils.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -326,26 +327,18 @@ void AmsBackendQidi::on_started() {
         client_->send_jsonrpc(
             "printer.objects.query", cfg_params,
             [this, cfg_token](nlohmann::json response) {
-                cfg_token.defer("AmsBackendQidi::apply_config_settings", [this,
-                                                                          response = std::move(
-                                                                              response)]() {
-                    // Guard every level before indexing.
-                    // `response` is const in this
-                    // non-mutable lambda, so operator[]
-                    // resolves to the const overload — on a
-                    // missing key that is a live assert(),
-                    // an uncatchable SIGABRT.
-                    if (!response.contains("result") || !response["result"].contains("status") ||
-                        !response["result"]["status"].contains("configfile") ||
-                        !response["result"]["status"]["configfile"].contains("settings") ||
-                        !response["result"]["status"]["configfile"]["settings"].is_object()) {
-                        spdlog::warn("{} configfile settings unavailable", backend_log_tag());
-                        return;
-                    }
-                    const auto& settings = response["result"]["status"]["configfile"]["settings"];
-                    apply_config_settings(settings);
-                    emit_event(EVENT_STATE_CHANGED);
-                });
+                cfg_token.defer("AmsBackendQidi::apply_config_settings",
+                                [this, response = std::move(response)]() {
+                                    const auto* settings = json_util::find_path(
+                                        response, "result", "status", "configfile", "settings");
+                                    if (!settings || !settings->is_object()) {
+                                        spdlog::warn("{} configfile settings unavailable",
+                                                     backend_log_tag());
+                                        return;
+                                    }
+                                    apply_config_settings(*settings);
+                                    emit_event(EVENT_STATE_CHANGED);
+                                });
             },
             [this](const MoonrakerError& err) {
                 spdlog::warn("{} configfile query failed: {}", backend_log_tag(), err.message);

@@ -47,16 +47,16 @@ bool ToolsUsedCache::load_from_disk() {
     }
     for (auto entry = it->begin(); entry != it->end(); ++entry) {
         const auto& e = entry.value();
-        if (!e.is_object() || !e.contains("size") || !e.contains("mtime") ||
-            !e["size"].is_number() || !e["mtime"].is_number() || !e.contains("tools") ||
-            !e["tools"].is_array()) {
+        const auto size = helix::json_util::read_field<uint64_t>(e, "size");
+        const auto mtime = helix::json_util::read_field<int64_t>(e, "mtime");
+        const nlohmann::json* tools_arr = helix::json_util::find_array(e, "tools");
+        if (!size || !mtime || !tools_arr) {
             continue; // drop malformed entry, keep the rest
         }
-        const FileVersion version{e["size"].get<uint64_t>(),
-                                  static_cast<time_t>(e["mtime"].get<int64_t>())};
+        const FileVersion version{*size, static_cast<time_t>(*mtime)};
         std::set<int> tools;
         bool ok = true;
-        for (const auto& t : e["tools"]) {
+        for (const auto& t : *tools_arr) {
             if (!t.is_number() || t.get<int64_t>() < 0) {
                 ok = false;
                 break;
