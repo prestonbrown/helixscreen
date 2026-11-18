@@ -40,7 +40,7 @@ PathViewScale path_view_scale(int32_t column_h, TubeLimits tube,
     s.cap_h = std::min(s.hub_h, round_px((float)s.hub_h * kCapsuleOfHub));
     // The buffer's state always rides in the hub: no capsule on the trunk.
     s.buffer_in_hub = true;
-    s.head_scale = std::max(1, round_px(u * kHeadUnits));
+    s.head_scale = std::max<int32_t>(1, round_px(u * kHeadUnits));
     const auto head_w = [&](int32_t scale) {
         return head_width_at ? head_width_at(scale) : round_px((float)scale * kHeadWidthPerScale);
     };
