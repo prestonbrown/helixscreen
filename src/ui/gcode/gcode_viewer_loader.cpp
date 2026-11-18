@@ -712,7 +712,6 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 
                     // Clear first_render flag to allow actual rendering on next draw
                     st->first_render = false;
-                    st->needs_3d_refresh_ = true;
 
                     // Trigger redraw (will render geometry now that first_render is false)
                     lv_obj_invalidate(obj);
@@ -805,7 +804,6 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
                     if (state->camera_) {
                         state->camera_->fit_to_bounds(file->global_bounding_box);
                     }
-                    state->needs_3d_refresh_ = true;
                     lv_obj_invalidate(viewer);
                 } else {
                     spdlog::warn("[GCode Viewer] 3D switch refused by memory budget; this file "
