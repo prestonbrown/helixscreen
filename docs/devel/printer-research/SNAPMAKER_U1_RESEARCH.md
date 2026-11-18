@@ -50,7 +50,15 @@ it has a dedicated backend (`AmsBackendSnapmaker`) detected from the U1's own ob
 | `/userdata/` | Persistent ext4 data partition |
 
 Init scripts of interest: `S50dropbear` (SSH, gated on debug mode on stock), `S60klipper`,
-`S61moonraker`, `S90lmd` (camera supervisor `/usr/bin/lmd`). Which `S99*` launcher starts the
+`S61moonraker`, `S90lmd` (`/usr/bin/lmd`, the process supervisor that starts and restarts
+`gui`, `unisrv` and `flow_calc_server`, so camera, timelapse, MQTT and flow calibration as
+well as the touchscreen UI).
+
+`S50dropbear` exits early unless `custom_misc vertype` reports `dbg`, so on a release build
+the init script never starts SSH by itself. When **Root access** is on, the stock GUI starts
+dropbear with `S50dropbear start --force` on every boot. Replacing the GUI therefore removes
+SSH unless something else takes that job, which is why HelixScreen's U1 platform hook carries
+`ensure_root_ssh` (`assets/config/platform/hooks-snapmaker-u1.sh`). Which `S99*` launcher starts the
 stock UI depends on the firmware; the support doc's display-takeover section has the table.
 
 The U1 uses Rockchip A/B slots: `updateEngine --misc=other --reboot` switches slot, MaskRom

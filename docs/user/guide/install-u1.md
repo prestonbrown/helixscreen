@@ -89,7 +89,9 @@ On PAXX firmware the system log is `syslog` in the printer's logs folder, so Mai
 
 ## Updating
 
-The easiest way is on the screen: **Settings > Updates**, then check for an update and install it. HelixScreen also appears in the update list of Mainsail and Fluidd.
+The easiest way is on the screen: **Settings > Updates**, then check for an update and install it. Stock-firmware installs have this from HelixScreen 1.1 on. Versions 0.99.116 through 1.1.0-rc.2 hide in-app updates on every U1 and read **Managed by your firmware** there, so on those versions update once over SSH as below.
+
+Mainsail and Fluidd do not list HelixScreen for updates on stock firmware, because the stock firmware's Moonraker has no update manager. If HelixScreen came with PAXX firmware as a firmware component, the firmware updates it instead, and the screen keeps reading **Managed by your firmware**.
 
 From SSH, run the installer with `--update`. It keeps your settings:
 
@@ -157,8 +159,8 @@ rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sy
 
 Versions of HelixScreen before 1.0.4 switched off the stock screen on stock firmware without taking over its job of starting SSH. After the next restart, `ssh` answers "Connection refused". Mainsail and Fluidd keep working, but they give you no shell.
 
-1. **Update HelixScreen from the screen:** **Settings > Updates**, check for an update and install it. The updated HelixScreen starts SSH whenever **Root access** was on. If `ssh` still refuses afterwards, restart the printer once.
-2. **If you cannot update from the screen,** reinstall the stock firmware the way Snapmaker's documentation describes. That clears HelixScreen's system changes, so the stock screen comes back. Turn **Root access** back on in the stock screen (**Settings > Maintenance**) and install HelixScreen again.
+1. **Update HelixScreen from the screen, if it offers one:** **Settings > Updates**, check for an update and install it. The updated HelixScreen starts SSH whenever **Root access** was on. If `ssh` still refuses afterwards, restart the printer once. Versions 0.99.116 through 1.1.0-rc.2 hide in-app updates on every U1, so on those the Updates page reads **Managed by your firmware** and offers nothing. Skip to step 2.
+2. **If you cannot update from the screen,** reinstall the stock firmware the way Snapmaker's documentation describes. That clears HelixScreen's system changes, so the stock screen comes back. Turn **Root access** back on in the stock screen (**Settings > Maintenance**) and install HelixScreen again. The installer gives you a current version, which keeps SSH working and updates itself from the screen.
 
 ## Good to know
 

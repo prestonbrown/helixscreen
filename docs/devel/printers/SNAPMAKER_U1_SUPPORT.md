@@ -33,7 +33,7 @@ The U1 does **not** use the standard [viesturz/klipper-toolchanger](https://gith
 
 HelixScreen needs exactly one thing from the firmware: **SSH access** (to deploy and to install its boot hook). Both stock and community firmware can provide it — HelixScreen does **not** require PAXX.
 
-- **Stock Snapmaker firmware (1.2+)** ships the `dropbear` SSH server. It is disabled by default and gated behind the printer's root/developer-access mode: `/etc/init.d/S50dropbear` exits early unless `custom_misc vertype` reports `dbg`. Snapmaker added a user-facing **Root access** option in firmware **V1.2.0**; enabling it (or flashing debug mode via `custom_misc gen-debug`, which persists across upgrades) starts dropbear with the standard `root` / `lava` accounts, password `snapmaker`. That is the exact SSH path HelixScreen uses — **stock firmware is supported.**
+- **Stock Snapmaker firmware (1.2+)** ships the `dropbear` SSH server. It is disabled by default and gated behind the printer's root/developer-access mode: `/etc/init.d/S50dropbear` exits early unless `custom_misc vertype` reports `dbg`. Snapmaker added a user-facing **Root access** option in firmware **V1.2.0**; enabling it (or flashing debug mode via `custom_misc gen-debug`, which persists across upgrades) starts dropbear with the standard `root` / `lava` accounts, password `snapmaker`. That is the exact SSH path HelixScreen uses — **stock firmware is supported.** On stock firmware the `S50dropbear` vertype gate means the init script alone never starts SSH on a release build: when **Root access** is on, the stock GUI starts dropbear with `S50dropbear start --force` on every boot. With the stock GUI disabled, nothing would, so HelixScreen's platform hook does it instead (`assets/config/platform/hooks-snapmaker-u1.sh#ensure_root_ssh`, which reads the same `open_root` setting from `<printer_data>/config/gui_config.json`).
 - **PAXX Extended Firmware** is *repackaged stock firmware* plus an overlay of patches. It removes the dropbear debug-mode gate (SSH on by default) and bundles extras HelixScreen does not use — Tailscale, OctoEverywhere, WebRTC camera, a `/firmware-config/` web UI, RFID filament write-back, etc. It is the turnkey option if you'd rather not enable stock root access yourself, but it is **not** a HelixScreen requirement.
 
 | Firmware | SSH | Status | Boot launcher HelixScreen hooks |
@@ -165,7 +165,7 @@ The deploy target automatically:
 ### What Happens on Deploy
 
 1. DRM keepalive: a background process opens `/dev/dri/card0` to prevent CRTC teardown
-2. The stock UI process (`gui`) is killed, and the installer disables its binary (`chmod -x /usr/bin/gui`) so no launcher can relaunch it. `lmd` (the camera/timelapse supervisor) is left running — killing it would break timelapse.
+2. The stock UI process (`gui`) is killed, and the installer disables its binary (`chmod -x /usr/bin/gui`) so no launcher can relaunch it. `lmd` is left running: it supervises `gui`, `unisrv` (camera, MQTT and timelapse) and `flow_calc_server` (flow calibration), so killing it would take those down too. With `gui` not executable, `lmd` logs `execv(/usr/bin/gui) failed: Permission denied` and retries it every few seconds for as long as the printer is up; the retries are harmless noise.
 3. HelixScreen starts as DRM master with double-buffered page flipping
 4. The DRM keepalive process exits once HelixScreen has the DRM device open
 5. The first-run wizard appears (language selection, printer connection setup)
@@ -196,7 +196,7 @@ This is the current deployment method used by `make deploy-snapmaker-u1`:
 
 1. Enable SSH: the **Root access** option on stock firmware 1.2+, or [PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware) (SSH on by default). See [Firmware Requirements](#firmware-requirements)
 2. Deploy via `make deploy-snapmaker-u1 SNAPMAKER_U1_HOST=<ip>`
-3. The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) and hooks the firmware's own boot launcher (`S99screen`, `S99fb-http` or `S99input-event-daemon`, preserved as `*.stock`; see [How HelixScreen takes over the display](#how-helixscreen-takes-over-the-display)); HelixScreen starts on `/dev/fb0`. `lmd` (camera/timelapse supervisor) keeps running.
+3. The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) and hooks the firmware's own boot launcher (`S99screen`, `S99fb-http` or `S99input-event-daemon`, preserved as `*.stock`; see [How HelixScreen takes over the display](#how-helixscreen-takes-over-the-display)); HelixScreen starts on `/dev/fb0`. `lmd` (supervisor of `gui`, `unisrv` and `flow_calc_server`) keeps running.
 
 **To revert**: run the uninstaller (re-enables `/usr/bin/gui` and restores the launcher), or manually `chmod +x /usr/bin/gui && rm -rf /userdata/helixscreen`, then reboot. The stock UI binary is on the read-only SquashFS rootfs and is only disabled, never deleted — but note that the init-script changes and the binary's exec bit **are** modified (in the reversible overlay), so a plain reboot alone will not bring the stock UI back.
 

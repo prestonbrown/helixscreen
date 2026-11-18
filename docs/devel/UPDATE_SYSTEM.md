@@ -87,13 +87,31 @@ The two underlying reasons, and the notice each raises:
 
 `HELIX_DISABLE_AUTO_UPDATES` decides it **in either direction** when set to a value that
 parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
-`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which is the
-single place any platform is named.
+`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which asks
+`helix::board::firmware_manages_updates()` (`include/board_identity.h`), the single place any
+platform is named.
 
-Today that default is true only for the **Snapmaker U1**. PAXX Extended Firmware ships
+A board row names the directory a firmware package manager installs HelixScreen into
+(`firmware_package_dir`, one subdirectory per version) and our installer's own root
+(`installer_root`). Today only the **Snapmaker U1** row names them. PAXX Extended Firmware ships
 HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
-`/oem/apps/helixscreen` via `extended-pkg`; self-updating there rewrites a package the
-firmware believes it owns. The default lives here in C++ rather than in the firmware hook
+`/oem/apps/helixscreen/<versioned dir>` via `extended-pkg` and pointing `latest` at it;
+self-updating there rewrites a package the firmware believes it owns. The decision fails
+toward "managed", because self-updating a firmware's package is the worse mistake:
+
+1. No `/oem/apps/helixscreen`: self-updating.
+2. The running executable is the same file, by device and inode, as
+   `bin/helix-screen` in any subdirectory of it, `latest` included: managed. Identity rather
+   than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
+   `/proc/self/exe` names `/usr/bin/gui` and the install root does not resolve.
+3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
+   executable that cannot be stat'd or resolved counts as the firmware's.
+
+PAXX keeps `HELIX_CACHE_DIR` under `/userdata/helixscreen`, so that directory existing proves
+nothing; only where the executable lives does. A U1 on stock
+firmware runs our installer's `/userdata/helixscreen` and self-updates like any other
+printer; its manifest entry is the `helixscreen-snapmaker-u1-<tag>.tar.gz` asset, because
+`scripts/generate-manifest.sh` withholds `zip_url` from `snapmaker-u1`. The default lives here in C++ rather than in the firmware hook
 because the hook exports data paths and nothing else: their lmd hook
 (<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh) exports `HELIX_DATA_DIR`,
 `HELIX_SUPERVISED`, `HELIX_DRM_DEVICE`, `HELIX_CACHE_DIR`, `HELIX_CONFIG_DIR` and
