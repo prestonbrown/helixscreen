@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.0-rc.4] - UNRELEASED
 
-### Fixed
+### Added
+- **Load filament by hand in one dialog** (#2000) - on a printer with no filament system and no load macro, and on a Snapmaker U1 toolhead with no feeder, with Auto loading off, or fed past its feeder, Load opens one dialog that heats the nozzle, waits while you push the filament in, and primes it. Cancel or closing it turns the heater off.
+- **Snapmaker U1: Auto loading per toolhead** (#1982) - each toolhead's Auto loading switch is in the filament system's Settings under Print Behavior.
 
+### Fixed
+- **Snapmaker U1: filament pushed straight into a toolhead** (#2000) - a toolhead fed past its feeder, such as by a BMCU, read as empty to the pre-print check, and Load tried to feed from the empty feeder. It counts as holding filament, and Load opens the hand-load dialog.
 - **No HelixPrint plugin downgrade at startup** - when Moonraker already runs a newer HelixPrint plugin than the one this HelixScreen ships, such as one installed by a newer development build, HelixScreen now leaves it in place. It used to point Moonraker back at its own older plugin and restart Moonraker to load it. Plugin versions are now compared by number, so 1.10.0 counts as newer than 1.9.0, and an older plugin is still updated as before.
 - **HelixPrint plugin installs on a Snapmaker U1 with PAXX firmware** - when the PAXX Extended Firmware runs HelixScreen as its own package, installing the HelixPrint plugin from the screen failed with "Install script not found". HelixScreen now finds the package it runs from, so the plugin install, its uninstall, the timelapse plugin setup and the plugin check at startup all work there, and the installed plugin keeps working after PAXX updates the package (#2136).
 - **FlashForge Forge-X updates restart HelixScreen** - on an AD5M or AD5X running Forge-X, updating HelixScreen with the installer (`--update`, or a local archive) stopped the screen and ended with "Reboot to start it", leaving it dark until a reboot. The installer now starts the new version the same way the printer does at boot, and the summary says it is running. A first install still asks for a reboot. Starting HelixScreen on the AD5X also no longer reports "Failed to start" when it actually started.
