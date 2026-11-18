@@ -26,7 +26,7 @@ config, not hardware-verified. Build targets are `PLATFORM_TARGET` values in `mk
 | QIDI Plus 4 and 3-series | RK3328, aarch64 | TJC serial HMI | stock | QIDI Box (Plus 4) | remote only | Supported as a remote target |
 | Creality Sonic Pad | Allwinner R818, armv7 userspace | 1024x600 | SonicPad-Debian | n/a | `pi32` | Supported |
 | Anycubic Kobra 2 Pro / 3 / S1, Sovol SV06 ACE | various | n/a | Rinkhals or community Klipper | ACE Pro | remote | Community |
-| BigTreeTech K-Touch | ESP32-S3 | standalone panel | none (talks to any Moonraker) | n/a | `firmware/helixscreen-esp32` | Alpha, 1.1 betas |
+| BigTreeTech K-Touch | ESP32-S3 | standalone panel | none (talks to any Moonraker) | n/a | `firmware/helixscreen-esp32` | Beta in 1.1 |
 
 The Kobra S1, Plus 4 and K2 rows rest on community captures as much as on our own hardware; the
 documents below record which.
