@@ -381,7 +381,7 @@ EOF
     chmod +x "$T/bin/"*
 
     run env HELIX_LAUNCHER_PID=4242 T="$T" sh -c '
-        LOGFILE="$T/log" DESC=x NAME=helixscreen DAEMON_DIR="$T" PIDFILE="$T/pid"
+        LOGFILE="$T/log" DESC=x NAME=helixscreen DAEMON_DIR="$T" PIDFILE="$T/pid" SPLASH_PIDFILE="$T/splash.pid"
         DAEMON="$T/bin/helix-screen" SPLASH="$T/bin/helix-splash" LAUNCHER="$T/bin/helix-launcher.sh"
         for f in platform_pre_start platform_stop_competing_uis platform_enable_backlight \
             platform_wait_for_services platform_wait_for_boot_complete stop_splash; do

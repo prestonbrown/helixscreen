@@ -44,7 +44,18 @@ DAEMON="${DAEMON_DIR}/bin/helix-screen"
 SPLASH="${DAEMON_DIR}/bin/helix-splash"
 WATCHDOG="${DAEMON_DIR}/bin/helix-watchdog"
 LAUNCHER="${DAEMON_DIR}/bin/helix-launcher.sh"
-PIDFILE="/var/run/${NAME}.pid"
+# Pid files live in /var/run. The Forge-X rig's chroot, where the payload
+# runs, can lack a usable one, and a pid file that cannot be written reads as
+# a failed start while the UI comes up: create the directory, and where it
+# cannot be created (a link to an unmounted /run), keep them in /tmp instead.
+# start, stop and status all resolve the same directory.
+RUN_DIR="/var/run"
+if [ ! -d "$RUN_DIR" ]; then
+    mkdir -p "$RUN_DIR" 2>/dev/null || true
+    [ -d "$RUN_DIR" ] || RUN_DIR="${TMPDIR:-/tmp}"
+fi
+PIDFILE="${RUN_DIR}/${NAME}.pid"
+SPLASH_PIDFILE="${RUN_DIR}/helix-splash.pid"
 # LOGFILE captures launcher shell echoes + crash stderr from inside the daemon
 # supervisor subshell. spdlog handles the structured app log via syslog.
 #
@@ -141,10 +152,10 @@ fi
 
 # Stop splash screen
 stop_splash() {
-    if [ -f /var/run/helix-splash.pid ]; then
-        SPLASH_PID=$(cat /var/run/helix-splash.pid)
+    if [ -f "$SPLASH_PIDFILE" ]; then
+        SPLASH_PID=$(cat "$SPLASH_PIDFILE")
         kill "$SPLASH_PID" 2>/dev/null || true
-        rm -f /var/run/helix-splash.pid
+        rm -f "$SPLASH_PIDFILE"
     fi
 }
 
@@ -248,7 +259,7 @@ start() {
         echo "Starting splash screen..."
         "$SPLASH" >/dev/null 2>&1 &
         EARLY_SPLASH_PID=$!
-        echo "$EARLY_SPLASH_PID" > /var/run/helix-splash.pid
+        echo "$EARLY_SPLASH_PID" > "$SPLASH_PIDFILE"
     elif [ "${HELIX_NO_SPLASH:-0}" = "1" ]; then
         echo "Splash screen disabled (HELIX_NO_SPLASH=1)"
     fi

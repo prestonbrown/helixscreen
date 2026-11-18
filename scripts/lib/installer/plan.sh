@@ -40,9 +40,10 @@ plan_missing_libs() {
     echo ${MISSING_UNZIP_PKG:-} ${MISSING_RUNTIME_DEPS:-}
 }
 
-# False on a payload install, whose UI the mod starts at the next boot.
+# False on a payload install whose UI the mod starts at the next boot, true
+# on one that restarts the UI it replaced (mod_payload_restarts_ui).
 plan_starts_ui() {
-    [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ]
+    [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ] || mod_payload_restarts_ui
 }
 
 _plan_sep() { if [ "$UI_UTF8" = 1 ]; then printf ' · '; else printf ', '; fi; }
