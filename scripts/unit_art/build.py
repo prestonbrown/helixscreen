@@ -3,6 +3,7 @@
 """Bake every unit's layers into assets/images/units and draw a contact sheet."""
 import base64
 import dataclasses
+import io
 import json
 import math
 import subprocess
@@ -85,6 +86,23 @@ TIER_WIDTH = {"full": 320, "thumb": 40}
 SAMPLE = ["#e2452f", "#ef7a2b", "#2e7fd0", "#d8dadd", "#63a83c", "#6a5597", "#3f9fb5", "#c9b458"]
 
 
+def optimize_png(png_path):
+    """Recompress png_path losslessly, keeping the smaller file only if it decodes to the same pixels."""
+    from PIL import Image  # the bake's one dependency beyond rsvg-convert
+
+    with Image.open(png_path) as original:
+        original.load()
+        buf = io.BytesIO()
+        original.save(buf, "PNG", optimize=True)
+        with Image.open(io.BytesIO(buf.getvalue())) as packed:
+            packed.load()
+            same = (packed.mode, packed.size, packed.tobytes()) == (original.mode, original.size, original.tobytes())
+    if not same:
+        raise RuntimeError(f"{png_path}: recompression changed the pixels")
+    if len(buf.getvalue()) < png_path.stat().st_size:
+        png_path.write_bytes(buf.getvalue())
+
+
 def rsvg_render(svg_text, width, png_path):
     svg_path = png_path.with_suffix(".svg")
     svg_path.write_text(svg_text)
@@ -92,6 +110,7 @@ def rsvg_render(svg_text, width, png_path):
         subprocess.run(["rsvg-convert", "-w", str(width), "-o", str(png_path), str(svg_path)], check=True)
     finally:
         svg_path.unlink()
+    optimize_png(png_path)
 
 
 def art_dirs(unit, out_dir):

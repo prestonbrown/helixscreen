@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The unit art kit: camera, spools tied to the app's values, baked layers."""
+import subprocess
 import dataclasses
 import json
 import math
@@ -634,3 +635,20 @@ def test_only_a_drawing_with_more_than_spools_in_its_stacks_bakes_silhouettes(tm
     rows = [line for line in table.splitlines() if line.startswith("    {\"") and "_lanes" in line]
     assert any(r.startswith('    {"emu", 2, ') and r.endswith("_lanes, true},") for r in rows)
     assert any(r.startswith('    {"box_turtle", 4, ') and r.endswith("_lanes},") for r in rows)
+
+
+def test_a_baked_png_is_recompressed_losslessly(tmp_path):
+    from PIL import Image
+
+    scene = _art_scene(box_turtle.UNIT)
+    png = tmp_path / "back.png"
+    subprocess.run(["rsvg-convert", "-w", "300", "-o", str(png), "/dev/stdin"], input=scene.layer_svg("back", 300).encode(), check=True)
+    plain = png.read_bytes()
+    before = Image.open(png)
+    before.load()
+    build.optimize_png(png)
+    after = Image.open(png)
+    after.load()
+    assert len(png.read_bytes()) < len(plain)
+    assert (after.mode, after.size) == (before.mode, before.size)
+    assert after.tobytes() == before.tobytes()
