@@ -81,14 +81,6 @@ TEST_CASE("ETA: under 5 percent the slicer estimate stands alone", "[print][eta]
     CHECK(est.remaining_seconds(job(4, 1, 1000)) == 960);
 }
 
-TEST_CASE("ETA: past the blend window it extrapolates the observed rate", "[print][eta]") {
-    PrintEtaEstimator est;
-
-    // Half done in 600s, so the other half should also take about 600s. Above
-    // the blend window, so the slicer's opinion does not enter.
-    CHECK(est.remaining_seconds(job(50, 600, 99999)) == 600);
-}
-
 TEST_CASE("ETA: with no elapsed print time there is no rate, so the slicer answers",
           "[print][eta]") {
     PrintEtaEstimator est;
@@ -121,115 +113,91 @@ TEST_CASE("ETA: the blend hands over cleanly at the top of the window", "[print]
     CHECK(blended.remaining_seconds(job(15, 600, 9000)) == bare.remaining_seconds(job(15, 600, 0)));
 }
 
-TEST_CASE("ETA: the estimate is smoothed, not snapped, toward a new rate", "[print][eta]") {
-    PrintEtaEstimator est;
-
-    // First sample seeds: 600s elapsed at 50% extrapolates to 600s left.
-    REQUIRE(est.remaining_seconds(fine_job(0.5, 600)) == 600);
-
-    // The next ten seconds ran slower than that pace: 0.505 at 610s
-    // extrapolates to about 598s left, while counting down from 600 says 590.
-    // Ten seconds of evidence against a minute-long smoothing window moves the
-    // answer only part of the way from the countdown toward the extrapolation.
-    const int next = est.remaining_seconds(fine_job(0.505, 610));
-    CHECK(next > 590);
-    CHECK(next < 597);
-}
-
-TEST_CASE("ETA: whole-percent progress never makes the estimate jump", "[print][eta]") {
-    // A 3600s job reporting progress only in whole percents (M73), sampled four
-    // times a second the way Moonraker delivers print_stats. Between percent
-    // ticks nothing new is known, so the published number must fall by the
-    // time that passed and nothing more; a tick must not throw it around.
-    // Extrapolating from the whole percent alone swings it by T/p every tick:
-    // 360s at 10%.
-    PrintEtaEstimator est;
-    int previous = est.remaining_seconds(job(1, 36, 3600));
-    REQUIRE(previous != PrintEtaEstimator::kNoEstimate);
-    int worst_jump = 0;
-    for (int quarter = 37 * 4; quarter <= 3564 * 4; ++quarter) {
-        const int elapsed = quarter / 4;
-        const int now = est.remaining_seconds(job(elapsed / 36, elapsed, 3600));
-        worst_jump = std::max(worst_jump, std::abs(previous - now));
-        previous = now;
-    }
-    // A frame advances at most one second of print time.
-    CHECK(worst_jump <= 2);
-    // And the countdown still lands on the truth: 36s of a 3600s job remain.
-    CHECK(std::abs(previous - 36) <= 5);
-}
-
-TEST_CASE("ETA: fine-grained progress tracks the real remaining time", "[print][eta]") {
-    // Byte progress arrives as a fraction. On a print running exactly at its
-    // pace, the estimate should sit on the true remaining time from the moment
-    // the blend with the slicer stops, and never step by more than a frame.
-    PrintEtaEstimator est;
-    int previous = est.remaining_seconds(fine_job(0.01, 36, 3600));
-    int worst_jump = 0;
-    int worst_error = 0;
-    for (int elapsed = 37; elapsed <= 3564; ++elapsed) {
-        const int now = est.remaining_seconds(fine_job(elapsed / 3600.0, elapsed, 3600));
-        worst_jump = std::max(worst_jump, std::abs(previous - now));
-        if (elapsed >= 540) { // past the 15% blend window
-            worst_error = std::max(worst_error, std::abs(now - (3600 - elapsed)));
+TEST_CASE("ETA: a steady print counts down without jumping", "[print][eta]") {
+    // A 3600s job at its slicer's pace, sampled four times a second as
+    // Moonraker delivers print_stats. Between progress ticks the number falls
+    // by the time that passed and nothing more; extrapolating from a whole
+    // percent (M73) alone swings it by elapsed/percent every tick, 360s at 10%.
+    // Byte progress keeps it on the truth once the slicer blend ends at 15%.
+    for (const bool whole_percent : {true, false}) {
+        CAPTURE(whole_percent);
+        const auto frame = [whole_percent](int elapsed) {
+            return whole_percent ? job(elapsed / 36, elapsed, 3600)
+                                 : fine_job(elapsed / 3600.0, elapsed, 3600);
+        };
+        PrintEtaEstimator est;
+        int previous = est.remaining_seconds(frame(36));
+        REQUIRE(previous != PrintEtaEstimator::kNoEstimate);
+        int worst_jump = 0;
+        int worst_error = 0;
+        for (int quarter = 37 * 4; quarter <= 3564 * 4; ++quarter) {
+            const int elapsed = quarter / 4;
+            const int now = est.remaining_seconds(frame(elapsed));
+            worst_jump = std::max(worst_jump, std::abs(previous - now));
+            if (!whole_percent && elapsed >= 540) {
+                worst_error = std::max(worst_error, std::abs(now - (3600 - elapsed)));
+            }
+            previous = now;
         }
-        previous = now;
-    }
-    CHECK(worst_jump <= 2);
-    CHECK(worst_error <= 5);
-}
-
-TEST_CASE("ETA: a pause holds the estimate where it stood", "[print][eta]") {
-    // print_duration stops while paused, and frames keep arriving.
-    PrintEtaEstimator est;
-    REQUIRE(est.remaining_seconds(fine_job(0.5, 1800)) == 1800);
-    for (int frame = 0; frame < 100; ++frame) {
-        CHECK(est.remaining_seconds(fine_job(0.5, 1800)) == 1800);
+        CHECK(worst_jump <= 2);
+        CHECK(worst_error <= 5);
+        // 36s of the job remain.
+        CHECK(std::abs(previous - 36) <= 5);
     }
 }
 
-TEST_CASE("ETA: a print that slows down is followed within a few minutes", "[print][eta]") {
-    // Half of a 3600s job in 1800s, then the rest at three quarters speed: the
-    // second half takes 2400s. Smoothing must not hold on to the old pace.
+TEST_CASE("ETA: the countdown follows the print clock", "[print][eta]") {
     PrintEtaEstimator est;
-    for (int elapsed = 1700; elapsed <= 1800; ++elapsed) {
-        (void)est.remaining_seconds(fine_job(elapsed / 3600.0, elapsed));
+    SECTION("a pause holds the estimate, and a clock that runs backwards starts over") {
+        // Half done in 3000s leaves 3000s; past the blend window the slicer's
+        // opinion does not enter. print_duration stops while paused, and
+        // frames keep arriving.
+        REQUIRE(est.remaining_seconds(fine_job(0.5, 3000, 99999)) == 3000);
+        for (int frame = 0; frame < 100; ++frame) {
+            CHECK(est.remaining_seconds(fine_job(0.5, 3000, 99999)) == 3000);
+        }
+        // A new print the reset never reached restarts its clock below the last
+        // sample. Counting down by a negative interval would add the old
+        // print's time to the new one's estimate.
+        CHECK(est.remaining_seconds(fine_job(0.25, 100)) == 300);
     }
-    int now = 0;
-    const int slow_for = 300;
-    for (int t = 1; t <= slow_for; ++t) {
-        const double fraction = 0.5 + 0.5 * t / 2400.0;
-        now = est.remaining_seconds(fine_job(fraction, 1800 + t));
+    SECTION("a change of pace is smoothed, not snapped") {
+        REQUIRE(est.remaining_seconds(fine_job(0.5, 600)) == 600);
+        // 0.505 at 610s extrapolates to about 598s left; counting down says
+        // 590. Ten seconds of evidence against a minute-long smoothing window
+        // moves the answer only part of the way.
+        const int next = est.remaining_seconds(fine_job(0.505, 610));
+        CHECK(next > 590);
+        CHECK(next < 597);
     }
-    // The extrapolation itself has only partly caught up after 300s (it divides
-    // all 2100s by all progress so far), so compare against it, not the truth.
-    const double fraction = 0.5 + 0.5 * slow_for / 2400.0;
-    const double extrapolated = (1800.0 + slow_for) * (1.0 - fraction) / fraction;
-    CHECK(std::abs(now - extrapolated) <= 0.03 * extrapolated);
-    // And it has moved well off the old pace, which would say 1500s.
-    CHECK(now > 1560);
-}
-
-TEST_CASE("ETA: a stall near the end never reads as finished", "[print][eta]") {
-    // 95% of a 3600s job, 180s left. A 300s tool change follows: print time
-    // runs, progress does not. Counting down alone would reach 0:00 two
-    // minutes into it with the job still unfinished.
-    PrintEtaEstimator est;
-    REQUIRE(est.remaining_seconds(fine_job(0.95, 3420)) == 180);
-    int lowest = 180;
-    for (int t = 1; t <= 300; ++t) {
-        lowest = std::min(lowest, est.remaining_seconds(fine_job(0.95, 3420 + t)));
+    SECTION("a print that slows down is followed within a few minutes") {
+        // Half of a 3600s job in 1800s, then the rest at three quarters speed.
+        for (int elapsed = 1700; elapsed <= 1800; ++elapsed) {
+            (void)est.remaining_seconds(fine_job(elapsed / 3600.0, elapsed));
+        }
+        int now = 0;
+        for (int t = 1; t <= 300; ++t) {
+            now = est.remaining_seconds(fine_job(0.5 + 0.5 * t / 2400.0, 1800 + t));
+        }
+        // The extrapolation itself has only partly caught up after 300s (it
+        // divides all 2100s by all progress so far), so compare against it,
+        // and against the old pace, which would say 1500s.
+        const double fraction = 0.5 + 0.5 * 300 / 2400.0;
+        const double extrapolated = 2100.0 * (1.0 - fraction) / fraction;
+        CHECK(std::abs(now - extrapolated) <= 0.03 * extrapolated);
+        CHECK(now > 1560);
     }
-    CHECK(lowest > 0);
-}
-
-TEST_CASE("ETA: a print clock that runs backwards starts the estimate over", "[print][eta]") {
-    // A new print the reset never reached: its clock restarts below the last
-    // sample. Counting down by a negative interval would add the old print's
-    // time to the new one's estimate.
-    PrintEtaEstimator est;
-    REQUIRE(est.remaining_seconds(fine_job(0.5, 3000)) == 3000);
-    CHECK(est.remaining_seconds(fine_job(0.25, 100)) == 300);
+    SECTION("a stall near the end never reads as finished") {
+        // 95% of a 3600s job, 180s left, then a 300s tool change: print time
+        // runs, progress does not. Counting down alone reaches 0:00 two minutes
+        // into it with the job unfinished.
+        REQUIRE(est.remaining_seconds(fine_job(0.95, 3420)) == 180);
+        int lowest = 180;
+        for (int t = 1; t <= 300; ++t) {
+            lowest = std::min(lowest, est.remaining_seconds(fine_job(0.95, 3420 + t)));
+        }
+        CHECK(lowest > 0);
+    }
 }
 
 TEST_CASE("ETA: reset forgets the previous print", "[print][eta]") {

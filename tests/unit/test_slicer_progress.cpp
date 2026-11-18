@@ -284,7 +284,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
 TEST_CASE_METHOD(HelixTestFixture,
                  "Slicer progress: time estimation uses file progress when slicer inactive",
-                 "[print][progress][slicer]") {
+                 "[print][progress][slicer][eta]") {
     lv_init_safe();
 
     PrinterState& state = get_printer_state();
@@ -294,35 +294,14 @@ TEST_CASE_METHOD(HelixTestFixture,
     json printing = {{"print_stats", {{"state", "printing"}}}};
     state.update_from_status(printing);
 
-    json status = {{"virtual_sdcard", {{"progress", 0.8}}}};
-    state.update_from_status(status);
-
-    json time = {{"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}};
-    state.update_from_status(time);
-
-    // remaining = 600 * (100 - 80) / 80 = 150
-    REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 150);
-}
-
-TEST_CASE_METHOD(HelixTestFixture,
-                 "Slicer progress: time estimation reads file progress at full resolution",
-                 "[print][progress][slicer][eta]") {
-    lv_init_safe();
-
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
-
-    json printing = {{"print_stats", {{"state", "printing"}}}};
-    state.update_from_status(printing);
-
     json status = {{"virtual_sdcard", {{"progress", 0.805}}}};
     state.update_from_status(status);
 
     json time = {{"print_stats", {{"print_duration", 600.0}, {"total_duration", 620.0}}}};
     state.update_from_status(time);
 
-    // 600 * 0.195 / 0.805 = 145. The whole percent (80) would say 150.
+    // Read at full resolution: 600 * 0.195 / 0.805 = 145. The whole percent
+    // (80) would say 150.
     REQUIRE(lv_subject_get_int(state.print_state().get_print_time_left_subject()) == 145);
 }
 
