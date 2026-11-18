@@ -150,6 +150,7 @@ All developer documentation lives here. When working on features, look up the re
 | `printer-research/README.md` | Printer research index, plus the overview matrix of every printer's SoC, panel, firmware, target and support status |
 | `printer-research/FLASHFORGE_AD5X_IFS_ANALYSIS.md` | AD5X IFS protocol reverse engineering |
 | `printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md` | Creator 5 stock firmware RE: decryption, image layout, stock UI features vs HelixScreen |
+| `printer-research/ANYCUBIC_ACE_DRIVER_LANDSCAPE.md` | Every ACE Pro / ACE 2 Klipper driver project: lineage, status surfaces, which backend reads each. Read before touching ACE detection |
 | `printer-research/ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md` | Kobra S1 + ACE Pro real-log analysis: the ACEPRO driver on the `klipper-kobra-s1` firmware (`[ace_status]`), command surface, inventory model |
 
 ## Reference
