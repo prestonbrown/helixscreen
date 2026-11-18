@@ -7,6 +7,10 @@
 #include <cstdint>
 #include <optional>
 
+#if defined(__linux__)
+#include <features.h> // defines __GLIBC__ / __UCLIBC__ whatever was included first
+#endif
+
 // glibc keeps freed memory in its arenas until asked to return it; musl, bionic,
 // newlib (ESP-IDF) and uClibc have no malloc_trim().
 #if defined(__GLIBC__) && !defined(__UCLIBC__)

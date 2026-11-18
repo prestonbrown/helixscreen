@@ -482,7 +482,29 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
          {"f00dcafe"},
          {"\"api_key\": [REDACTED], \"x\": 1"}},
         {"GET /api/files?apikey=F00D&path=a", {"F00D"}, {"apikey=[REDACTED]&path=a"}},
-        {"auth: Basic dXNlcjpwYXNz", {"dXNlcjpwYXNz"}, {"auth: [REDACTED]"}},
+        {"auth: Basic dXNlcjpwYXNz", {"dXNlcjpwYXNz"}, {"auth: Basic [REDACTED]"}},
+        // An unquoted value runs to the end of the line, or to the next key
+        {"password: correct horse battery staple", {"horse", "staple"}, {"password: [REDACTED]"}},
+        {"password = two words, user = bob", {"two words"}, {"password = [REDACTED], user = bob"}},
+        // An Authorization value keeps only its scheme name, whatever the scheme
+        {"Authorization: Token 9944b09199c62bcf",
+         {"9944b09199c62bcf"},
+         {"Authorization: Token [REDACTED]"}},
+        {"Authorization: Digest username=\"bob\", response=\"6629fae4\"",
+         {"bob", "6629fae4"},
+         {"Authorization: Digest [REDACTED]"}},
+        // A webhook id in the path is the secret, on any host
+        {"POST https://ha.local:8123/api/webhook/print_done_a8f3c2 -> 200",
+         {"print_done_a8f3c2"},
+         {"https://ha.local:8123/api/webhook/[REDACTED] -> 200"}},
+        {"https://hooks.example.net/webhooks/T0123/B456/xyz?fmt=json",
+         {"T0123", "xyz"},
+         {"/webhooks/[REDACTED]?fmt=json"}},
+        // An escaped quote does not end a quoted value
+        {"{\"password\": \"ab\\\"cd\", \"x\": 1}",
+         {"ab", "cd"},
+         {"\"password\": [REDACTED], \"x\": 1"}},
+        {"{'password': 'ab\\'cd', 'x': 1}", {"cd"}, {"'password': [REDACTED], 'x': 1"}},
     };
     for (const Inline& r : inline_rows) {
         const auto result = helix::DebugBundleCollector::sanitize_value(r.input);
@@ -494,6 +516,21 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
             CHECK(result.find(kept) != std::string::npos);
         }
     }
+}
+
+TEST_CASE("DebugBundleCollector: sanitize_value fails closed on a pattern that gives up",
+          "[debug-bundle][sanitize][privacy]") {
+    // A boundary-dense word run makes the email pattern backtrack past the
+    // matcher's step limit before it reaches the address: the line is withheld.
+    std::string dense;
+    while (dense.size() < 3900)
+        dense += "a-b.c_";
+    CHECK(helix::DebugBundleCollector::sanitize_value(dense + " owner@example.com") ==
+          "[REDACTED]");
+
+    const std::string out =
+        helix::DebugBundleCollector::sanitize_value(dense + " password=hunter2");
+    CHECK(out.find("hunter2") == std::string::npos);
 }
 
 TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
