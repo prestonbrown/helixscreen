@@ -1134,12 +1134,18 @@ void GCodeGLESRenderer::render(lv_layer_t* layer,
     req.gcode = gcode;
     worker_.post(std::move(req));
 
-    if (worker_.take_frame(taken_frame_)) {
-        install_frame(taken_frame_);
-    }
-    // Until the worker finishes a frame (upload, refinement), the last finished
-    // image stays up.
+    // The draw event fires once per invalidated area of a refresh, so a frame
+    // adopted here could show in some strips and not others. New frames are
+    // adopted between refreshes (adopt_ready_frame); this only blits.
     draw_cached_to_lvgl(layer, widget_coords);
+}
+
+bool GCodeGLESRenderer::adopt_ready_frame() {
+    if (!worker_.take_frame(taken_frame_)) {
+        return false;
+    }
+    install_frame(taken_frame_);
+    return true;
 }
 
 void GCodeGLESRenderer::set_frame_ready_callback(std::function<void()> cb) {
@@ -1539,6 +1545,7 @@ bool GCodeGLESRenderer::render_moving(const ParsedGCodeFile& gcode, const GCodeC
                                       int widget_w, int widget_h, RenderFrame& out) {
     cancel_job();
     moving_frame_valid_ = false;
+    const auto frame_t0 = std::chrono::steady_clock::now();
     const render_schedule::MovingPlan plan = render_schedule::hold_half_resolution(
         render_schedule::plan_moving(uploaded_triangles_, mesh_triangles_, gpu_rate_tris_per_ms_),
         moving_half_res_held_);
@@ -1591,9 +1598,20 @@ bool GCodeGLESRenderer::render_moving(const ParsedGCodeFile& gcode, const GCodeC
     record_rate(triangles_rendered_ - before, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     moving_frame_valid_ = read_frame(widget_w, widget_h, /*overlays_drawn=*/false, out);
-    spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms",
+    const float frame_ms =
+        std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - frame_t0)
+            .count();
+    spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms draw, {:.1f}ms total",
                   plan.use_mesh && draw_vbos == &moving_vbos_ ? "mesh " : "", plan.stride,
-                  plan.half_resolution ? "half" : "full", ms);
+                  plan.half_resolution ? "half" : "full", ms, frame_ms);
+    if (render_schedule::moving_too_slow(slow_moving_streak_, frame_ms, plan.half_resolution)) {
+        spdlog::warn("[GCode GLES] Moving frames take {:.0f}ms at half resolution (over {:.0f}ms "
+                     "{} times running): too slow to rotate, falling back to 2D",
+                     frame_ms, render_schedule::kMaxUsableMovingFrameMs,
+                     render_schedule::kSlowMovingFramesToFallBack);
+        too_slow_ = true;
+        gl_render_failed_ = true;
+    }
     return moving_frame_valid_;
 }
 

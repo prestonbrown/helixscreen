@@ -80,6 +80,26 @@ TEST_CASE("a gesture that dropped to half resolution stays there", "[gcode][rend
     REQUIRE_FALSE(hold_half_resolution(full, false).half_resolution);
 }
 
+TEST_CASE("3D gives way to 2D only after a run of slow half-resolution frames",
+          "[gcode][render_schedule]") {
+    int streak = 0;
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    // A full-resolution frame has a cheaper rung left, and a fast one breaks the run.
+    REQUIRE_FALSE(moving_too_slow(streak, 400.0f, false));
+    REQUIRE(streak == 0);
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    REQUIRE_FALSE(moving_too_slow(streak, kMaxUsableMovingFrameMs, true));
+    REQUIRE(streak == 0);
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    REQUIRE(moving_too_slow(streak, 400.0f, true));
+}
+
 TEST_CASE("plan_bands sizes shell bands to the budget left after surfaces",
           "[gcode][render_schedule]") {
     // 11 triangles per N=4 segment: 36k shell segments project to 396k

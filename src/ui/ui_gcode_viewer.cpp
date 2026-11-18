@@ -524,7 +524,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         // normally set.
         if (st->renderer_->render_failed() && !st->budget_forced_2d_) {
             spdlog::warn("[GCode Viewer] GLES renderer unusable ({}) — rendering this file in 2D",
-                         st->renderer_->init_failed() ? "GL init failed" : "fatal GL draw error");
+                         st->renderer_->init_failed() ? "GL init failed"
+                         : st->renderer_->too_slow()  ? "too slow to rotate"
+                                                      : "fatal GL draw error");
             st->budget_forced_2d_ = true;
             // Seed the 2D renderer now so the next frame renders immediately.
             // The lazy init in the 2D branch cannot: a renderer already exists
@@ -866,9 +868,20 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     active_viewers().push_back(obj);
 
 #ifdef ENABLE_3D_RENDERER
-    // Runs on the renderer's draw thread. queue_invalidate resolves the widget
-    // on the LVGL thread and skips it if it is gone by then.
-    st->renderer_->set_frame_ready_callback([obj]() { helix::ui::queue_invalidate(obj); });
+    // Runs on the renderer's draw thread. queue_widget_update resolves the
+    // widget on the LVGL thread, between refreshes, and skips it if it is gone
+    // by then; the frame is adopted there so one refresh never mixes two.
+    st->renderer_->set_frame_ready_callback([obj]() {
+        helix::ui::queue_widget_update(obj, [](lv_obj_t* viewer) {
+            gcode_viewer_state_t* state = get_state(viewer);
+            if (state && state->renderer_) {
+                state->renderer_->adopt_ready_frame();
+            }
+            // Also without a new frame: a notify after a fatal GL error is how
+            // the next draw learns of render_failed() and falls back to 2D.
+            lv_obj_invalidate(viewer);
+        });
+    });
 #endif
 
     // Initialize viewport size based on current widget dimensions
@@ -1709,8 +1722,20 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
  * Call this during application initialization before loading any XML.
  * Typically called from main() or ui_init().
  */
+/// The preview stack's rotate button: reset the viewer that shares its stack.
+static void on_gcode_preview_reset_view(lv_event_t* e) {
+    lv_obj_t* stack = lv_obj_get_parent(lv_event_get_current_target_obj(e));
+    for (lv_obj_t* viewer : active_viewers()) {
+        if (lv_obj_get_parent(viewer) == stack) {
+            helix::ui::gcode_viewer_reset_camera(viewer);
+            return;
+        }
+    }
+}
+
 void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
+    lv_xml_register_event_cb(nullptr, "on_gcode_preview_reset_view", on_gcode_preview_reset_view);
     spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }
 
@@ -1888,6 +1913,9 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
 
 void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
+    // The preview stack's rotate button is hidden without a 3D viewer, but its
+    // callback name still has to resolve.
+    lv_xml_register_event_cb(nullptr, "on_gcode_preview_reset_view", [](lv_event_t*) {});
     spdlog::debug("[GCode Viewer] Compiled out (HELIX_HAS_GCODE_VIEWER=0); registered stub "
                   "<gcode_viewer> widget");
 }
