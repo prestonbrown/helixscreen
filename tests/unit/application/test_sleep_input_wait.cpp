@@ -5,6 +5,7 @@
 // (prestonbrown/helixscreen#2037).
 
 #include "core/update_queue.h"
+#include "input_wake_source_list.h"
 #include "lvgl_test_fixture.h"
 #include "main_loop_wake.h"
 #include "sleep_input_wait.h"
@@ -120,6 +121,48 @@ TEST_CASE_METHOD(LVGLTestFixture, "the input wait leaves alone what it did not p
 
     wait.end();
     CHECK(already_paused.timer_paused());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a wake source whose fd closed is dropped, not polled again",
+                 "[sleep][sleep_input_wait]") {
+    helix::main_loop_wake::drain();
+    FakeEvdev dev;
+    const int fd = dup(dev.fds[0]);
+    REQUIRE(fd >= 0);
+
+    SleepInputWait wait;
+    wait.begin({{dev.indev, fd}});
+    REQUIRE(dev.timer_paused());
+    close(fd);
+
+    // POLLNVAL answers at once; a source kept after it would make every wait return at once.
+    wait.wait(0);
+    CHECK_FALSE(dev.timer_paused());
+    CHECK_FALSE(wait.wait(0));
+    CHECK(dev.reads == 0);
+    wait.end();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a backend's wake sources forget a device LVGL deleted",
+                 "[sleep][sleep_input_wait]") {
+    helix::InputWakeSourceList list;
+    lv_indev_t* kept = lv_indev_create();
+    lv_indev_t* gone = lv_indev_create();
+    list.add(kept, 7);
+    list.add(gone, 8);
+    REQUIRE(list.sources().size() == 2);
+
+    lv_indev_delete(gone);
+    REQUIRE(list.sources().size() == 1);
+    CHECK(list.sources()[0].indev == kept);
+    CHECK(list.sources()[0].fd == 7);
+
+    // A device created after the delete may reuse the freed address; it is not a source.
+    lv_indev_t* reused = lv_indev_create();
+    CHECK(list.sources().size() == 1);
+    lv_indev_delete(reused);
+    lv_indev_delete(kept);
+    CHECK(list.sources().empty());
 }
 
 namespace {

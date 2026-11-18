@@ -47,6 +47,21 @@ struct ShellRow {
     return n;
 }
 
+/// An OpenAMS unit that reports no model, under any backend: the single-lane unit is the AMS
+/// HT, and the rest are OpenAMS boards in an original AMS.
+constexpr ShellRow unreported_openams(const char* backend_slug, const char* unit_name_part,
+                                      bool single_lane) {
+    return {backend_slug,
+            unit_name_part,
+            single_lane ? "ams_ht" : "ams",
+            nullptr,
+            single_lane ? 1 : 0,
+            false,
+            -1,
+            nullptr,
+            true};
+}
+
 constexpr ShellRow kShellRows[] = {
     {"ace", nullptr, "ace_pro", nullptr, 0},
     // Anchored type tokens come first, since an AFC instance name can be anything.
@@ -58,8 +73,8 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "htlf ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
-    {"afc", "openams", "ams_ht", nullptr, 1},
-    {"afc", "openams", "ams_2_pro", nullptr, 0},
+    unreported_openams("afc", "openams", true),
+    unreported_openams("afc", "openams", false),
     {"afc", "vivid", "btt_vivid", nullptr, 0},
     {"afc", "night_owl", "night_owl", nullptr, 0},
     {"afc", "bmcu", "bmcu", nullptr, 0},
@@ -104,10 +119,9 @@ constexpr ShellRow kShellRows[] = {
     {"openams", "\n3ms", "3ms", nullptr, 0},
     {"openams", "\nercf", "ercf_rail", nullptr, 0, true},
     {"openams", "\ntradrack", "tradrack_rail", nullptr, 0, true},
-    // klipper_openams publishes no family: its single-lane unit is the AMS HT, and the rest are
-    // OpenAMS 1 boards in an original AMS.
-    {"openams", nullptr, "ams_ht", nullptr, 1, false, -1, nullptr, true},
-    {"openams", nullptr, "ams", nullptr, 0, false, -1, nullptr, true},
+    // klipper_openams publishes no family.
+    unreported_openams("openams", nullptr, true),
+    unreported_openams("openams", nullptr, false),
 };
 
 /// Climate readings or a dryer mean the unit is closed up.

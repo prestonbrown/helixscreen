@@ -153,6 +153,8 @@ TEST_CASE("Overview layout: the toolheads stand on their glyph-bottom line",
 TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
           "[system_path][filament_path]") {
     auto d = multi();
+    // An art head whose inlet sits below its glyph's top edge, so the loop covers more
+    // than the top-edge rule.
     bool art_inlet_seen = false;
     for (int s = static_cast<int>(helix::ToolheadStyle::DEFAULT); s <= helix::kLastToolheadStyle;
          s++) {
@@ -161,12 +163,12 @@ TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
         const SysLayout L = compute_sys_layout(*d, AREA);
         const int32_t inlet_y =
             helix::ui::toolhead_inlet(d->toolhead_style, L.nozzle_y, d->extruder_scale).y;
-        art_inlet_seen = art_inlet_seen || inlet_y != L.nozzle_y - 2 * d->extruder_scale;
+        const int32_t glyph_top =
+            helix::ui::toolhead_bounds(d->toolhead_style, 0, L.nozzle_y, d->extruder_scale).top;
+        art_inlet_seen = art_inlet_seen || inlet_y > glyph_top;
         // A drawn (non-art) glyph takes the line at its top edge, not inside its body.
         if (!helix::ui::toolhead_art_for(d->toolhead_style)) {
-            CHECK(inlet_y ==
-                  helix::ui::toolhead_bounds(d->toolhead_style, 0, L.nozzle_y, d->extruder_scale)
-                      .top);
+            CHECK(inlet_y == glyph_top);
         }
         const Route& active = plan_of(*d).routes[0];
         CHECK(seg_end(active.path.segs[active.path.count - 1]).y == (float)inlet_y);
@@ -366,7 +368,12 @@ TEST_CASE("Overview plan: toolchanger tubes end at each head style's filament in
         const SysLayout L = compute_sys_layout(*d, AREA);
         const int32_t inlet =
             helix::ui::toolhead_inlet(d->toolhead_style, L.tools_y, small_tool_scale(*d)).y;
-        below_glyph_top += inlet != L.tools_y - small_tool_scale(*d) * 2;
+        const int32_t glyph_top =
+            helix::ui::toolhead_bounds(d->toolhead_style, 0, L.tools_y, small_tool_scale(*d)).top;
+        below_glyph_top += inlet > glyph_top;
+        if (!helix::ui::toolhead_art_for(d->toolhead_style)) {
+            CHECK(inlet == glyph_top);
+        }
         REQUIRE(plan.route_count == 3);
         for (int i = 0; i < 3; i++) {
             CAPTURE(i);

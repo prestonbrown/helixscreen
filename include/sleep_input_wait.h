@@ -34,8 +34,9 @@ class SleepInputWait {
     }
 
     /// Sleeps up to @p timeout_ms, returning early when a paused device or the main-loop
-    /// wake fd turns readable. Reads each paused device that did. Returns true when woken
-    /// before the timeout.
+    /// wake fd turns readable. Reads each paused device that did. A device whose fd is
+    /// closed or failed stops being waited on and gets its read timer back. Returns true
+    /// when woken before the timeout.
     bool wait(uint32_t timeout_ms);
 
   private:

@@ -656,6 +656,7 @@ overrides live in the root-owned `/var/lib/helixscreen/update_urls.json` (see
 | `/update/dismissed_version` | settings.json | string | `""` | Version the user chose to ignore |
 | `r2_url` | update_urls.json | string | `""` | R2 base URL override (default: `https://releases.helixscreen.org`) |
 | `dev_url` | update_urls.json | string | `""` | Custom manifest URL for dev channel |
+| `release_pubkey` | update_urls.json | string | `""` | Minisign public key (the `RW...` line) that manifests are checked against instead of the release key; for a test server signing with its own key |
 
 ---
 
@@ -691,7 +692,8 @@ Navigate to Settings -> Updates -> Check for Updates. The log output shows the f
 
 ### Testing with a Custom Dev Server
 
-Serve a manifest locally:
+Serve a manifest locally, signed with a throwaway key (the app refuses an unsigned one;
+[RELEASE_SIGNING.md](RELEASE_SIGNING.md)):
 
 ```bash
 # Build a local manifest
@@ -703,7 +705,11 @@ scripts/generate-manifest.sh \
   --base-url "http://192.168.1.100:8080/dev" \
   --output ./manifest.json
 
-# Serve it
+# Sign it with a test key, never the release key
+minisign -G -W -p test.pub -s test.key
+minisign -S -s test.key -m manifest.json -t "file:manifest.json channel:dev"
+
+# Serve both
 python3 -m http.server 8080
 ```
 
@@ -721,12 +727,15 @@ in settings.json, and
 
 ```json
 {
-  "dev_url": "http://192.168.1.100:8080/"
+  "dev_url": "http://192.168.1.100:8080/",
+  "release_pubkey": "RW..."
 }
 ```
 
 in `/var/lib/helixscreen/update_urls.json` (root-owned, mode 644; see "R2 Base
-URL Override" for the trust rules).
+URL Override" for the trust rules), where `release_pubkey` is the second line of
+`test.pub`. The app then checks every manifest against that key instead of the
+release key, and says so in its log.
 
 ### End-to-End Self-Update Testing on Device
 
@@ -751,6 +760,14 @@ export HELIX_TEST_USERNAME=pi                  # SSH username
 | Direct local install | `ssh USER@PRINTER 'sh /tmp/install.sh --local /tmp/helixscreen-update.zip'` | Tests install.sh in isolation, bypasses update checker |
 
 `--configure-remote` copies `install.sh` to `/tmp/` on the device automatically, enabling the direct path without an extra transfer step.
+
+**Signing.** Every run signs `manifest.json` into `manifest.json.minisig` with a local test key,
+created on first use in `~/.helixscreen-local-update-key/` (`HELIX_LOCAL_UPDATE_KEY_DIR`
+overrides) and kept between runs. `--configure-remote` writes that key's public half as
+`release_pubkey` beside `dev_url` in update_urls.json, so the device accepts the local manifest
+and nothing signed by any other key. A device configured before the script signed needs
+`--configure-remote` once more; until then its check reports "manifest is not signed" or
+"the signature does not match". The script refuses a key directory holding the release key.
 
 #### The Two-Install Rule for `update_checker.cpp` Changes
 

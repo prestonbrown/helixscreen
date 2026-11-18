@@ -650,3 +650,32 @@ TEST_CASE_METHOD(HubStackFixture,
     CHECK(b.top >= 0);
     CHECK(b.bottom < bp.first);
 }
+
+TEST_CASE_METHOD(HubStackFixture,
+                 "Art in the selector's slot keeps the hub below it when a tall head lifts the hub",
+                 "[filament-path][selector-rail]") {
+    // Tall enough for the art in the selector's slot, too short for it above the hub, with a
+    // head big enough that the hub must rise to keep room under it. The art took the buffer,
+    // so that room has no buffer in it, and the hub rises no further than the art's foot.
+    auto c = make(/*buffer=*/true, /*bypass=*/false, /*slots=*/4);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    const helix::ui::tray::UnitShell* htlf = helix::ui::tray::unit_shell_by_id("htlf");
+    REQUIRE(htlf != nullptr);
+    const helix::ui::tray::RailFaceArt* art = helix::ui::tray::unit_shell_face_art(*htlf, 4);
+    REQUIRE(art != nullptr);
+    ui_filament_path_canvas_set_selector_rail(c.obj, htlf->id, art, false);
+    lv_obj_set_height(c.obj, 268);
+    render(c);
+    c.data->theme.extruder_scale = 18;
+
+    LinearHubFrame f{};
+    plan_of(c, &f);
+    REQUIRE(f.through.w > 0);
+    REQUIRE((!f.has_buffer && f.sync_on_output));
+    CHECK(f.hub_y - f.hub_h / 2 > f.through.y + f.through.h);
+    const float outlet_y = (float)rail_outlet_y(*art, f.through);
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        CHECK(f.hub_fan[i].pts[0].y == outlet_y);
+    }
+}

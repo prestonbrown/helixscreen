@@ -315,7 +315,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t lanes_top = (f.prep_on_box_edge ? f.prep_band_y : f.prep_y + r) + 2 * r;
     // Under a hub, top to bottom: a gap, the buffer and a gap when the unit reports one, then a
     // band's clear room above the head, where the bypass merges and the toolhead band sits.
-    const int32_t under_hub = r + (data.buffer_present ? buf_box_h + r : 0) + 2 * r;
+    const auto room_under_hub = [&](bool buffer) {
+        return r + (buffer ? buf_box_h + r : 0) + 2 * r;
+    };
+    const int32_t under_hub = room_under_hub(data.buffer_present);
     f.tool_scale = theme.extruder_scale;
     f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
     if (hub_unit) {
@@ -517,9 +520,12 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // A hub whose ratio place leaves too little room under it rises toward the lanes, which
     // start their fan above it. Under it the buffer sits centered with even gaps, and below
     // that the bypass merges and the toolhead band sits in the clear room above the head.
-    if (!data.hub_on_toolhead && hub_top > lowest_roomy_top) {
+    // The room is sized for the buffer the hub still carries: art in the selector's slot
+    // has already taken it away.
+    const int32_t roomy_top = glyph_top - room_under_hub(f.has_buffer) - f.hub_h;
+    if (!data.hub_on_toolhead && hub_top > roomy_top) {
         roomy = true;
-        hub_top = LV_MAX(lowest_roomy_top, lanes_top);
+        hub_top = LV_MAX(roomy_top, lanes_top);
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
         const int32_t room_bottom = glyph_top - 2 * r;
