@@ -415,8 +415,20 @@ gh workflow run recover-r2.yml --ref v1.2.0 -f tag=v1.2.0
 It pulls the tag's artifacts from the GitHub release, regenerates and **signs** each channel's
 manifest with the release key, and uploads `manifest.json.minisig` before `manifest.json`. Never
 upload a hand-generated manifest: clients refuse one whose signature does not verify
-(`docs/devel/RELEASE_SIGNING.md`). The workflow that runs is the one at the tag, so a tag cut
-before recover-r2 learned to sign cannot be recovered this way on a signed channel.
+(`docs/devel/RELEASE_SIGNING.md`).
+
+The workflow that runs is the tag's own copy of `recover-r2.yml`. A tag cut before recover-r2
+learned to sign carries an unsigned copy: run for such a tag, it would republish `manifest.json`
+beside the previous release's signature, which every verifying client refuses. Never run
+recover-r2 for those tags. Instead:
+
+- **The tag's `release.yml` already signs** (v1.1.0-rc.3, and any later 1.1 tag cut before
+  recover-r2 signed): re-run that tag's Release workflow `upload-r2` job, which signs. Use `gh run
+  rerun <run-id> --job <job-id>`, the job id being upload-r2's `databaseId` from `gh run view
+  <run-id> --json jobs`, and approve `release-signing` when it waits. GitHub re-runs a workflow
+  run only within 30 days of it.
+- **The tag predates signing entirely** (the 1.1 betas through v1.1.0-rc.2, and every 1.0.x):
+  nothing can republish it signed. Cut a new tag from a branch that signs.
 
 ## Troubleshooting
 
