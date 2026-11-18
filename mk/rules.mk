@@ -470,7 +470,7 @@ $(OBJ_DIR)/quirc/%.o: $(QUIRC_DIR)/%.c
 	$(call emit-compile-command,$(call QUIRC_COMPILE),$<,$@)
 
 # Compile Monocypher sources (vendored C library - use SUBMODULE_CFLAGS)
-$(OBJ_DIR)/monocypher/%.o: $(MONOCYPHER_DIR)/%.c
+$(OBJ_DIR)/monocypher/%.o: $(MONOCYPHER_DIR)/%.c $(ABI_STAMP) $(FLAGS_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 	$(Q)$(call MONOCYPHER_COMPILE) -c $< -o $@ || { \
