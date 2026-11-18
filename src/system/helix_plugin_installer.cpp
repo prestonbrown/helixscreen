@@ -812,7 +812,11 @@ std::string HelixPluginInstaller::get_install_script_path() const {
 
         // No exec-bit check: the script runs via /bin/sh, and a release
         // unpacked by Moonraker's zip extractor carries no unix modes.
-        return *canonical_path;
+        // A candidate already in normal form is returned as named: install.sh
+        // links the plugin by the path it runs from, and a firmware package's
+        // `latest` link in that path outlives the version dir an upgrade deletes.
+        // One with "." or ".." elements is returned resolved.
+        return hfs::lexically_normal(candidate) == candidate ? candidate : *canonical_path;
     }
 
     spdlog::warn("[PluginInstaller] install.sh not found below exe dir {}", exe_dir);

@@ -121,16 +121,16 @@ std::optional<std::string> firmware_package_root(Board board, const std::string&
     const auto entries = helix::fs::list_dir(rooted(probe_root, row.firmware_package_dir));
     if (!entries)
         return std::nullopt;
-    std::optional<std::string> via_link;
+    std::optional<std::string> real_dir;
     for (const auto& entry : *entries) {
         if (!entry.is_dir || !same_file(exe_st, entry.path + "/bin/helix-screen"))
             continue;
-        if (!helix::fs::is_symlink(entry.path))
+        if (helix::fs::is_symlink(entry.path))
             return entry.path;
-        if (!via_link)
-            via_link = entry.path;
+        if (!real_dir)
+            real_dir = entry.path;
     }
-    return via_link;
+    return real_dir;
 }
 
 bool firmware_manages_updates(Board board, const std::string& running_exe,

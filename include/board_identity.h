@@ -75,7 +75,9 @@ bool firmware_manages_updates(Board board, const std::string& running_exe = "/pr
 /// The version directory of @p board's firmware package that @p running_exe runs from:
 /// the subdirectory of firmware_package_dir whose `bin/helix-screen` is the same file
 /// (device and inode) as @p running_exe, so a launch through a bind mount over another
-/// path still names it. A real directory wins over a link to one (`latest`). nullopt
+/// path still names it. A link to it (`latest`) wins over the directory itself: the
+/// firmware re-points the link at each package version it installs, so a path through
+/// it outlives the version directory an upgrade deletes. nullopt
 /// when the board has no firmware package or @p running_exe is not one of its binaries.
 /// Paths probe under @p probe_root and come back with it prefixed.
 std::optional<std::string> firmware_package_root(Board board,

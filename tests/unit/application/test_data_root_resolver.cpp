@@ -402,7 +402,7 @@ TEST_CASE("resolve_install_root finds a PAXX package launched through its bind m
 
     // /usr/bin/gui strips to /usr, which is no install tree; the package dir is.
     CHECK(helix::resolve_install_root(gui.string(), tree.root) ==
-          tree.root + "/oem/apps/helixscreen/1.1.0");
+          tree.root + "/oem/apps/helixscreen/latest");
 }
 
 TEST_CASE("resolve_install_root keeps an install found from the exe path",
