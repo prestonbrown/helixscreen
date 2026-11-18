@@ -2318,6 +2318,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера.'
   Linear rails: 'Линейные направляющие'
   Linear rails interval: 'Интервал линейных направляющих'
+  Lines from other apps mix with tips: 'Строки из других приложений чередуются с советами'
+  Lines from other apps replace tips: 'Строки из других приложений заменяют советы'
   Link Spools from Tags: 'Привязывать катушки по меткам'
   Link a slot to the Spoolman spool its tag names: 'Привязывать слот к катушке Spoolman, указанной в его метке'
   List the shared screen with this printer's webcams: 'Показывать общий экран среди веб-камер этого принтера'

@@ -50,6 +50,28 @@ TEST_CASE("featured_tip: freshness", "[featured_tip]") {
     CHECK(featured_tip::is_fresh(tip, 1e12));
 }
 
+TEST_CASE("featured_tip: lines replace the tips unless the tile says otherwise",
+          "[featured_tip]") {
+    CHECK(featured_tip::featured_only(nlohmann::json()));
+    CHECK(featured_tip::featured_only(nlohmann::json::object()));
+    CHECK(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": true})")));
+    CHECK_FALSE(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": false})")));
+    CHECK(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": "no"})")));
+}
+
+TEST_CASE("featured_tip: replacing the tips, a line stays current for a week", "[featured_tip]") {
+    CHECK(featured_tip::max_age_seconds(false) == featured_tip::kMaxAgeSeconds);
+    CHECK(featured_tip::max_age_seconds(true) == featured_tip::kReplaceMaxAgeSeconds);
+    CHECK(featured_tip::kReplaceMaxAgeSeconds == 7.0 * 24 * 3600);
+
+    const featured_tip::FeaturedTip tip{"x", "t", "", "", 1000.0};
+    const double week = featured_tip::max_age_seconds(true);
+    CHECK(featured_tip::is_fresh(tip, 1000.0 + 3600.0, week)); // an hour on: mixed would skip it
+    CHECK_FALSE(featured_tip::is_fresh(tip, 1000.0 + 3600.0));
+    CHECK(featured_tip::is_fresh(tip, 1000.0 + week, week));
+    CHECK_FALSE(featured_tip::is_fresh(tip, 1000.0 + week + 1.0, week));
+}
+
 TEST_CASE("featured_tip: the tile shows the line, the tap shows it with its details",
           "[featured_tip]") {
     const featured_tip::FeaturedTip tip{"a1", "These go to eleven.", "This Is Spinal Tap (1984).",

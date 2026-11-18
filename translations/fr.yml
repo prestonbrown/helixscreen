@@ -2266,6 +2266,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'La ligne {} appelle {}, que cette imprimante traite comme un arrêt d''urgence. Retranchez le fichier avec un profil conçu pour cette imprimante.'
   Linear rails: 'Rails linéaires'
   Linear rails interval: 'Intervalle des rails linéaires'
+  Lines from other apps mix with tips: 'Les lignes d''autres applis s''ajoutent aux astuces'
+  Lines from other apps replace tips: 'Les lignes d''autres applis remplacent les astuces'
   Link Spools from Tags: 'Lier les bobines par étiquette'
   Link a slot to the Spoolman spool its tag names: 'Lier un slot à la bobine Spoolman indiquée par son étiquette'
   List the shared screen with this printer's webcams: 'Lister l''écran partagé parmi les webcams de cette imprimante'

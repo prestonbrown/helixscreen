@@ -2254,6 +2254,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。'
   Linear rails: 'リニアレール'
   Linear rails interval: 'リニアレールの間隔'
+  Lines from other apps mix with tips: '他のアプリからの一言をヒントに混ぜて表示'
+  Lines from other apps replace tips: '他のアプリからの一言をヒントの代わりに表示'
   Link Spools from Tags: 'タグからスプールをリンク'
   Link a slot to the Spoolman spool its tag names: 'タグが示す Spoolman スプールにスロットをリンク'
   List the shared screen with this printer's webcams: '共有画面をこのプリンターのウェブカメラ一覧に表示'

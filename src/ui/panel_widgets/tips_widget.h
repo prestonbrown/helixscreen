@@ -22,6 +22,12 @@ class TipsWidget : public PanelWidget {
     void on_activate() override;
     void on_deactivate() override;
     void on_size_changed(int colspan, int rowspan, int width_px, int height_px) override;
+    void set_config(const nlohmann::json& config) override;
+    bool has_edit_configure() const override {
+        return true;
+    }
+    /// Flips whether featured lines replace the tips, saves it and asks for a rebuild.
+    bool on_edit_configure() override;
     /// Refuses a width whose title column cannot hold the widest unbreakable run of any tip title.
     bool fits_at(int width_px, int height_px) const override;
     const char* id() const override {
@@ -50,11 +56,15 @@ class TipsWidget : public PanelWidget {
     lv_timer_t* featured_poll_timer_ = nullptr;
     helix::AsyncLifetimeGuard lifetime_;
 
+    // Featured lines replace the tips while one is current (featured_tip.h)
+    bool featured_only_ = true;
+
     // Tip logic
     void update_tip_of_day();
     void show_tip(const PrintingTip& tip);
     void poll_featured_tip();
     void apply_featured_tip(const nlohmann::json& value);
+    void drop_featured_tip();
     void stop_timers();
     void start_tip_fade_transition(const PrintingTip& new_tip);
     void apply_pending_tip();

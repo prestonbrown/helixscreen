@@ -2254,6 +2254,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'La línea {} llama a {}, que esta impresora trata como una parada de emergencia. Vuelva a laminar el archivo con un perfil hecho para esta impresora.'
   Linear rails: 'Rieles lineales'
   Linear rails interval: 'Intervalo de los rieles lineales'
+  Lines from other apps mix with tips: 'Las líneas de otras apps se mezclan con los consejos'
+  Lines from other apps replace tips: 'Las líneas de otras apps reemplazan los consejos'
   Link Spools from Tags: 'Vincular bobinas por etiqueta'
   Link a slot to the Spoolman spool its tag names: 'Vincula una ranura a la bobina de Spoolman que indica su etiqueta'
   List the shared screen with this printer's webcams: 'Incluir la pantalla compartida entre las cámaras web de esta impresora'

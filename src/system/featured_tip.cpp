@@ -22,8 +22,20 @@ std::optional<FeaturedTip> parse(const nlohmann::json& value) {
     return tip;
 }
 
-bool is_fresh(const FeaturedTip& tip, double now_s) {
-    return tip.posted_at <= 0.0 || now_s - tip.posted_at <= kMaxAgeSeconds;
+bool featured_only(const nlohmann::json& config) {
+    if (!config.is_object() || !config.contains(kConfigFeaturedOnly)) {
+        return true;
+    }
+    const auto& value = config[kConfigFeaturedOnly];
+    return !value.is_boolean() || value.get<bool>();
+}
+
+double max_age_seconds(bool featured_only) {
+    return featured_only ? kReplaceMaxAgeSeconds : kMaxAgeSeconds;
+}
+
+bool is_fresh(const FeaturedTip& tip, double now_s, double max_age_s) {
+    return tip.posted_at <= 0.0 || now_s - tip.posted_at <= max_age_s;
 }
 
 PrintingTip to_printing_tip(const FeaturedTip& tip) {

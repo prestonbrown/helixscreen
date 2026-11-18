@@ -7,6 +7,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
+#include "ui_toast_manager.h"
 
 #include "app_globals.h"
 #include "core/subject.h"
@@ -48,14 +49,30 @@ static constexpr uint32_t kFeaturedPollIntervalMs = 15000;
 // recycled widget does not show it again.
 static std::string s_last_featured_id;
 
-// The featured line on screen and when it went up. It holds the tile for one
-// rotation interval, across a grid rebuild that recycles the widget.
+// The featured line on screen, when it was posted and when it went up. Shared
+// so it holds the tile across a grid rebuild that recycles the widget.
 static helix::PrintingTip s_featured_tip;
+static double s_featured_posted_at = 0.0;
 static uint32_t s_featured_shown_at = 0;
 
-static bool featured_tip_on_screen() {
-    return !s_featured_tip.title.empty() &&
-           lv_tick_elaps(s_featured_shown_at) < kTipRotationIntervalMs;
+static double unix_now_s() {
+    return std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+/// Whether the featured line keeps the tile from the tips: while it is current
+/// when it replaces them, else for one rotation interval.
+static bool featured_tip_holds_tile(bool featured_only) {
+    if (s_featured_tip.title.empty()) {
+        return false;
+    }
+    if (featured_only) {
+        helix::featured_tip::FeaturedTip age_only;
+        age_only.posted_at = s_featured_posted_at;
+        return helix::featured_tip::is_fresh(age_only, unix_now_s(),
+                                             helix::featured_tip::kReplaceMaxAgeSeconds);
+    }
+    return lv_tick_elaps(s_featured_shown_at) < kTipRotationIntervalMs;
 }
 
 // Subject owned by TipsWidget module — created before XML bindings resolve
@@ -274,9 +291,28 @@ bool TipsWidget::fits_at(int width_px, int /*height_px*/) const {
     return width_px - chrome >= widest_title_run_px(text_font);
 }
 
+void TipsWidget::set_config(const nlohmann::json& config) {
+    featured_only_ = featured_tip::featured_only(config);
+}
+
+bool TipsWidget::on_edit_configure() {
+    featured_only_ = !featured_only_;
+    nlohmann::json config = nlohmann::json::object();
+    config[featured_tip::kConfigFeaturedOnly] = featured_only_;
+    save_widget_config(config);
+    spdlog::info("[TipsWidget] Featured lines {} tips", featured_only_ ? "replace" : "mix with");
+    ToastManager::instance().show(ToastSeverity::INFO,
+                                  featured_only_ ? lv_tr("Lines from other apps replace tips")
+                                                 : lv_tr("Lines from other apps mix with tips"));
+    return true;
+}
+
 void TipsWidget::update_tip_of_day() {
-    if (featured_tip_on_screen()) {
-        show_tip(s_featured_tip);
+    if (featured_tip_holds_tile(featured_only_)) {
+        // Already up: a rotation does not fade the same line out and back in.
+        if (current_tip_.id != s_featured_tip.id || tip_animating_) {
+            show_tip(s_featured_tip);
+        }
         return;
     }
     // Tip selection allocates on the heap; on memory-constrained ARM devices
@@ -323,11 +359,15 @@ void TipsWidget::poll_featured_tip() {
                                            [this](const nlohmann::json& value) {
                                                apply_featured_tip(value);
                                            }),
-                           // No featured line yet: Moonraker answers a missing key
-                           // with an error, which is the normal state.
-                           [](const MoonrakerError& err) {
-                               spdlog::trace("[TipsWidget] No featured tip: {}", err.message);
-                           });
+                           // No featured line: Moonraker answers a missing key with an
+                           // error, which is the normal state without a writer, and
+                           // after a switch to a printer that has none.
+                           lifetime_.bg_cb("TipsWidget::featured_tip_missing",
+                                           [this](const MoonrakerError& err) {
+                                               spdlog::trace("[TipsWidget] No featured tip: {}",
+                                                             err.message);
+                                               drop_featured_tip();
+                                           }));
 }
 
 void TipsWidget::apply_featured_tip(const nlohmann::json& value) {
@@ -336,21 +376,33 @@ void TipsWidget::apply_featured_tip(const nlohmann::json& value) {
         return;
     }
     s_last_featured_id = featured->id;
-    const double now_s = std::chrono::duration<double>(
-                             std::chrono::system_clock::now().time_since_epoch())
-                             .count();
-    if (!featured_tip::is_fresh(*featured, now_s)) {
+    if (!featured_tip::is_fresh(*featured, unix_now_s(),
+                                featured_tip::max_age_seconds(featured_only_))) {
         spdlog::debug("[TipsWidget] Skipping stale featured tip {}", featured->id);
         return;
     }
     spdlog::info("[TipsWidget] Showing featured tip from {}", featured->source);
     s_featured_tip = featured_tip::to_printing_tip(*featured);
+    s_featured_posted_at = featured->posted_at;
     s_featured_shown_at = lv_tick_get();
     show_tip(s_featured_tip);
     // The featured line gets a full rotation interval before the next tip.
     if (tip_rotation_timer_) {
         lv_timer_reset(tip_rotation_timer_);
     }
+}
+
+void TipsWidget::drop_featured_tip() {
+    // Mixed in, a line leaves on its own after one rotation. Replacing the
+    // tips, it would stay up with no record behind it, so the tips come back
+    // at the next rotation, and a record that reappears shows again.
+    if (!featured_only_ || s_featured_tip.title.empty()) {
+        return;
+    }
+    spdlog::debug("[TipsWidget] Featured tip gone, back to tips");
+    s_featured_tip = PrintingTip{};
+    s_featured_posted_at = 0.0;
+    s_last_featured_id.clear();
 }
 
 void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
