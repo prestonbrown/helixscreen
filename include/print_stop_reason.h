@@ -19,7 +19,10 @@
 // `M117 Paused by <source>: <reason>`; display_status.message is already
 // subscribed. The announcement explains a pause it arrived shortly before (or
 // just after), so a stale one left up by an earlier pause never explains a
-// user's own.
+// user's own; text from a subscription response has no arrival time and never
+// counts. Klipper publishes display_status as changes only, so an announcement
+// that a pause macro's M117 replaces within one status batch, or one repeating
+// text still shown, never reaches the screen.
 //
 // Compiled into the ESP32 firmware: no exceptions, no RTTI.
 

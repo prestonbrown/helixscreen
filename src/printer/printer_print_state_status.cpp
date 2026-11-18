@@ -472,6 +472,8 @@ void PrinterPrintState::apply_display_status(const nlohmann::json& status, bool 
         const char* msg = message->is_string() ? message->get_ref<const std::string&>().c_str()
                                                : ""; // null or non-string clears the message
         if (strcmp(lv_subject_get_string(&display_message_), msg) != 0) {
+            // Set before the subject so its observers read this frame's provenance.
+            display_message_from_snapshot_ = whole_objects;
             lv_subject_set_string(&display_message_, msg);
         }
         update_display_message_visible();

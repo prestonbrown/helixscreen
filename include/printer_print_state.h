@@ -736,6 +736,13 @@ class PrinterPrintState {
         return &display_message_;
     }
 
+    /// True when the shown display message came from a subscription response
+    /// rather than a live update: Klipper keeps an M117 until the job ends, so
+    /// such text may have been set at any time before the screen connected.
+    [[nodiscard]] bool display_message_from_snapshot() const {
+        return display_message_from_snapshot_;
+    }
+
     /// 1 when display_message is non-empty, 0 when empty (for XML visibility binding)
     lv_subject_t* get_display_message_visible_subject() {
         return &display_message_visible_;
@@ -1548,6 +1555,7 @@ class PrinterPrintState {
     helix::Subject display_message_{};         // String subject for UI binding
     helix::Subject display_message_visible_{}; // Integer: 1 when non-empty, 0 when empty
     char display_message_buf_[128]{};          // Buffer for message storage
+    bool display_message_from_snapshot_ = false;
 
     // print_stats.message from Klipper (set by firmware on pause/error to describe reason)
     helix::Subject print_message_{}; // String: e.g. "Filament Sensor: Runout Detected"
