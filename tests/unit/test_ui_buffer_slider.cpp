@@ -80,7 +80,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider follows the system-level readi
     info.sync_feedback_bias = -0.45f;
     AmsStateTestAccess::sync_buffer(ams, info, 0);
     CHECK(slider.bias() == Catch::Approx(-0.45f));
-    CHECK(slider.status() == ClogMeterStatus::Warning);
+    CHECK(slider.status() == ClogMeterStatus::Ok); // off center is normal operation
 
     AmsStateTestAccess::sync_buffer(ams, AmsSystemInfo{}, 0);
     CHECK(slider.bias() == Catch::Approx(0.0f));
@@ -155,7 +155,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "UiBufferSlider follows a system-level fill re
     CHECK(slider.gauge() == BufferGauge::Fill);
     CHECK(slider.value_pct() == 97);
     CHECK(slider.target_pct() == 50);
-    CHECK(slider.status() == ClogMeterStatus::Fault);
+    CHECK(slider.status() == ClogMeterStatus::Warning);
     CHECK(slider.bias() == 0.0f);
 
     SECTION("and back to a bias reading") {

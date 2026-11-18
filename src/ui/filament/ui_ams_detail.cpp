@@ -1416,6 +1416,7 @@ BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) 
         if (box.fault == 0) {
             box.fault = -1; // regulating: nothing to color
         }
+        box.bias = buffer_position(reading);
     } else if (reading.has_slider) {
         box.bias = reading.bias;
         box.fault = std::max(box.fault, static_cast<int>(reading.status));

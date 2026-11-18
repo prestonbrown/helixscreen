@@ -22,6 +22,7 @@
 #include "display_settings_manager.h"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -107,7 +108,8 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
     REQUIRE(backend_->get_current_slot() == 1);
     REQUIRE(lv_obj_is_clickable(card));
 
-    // A press anywhere on the card lands on the card, not on a child that eats it.
+    // A press anywhere on the card lands on the card, not on a child that eats it. The buffer
+    // meter is the one exception: it takes its own taps, for the buffer's detail.
     lv_obj_update_layout(card);
     std::vector<lv_obj_t*> pending{card};
     while (!pending.empty()) {
@@ -118,11 +120,16 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
             if (lv_obj_is_hidden(child)) {
                 continue;
             }
-            pending.push_back(child);
             lv_area_t a;
             lv_obj_get_coords(child, &a);
             lv_point_t centre{(a.x1 + a.x2) / 2, (a.y1 + a.y2) / 2};
-            INFO((lv_obj_get_name(child) ? lv_obj_get_name(child) : "(unnamed)"));
+            const char* name = lv_obj_get_name(child);
+            INFO((name ? name : "(unnamed)"));
+            if (name && std::string(name) == "buffer_mini") {
+                CHECK(lv_indev_search_obj(card, &centre) == child);
+                continue;
+            }
+            pending.push_back(child);
             CHECK(lv_indev_search_obj(card, &centre) == card);
         }
     }

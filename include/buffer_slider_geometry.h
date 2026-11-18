@@ -28,9 +28,9 @@ struct BufferSliderGeometry {
     int strand_w = 0;
     BufferBox housing; ///< Full width; the strand runs out past both ends
     int housing_radius = 0;
-    BufferBox danger_top;    ///< Loose end stop: block centres past +kPressureFaultPct
-    BufferBox danger_bottom; ///< Tight end stop: block centres past -kPressureFaultPct
-    /// Dashed window: the block lies inside it while under kPressureWarningPct.
+    BufferBox danger_top;    ///< Loose end stop: block centres past +kBufferEndStopPct
+    BufferBox danger_bottom; ///< Tight end stop: block centres past -kBufferEndStopPct
+    /// Dashed window: the block lies inside it while under kBufferTargetWindowPct.
     BufferBox target;
     BufferBox block;
     int radius = 0; ///< End stops, window and block

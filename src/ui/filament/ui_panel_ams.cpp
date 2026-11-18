@@ -330,7 +330,7 @@ void AmsPanel::init_subjects() {
         observe<int>(AmsState::instance().get_path_topology_subject(), this, path_handler,
                      AmsState::instance().get_subjects_lifetime());
 
-    // The path canvas's buffer box follows the buffer reading while the panel is open.
+    // The path canvas's buffer control follows the buffer reading while the panel is open.
     auto& ams_state = AmsState::instance();
     buffer_present_observer_ = observe<int>(ams_state.get_buffer_present_subject(), this,
                                             path_handler, ams_state.get_subjects_lifetime());

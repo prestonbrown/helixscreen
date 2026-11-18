@@ -311,7 +311,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     plan_linear_hub(f, *data, ctx.geo, plan); // routes + span styles + sensor bands
     paint_tubes(layer, plan, palette);        // halo -> walls -> bores -> bands
     draw_hub_section(ctx, f);                 // hub/selector box (records hits.hub)
-    // then, below the hub: buffer box (hits.buffer), hits.bypass, nozzle glyph,
+    // then, below the hub: buffer tension control (hits.buffer), hits.bypass, nozzle glyph,
     // and path_cache = filled_prefix(plan.routes[plan.active_route])
 }
 ```
@@ -342,6 +342,18 @@ vertical drops, as at the micro breakpoint). With three or more lanes it first
 borrows unused output-run height by lowering the hub. With the bypass hidden,
 the hub and buffer stack above the toolhead glyph (`glyph_top` is
 `toolhead_top_y()`), and the toolhead band sits in the gap above the glyph.
+
+**The buffer on the trunk.** A unit with a buffer carries its tension control on the
+trunk's final vertical drop, never on a sideways run. `place_under_unit()` in
+`compute_linear_hub_frame()` is the one rule for a hub and a selector (bar or rail art):
+under the unit's outlet the buffer stands centered with a band's room (2r) above and below
+it, then the bypass merges and the toolhead band sits in the clear room above the head. A
+selector's exit stands under the active lane, so its filament jogs to the center first: the
+selector keeps two radii more for the jog and the buffer stands below it. Where that room is
+short, the hub or selector rises toward the lanes (the bar's prep sensors toward the box
+edge, the rail art toward the lanes' fan room); only a canvas too short for that draws a
+smaller head. The control is `buffer_control_height(hub_h)` tall: the capsule
+(`buffer_capsule_height()`) and its thumb.
 
 `src/ui/filament/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
 `draw_sensor_band`, so `[filament-path][plan]` tests it without a display.
@@ -426,9 +438,9 @@ decides the layout, and `ams_detail_setup_path_canvas()` applies it:
 PARALLEL and MIXED keep their own drawings. The hub box carries an output sensor band
 only when the backend reports a hub sensor (`add_hub_output_band`). Head-on art that
 finds no room above the hub's place takes the selector's slot and hangs the hub below it,
-clear of the bypass merge, and the buffer's reading moves to the hub's outlet band
-(`LinearHubFrame::sync_on_output`), as it does for a rail. Where neither fits, the hub box
-draws without the art.
+clear of the bypass merge. The buffer keeps its place under the hub where the room is
+there; otherwise its reading moves to the hub's outlet band
+(`LinearHubFrame::sync_on_output`). Where neither fits, the hub box draws without the art.
 
 Per-slot render state (color, segment, mounted-ness, at-sensor, at-nozzle) is
 derived once into `SlotRenderStates` by `compute_slot_render_states()` and read
@@ -647,7 +659,7 @@ run without a display and assert exact arc tangents and lane separation.
 | `src/ui/filament/ui_filament_path_layers.cpp` | Canvas/buffer management, dirty flags, async refresh, size-change handling, teardown |
 | `src/ui/filament/ui_filament_path_topology.cpp` | The three topology renderers + phase functions + DRAW_POST `render_animation_overlay()` |
 | `src/ui/filament/ui_filament_path_plan.h`, `.cpp` | LINEAR/HUB and MIXED frames, route plans for all three topologies, span styles, sensor bands, layered `paint_tubes()` |
-| `src/ui/filament/ui_filament_path_glyphs.cpp` | Hub box, buffer coil, filament tip, nozzle, toolhead, badges |
+| `src/ui/filament/ui_filament_path_glyphs.cpp` | Hub box, buffer tension control, filament tip, nozzle, toolhead, badges |
 | `include/ui_toolhead_badge.h`, `src/ui/filament/ui_toolhead_badge.cpp` | Toolhead glyph bounds per style, the tool badge's look and corner rect |
 | `src/ui/filament/ui_filament_path_anim.cpp` | The five `lv_anim`-driven animation systems |
 | `src/ui/filament/ui_system_path_plan.h`, `.cpp` | AMS overview state, layout and `plan_overview()` onto the shared route plan |

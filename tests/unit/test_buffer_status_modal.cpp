@@ -266,7 +266,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC with buffer he
     modal.populate(info, 0);
 
     REQUIRE(modal.type_value() == 2);
-    REQUIRE(modal.show_meter_value() == 0);
+    REQUIRE(modal.show_meter_value() == 1); // a switched buffer's three places
     REQUIRE(std::string(modal.buffer_state_value()) == "Feeding filament forward");
     REQUIRE(modal.show_distance_value() == 1);
 }
@@ -457,10 +457,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal draws the meter for an AFC 
     auto info = make_afc_info();
     auto& bh = *info.units[0].buffer_health;
 
-    SECTION("switched TurtleNeck: state rows only") {
+    SECTION("switched TurtleNeck: the meter snapped to its place, its state in the rows") {
         modal.populate(info, 0);
         CHECK(modal.type_value() == 2);
-        CHECK(modal.show_meter_value() == 0);
+        CHECK(modal.show_meter_value() == 1);
         CHECK(std::string(modal.description_value()).empty());
     }
 
@@ -492,12 +492,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(std::string(modal.description_value()) == "Running tight");
     }
 
-    SECTION("AFC switched buffer: its rows still read") {
+    SECTION("AFC switched buffer: its rows still read, beside its reading") {
         auto info = make_afc_info();
         modal.populate(info, -1);
         CHECK(modal.type_value() == 2);
         CHECK(std::string(modal.buffer_state_value()) == "Feeding filament forward");
-        CHECK(modal.show_reading_value() == 0);
+        CHECK(modal.show_reading_value() == 1);
     }
 }
 

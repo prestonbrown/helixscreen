@@ -28,6 +28,7 @@
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "buffer_status_modal.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
@@ -396,6 +397,7 @@ void AmsOperationSidebar::register_callbacks_static() {
          }},
         {"ams_sidebar_settings_clicked", on_settings_clicked_cb},
         {"ams_sidebar_cancel_clicked", [](lv_event_t*) { helix::ui::abort_ams_operation(); }},
+        {"ams_sidebar_buffer_clicked", [](lv_event_t*) { BufferStatusModal::show_for(-1); }},
         {"ams_sidebar_loaded_card_clicked",
          [](lv_event_t* e) {
              if (auto* self = from_event(e)) {

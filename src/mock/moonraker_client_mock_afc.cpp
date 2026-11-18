@@ -141,6 +141,19 @@ void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) 
     }
 }
 
+namespace {
+// The TurtleNeck's state: HELIX_MOCK_BUFFER_STATE picks neutral, advancing or trailing.
+const char* mock_turtleneck_state() {
+    const char* env = std::getenv("HELIX_MOCK_BUFFER_STATE");
+    const std::string v = env ? env : "";
+    if (v == "neutral")
+        return "Neutral";
+    if (v == "advancing")
+        return "Advancing";
+    return "Trailing";
+}
+} // namespace
+
 nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
     const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
     const char* const kUnit = unit.name;
@@ -243,7 +256,7 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
                                                    {"fault_detection_enabled", false},
                                                    {"distance_to_fault", nullptr},
                                                    {"lanes", names},
-                                                   {"state", "Trailing"}};
+                                                   {"state", mock_turtleneck_state()}};
     }
     out["AFC_extruder extruder"] = {{"buffer", nullptr},
                                     {"lane_loaded", loaded_lane},

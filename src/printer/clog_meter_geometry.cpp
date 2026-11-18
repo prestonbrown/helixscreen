@@ -101,24 +101,13 @@ bool clog_meter_is_symmetrical(int mode) {
 }
 
 ClogMeterStatus pressure_status(int pct) {
-    const int magnitude = std::abs(pct);
-    if (magnitude >= kPressureFaultPct) {
-        return ClogMeterStatus::Fault;
-    }
-    if (magnitude >= kPressureWarningPct) {
-        return ClogMeterStatus::Warning;
-    }
-    return ClogMeterStatus::Ok;
+    return std::abs(pct) >= kBufferEndStopPct ? ClogMeterStatus::Warning : ClogMeterStatus::Ok;
 }
 
 ClogMeterStatus fill_pressure_status(int pct, bool loaded) {
-    if (pct >= kPressureFullFaultPct) {
-        return ClogMeterStatus::Fault;
-    }
-    if (pct >= kPressureFullWarningPct || (loaded && pct <= kPressureEmptyWarningPct)) {
-        return ClogMeterStatus::Warning;
-    }
-    return ClogMeterStatus::Ok;
+    const bool full = pct >= kBufferEndStopPct;
+    const bool empty = loaded && pct <= 100 - kBufferEndStopPct;
+    return full || empty ? ClogMeterStatus::Warning : ClogMeterStatus::Ok;
 }
 
 PressureTargetSide pressure_target_side(int pct, int target_pct) {

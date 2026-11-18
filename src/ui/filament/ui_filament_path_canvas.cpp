@@ -287,14 +287,12 @@ static void filament_path_click_cb(lv_event_t* e) {
         }
     }
 
-    // Check if buffer coil was clicked. The renderer records the exact drawn
-    // box in data->hits.buffer; reading it avoids
-    // re-deriving the clamped box dimensions and slot-midpoint center_x.
-    // buffer_valid is set only when the box was actually drawn this pass.
+    // The buffer's tension control, or the outlet band standing in for it. The renderer
+    // records the drawn area in data->hits.buffer, valid only when drawn this pass.
     if (data->buffer_present && data->buffer_callback && data->hits.buffer_valid) {
         if (helix::ui::recorded_box_hit(point, data->hits.buffer, data->hits.origin, {x_off, y_off},
                                         4)) {
-            spdlog::debug("[FilamentPath] Buffer coil clicked");
+            spdlog::debug("[FilamentPath] Buffer control clicked");
             data->buffer_callback(data->buffer_user_data);
             return;
         }

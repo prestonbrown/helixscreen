@@ -601,21 +601,23 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     }
 }
 
-// Buffer (TurtleNeck / eSpooler) "BUF" box over the trunk, plus its recorded
-// hit rect. Mirrors draw_buffer_coil()'s internal clamping so the click
-// handler never re-derives the geometry.
-void record_buffer_hit(FilamentPathData* data, const LinearHubFrame& f, int32_t cx, int32_t cy) {
-    const int32_t buf_hit_w = LV_MAX(36, data->theme.hub_width * 4 / 5);
-    const int32_t buf_hit_h = LV_MAX(16, f.hub_h);
-    data->hits.buffer = {cx - buf_hit_w / 2, cy - buf_hit_h / 2, cx + buf_hit_w / 2,
-                         cy + buf_hit_h / 2};
+// A tap on the hub's outlet band opens the buffer detail when the band stands in for a buffer
+// the trunk has no room for.
+void record_outlet_buffer_hit(FilamentPathData* data, const LinearHubFrame& f) {
+    const int32_t w = LV_MAX(36, data->theme.hub_width * 4 / 5);
+    const int32_t h = LV_MAX(16, f.hub_h);
+    data->hits.buffer = {f.output_x - w / 2, f.output_y - h / 2, f.output_x + w / 2,
+                         f.output_y + h / 2};
     data->hits.buffer_valid = true;
 }
 
-void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f, const PathPlan& plan) {
-    draw_buffer_coil(ctx, f.center_x, f.buffer_y, f.hub_h, plan.buffer_has_filament,
-                     plan.buffer_fill);
-    record_buffer_hit(ctx.data, f, f.center_x, f.buffer_y);
+// The buffer's tension control where the planner placed it, on the trunk's final drop, sized
+// from the hub chip so the two read as one family.
+void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f) {
+    lv_area_t hit{};
+    draw_buffer_tension(ctx, f.center_x, f.buffer_y, buffer_capsule_height(f.hub_h), &hit);
+    ctx.data->hits.buffer = hit;
+    ctx.data->hits.buffer_valid = true;
 }
 
 // Bypass spool hit region (absolute coords). The spool is a sibling widget,
@@ -687,9 +689,9 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     draw_hub_section(ctx, f);
     if (feeds && f.has_buffer)
-        draw_buffer_section(ctx, f, plan);
+        draw_buffer_section(ctx, f);
     else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer
-        record_buffer_hit(data, f, f.output_x, f.output_y);
+        record_outlet_buffer_hit(data, f);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);
     if (feeds && data->show_bypass)

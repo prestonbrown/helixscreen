@@ -348,6 +348,7 @@ translations:
   Adjustments stay active until restart. Save after print completes.: Настройки активны до перезагрузки. Сохраните после завершения печати.
   Adjusts individual characteristics of your heaters for optimal control: Настраивает индивидуальные характеристики нагревателей для оптимального контроля
   Advanced: Дополнительно
+  Advancing: ''
   After an error: После ошибки
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати.'
   After running the commands, tap Check Again below.: После выполнения команд нажмите «Проверить снова» ниже.
@@ -931,6 +932,7 @@ translations:
   Completed {}d ago: 'Завершено {} дн назад'
   Completed {}h ago: 'Завершено {} ч назад'
   Completed {}m ago: 'Завершено {} мин назад'
+  Compressed: ''
   Computing calibration...: Вычисление калибровки...
   Config Dir: Директория конфигурации
   Config Edit Failed: 'Не удалось изменить конфигурацию'
@@ -1486,6 +1488,7 @@ translations:
   Exhaust fan speed: 'Скорость вытяжного вентилятора'
   'Exhaust: keep chamber at or below': 'Вытяжка: держать камеру не выше'
   Exit Code: Код выхода
+  Expanded: ''
   Expected boolean: 'Ожидалось логическое значение'
   Expected float: 'Ожидалось дробное число'
   Explore how the selected palette shapes text, controls, and status colors.: Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса.
@@ -4641,6 +4644,7 @@ translations:
   TouchCalibration: Калибровка касания
   Trace: Трассировка
   Trigger: Триггер
+  Trailing: ''
   'Tried ports {} and {}.': "Проверены порты {} и {}."
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры

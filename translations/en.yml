@@ -301,6 +301,7 @@ translations:
   Adjustments stay active until restart. Save after print completes.: Adjustments stay active until restart. Save after print completes.
   Adjusts individual characteristics of your heaters for optimal control: Adjusts individual characteristics of your heaters for optimal control
   Advanced: Advanced
+  Advancing: Advancing
   After an error: After an error
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: After connecting the {}, we recommend recalibrating input shaping to ensure print quality.
   After running the commands, tap Check Again below.: After running the commands, tap Check Again below.
@@ -870,6 +871,7 @@ translations:
   Completed {}d ago: Completed {}d ago
   Completed {}h ago: Completed {}h ago
   Completed {}m ago: Completed {}m ago
+  Compressed: Compressed
   Computing calibration...: Computing calibration...
   Config Dir: Config Dir
   Config Edit Failed: Config Edit Failed
@@ -1415,6 +1417,7 @@ translations:
   Exhaust fan speed: Exhaust fan speed
   'Exhaust: keep chamber at or below': 'Exhaust: keep chamber at or below'
   Exit Code: Exit Code
+  Expanded: Expanded
   Expected boolean: Expected boolean
   Expected float: Expected float
   Explore how the selected palette shapes text, controls, and status colors.: Explore how the selected palette shapes text, controls, and status colors.
@@ -4522,6 +4525,7 @@ translations:
   TouchCalibration: TouchCalibration
   Trace: Trace
   Trigger: Trigger
+  Trailing: Trailing
   'Tried ports {} and {}.': 'Tried ports {} and {}.'
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters

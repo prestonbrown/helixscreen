@@ -85,7 +85,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Buffer Status modal follows the backend whi
     ui::UpdateQueue::instance().drain();
 
     REQUIRE(subject_int("buf_type") == 3);
-    CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Warning));
+    CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Ok));
     CHECK(subject_text("buf_value") == "FPS 32%");
     CHECK(subject_text("buf_target") == "target 50%");
     CHECK(subject_text("buf_description") == "Running tight");
@@ -182,10 +182,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(subject_text("buf_description") == "Above target");
         CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Ok));
     }
-    SECTION("near full is a fault") {
+    SECTION("near full is a warning, never a fault") {
         set_compression_only(*mock, 0.97f);
         land_backend_update();
-        CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Fault));
+        CHECK(subject_int("buf_status") == static_cast<int>(ui::ClogMeterStatus::Warning));
     }
     SECTION("no set point: the pressure alone, still a gauge") {
         set_compression_only(*mock, 0.53f, -1.0f);

@@ -286,6 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." en="Adjustments stay active until restart. Save after print completes."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" en="Adjusts individual characteristics of your heaters for optimal control"/>
   <translation tag="Advanced" en="Advanced"/>
+  <translation tag="Advancing" en="Advancing"/>
   <translation tag="After an error" en="After an error"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." en="After connecting the {}, we recommend recalibrating input shaping to ensure print quality."/>
   <translation tag="After running the commands, tap Check Again below." en="After running the commands, tap Check Again below."/>
@@ -849,6 +850,7 @@
   <translation tag="Completed {}h ago" en="Completed {}h ago"/>
   <translation tag="Completed {}m ago" en="Completed {}m ago"/>
   <translation tag="Completed: {}" en="Completed: {}"/>
+  <translation tag="Compressed" en="Compressed"/>
   <translation tag="Computing calibration..." en="Computing calibration..."/>
   <translation tag="Config Dir" en="Config Dir"/>
   <translation tag="Config Edit Failed" en="Config Edit Failed"/>
@@ -1363,6 +1365,7 @@
   <translation tag="Exhaust fan speed" en="Exhaust fan speed"/>
   <translation tag="Exhaust: keep chamber at or below" en="Exhaust: keep chamber at or below"/>
   <translation tag="Exit Code" en="Exit Code"/>
+  <translation tag="Expanded" en="Expanded"/>
   <translation tag="Expected boolean" en="Expected boolean"/>
   <translation tag="Expected float" en="Expected float"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." en="Explore how the selected palette shapes text, controls, and status colors."/>
@@ -4407,6 +4410,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" en="Touch the target (point %1$d of 3) — touch %2$d of %3$d"/>
   <translation tag="TouchCalibration" en="TouchCalibration"/>
   <translation tag="Trace" en="Trace"/>
+  <translation tag="Trailing" en="Trailing"/>
   <translation tag="Tried ports {} and {}." en="Tried ports {} and {}."/>
   <translation tag="Trigger" en="Trigger"/>
   <translation tag="Troubleshooting:" en="Troubleshooting:"/>

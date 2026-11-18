@@ -16,8 +16,20 @@ namespace helix {
 BufferReading buffer_reading(const AmsSystemInfo& info, int unit) {
     BufferReading r;
     const AmsUnit* own = info.get_unit(unit);
+    // A switched buffer reports three positions; the scale snaps to them.
+    const auto switched = [&r](const BufferHealth& h, int u) {
+        r.source = BufferSource::Switch;
+        r.unit = u;
+        r.has_slider = true;
+        r.bias = h.motion == BufferMotion::Advancing  ? kSwitchedBufferBias
+                 : h.motion == BufferMotion::Trailing ? -kSwitchedBufferBias
+                                                      : 0.0f;
+        r.value_pct = static_cast<int>(std::lround(r.bias * 100.0f));
+        r.status = ui::pressure_status_of_bias(r.bias);
+        return r;
+    };
     if (own && own->buffer_health && !own->buffer_health->fps_reported) {
-        return r; // a switched buffer: where it sits is not measured
+        return switched(*own->buffer_health, unit);
     }
     const int sensor = (own && own->buffer_health) ? unit : info.feeding_pressure_unit();
     if (sensor >= 0) {
@@ -43,10 +55,28 @@ BufferReading buffer_reading(const AmsSystemInfo& info, int unit) {
         r.bias = std::clamp(info.sync_feedback_bias, -1.0f, 1.0f);
         r.value_pct = static_cast<int>(std::lround(r.bias * 100.0f));
     }
+    // Nothing proportional feeds the system: it reads the first switched buffer instead.
+    if (!r.present() && unit < 0) {
+        for (size_t u = 0; u < info.units.size(); ++u) {
+            const auto& h = info.units[u].buffer_health;
+            if (h && !h->fps_reported)
+                return switched(*h, static_cast<int>(u));
+        }
+    }
     if (r.has_slider && !r.is_fill()) {
         r.status = ui::pressure_status_of_bias(r.bias);
     }
     return r;
+}
+
+float buffer_position(const BufferReading& r) {
+    if (!r.present())
+        return 0.0f;
+    if (!r.is_fill())
+        return r.bias;
+    const int target = r.target_pct >= 0 ? r.target_pct : 50;
+    const int span = r.value_pct >= target ? 100 - target : target;
+    return std::clamp(static_cast<float>(r.value_pct - target) / std::max(1, span), -1.0f, 1.0f);
 }
 
 int buffer_view_unit(const AmsSystemInfo& info, int unit) {
@@ -59,6 +89,8 @@ const char* buffer_label(const BufferReading& r) {
         return "FPS"; // i18n: do not translate - hardware abbreviation
     case BufferSource::Sync:
         return lv_tr("Sync");
+    case BufferSource::Switch:
+        return lv_tr("Buffer");
     case BufferSource::None:
         break;
     }
@@ -68,6 +100,11 @@ const char* buffer_label(const BufferReading& r) {
 std::string buffer_short_text(const BufferReading& r) {
     if (!r.present()) {
         return "";
+    }
+    if (r.source == BufferSource::Switch) {
+        return r.bias > 0.0f   ? lv_tr("Compressed")
+               : r.bias < 0.0f ? lv_tr("Expanded")
+                               : lv_tr("Neutral");
     }
     if (r.has_slider && r.source == BufferSource::Sync && r.value_pct != 0) {
         return fmt::format("{:+d}%", r.value_pct);
@@ -90,7 +127,8 @@ std::string buffer_target_text(const BufferReading& r) {
 }
 
 const char* buffer_lean_text(const BufferReading& r) {
-    if (!r.has_slider) {
+    // A switched buffer's short text already names its place.
+    if (!r.has_slider || r.source == BufferSource::Switch) {
         return "";
     }
     if (r.is_fill()) {

@@ -773,9 +773,12 @@ sensor stays on the unit's `AmsUnit::buffer_health`; the backend writes no
 `sync_feedback_bias` (that is Happy Hare's field). `helix::buffer_reading()` reads the
 unit's own sensor, or for the system level the unit feeding the current slot, else the
 first unit with a sensor, so the Filament Buffer widget, the loaded-spool card, the
-Buffer Status modal and the path-canvas buffer box all draw it. The fault distance
+Buffer Status modal and the path canvas's tension control all draw it. The fault distance
 (`fault_detection_enabled`) is the separate clog-detection source and feeds the
-`clog_meter_*` subjects. A switched TurtleNeck reports no pressure, so it has no reading.
+`clog_meter_*` subjects. A switched TurtleNeck reports no pressure; its state alone is its
+reading (`BufferSource::Switch`): neutral at center, advancing compressed and trailing
+expanded, each short of the end stops, so the card's meter and the canvas's thumb snap to three
+places.
 The pressure rail is 0..1 by declaration but a voltage divider in real hardware, so `has_fps()` keys on
 `fps_reported && fps_set_point > 0` rather than on the value: a reading slightly below zero
 is max tension, the one reading a value-based sentinel would blank exactly. Not yet

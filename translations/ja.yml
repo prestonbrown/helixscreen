@@ -300,6 +300,7 @@ translations:
   Adjustments stay active until restart. Save after print completes.: 調整は再起動まで有効です。印刷完了後に保存してください。
   Adjusts individual characteristics of your heaters for optimal control: ヒーターの個別特性を調整して最適な制御を実現します
   Advanced: 詳細設定
+  Advancing: ''
   After an error: エラーの後
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '{}を接続した後は、印刷品質のためにインプットシェーピングの再キャリブレーションをお勧めします。'
   After running the commands, tap Check Again below.: コマンド実行後、下の「再確認」をタップしてください。
@@ -871,6 +872,7 @@ translations:
   Completed {}d ago: '{} 日前に完了'
   Completed {}h ago: '{} 時間前に完了'
   Completed {}m ago: '{} 分前に完了'
+  Compressed: ''
   Computing calibration...: キャリブレーション計算中...
   Config Dir: 設定ディレクトリ
   Config Edit Failed: '設定の編集に失敗しました'
@@ -1426,6 +1428,7 @@ translations:
   Exhaust fan speed: '排気ファン速度'
   'Exhaust: keep chamber at or below': '排気: チャンバーをこの温度以下に保つ'
   Exit Code: 終了コード
+  Expanded: ''
   Expected boolean: '真偽値が必要です'
   Expected float: '小数値が必要です'
   Explore how the selected palette shapes text, controls, and status colors.: 選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。
@@ -4553,6 +4556,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
+  Trailing: ''
   'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
