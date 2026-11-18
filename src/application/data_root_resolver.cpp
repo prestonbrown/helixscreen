@@ -3,6 +3,7 @@
 
 #include "data_root_resolver.h"
 
+#include "board_identity.h"
 #include "system/helix_paths.h"
 
 #include <cstdlib>
@@ -62,6 +63,18 @@ std::string resolve_data_root_from_exe(const std::string& exe_path) {
         }
     }
 
+    return {};
+}
+
+std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root) {
+    std::string root = resolve_data_root_from_exe(exe_path);
+    if (!root.empty() || exe_path.empty()) {
+        return root;
+    }
+    const auto package = board::firmware_package_root(board::current(), exe_path, probe_root);
+    if (package && is_valid_data_root(*package)) {
+        return *package;
+    }
     return {};
 }
 

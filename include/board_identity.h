@@ -72,6 +72,16 @@ inline const Info& current_info() {
 bool firmware_manages_updates(Board board, const std::string& running_exe = "/proc/self/exe",
                               const std::string& probe_root = "/");
 
+/// The version directory of @p board's firmware package that @p running_exe runs from:
+/// the subdirectory of firmware_package_dir whose `bin/helix-screen` is the same file
+/// (device and inode) as @p running_exe, so a launch through a bind mount over another
+/// path still names it. A real directory wins over a link to one (`latest`). nullopt
+/// when the board has no firmware package or @p running_exe is not one of its binaries.
+/// Paths probe under @p probe_root and come back with it prefixed.
+std::optional<std::string> firmware_package_root(Board board,
+                                                 const std::string& running_exe = "/proc/self/exe",
+                                                 const std::string& probe_root = "/");
+
 /// Test-only, main-thread-only: make current() answer @p board until reset with
 /// std::nullopt. HelixTestFixture::reset_all() resets it.
 void set_current_override(std::optional<Board> board);

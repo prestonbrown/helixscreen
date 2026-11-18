@@ -110,6 +110,29 @@ bool same_file(const struct ::stat& a, const std::string& path) {
 
 } // namespace
 
+std::optional<std::string> firmware_package_root(Board board, const std::string& running_exe,
+                                                 const std::string& probe_root) {
+    const Info& row = info(board);
+    if (row.firmware_package_dir == nullptr)
+        return std::nullopt;
+    struct ::stat exe_st {};
+    if (::stat(running_exe.c_str(), &exe_st) != 0)
+        return std::nullopt;
+    const auto entries = helix::fs::list_dir(rooted(probe_root, row.firmware_package_dir));
+    if (!entries)
+        return std::nullopt;
+    std::optional<std::string> via_link;
+    for (const auto& entry : *entries) {
+        if (!entry.is_dir || !same_file(exe_st, entry.path + "/bin/helix-screen"))
+            continue;
+        if (!helix::fs::is_symlink(entry.path))
+            return entry.path;
+        if (!via_link)
+            via_link = entry.path;
+    }
+    return via_link;
+}
+
 bool firmware_manages_updates(Board board, const std::string& running_exe,
                               const std::string& probe_root) {
     const Info& row = info(board);
@@ -119,15 +142,8 @@ bool firmware_manages_updates(Board board, const std::string& running_exe,
     if (!helix::fs::is_directory(package_dir))
         return false;
 
-    struct ::stat exe_st {};
-    if (::stat(running_exe.c_str(), &exe_st) == 0) {
-        if (const auto entries = helix::fs::list_dir(package_dir)) {
-            for (const auto& entry : *entries) {
-                if (entry.is_dir && same_file(exe_st, entry.path + "/bin/helix-screen"))
-                    return true;
-            }
-        }
-    }
+    if (firmware_package_root(board, running_exe, probe_root))
+        return true;
 
     if (row.installer_root == nullptr)
         return true;
