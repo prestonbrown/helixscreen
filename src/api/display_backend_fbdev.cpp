@@ -983,8 +983,11 @@ bool DisplayBackendFbdev::supports_power_off() const {
     // The framebuffer node must be readable+writable for FBIOBLANK to work.
     // We can't reliably detect ahead of time whether the panel driver honors
     // FB_BLANK_POWERDOWN, but on real fbdev HDMI/DSI panels it is the standard
-    // power-down request; drivers that ignore it simply leave the panel lit,
-    // which is no worse than the software-overlay fallback (#1049).
+    // power-down request (#1049). A driver that ignores it leaves the panel lit
+    // and still reports success, and sleep then stops all flushes, so the lit
+    // panel holds its last frame until a wake. That is worse than the software
+    // overlay, which stays black. /display/panel_power_off = 0 selects the
+    // overlay on such hardware.
     return access(fb_device_.c_str(), R_OK | W_OK) == 0;
 }
 

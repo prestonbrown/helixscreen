@@ -169,6 +169,26 @@ bool should_notify_print_ended(PrintState prev, PrintState current, PrintOutcome
     return prev == PrintState::Preparing && outcome != PrintOutcome::NONE;
 }
 
+CompletionAlertDecision decide_completion_alert(bool ended_in_error, CompletionAlertMode mode,
+                                                bool on_print_status) {
+    CompletionAlertDecision d;
+    if (ended_in_error) {
+        d.wake = true;
+        d.modal = true;
+        return d;
+    }
+    if (mode == CompletionAlertMode::OFF) {
+        return d;
+    }
+    // The print status panel shows the result itself, but only on a lit display.
+    d.wake = true;
+    if (!on_print_status) {
+        d.modal = mode == CompletionAlertMode::ALERT;
+        d.toast = mode == CompletionAlertMode::NOTIFICATION;
+    }
+    return d;
+}
+
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason) {
     PreparingExitAction action;
     switch (reason) {
@@ -414,12 +434,15 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                                                               : "failed",
                       on_print_status, static_cast<int>(mode));
 
-        // 1. Errors ALWAYS get a modal (high visibility needed)
-        if (current == PrintJobState::ERROR) {
+        const CompletionAlertDecision alert =
+            decide_completion_alert(current == PrintJobState::ERROR, mode, on_print_status);
+        if (alert.wake) {
             if (auto* dm = DisplayManager::instance()) {
                 dm->wake_display();
             }
+        }
 
+        if (current == PrintJobState::ERROR) {
             // Proactively turn off heaters on print error to prevent
             // indefinite heating (Klipper doesn't auto-off on error)
             if (auto* mgr = get_moonraker_manager()) {
@@ -428,27 +451,9 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                     client->gcode_script("TURN_OFF_HEATERS");
                 }
             }
-
-            show_rich_completion_modal(current, display_name.c_str());
-            return;
         }
 
-        // 2. On print status panel - no notification needed (panel shows state)
-        if (on_print_status) {
-            spdlog::debug("[PrintComplete] On print status panel - skipping notification");
-            return;
-        }
-
-        // 3. On other panels - respect the completion alert mode setting
-        switch (mode) {
-        case CompletionAlertMode::OFF:
-            spdlog::debug("[PrintComplete] Notification disabled by setting");
-            break;
-
-        case CompletionAlertMode::NOTIFICATION: {
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
+        if (alert.toast) {
             char message[128];
             ToastSeverity severity = (current == PrintJobState::COMPLETE) ? ToastSeverity::SUCCESS
                                                                           : ToastSeverity::WARNING;
@@ -456,15 +461,11 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
                      (current == PrintJobState::COMPLETE) ? "complete" : "cancelled",
                      display_name.c_str());
             ToastManager::instance().show(severity, message, 5000);
-            break;
-        }
-
-        case CompletionAlertMode::ALERT:
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
+        } else if (alert.modal) {
             show_rich_completion_modal(current, display_name.c_str());
-            break;
+        } else {
+            spdlog::debug("[PrintComplete] No toast or modal (on_print_status={}, mode={})",
+                          on_print_status, static_cast<int>(mode));
         }
     }
 }
