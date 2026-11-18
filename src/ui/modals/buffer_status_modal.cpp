@@ -171,11 +171,15 @@ helix::BufferReading BufferStatusModal::populate(const helix::AmsSystemInfo& inf
 
                 // State
                 switch (bh.motion) {
-                case helix::BufferMotion::Advancing:
-                    lv_subject_set_string(&state_subject_, lv_tr("Feeding filament forward"));
+                case helix::BufferMotion::Compressed:
+                    lv_subject_set_string(
+                        &state_subject_,
+                        lv_tr("Compressed: filament arrives faster than it is used"));
                     break;
-                case helix::BufferMotion::Trailing:
-                    lv_subject_set_string(&state_subject_, lv_tr("Pulling filament back"));
+                case helix::BufferMotion::Expanded:
+                    lv_subject_set_string(
+                        &state_subject_,
+                        lv_tr("Expanded: the toolhead pulls filament faster than it arrives"));
                     break;
                 case helix::BufferMotion::Unknown:
                     if (!bh.state.empty()) {

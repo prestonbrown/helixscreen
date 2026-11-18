@@ -11,10 +11,15 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <new>
 
 namespace helix::ui::ams_tray {
 
-TrayState s_tray;
+namespace {
+alignas(TrayState) unsigned char s_tray_storage[sizeof(TrayState)];
+} // namespace
+
+TrayState& s_tray = *new (s_tray_storage) TrayState();
 
 namespace {
 

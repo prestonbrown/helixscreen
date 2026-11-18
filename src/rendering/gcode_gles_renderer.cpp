@@ -362,6 +362,9 @@ GCodeGLESRenderer::GCodeGLESRenderer() {
 }
 
 GCodeGLESRenderer::~GCodeGLESRenderer() {
+    // The worker draws with this object's state and GL context: join it before
+    // either goes away. GL teardown then runs here, on the thread that set it up.
+    worker_.stop();
     destroy_gl();
     release_sdl_video(); // a shader failure in init_gl() leaves destroy_gl() nothing
 
@@ -764,7 +767,7 @@ bool GCodeGLESRenderer::create_fbo(int width, int height) {
     }
 
     // Color renderbuffer — use GL_RGBA8 (8 bits per channel) to match the
-    // GL_RGBA/GL_UNSIGNED_BYTE format used by glReadPixels in blit_to_lvgl().
+    // GL_RGBA/GL_UNSIGNED_BYTE format used by glReadPixels in read_frame().
     // GL_RGBA4 would cause precision loss (4 bits stored, 8 bits read back).
     // GL_RGBA8 is available via OES_rgb8_rgba8 on GLES2 and natively on desktop GL.
     glGenRenderbuffers(1, &color_rbo_.id);
@@ -825,6 +828,8 @@ void GCodeGLESRenderer::destroy_gl() {
                            static_cast<SDL_GLContext>(sdl_gl_context_));
 
         free_vbos(layer_vbos_);
+        free_vbos(moving_vbos_);
+        free_vbos(retired_vbos_);
         destroy_fbo();
 
         if (program_) {
@@ -877,6 +882,8 @@ void GCodeGLESRenderer::destroy_gl() {
     }
 
     free_vbos(layer_vbos_);
+    free_vbos(moving_vbos_);
+    free_vbos(retired_vbos_);
     destroy_fbo();
 
     if (program_) {
@@ -1116,33 +1123,187 @@ void GCodeGLESRenderer::free_vbos(std::vector<LayerVBO>& vbos) {
 // Main Render Entry Point
 // ============================================================
 
-void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
+void GCodeGLESRenderer::render(lv_layer_t* layer,
+                               const std::shared_ptr<const ParsedGCodeFile>& gcode,
                                const GCodeCamera& camera, const lv_area_t* widget_coords) {
-    // Initialize GL on first render
+    // GL comes up here, on the LVGL thread: the EGL path reuses the display
+    // backend's current EGLDisplay (current per thread) and SDL creates its
+    // window here. init_gl() leaves the context current on no thread, and the
+    // worker makes it current for each step from then on.
     if (!gl_initialized_) {
         if (!init_gl()) {
             return; // GPU not available
         }
+        worker_.start(
+            [this](const RenderRequest& req, RenderFrame& back) { return gl_step(req, back); });
     }
 
     // Sticky bail: once a fatal GL error or a denylisted GPU has disabled the
-    // GPU path this session, never issue another draw. The viewer polls
+    // GPU path this session, nothing more is drawn. The viewer polls
     // render_failed() and falls back to the pure-CPU 2D renderer.
-    if (gl_render_failed_)
+    if (render_failed())
         return;
 
-    // No geometry loaded
-    if (!geometry_)
-        return;
+    RenderRequest req;
+    req.camera = camera;
+    req.width = lv_area_get_width(widget_coords);
+    req.height = lv_area_get_height(widget_coords);
+    req.gcode = gcode;
+    worker_.post(std::move(req));
 
-        // Acquire our GL context (saves and restores LVGL's)
+    // The draw event fires once per invalidated area of a refresh, so a frame
+    // adopted here could show in some strips and not others. New frames are
+    // adopted between refreshes (adopt_ready_frame); this only blits.
+    draw_cached_to_lvgl(layer, widget_coords);
+}
+
+bool GCodeGLESRenderer::adopt_ready_frame() {
+    if (!worker_.take_frame(taken_frame_)) {
+        return false;
+    }
+    install_frame(taken_frame_);
+    return true;
+}
+
+void GCodeGLESRenderer::set_frame_ready_callback(std::function<void()> cb) {
+    worker_.set_frame_ready_callback(std::move(cb));
+}
+
+void GCodeGLESRenderer::install_frame(const RenderFrame& frame) {
+    if (frame.generation != scene_gen_.load() || frame.width <= 0 || frame.height <= 0 ||
+        frame.pixels.size() < static_cast<size_t>(frame.width) * frame.height * 4) {
+        return; // drawn for geometry that has since been replaced or released
+    }
+    if (!draw_buf_ || draw_buf_width_ != frame.width || draw_buf_height_ != frame.height) {
+        // May still be in flight to the parallel render thread (#929 cluster).
+        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
+        draw_buf_bytes_ = 0;
+        draw_buf_ =
+            lv_draw_buf_create(static_cast<uint32_t>(frame.width),
+                               static_cast<uint32_t>(frame.height), LV_COLOR_FORMAT_ARGB8888, 0);
+        if (!draw_buf_ || !draw_buf_->data) {
+            spdlog::error("[GCode GLES] Failed to create draw buffer");
+            helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
+            draw_buf_width_ = 0;
+            draw_buf_height_ = 0;
+            return;
+        }
+        draw_buf_width_ = frame.width;
+        draw_buf_height_ = frame.height;
+        draw_buf_bytes_ = static_cast<size_t>(frame.width) * frame.height * 4;
+    }
+    // draw_buf_ rows are padded to LV_DRAW_BUF_STRIDE_ALIGN; the frame's are not.
+    const size_t row_bytes = static_cast<size_t>(frame.width) * 4;
+    const uint32_t dst_stride = draw_buf_->header.stride;
+    auto* dest = static_cast<uint8_t*>(draw_buf_->data);
+    for (int y = 0; y < frame.height; ++y) {
+        std::memcpy(dest + static_cast<size_t>(y) * dst_stride,
+                    frame.pixels.data() + static_cast<size_t>(y) * row_bytes, row_bytes);
+    }
+    latch_shown_image(frame.mvp, frame.width, frame.height);
+    shown_gen_ = frame.generation;
+}
+
+bool GCodeGLESRenderer::has_frame() const {
+    return has_shown_image_ && shown_gen_ == scene_gen_.load();
+}
+
+GCodeRenderWorker::StepOutcome GCodeGLESRenderer::gl_step(const RenderRequest& req,
+                                                          RenderFrame& back) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    const bool failed_before = gl_render_failed_.load();
+    GCodeRenderWorker::StepOutcome out = step_locked(req, back);
+    if (gl_render_failed_.load() && !failed_before) {
+        // The viewer learns of the fallback on its next draw; make sure there is one.
+        out.notify = true;
+        out.more_work = false;
+    }
+    return out;
+}
+
+GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderRequest& req,
+                                                              RenderFrame& back) {
+    using Outcome = GCodeRenderWorker::StepOutcome;
+    if (gl_render_failed_) {
+        // Nothing is drawn any more, but a released file's VBOs still have to go.
+        if (!retired_vbos_.empty()) {
+#if LV_USE_SDL
+            SdlGlContextGuard guard(sdl_gl_window_, sdl_gl_context_);
+#else
+            EglContextGuard guard(egl_display_, egl_surface_, egl_context_);
+#endif
+            if (guard.ok()) {
+                free_vbos(retired_vbos_);
+            }
+        }
+        return {};
+    }
+
+    // Decide first, so a step with nothing to draw (most of them: every draw
+    // event posts) never touches the GL context.
+    enum class Work { Idle, Upload, Moving, Slice };
+    Work work = Work::Idle;
+    CachedRenderState moving_state;
+    if (geometry_ && req.gcode && req.width > 0 && req.height > 0) {
+        if (!geometry_uploaded_) {
+            work = Work::Upload;
+        } else if (interaction_mode_) {
+            // Finger down: draw the whole frame now at whatever detail the
+            // measured GPU rate affords, instead of handing out slices. The
+            // draw event fires several times per refresh, each posting the
+            // same camera; only the first of them draws.
+            moving_state = snapshot_state(req.camera);
+            if (!(moving_frame_valid_ && moving_epoch_ == scene_epoch_ &&
+                  moving_state == moving_state_)) {
+                work = Work::Moving;
+            }
+        } else {
+            const CachedRenderState current_state = snapshot_state(req.camera);
+            render_schedule::JobInputs in;
+            in.scene_changed = frame_dirty_ || !current_state.same_scene(job_scene_);
+            in.have_complete_image = have_complete_image_;
+            in.job_running = job_.active;
+            in.job_incremental = job_.incremental;
+            in.selection_active = selection_.any_highlighted();
+            in.job_progress = job_.progress_layer;
+            in.new_progress = progress_layer_;
+            switch (render_schedule::decide_job(in)) {
+            case render_schedule::JobAction::Keep:
+                break;
+            case render_schedule::JobAction::Restart:
+                start_job(false, current_state);
+                break;
+            case render_schedule::JobAction::Incremental:
+                start_job(true, current_state);
+                break;
+            case render_schedule::JobAction::Extend:
+                job_.solid_end = std::min(progress_layer_, job_.solid_end_limit);
+                job_.progress_layer = progress_layer_;
+                job_.phase = JobPhase::Solid;
+                break;
+            }
+            frame_dirty_ = false;
+            if (job_.active) {
+                work = Work::Slice;
+            }
+        }
+    }
+    if (work == Work::Idle && retired_vbos_.empty()) {
+        return {};
+    }
+
 #if LV_USE_SDL
     SdlGlContextGuard guard(sdl_gl_window_, sdl_gl_context_);
 #else
     EglContextGuard guard(egl_display_, egl_surface_, egl_context_);
 #endif
     if (!guard.ok())
-        return;
+        return {};
+
+    free_vbos(retired_vbos_);
+    if (work == Work::Idle) {
+        return {};
+    }
 
     // Layer 1 — proactive GL_RENDERER denylist (issues #966 / #1084 / #1085).
     // Evaluated exactly once, now that the GL context is current so GL_RENDERER
@@ -1158,13 +1319,16 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
                           renderer ? renderer : "(null)");
             gl_render_failed_ = true;
             cancel_job();
-            return;
+            return {};
         }
     }
 
-    // Incremental VBO upload: upload a time-budgeted batch of layers per frame
-    if (!geometry_uploaded_ && geometry_) {
-        // Initialize incremental upload on first frame
+    switch (work) {
+    case Work::Idle:
+        return {};
+
+    case Work::Upload: {
+        // Incremental VBO upload: one time-budgeted batch of layers per step.
         if (upload_total_layers_ == 0) {
             free_vbos(layer_vbos_); // Free old VBOs inside GL context
             free_vbos(moving_vbos_);
@@ -1180,123 +1344,73 @@ void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
                                           upload_total_layers_);
         if (gl_render_failed_) {
             upload_total_layers_ = 0;
-            return;
+            return {};
         }
-        if (done) {
-            geometry_uploaded_ = true;
-            upload_next_layer_ = 0;
-            upload_total_layers_ = 0;
-            uploaded_triangles_ = 0;
-            for (const auto& vbo : layer_vbos_) {
-                uploaded_triangles_ += vbo.vertex_count / 3;
-            }
-            // Free pre-computed interleaved buffers — all data is now in GPU VBOs.
-            // The CPU fallback path (for tool color re-upload) re-expands from
-            // the compact vertices/strips directly, so these aren't needed.
-            size_t freed = 0;
-            for (auto& pb : geometry_->prepared_buffers) {
-                freed += pb.data.capacity(); // data is std::vector<uint8_t> — capacity is bytes
-                pb.data.clear();
-                pb.data.shrink_to_fit();
-            }
-            geometry_->prepared_buffers.clear();
-            geometry_->prepared_buffers.shrink_to_fit();
-            if (freed > 0) {
-                spdlog::info("[GCode GLES] Freed {} MB of upload buffers after VBO upload",
-                             freed / (1024 * 1024));
-            }
-            // The moving mesh rides along here rather than in set_prebuilt_
-            // geometry: a tool-color override rewinds geometry_uploaded_ and
-            // re-enters this branch, so the mesh re-uploads with whatever the
-            // palette says by then.
-            upload_moving_mesh();
-            if (gl_render_failed_) {
-                return;
-            }
-            // Defer first GPU render by a few frames to avoid blocking panel animations
-            render_defer_frames_ = 3;
-        } else {
-            // Still uploading -- show cached buffer if available, otherwise skip frame
-            if (draw_buf_) {
-                draw_cached_to_lvgl(layer, widget_coords);
-            }
-            return;
+        if (!done) {
+            return Outcome{false, true, false};
         }
+        geometry_uploaded_ = true;
+        upload_next_layer_ = 0;
+        upload_total_layers_ = 0;
+        uploaded_triangles_ = 0;
+        for (const auto& vbo : layer_vbos_) {
+            uploaded_triangles_ += vbo.vertex_count / 3;
+        }
+        // Free pre-computed interleaved buffers — all data is now in GPU VBOs.
+        // The CPU fallback path (for tool color re-upload) re-expands from
+        // the compact vertices/strips directly, so these aren't needed.
+        size_t freed = 0;
+        for (auto& pb : geometry_->prepared_buffers) {
+            freed += pb.data.capacity(); // data is std::vector<uint8_t> — capacity is bytes
+            pb.data.clear();
+            pb.data.shrink_to_fit();
+        }
+        geometry_->prepared_buffers.clear();
+        geometry_->prepared_buffers.shrink_to_fit();
+        if (freed > 0) {
+            spdlog::info("[GCode GLES] Freed {} MB of upload buffers after VBO upload",
+                         freed / (1024 * 1024));
+        }
+        // The moving mesh rides along here rather than in set_prebuilt_
+        // geometry: a tool-color override rewinds geometry_uploaded_ and
+        // re-enters this branch, so the mesh re-uploads with whatever the
+        // palette says by then.
+        upload_moving_mesh();
+        if (gl_render_failed_) {
+            return {};
+        }
+        // The first frame of the uploaded geometry is the next step's job.
+        return Outcome{false, true, false};
     }
 
-    // If deferring, draw the cached buffer and count down.
-    // If no cached buffer exists, skip the defer entirely — nothing to show.
-    if (render_defer_frames_ > 0) {
-        if (draw_buf_) {
-            render_defer_frames_--;
-            draw_cached_to_lvgl(layer, widget_coords);
-            return;
-        }
-        render_defer_frames_ = 0;
-    }
-    // Finger down: draw the whole frame now at whatever detail the measured GPU
-    // rate affords, instead of handing out slices. cancel_job() inside
-    // render_moving clears have_complete_image_, so the release restarts a
-    // still job even for a tap that never moved the camera.
-    if (interaction_mode_) {
+    case Work::Moving: {
         arm_gpu_guard();
-        render_moving(layer, gcode, camera, widget_coords);
+        const bool published = render_moving(*req.gcode, req.camera, req.width, req.height, back);
         clear_gpu_guard();
-        return;
+        moving_state_ = moving_state;
+        moving_epoch_ = scene_epoch_;
+        return Outcome{published, false, false};
     }
 
-    // Build current render state for frame-skip check
-    const CachedRenderState current_state = snapshot_state(camera);
-    render_schedule::JobInputs in;
-    in.scene_changed = frame_dirty_ || !current_state.same_scene(job_scene_);
-    in.have_complete_image = have_complete_image_ && draw_buf_;
-    in.job_running = job_.active;
-    in.job_incremental = job_.incremental;
-    in.selection_active = selection_.any_highlighted();
-    in.job_progress = job_.progress_layer;
-    in.new_progress = progress_layer_;
-    switch (render_schedule::decide_job(in)) {
-    case render_schedule::JobAction::Keep:
-        break;
-    case render_schedule::JobAction::Restart:
-        start_job(false, current_state);
-        break;
-    case render_schedule::JobAction::Incremental:
-        start_job(true, current_state);
-        break;
-    case render_schedule::JobAction::Extend:
-        job_.solid_end = std::min(progress_layer_, job_.solid_end_limit);
-        job_.progress_layer = progress_layer_;
-        job_.phase = JobPhase::Solid;
-        break;
+    case Work::Slice: {
+        // Layer 2 — crash-loop breaker. Arm the guard file immediately before the
+        // real GPU draw; if the driver hard-faults inside run_slice the process
+        // dies with the file still present and the next startup promotes it to a
+        // persistent block. Cleared right after the first successful frame.
+        arm_gpu_guard();
+        const bool done = run_slice(*req.gcode, req.camera);
+        bool published = false;
+        if (done) {
+            published = read_frame(req.width, req.height, /*overlays_drawn=*/true, back);
+            have_complete_image_ = published;
+        }
+        // Mid-refinement the widget keeps showing the last finished image
+        // rather than a partially drawn one.
+        clear_gpu_guard();
+        return Outcome{published, !done && job_.active && !gl_render_failed_, false};
     }
-    frame_dirty_ = false;
-
-    if (!job_.active) {
-        // draw_cached_to_lvgl skips glReadPixels: it just blits the existing draw_buf_.
-        draw_cached_to_lvgl(layer, widget_coords);
-        return;
     }
-
-    // Layer 2 — crash-loop breaker. Arm the guard file immediately before the
-    // real GPU draw; if the driver hard-faults inside run_slice the process
-    // dies with the file still present and the next startup promotes it to a
-    // persistent block. Cleared right after the first successful blit.
-    arm_gpu_guard();
-
-    const bool done = run_slice(gcode, camera);
-    if (done) {
-        // Read pixels from FBO and blit to LVGL
-        blit_to_lvgl(layer, widget_coords, /*overlays_drawn=*/true);
-        have_complete_image_ = true;
-    } else {
-        // Mid-refinement: keep showing the last finished image rather than a
-        // partially drawn one.
-        draw_cached_to_lvgl(layer, widget_coords);
-    }
-    clear_gpu_guard();
-
-    // guard destructor restores LVGL's GL context
+    return {};
 }
 
 // ============================================================
@@ -1455,11 +1569,15 @@ bool GCodeGLESRenderer::setup_frame(const GCodeCamera& camera, float scale, bool
 /// How far the ghost pass lightens toward white.
 static constexpr float kGhostLightenScale = 4.0f;
 
-void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& gcode,
-                                      const GCodeCamera& camera, const lv_area_t* widget_coords) {
+bool GCodeGLESRenderer::render_moving(const ParsedGCodeFile& gcode, const GCodeCamera& camera,
+                                      int widget_w, int widget_h, RenderFrame& out) {
     cancel_job();
-    const render_schedule::MovingPlan plan =
-        render_schedule::plan_moving(uploaded_triangles_, mesh_triangles_, gpu_rate_tris_per_ms_);
+    moving_frame_valid_ = false;
+    const auto frame_t0 = std::chrono::steady_clock::now();
+    const render_schedule::MovingPlan plan = render_schedule::hold_half_resolution(
+        render_schedule::plan_moving(uploaded_triangles_, mesh_triangles_, gpu_rate_tris_per_ms_),
+        moving_half_res_held_);
+    moving_half_res_held_ = plan.half_resolution;
     // The mesh has its own bounds and its own quantization, so it must be the
     // geometry setup_frame dequantizes with, and it replaces the layer VBOs
     // the draw reads. Stride stays 1: the mesh is already banded.
@@ -1472,7 +1590,7 @@ void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& 
     glm::mat4 mvp, mvp_dequant;
     if (!setup_frame(camera, plan.half_resolution ? 0.5f : 1.0f, true, mvp, mvp_dequant,
                      *draw_geom)) {
-        return;
+        return false;
     }
 
     int draw_start, draw_end, solid_end, ghost_start;
@@ -1505,13 +1623,31 @@ void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& 
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    gpu_rate_tris_per_ms_ =
-        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms, /*publish=*/false);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    blit_to_lvgl(layer, widget_coords, /*overlays_drawn=*/false);
-    spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms",
+    moving_frame_valid_ = read_frame(widget_w, widget_h, /*overlays_drawn=*/false, out);
+    const float frame_ms =
+        std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - frame_t0)
+            .count();
+    spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms draw, {:.1f}ms total",
                   plan.use_mesh && draw_vbos == &moving_vbos_ ? "mesh " : "", plan.stride,
-                  plan.half_resolution ? "half" : "full", ms);
+                  plan.half_resolution ? "half" : "full", ms, frame_ms);
+    // A gesture's first frame pays for resizing the FBO from the still size, so
+    // only the frames after it say how fast rotating is.
+    const bool counts = moving_frames_in_gesture_++ > 0;
+    if (counts &&
+        render_schedule::moving_too_slow(slow_moving_streak_, frame_ms, plan.half_resolution)) {
+        spdlog::warn("[GCode GLES] Moving frames take {:.0f}ms at half resolution (over {:.0f}ms "
+                     "{} times running): too slow to rotate, falling back to 2D",
+                     frame_ms, render_schedule::kMaxUsableMovingFrameMs,
+                     render_schedule::kSlowMovingFramesToFallBack);
+        too_slow_ = true;
+        free_vbos(layer_vbos_);
+        free_vbos(moving_vbos_);
+        gl_render_failed_ = true;
+        cancel_job();
+    }
+    return moving_frame_valid_;
 }
 
 int GCodeGLESRenderer::draw_layers(const std::vector<LayerVBO>& vbos, int layer_start,
@@ -1687,8 +1823,7 @@ bool GCodeGLESRenderer::run_slice(const ParsedGCodeFile& gcode, const GCodeCamer
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    gpu_rate_tris_per_ms_ =
-        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms, /*publish=*/true);
     job_.slices++;
     job_.max_slice_ms = std::max(job_.max_slice_ms, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1716,8 +1851,7 @@ void GCodeGLESRenderer::cancel_job() {
 // ============================================================
 
 void GCodeGLESRenderer::draw_cached_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_coords) {
-    // Fast path: draw the existing draw_buf_ without GPU readback.
-    // Used when the frame hasn't changed (frame-skip) or during render deferral.
+    // LVGL thread: the newest finished frame render() installed.
     if (!draw_buf_ || !draw_buf_->data)
         return;
 
@@ -1729,28 +1863,10 @@ void GCodeGLESRenderer::draw_cached_to_lvgl(lv_layer_t* layer, const lv_area_t* 
     lv_draw_image(layer, &img_dsc, &area);
 }
 
-void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_coords,
-                                     bool overlays_drawn) {
-    int widget_w = lv_area_get_width(widget_coords);
-    int widget_h = lv_area_get_height(widget_coords);
-
-    // Create or recreate draw buffer at widget size
-    if (!draw_buf_ || draw_buf_width_ != widget_w || draw_buf_height_ != widget_h) {
-        // May still be in flight to the parallel render thread (#929 cluster).
-        helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
-        draw_buf_ =
-            lv_draw_buf_create(static_cast<uint32_t>(widget_w), static_cast<uint32_t>(widget_h),
-                               LV_COLOR_FORMAT_ARGB8888, 0);
-        if (!draw_buf_) {
-            spdlog::error("[GCode GLES] Failed to create draw buffer");
-            return;
-        }
-        draw_buf_width_ = widget_w;
-        draw_buf_height_ = widget_h;
-    }
-
-    if (!fbo_.id)
-        return;
+bool GCodeGLESRenderer::read_frame(int widget_w, int widget_h, bool overlays_drawn,
+                                   RenderFrame& out) {
+    if (!fbo_.id || widget_w <= 0 || widget_h <= 0)
+        return false;
 
     // Read pixels from FBO
     glBindFramebuffer(GL_FRAMEBUFFER, fbo_.id);
@@ -1810,16 +1926,15 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
     // and scale if needed. The rim pass above has already consumed the tag, so
     // from here on alpha means opacity: any nonzero readback alpha (the 254 tag
     // included) becomes fully opaque, and only never-drawn pixels stay clear.
-    if (!draw_buf_->data) {
-        spdlog::error("[GCode GLES] draw_buf_ data is null");
-        return;
-    }
-    latch_shown_image(widget_w, widget_h);
-    auto* dest = static_cast<uint8_t*>(draw_buf_->data);
+    out.width = widget_w;
+    out.height = widget_h;
+    out.mvp = frame_mvp_;
+    out.generation = scene_gen_.load();
+    out.pixels.resize(static_cast<size_t>(widget_w) * widget_h * 4);
+    auto* dest = out.pixels.data();
     const auto* src = readback_buf_.data();
     bool needs_scale = (fbo_width_ != widget_w || fbo_height_ != widget_h);
-    // Use actual draw buffer stride (aligned to LV_DRAW_BUF_STRIDE_ALIGN)
-    uint32_t dst_stride = draw_buf_->header.stride;
+    const size_t dst_stride = static_cast<size_t>(widget_w) * 4;
 
     // A 2x supersampled frame comes down through a 2x2 box filter: the extra
     // samples are the whole point of rendering big, and nearest sampling would
@@ -1866,12 +1981,7 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
                 dst_row[di + 3] = a;
             }
         }
-        lv_draw_image_dsc_t ssaa_dsc;
-        lv_draw_image_dsc_init(&ssaa_dsc);
-        ssaa_dsc.src = draw_buf_;
-        lv_area_t ssaa_area = *widget_coords;
-        lv_draw_image(layer, &ssaa_dsc, &ssaa_area);
-        return;
+        return true;
     }
 
     // Row-based conversion: RGBA→BGRA with Y-flip
@@ -1903,14 +2013,7 @@ void GCodeGLESRenderer::blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_
             }
         }
     }
-
-    // Draw to LVGL layer
-    lv_draw_image_dsc_t img_dsc;
-    lv_draw_image_dsc_init(&img_dsc);
-    img_dsc.src = draw_buf_;
-
-    lv_area_t area = *widget_coords;
-    lv_draw_image(layer, &img_dsc, &area);
+    return true;
 }
 
 // ============================================================
@@ -1963,20 +2066,44 @@ GCodeGLESRenderer::snapshot_state(const GCodeCamera& camera) const {
 // ============================================================
 
 void GCodeGLESRenderer::set_viewport_size(int width, int height) {
+    // Only this (LVGL) thread writes the viewport, so the unchanged check needs no lock.
     if (width == viewport_width_ && height == viewport_height_)
         return;
+    std::lock_guard<std::mutex> lock(state_mutex_);
     viewport_width_ = width;
     viewport_height_ = height;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
     if (interaction_mode_ == interacting)
         return;
+    std::lock_guard<std::mutex> lock(state_mutex_);
     interaction_mode_ = interacting;
+    // Each gesture plans its resolution afresh, its first frame always draws,
+    // and only its own frames decide whether rotating is too slow.
+    moving_half_res_held_ = false;
+    moving_frame_valid_ = false;
+    moving_frames_in_gesture_ = 0;
+    slow_moving_streak_ = 0;
+}
+
+void GCodeGLESRenderer::record_rate(size_t triangles, float elapsed_ms, bool publish) {
+    gpu_rate_tris_per_ms_ =
+        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles, elapsed_ms);
+    if (publish && gpu_rate_tris_per_ms_ > 0.0f) {
+        render_schedule::last_measured_rate().store(gpu_rate_tris_per_ms_,
+                                                    std::memory_order_relaxed);
+    }
+}
+
+void GCodeGLESRenderer::mark_frame_dirty() {
+    frame_dirty_ = true;
+    ++scene_epoch_;
 }
 
 void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     // The sscanf("#%02x%02x%02x") this replaced happened to be the only site in
     // the tree that read an 8-digit #RRGGBBAA token correctly - it stopped after
     // six digits. It accepted and silently truncated anything longer, though,
@@ -1990,21 +2117,23 @@ void GCodeGLESRenderer::set_filament_color(const std::string& hex_color) {
     const float g = static_cast<float>((rgb >> 8) & 0xFF);
     const float b = static_cast<float>(rgb & 0xFF);
     filament_color_ = glm::vec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_extrusion_color(lv_color_t color) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     filament_color_ =
         glm::vec4(color.red / 255.0f, color.green / 255.0f, color.blue / 255.0f, 1.0f);
     palette_.has_override = true;
     palette_.override_color = color;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] set_extrusion_color: R={} G={} B={} → ({:.2f},{:.2f},{:.2f})",
                   color.red, color.green, color.blue, filament_color_.r, filament_color_.g,
                   filament_color_.b);
 }
 
 void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& ams_colors) {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
     if (!geometry_ || ams_colors.empty()) {
         return;
     }
@@ -2052,13 +2181,14 @@ void GCodeGLESRenderer::set_tool_color_overrides(const std::vector<uint32_t>& am
         geometry_uploaded_ = false;
         upload_next_layer_ = 0;
         upload_total_layers_ = 0;
-        frame_dirty_ = true;
+        mark_frame_dirty();
         spdlog::debug("[GCode GLES] Applied {} tool color overrides, triggering VBO re-upload",
                       ams_colors.size());
     }
 }
 
 void GCodeGLESRenderer::clear_tool_color_overrides() {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
     if (!geometry_) {
         return;
     }
@@ -2101,7 +2231,7 @@ void GCodeGLESRenderer::clear_tool_color_overrides() {
     geometry_uploaded_ = false;
     upload_next_layer_ = 0;
     upload_total_layers_ = 0;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] Retracted tool color overrides, restored {}-entry baked palette",
                   geometry_->color_palette.size());
 }
@@ -2111,30 +2241,35 @@ void GCodeGLESRenderer::set_simplification_tolerance(float /*tolerance_mm*/) {
 }
 
 void GCodeGLESRenderer::set_specular(float intensity, float shininess) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     specular_intensity_ = std::clamp(intensity, kMinSpecularIntensity, kMaxSpecularIntensity);
     specular_shininess_ = std::clamp(shininess, kMinSpecularShininess, kMaxSpecularShininess);
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_debug_face_colors(bool enable) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     debug_face_colors_ = enable;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_show_travels(bool show) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     show_travels_ = show;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_show_extrusions(bool show) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     show_extrusions_ = show;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_layer_range(int start, int end) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     layer_start_ = start;
     layer_end_ = end;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
@@ -2145,48 +2280,57 @@ void GCodeGLESRenderer::set_highlighted_object(const std::string& name) {
 }
 
 void GCodeGLESRenderer::set_highlighted_objects(const std::unordered_set<std::string>& names) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     // SelectionState memoizes the set hash, so the per-frame cached-state build
     // does not iterate every name on each LVGL invalidation tick.
     if (selection_.set_highlighted(names) != InvalidationScope::Nothing) {
-        frame_dirty_ = true;
+        mark_frame_dirty();
     }
 }
 
 void GCodeGLESRenderer::set_excluded_objects(const std::unordered_set<std::string>& names) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     if (selection_.set_excluded(names) != InvalidationScope::Nothing) {
-        frame_dirty_ = true;
+        mark_frame_dirty();
     }
 }
 
 void GCodeGLESRenderer::set_global_opacity(lv_opa_t opacity) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     global_opacity_ = opacity;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::reset_colors() {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     // Main thread; the GL passes below consume these as uniforms.
     sel_palette_ = selection::palette_from_theme();
     palette_.has_override = false;
     filament_color_ = kDefaultFilamentColor;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::clear_cached_frame() {
-    // Free the cached draw buffer so stale frames aren't blitted during render deferral
-    // Frees the SAME draw_buf_ the destructor guards as a #929 hazard, but this
-    // site had no lv_draw_wait_for_finish() at all: a deferred-render clear could
-    // free the buffer out from under an in-flight draw task. The shared helper
-    // makes that impossible to get wrong again.
+    // The draw buffer may still be in flight to an LVGL draw task (#929);
+    // safe_draw_buf_destroy waits for those before freeing it.
     if (draw_buf_) {
         helix::safe_draw_buf_destroy(draw_buf_, "gles_draw_buf");
         draw_buf_width_ = 0;
         draw_buf_height_ = 0;
+        draw_buf_bytes_ = 0;
     }
     has_shown_image_ = false;
-    render_defer_frames_ = 0;
+
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    // Nothing is cached any more, so the next draw starts a frame afresh, and
+    // a frame the worker finished before now is not shown.
+    have_complete_image_ = false;
+    moving_frame_valid_ = false;
+    ++scene_gen_;
 }
 
 RenderingOptions GCodeGLESRenderer::get_options() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     RenderingOptions opts;
     opts.show_extrusions = show_extrusions_;
     opts.show_travels = show_travels_;
@@ -2201,31 +2345,38 @@ RenderingOptions GCodeGLESRenderer::get_options() const {
 // ============================================================
 
 void GCodeGLESRenderer::set_print_progress_layer(int current_layer) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     // No frame_dirty_: print progress goes through render_schedule::decide_job,
     // which decides between extending, an incremental pass, or a restart.
     progress_layer_ = current_layer;
 }
 
 void GCodeGLESRenderer::set_ghost_opacity(lv_opa_t opacity) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     ghost_opacity_ = opacity;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_content_offset_y(float offset_percent) {
     const float clamped = std::clamp(offset_percent, -1.0f, 1.0f);
+    // The viewer calls this on every draw. Only this (LVGL) thread writes the
+    // offset, so the unchanged check needs no lock and never waits on a step.
     if (std::abs(clamped - content_offset_y_percent_) < 1e-4f) {
         return;
     }
+    std::lock_guard<std::mutex> lock(state_mutex_);
     content_offset_y_percent_ = clamped;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 void GCodeGLESRenderer::set_ghost_render_mode(GhostRenderMode mode) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     ghost_render_mode_ = mode;
-    frame_dirty_ = true;
+    mark_frame_dirty();
 }
 
 int GCodeGLESRenderer::get_max_layer_index() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     if (geometry_)
         return static_cast<int>(geometry_->max_layer_index);
     return 0;
@@ -2236,24 +2387,30 @@ int GCodeGLESRenderer::get_max_layer_index() const {
 // ============================================================
 
 void GCodeGLESRenderer::release_geometry() {
+    {
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        release_geometry_locked();
+    }
+    // GPU buffers are freed by the worker, which owns the GL context.
+    worker_.wake();
+}
+
+void GCodeGLESRenderer::release_geometry_locked() {
     cancel_job();
     size_t freed = geometry_ ? geometry_->memory_usage() : 0;
 
-    // Free GPU VBOs (requires GL context)
-    if (gl_initialized_ && !layer_vbos_.empty()) {
-#if LV_USE_SDL
-        SdlGlContextGuard guard(sdl_gl_window_, sdl_gl_context_);
-#else
-        EglContextGuard guard(egl_display_, egl_surface_, egl_context_);
-#endif
-        if (guard.ok()) {
-            free_vbos(layer_vbos_);
-            free_vbos(moving_vbos_);
+    // The VBOs need the GL context to free; the worker's next step frees them.
+    for (auto& vbos : {&layer_vbos_, &moving_vbos_}) {
+        for (auto& lv : *vbos) {
+            retired_vbos_.push_back(std::move(lv));
         }
+        vbos->clear();
     }
 
     // Free CPU geometry
     geometry_.reset();
+    has_geometry_ = false;
+    ++scene_gen_;
     {
         // Nothing left to restore the baked palette onto.
         std::lock_guard<std::mutex> lock(palette_mutex_);
@@ -2286,8 +2443,11 @@ void GCodeGLESRenderer::release_geometry() {
 
 void GCodeGLESRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> geometry,
                                               const std::string& filename) {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
     cancel_job();
     geometry_ = std::move(geometry);
+    has_geometry_ = geometry_ != nullptr;
+    ++scene_gen_;
     {
         // The snapshot describes the palette of the geometry just replaced.
         // Kept, it would be restored onto a different file's palette.
@@ -2300,7 +2460,7 @@ void GCodeGLESRenderer::set_prebuilt_geometry(std::unique_ptr<RibbonGeometry> ge
     upload_next_layer_ = 0;
     upload_total_layers_ = 0;
     mesh_triangles_ = 0;
-    frame_dirty_ = true;
+    mark_frame_dirty();
     spdlog::debug("[GCode GLES] Geometry set: {} strips, {} vertices",
                   geometry_ ? geometry_->strips.size() : 0,
                   geometry_ ? geometry_->vertices.size() : 0);
@@ -2315,17 +2475,29 @@ void GCodeGLESRenderer::set_prebuilt_coarse_geometry(std::unique_ptr<RibbonGeome
 // ============================================================
 
 size_t GCodeGLESRenderer::get_geometry_color_count() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     if (geometry_)
         return geometry_->color_palette.size();
     return 0;
 }
 
 std::vector<uint32_t> GCodeGLESRenderer::get_geometry_color_palette() const {
+    std::lock_guard<std::mutex> state_lock(state_mutex_);
     std::lock_guard<std::mutex> lock(palette_mutex_);
     return geometry_ ? geometry_->color_palette : std::vector<uint32_t>{};
 }
 
+size_t GCodeGLESRenderer::get_segments_rendered() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return triangles_rendered_ / 2;
+}
+
 helix::gcode::RenderMemoryReport GCodeGLESRenderer::memory_report() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return memory_report_locked();
+}
+
+helix::gcode::RenderMemoryReport GCodeGLESRenderer::memory_report_locked() const {
     helix::gcode::RenderMemoryReport r;
 
     size_t geometry = 0;
@@ -2338,9 +2510,7 @@ helix::gcode::RenderMemoryReport GCodeGLESRenderer::memory_report() const {
 
     // ARGB8888: the alpha byte is coverage, thresholded to 0/255 during the
     // repack once the rim pass has consumed the selection tag.
-    r.add("draw_buf", draw_buf_ ? static_cast<size_t>(draw_buf_width_) *
-                                      static_cast<size_t>(draw_buf_height_) * 4
-                                : 0);
+    r.add("draw_buf", draw_buf_bytes_.load());
 
     // Was missing from the old accounting entirely. It is a full RGBA copy of
     // the framebuffer and it is resident for the life of the renderer.
@@ -2366,10 +2536,11 @@ void GCodeGLESRenderer::log_memory_report(const char* when) const {
     if (!spdlog::should_log(spdlog::level::debug)) {
         return;
     }
-    spdlog::debug("[GCode GLES] memory after {}: {}", when, memory_report().format());
+    spdlog::debug("[GCode GLES] memory after {}: {}", when, memory_report_locked().format());
 }
 
 size_t GCodeGLESRenderer::get_triangle_count() const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     if (geometry_)
         return geometry_->extrusion_triangle_count;
     return 0;
@@ -2386,14 +2557,15 @@ glm::mat4 GCodeGLESRenderer::build_mvp(const GCodeCamera& camera) const {
     return proj * camera.get_view_matrix() * model;
 }
 
-void GCodeGLESRenderer::latch_shown_image(int width, int height) {
-    shown_mvp_ = frame_mvp_;
+void GCodeGLESRenderer::latch_shown_image(const glm::mat4& mvp, int width, int height) {
+    shown_mvp_ = mvp;
     shown_width_ = width;
     shown_height_ = height;
     has_shown_image_ = true;
 }
 
 std::optional<glm::vec2> GCodeGLESRenderer::project_to_shown_image(const glm::vec3& world) const {
+    // LVGL-thread state only (install_frame latches it), so no lock.
     if (!has_shown_image_) {
         return std::nullopt;
     }
@@ -2817,6 +2989,7 @@ void GCodeGLESRenderer::render_selection_tag(const ParsedGCodeFile& gcode,
 std::optional<std::string> GCodeGLESRenderer::pick_object(const glm::vec2& screen_pos,
                                                           const ParsedGCodeFile& gcode,
                                                           const GCodeCamera& camera) const {
+    std::lock_guard<std::mutex> lock(state_mutex_);
     glm::mat4 transform = build_mvp(camera);
     float closest_distance = std::numeric_limits<float>::max();
     std::optional<std::string> picked_object;

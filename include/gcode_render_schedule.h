@@ -3,6 +3,7 @@
 
 #include "geometry_budget_manager.h"
 
+#include <atomic>
 #include <cstddef>
 
 namespace helix::gcode::render_schedule {
@@ -37,6 +38,19 @@ inline float update_rate(float prev_rate, size_t triangles, float elapsed_ms) {
     return prev_rate + kRateSmoothing * (sample - prev_rate);
 }
 
+/// Triangles one moving frame may draw at `rate`: the moving plan's budget, and
+/// the size the moving mesh is built to.
+inline size_t moving_budget_triangles(float rate) {
+    return static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+}
+
+/// The rate the latest 3D draw in this process measured, 0 before any. One GPU
+/// serves every viewer, so a file opened later sizes its moving mesh from it.
+inline std::atomic<float>& last_measured_rate() {
+    static std::atomic<float> rate{0.0f};
+    return rate;
+}
+
 /// Triangles the next still-frame slice may submit.
 inline size_t slice_quota(float rate) {
     const auto quota = static_cast<size_t>(effective_rate(rate) * kSliceTargetMs);
@@ -56,7 +70,7 @@ struct MovingPlan {
 /// when it fits, at half resolution when even it overflows); with no mesh the
 /// smallest layer stride that fits, at half resolution.
 inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, float rate) {
-    auto budget = static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+    auto budget = moving_budget_triangles(rate);
     if (budget == 0) {
         budget = 1;
     }
@@ -67,6 +81,36 @@ inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, flo
         return {true, 1, mesh_triangles > budget};
     }
     return {false, static_cast<int>((total_triangles + budget - 1) / budget), true};
+}
+
+/// Keeps a gesture at half resolution once one of its frames needed it. The
+/// measured rate is triangles per millisecond, but a half-resolution frame
+/// also fills a quarter of the pixels, so its sample overstates what a
+/// full-resolution frame can do. Planning from it alone flips the next frame
+/// back to full resolution, which overruns the budget, and every flip
+/// reallocates the framebuffer.
+inline MovingPlan hold_half_resolution(MovingPlan plan, bool held) {
+    if (held) {
+        plan.half_resolution = true;
+    }
+    return plan;
+}
+
+/// A moving frame slower than this, already at half resolution, leaves the
+/// model unusable to rotate: under ~7 frames a second.
+constexpr float kMaxUsableMovingFrameMs = 150.0f;
+/// Consecutive such frames before the 3D preview gives way to 2D.
+constexpr int kSlowMovingFramesToFallBack = 5;
+
+/// Count one moving frame's wall time (draw and readback) into `slow_streak`;
+/// true once enough consecutive frames were too slow to rotate. A frame still
+/// at full resolution never counts: the plan has a cheaper rung left for it.
+inline bool moving_too_slow(int& slow_streak, float frame_ms, bool half_resolution) {
+    if (!half_resolution || frame_ms <= kMaxUsableMovingFrameMs) {
+        slow_streak = 0;
+        return false;
+    }
+    return ++slow_streak >= kSlowMovingFramesToFallBack;
 }
 
 /// How the moving mesh is banded.

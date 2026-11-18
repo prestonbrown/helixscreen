@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" it="Completato {} min fa"/>
   <translation tag="Completed: {}" it="Completato: {}"/>
   <translation tag="Compressed" it="Compresso"/>
+  <translation tag="Compressed: filament arrives faster than it is used" it="Compresso: il filamento arriva più velocemente di quanto viene usato"/>
   <translation tag="Computing calibration..." it="Calcolo calibrazione..."/>
   <translation tag="Config Dir" it="Dir configurazione"/>
   <translation tag="Config Edit Failed" it="Modifica della configurazione non riuscita"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" it="Scarico: mantieni la camera al massimo a"/>
   <translation tag="Exit Code" it="Codice di uscita"/>
   <translation tag="Expanded" it="Espanso"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" it="Espanso: la testina tira il filamento più velocemente di quanto arriva"/>
   <translation tag="Expected boolean" it="Atteso un valore booleano"/>
   <translation tag="Expected float" it="Atteso un numero decimale"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." it="Esplora come la palette selezionata definisce testo, controlli e colori di stato."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" it="Reinserisci il filamento"/>
   <translation tag="Feeder" it="Alimentatore"/>
   <translation tag="Feeders" it="Alimentatori"/>
-  <translation tag="Feeding filament forward" it="Avanzamento filamento"/>
   <translation tag="Feeding filament to nozzle" it="Avanzamento filamento verso l&apos;ugello"/>
   <translation tag="Filament" it="Filamento"/>
   <translation tag="Filament Buffer" it="Buffer filamento"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" it="Tira"/>
   <translation tag="Pull now" it="Tirare ora"/>
   <translation tag="Pulled" it="Tirato"/>
-  <translation tag="Pulling filament back" it="Retrazione filamento"/>
   <translation tag="Purge" it="Spurga"/>
   <translation tag="Purge &amp; Wipe" it="Spurgo e pulizia"/>
   <translation tag="Purge Chute Calibration" it="Calibrazione condotto di spurgo"/>
@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" it="Spurgo ugello"/>
   <translation tag="Purging old filament" it="Spurgo del filamento precedente"/>
   <translation tag="Purging..." it="Spurgo..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." it="Spingi il filamento a mano nella testina, poi tocca Riprendi."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." it="Spingere il filamento di pulizia nell&apos;estrusore fino in fondo, poi toccare Estrusione."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." it="Spingi il filamento nell&apos;estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."/>
   <translation tag="QGL" it="QGL"/>

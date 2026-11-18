@@ -16,6 +16,13 @@ struct HelixPluginInstallerTestAccess {
         installer.script_search_root_ = std::move(root);
     }
 
+    /// Resolve the install root from @p exe, probing firmware packages under @p probe_root.
+    static void set_running_exe(HelixPluginInstaller& installer, std::string exe,
+                                std::string probe_root) {
+        installer.running_exe_override_ = std::move(exe);
+        installer.probe_root_ = std::move(probe_root);
+    }
+
     static void set_script_timeout_seconds(HelixPluginInstaller& installer, int seconds) {
         installer.script_timeout_seconds_ = seconds;
     }

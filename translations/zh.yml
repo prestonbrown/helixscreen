@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: '{} 小时前完成'
   Completed {}m ago: '{} 分钟前完成'
   Compressed: 压缩
+  'Compressed: filament arrives faster than it is used': '压缩：耗材送入快于消耗'
   Computing calibration...: 正在计算校准...
   Config Dir: 配置目录
   Config Edit Failed: '配置编辑失败'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': '排气：将腔体保持在不高于'
   Exit Code: 退出代码
   Expanded: 伸展
+  'Expanded: the toolhead pulls filament faster than it arrives': '伸展：打印头拉动耗材快于送入'
   Expected boolean: '需要布尔值'
   Expected float: '需要小数值'
   Explore how the selected palette shapes text, controls, and status colors.: 探索所选调色板如何影响文本、控件和状态颜色。
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "重新送入耗材"
   Feeder: 送料器
   Feeders: 送料器
-  Feeding filament forward: 正在向前送料
   Feeding filament to nozzle: "正在向喷嘴送料"
   Filament: 耗材
   Filament Buffer: '耗材缓冲区'
@@ -2277,6 +2278,7 @@ translations:
   Load filament first: 请先装载耗材
   Load filament to the toolhead, then tap Resume.: '请将耗材装载到工具头，然后点按恢复。'
   Load into which tool?: '装入哪个工具？'
+  Push filament into the toolhead by hand, then tap Resume.: "请用手将耗材推入工具头，然后点按恢复。"
   Load it in the filament panel, then tap Resume.: '请在耗材面板中装载，然后点按恢复。'
   Load or unload filament.: 装载或卸载耗材。
   Load Profile: '加载配置'
@@ -3206,7 +3208,6 @@ translations:
   Pull: "拉出"
   Pull now: "立即拉出"
   Pulled: "已拉出"
-  Pulling filament back: 正在回抽耗材
   Purge: 排料
   Purge & Wipe: '排料与擦拭'
   Purge Chute Calibration: 排料口校准

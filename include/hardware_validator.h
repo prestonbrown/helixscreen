@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "hardware_role_registry.h" // helix::SeenHardware
 #include "json_fwd.h"
 
 #include <optional>
@@ -313,6 +314,15 @@ class HardwareValidator {
      * @return Previous snapshot, or nullopt if none exists
      */
     static std::optional<HardwareSnapshot> load_session_snapshot(helix::Config* config);
+
+    /**
+     * @brief Every fan and heater this printer has reported at any earlier discovery
+     *
+     * Every save_session_snapshot() adds its fans and heaters to the record, whether or
+     * not that discovery prompted the user, so hardware that went away while a print
+     * ran or a wizard sat unanswered still counts as seen.
+     */
+    static helix::SeenHardware load_seen_hardware(helix::Config* config);
 
     /**
      * @brief Check if hardware is marked as optional in config

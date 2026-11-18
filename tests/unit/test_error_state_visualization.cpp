@@ -482,7 +482,7 @@ TEST_CASE("AFC buffer health: parsed to unit level from buffer update",
     REQUIRE(info.units[0].buffer_health->fault_detection_enabled == true);
     REQUIRE(info.units[0].buffer_health->distance_to_fault == Catch::Approx(25.5f));
     REQUIRE(info.units[0].buffer_health->state == "Advancing");
-    CHECK(info.units[0].buffer_health->motion == helix::BufferMotion::Advancing);
+    CHECK(info.units[0].buffer_health->motion == helix::BufferMotion::Expanded);
 
     // Slots should NOT have buffer health (it's unit-level now)
     REQUIRE_FALSE(helper.get_slot(0)->error.has_value());
@@ -521,7 +521,7 @@ TEST_CASE("AFC buffer health: fault_detection_enabled false stored on unit",
     const auto& info = helper.get_system_info();
     REQUIRE(info.units[0].buffer_health.has_value());
     REQUIRE(info.units[0].buffer_health->fault_detection_enabled == false);
-    CHECK(info.units[0].buffer_health->motion == helix::BufferMotion::Trailing);
+    CHECK(info.units[0].buffer_health->motion == helix::BufferMotion::Compressed);
 }
 
 TEST_CASE("AFC buffer health: a state with no direction has no motion",

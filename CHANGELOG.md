@@ -30,6 +30,7 @@ is out.
 - **No phantom Form tip step on Happy Hare 4.2** - when Happy Hare 4.2 is set up with no tip forming macro, the tool change steps no longer show a Form tip step that never runs.
 - **Happy Hare endless spool groups that follow the gate map** - when Happy Hare builds its endless spool groups from each gate's material and color (`endless_spool_auto_groups`, in Happy Hare's development builds), the backup gate setting shows read-only with that reason instead of sending groups Happy Hare ignores.
 - **Happy Hare pause dialogs keep your own buttons** - when your print start macros add buttons to Happy Hare's pause dialog (for example a Retry load button), HelixScreen's recovery popup no longer closes that dialog, so those buttons stay reachable.
+- **Happy Hare 4.2's pause hint in the recovery popup** - when Happy Hare 4.2 pauses a print, the recovery popup shows its hint about what to do next under the reason, as Happy Hare's own pause dialog does.
 - **Spool rotation while drying on more Happy Hare units** - on Happy Hare 4.2, a unit with one shared heater offers Rotate on its dryer page, and units whose gear motor turns the spool (BTT ViViD, QIDI Box) count as able to rotate, not only units with an eSpooler.
 - **Drying time left from Happy Hare itself** - with a Happy Hare that reports its running drying cycle (`printer.mmu.drying`, in Happy Hare's development builds), the dryer shows the time left of a cycle started anywhere, including from Mainsail or a macro.
 - **Drawn filament units** (#2068) - the AMS overview, path screen, dryer page and Device Operations now show your filament system as a drawing of the real unit instead of a generic card: AMS HT and AMS 2 Pro, the Creality CFS, QIDI Box, Box Turtle (open and enclosed), BTT ViViD and KMS, BMCU, Night Owl, Quattro Box, 3MS, MMX, EMU and DW-TAS, ERCF, Tradrack and the Canvas. Spools are drawn at a real spool shape, empty lanes show a faint reel, tubes meet each unit's fittings and join at hubs, the loaded lane's spool turns while it feeds, and a selector carriage on ERCF and Tradrack shows the lane it sits at. Units without art keep a compact tile.
@@ -87,9 +88,11 @@ is out.
 - **Chute calibration D-pad on the K1 CFS** (#2007) - the purge chute calibration has an XY D-pad with a step size, and the head stops short of a known wiper.
 - **Runs on Android 7** - the Android app supports Android 7.0 and Fire OS 6 tablets.
 - **K1 series SSH log** - the state of SSH is written to the install log and a launch log that Mainsail, Fluidd and debug bundles can reach.
+- **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on the print file screen and on Print Status, is now a button. Tapping it puts the model back at its starting angle and zoom.
 
 ### Fixed
 
+- **Smoother 3D preview on slower boards** - rotating the 3D G-code preview no longer freezes the rest of the screen, because the preview now draws on its own thread. A drag also draws each frame once instead of up to three times, and on faster boards the simplified model shown while rotating keeps more of its detail. On a board where rotating still cannot reach about 7 frames a second, the preview switches to the 2D view for the rest of the session instead of stalling.
 - **Saving tool offsets on Reforge** (#2030) - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
 - **Toolhead pictures fit the filament path at every screen size** - the Stealthburner and other tall heads are no longer cut off at the bottom on 480x272 screens.
 - **Filament status follows the language** - AMS status text, Happy Hare action text, AD5X phase text and filament error messages change language as soon as you switch it, instead of staying in the old one until restart.
@@ -102,6 +105,10 @@ is out.
 - **Xptek touch screens** - Xptek touch controllers are treated as resistive screens.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
 - **No stacked AFC errors over AFC's own prompts** - while AFC shows one of its calibration or toolhead-load prompts, its messages go to the notification list instead of popping up over the prompt, as they already did for prompts with AFC in the title.
+- **Installer on boards without polkit** - on a board with no polkit, such as Armbian on the BTT CB1, the installer says polkit is not installed and how to add it (`sudo apt install polkitd`, then restart HelixScreen), instead of reporting a failed power rule write.
+- **Installer downloads without HTTPS** - on printers whose downloader cannot use HTTPS, such as the FlashForge Adventurer 5M, the installer goes to the plain-HTTP download server first and asks it only for the tarball it carries, so a "404 Not Found" for a .zip no longer shows up before the download succeeds.
+- **Adventurer 5M waits for Moonraker on Forge-X** - when HelixScreen runs inside Forge-X's own environment, as an installer update sets it up, it waits for Moonraker at startup instead of starting alongside it, and still skips the wait when Moonraker is turned off in Forge-X.
+- **HelixPrint plugin installs on a Snapmaker U1 with PAXX firmware** (#2136) - when the PAXX Extended Firmware runs HelixScreen as its own package, HelixScreen finds the package it runs from, so installing and removing the HelixPrint plugin, the timelapse plugin setup and the plugin check at startup work there instead of failing with "Install script not found", and the installed plugin keeps working after PAXX updates the package.
 
 ## [1.1.0-rc.4] - UNRELEASED
 

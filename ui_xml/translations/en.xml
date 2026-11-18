@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" en="Completed {}m ago"/>
   <translation tag="Completed: {}" en="Completed: {}"/>
   <translation tag="Compressed" en="Compressed"/>
+  <translation tag="Compressed: filament arrives faster than it is used" en="Compressed: filament arrives faster than it is used"/>
   <translation tag="Computing calibration..." en="Computing calibration..."/>
   <translation tag="Config Dir" en="Config Dir"/>
   <translation tag="Config Edit Failed" en="Config Edit Failed"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" en="Exhaust: keep chamber at or below"/>
   <translation tag="Exit Code" en="Exit Code"/>
   <translation tag="Expanded" en="Expanded"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" en="Expanded: the toolhead pulls filament faster than it arrives"/>
   <translation tag="Expected boolean" en="Expected boolean"/>
   <translation tag="Expected float" en="Expected float"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." en="Explore how the selected palette shapes text, controls, and status colors."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" en="Feed the filament back"/>
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
-  <translation tag="Feeding filament forward" en="Feeding filament forward"/>
   <translation tag="Feeding filament to nozzle" en="Feeding filament to nozzle"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Buffer" en="Filament Buffer"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" en="Pull"/>
   <translation tag="Pull now" en="Pull now"/>
   <translation tag="Pulled" en="Pulled"/>
-  <translation tag="Pulling filament back" en="Pulling filament back"/>
   <translation tag="Purge" en="Purge"/>
   <translation tag="Purge &amp; Wipe" en="Purge &amp; Wipe"/>
   <translation tag="Purge Chute Calibration" en="Purge Chute Calibration"/>
@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" en="Purging nozzle"/>
   <translation tag="Purging old filament" en="Purging old filament"/>
   <translation tag="Purging..." en="Purging..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." en="Push filament into the toolhead by hand, then tap Resume."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." en="Push the cleaning filament into the extruder until it stops, then tap Extrude."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
   <translation tag="QGL" en="QGL"/>

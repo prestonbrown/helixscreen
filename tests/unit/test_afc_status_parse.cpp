@@ -286,13 +286,13 @@ TEST_CASE("AFC buffer delta overlays what it carries and clears what goes null",
                                                            {"error_sensitivity", 7},
                                                            {"fault_timer", 1.5},
                                                            {"distance_to_fault", 25.5}}));
-    CHECK(health.motion == BufferMotion::Trailing);
+    CHECK(health.motion == BufferMotion::Compressed);
     CHECK(health.multiplier == Catch::Approx(1.0f));
     CHECK_FALSE(health.has_fps());
 
     // A state-only delta leaves the rest standing.
     afc::apply_buffer_delta(health, afc::parse_buffer(json{{"state", "Advancing"}}));
-    CHECK(health.motion == BufferMotion::Advancing);
+    CHECK(health.motion == BufferMotion::Expanded);
     CHECK(health.active_lane == "lane2");
     CHECK(health.multiplier_low == Catch::Approx(0.9f));
     CHECK(health.error_sensitivity == Catch::Approx(7.0f));

@@ -103,7 +103,14 @@ toward "managed", because self-updating a firmware's package is the worse mistak
 2. The running executable is the same file, by device and inode, as
    `bin/helix-screen` in any subdirectory of it, `latest` included: managed. Identity rather
    than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
-   `/proc/self/exe` names `/usr/bin/gui` and the install root does not resolve.
+   `/proc/self/exe` names `/usr/bin/gui`, a path that leads to no install tree.
+   `board::firmware_package_root()` makes the same identity match and names the package
+   through `latest` when `latest` is what runs, and `helix::board::resolve_install_root()` falls back
+   to it, so `app_get_install_root()` and the HelixPrint plugin installer find the package tree
+   there. The plugin's Moonraker link goes through `latest` and survives a package upgrade.
+   Writes into the install root (the release info repair, the stale `.old` cleanup, update
+   downloads) go through `app_get_writable_install_root()`, which is empty for a
+   firmware-managed install (#2136).
 3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
    executable that cannot be stat'd or resolved counts as the firmware's.
 
@@ -563,7 +570,7 @@ That matters because the GitHub API returns release assets **sorted by name**, a
 
 ### Service Allowlist
 
-The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory).
+The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory). Moonraker reads that file only at startup, so a run that appends the entry restarts Moonraker once; until then Mainsail and Fluidd cannot restart HelixScreen.
 
 ### Migration
 

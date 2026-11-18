@@ -34,6 +34,8 @@ struct MmuCoreDelta {
     std::optional<int> tool;
     std::optional<bool> filament_loaded; ///< from `filament`: "Loaded" / "Unloaded"
     std::optional<std::string> reason_for_pause;
+    /// What to do next about the pause (v4.2+); "" outside a pause, absent before v4.2.
+    std::optional<std::string> pause_hint;
     std::optional<std::string> action;
     std::optional<int> filament_pos;
     std::optional<int> bowden_progress; ///< clamped to [-1, 100]
@@ -338,7 +340,7 @@ parse_entry_sensor_objects(const nlohmann::json& params);
 /// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
 [[nodiscard]] SpoolMotorAction spool_motor_action(const std::string& state);
 
-/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt when
+/// Happy Hare's sync_feedback_state as the system buffer's shape: nullopt when
 /// sync feedback is absent or "disabled".
 [[nodiscard]] std::optional<BufferMotion> sync_feedback_motion(const std::string& state);
 

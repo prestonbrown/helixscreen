@@ -94,6 +94,23 @@ std::vector<helix::wizard::StepId> unresolved_guided_steps(Config* config,
 /// untouched. Returns true if any key was changed.
 bool decline_unresolved_guided_roles(Config* config, const PrinterDiscovery& hw);
 
+/// Every fan and heater this printer has reported at any earlier discovery. An empty
+/// list means that category is unknown (nothing recorded, or none of it was reported).
+struct SeenHardware {
+    std::vector<std::string> fans;
+    std::vector<std::string> heaters;
+};
+
+/// The wizard steps a targeted reconfig should run at this discovery. The step is
+/// for a saved fan or heater role whose hardware went away, so an Unresolved role
+/// whose object this printer has never reported (a preset's stock name on a printer
+/// that never had it) is settled to "" (unconfigured) and saved instead of asked
+/// about. A role whose object was seen once stays asked about until the user answers,
+/// however many discoveries pass without a prompt. Roles of a category @p seen knows
+/// nothing of are asked as before.
+std::vector<helix::wizard::StepId> guided_reconfig_steps(Config* config, const PrinterDiscovery& hw,
+                                                         const SeenHardware& seen);
+
 /// End of a targeted reconfig session, shared by its Finish and Cancel paths:
 /// decline every guided role still Unresolved against `hw`. A session step can
 /// only resolve the roles it has a control for — the fan step has no aux

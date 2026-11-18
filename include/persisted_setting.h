@@ -86,6 +86,10 @@ template <typename Key, size_t N> class PersistedSettings {
     lv_subject_t* subject(Key k) {
         return &subjects_[idx(k)];
     }
+    /// The row's default value.
+    int default_of(Key k) const {
+        return table_[idx(k)].def;
+    }
 
   private:
     static constexpr size_t idx(Key k) {

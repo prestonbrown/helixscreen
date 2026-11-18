@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
-// SPDX-License-Identifier: GPL-3.0-or-later
-#include "config.h"
+// SPDX-License-Identifier: GPL-3.0-or-later#include "config.h"
 #include "hardware_role_registry.h"
+#include "hardware_validator.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_fan_state.h"
@@ -224,28 +224,6 @@ struct GuidedKeyStash {
 };
 } // namespace
 
-TEST_CASE("unresolved_guided_steps: present stale part fan with no candidate yields exactly "
-          "{FanSelect}",
-          "[hwrole][reconfig]") {
-    Config* cfg = Config::get_instance();
-    GuidedKeyStash stash(cfg);
-    stash.clear_all();
-
-    // PRESENT stale role: a part fan that no longer exists. Discovered fans exist but
-    // none are a part-fan candidate (controller_fan/heater_fan are excluded), so neither
-    // the canonical default nor the heuristic guess can resolve it. All other guided keys
-    // are "" (unconfigured) → must be skipped, so the result is EXACTLY {FanSelect}.
-    stash.set(helix::wizard::PART_FAN, "output_pin fan0");
-
-    MoonrakerClientMock client;
-    client.set_fans({"controller_fan Case_Fan", "heater_fan hotend_fan"});
-    client.set_heaters({}); // no heaters → heater roles (all "") contribute nothing
-
-    auto steps = helix::unresolved_guided_steps(cfg, client.hardware());
-    std::vector<helix::wizard::StepId> expected = {helix::wizard::StepId::FanSelect};
-    REQUIRE(steps == expected);
-}
-
 TEST_CASE("unresolved_guided_steps: bed-less printer (absent bed key) does NOT yield HeaterSelect",
           "[hwrole][reconfig]") {
     Config* cfg = Config::get_instance();
@@ -267,67 +245,6 @@ TEST_CASE("unresolved_guided_steps: bed-less printer (absent bed key) does NOT y
     REQUIRE(std::find(steps.begin(), steps.end(), helix::wizard::StepId::HeaterSelect) ==
             steps.end());
     REQUIRE(std::find(steps.begin(), steps.end(), helix::wizard::StepId::FanSelect) == steps.end());
-}
-
-TEST_CASE("unresolved_guided_steps: empty when every guided role resolves", "[hwrole][reconfig]") {
-    Config* cfg = Config::get_instance();
-    struct KV {
-        std::string key;
-        std::string orig;
-    };
-    std::vector<KV> stash;
-    auto save = [&](const char* suffix) {
-        std::string k = cfg->df() + suffix;
-        stash.push_back({k, cfg->get<std::string>(k, "")});
-    };
-    save(helix::wizard::PART_FAN);
-    save(helix::wizard::HOTEND_FAN);
-    save(helix::wizard::CHAMBER_FAN);
-    save(helix::wizard::EXHAUST_FAN);
-    save(helix::wizard::HOTEND_HEATER);
-    save(helix::wizard::BED_HEATER);
-
-    cfg->set<std::string>(cfg->df() + helix::wizard::PART_FAN, std::string("fan"));
-    cfg->set<std::string>(cfg->df() + helix::wizard::HOTEND_FAN, std::string(""));
-    cfg->set<std::string>(cfg->df() + helix::wizard::CHAMBER_FAN, std::string(""));
-    cfg->set<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, std::string(""));
-    cfg->set<std::string>(cfg->df() + helix::wizard::HOTEND_HEATER, std::string("extruder"));
-    cfg->set<std::string>(cfg->df() + helix::wizard::BED_HEATER, std::string("heater_bed"));
-
-    MoonrakerClientMock client;
-    client.set_fans({"fan"});
-    client.set_heaters({"extruder", "heater_bed"});
-
-    auto steps = helix::unresolved_guided_steps(cfg, client.hardware());
-    REQUIRE(steps.empty());
-
-    for (const auto& kv : stash)
-        cfg->set<std::string>(kv.key, kv.orig); // restore
-}
-
-TEST_CASE("unresolved_guided_steps: dedups multiple unresolved fan roles to one FanSelect",
-          "[hwrole][reconfig]") {
-    Config* cfg = Config::get_instance();
-    const std::string pkey = cfg->df() + helix::wizard::PART_FAN;
-    const std::string hkey = cfg->df() + helix::wizard::HOTEND_FAN;
-    const std::string porig = cfg->get<std::string>(pkey, "");
-    const std::string horig = cfg->get<std::string>(hkey, "");
-
-    // Two distinct fan roles both unresolvable (no fans discovered). Heaters resolve
-    // so only FAN-category steps can appear.
-    cfg->set<std::string>(pkey, std::string("output_pin fan0"));
-    cfg->set<std::string>(hkey, std::string("heater_fan gone_fan"));
-
-    MoonrakerClientMock client;
-    client.set_fans({});
-    client.set_heaters({"extruder", "heater_bed"});
-
-    auto steps = helix::unresolved_guided_steps(cfg, client.hardware());
-    long fan_count = std::count(steps.begin(), steps.end(), helix::wizard::StepId::FanSelect);
-    REQUIRE(fan_count == 1);
-
-    cfg->set<std::string>(pkey, porig); // restore
-    cfg->set<std::string>(hkey, horig);
 }
 
 TEST_CASE("decline_unresolved_guided_roles: present unsatisfiable role becomes \"\", resolvable "
@@ -470,4 +387,62 @@ TEST_CASE("guess never returns a non-candidate", "[hwrole][guess]") {
             CHECK((g.empty() || desc->is_candidate(g)));
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// guided_reconfig_steps: the targeted wizard asks only about hardware that went away
+// ---------------------------------------------------------------------------
+
+// A K1C on a modded Klipper config keeps the k1c preset's stock exhaust name,
+// output_pin fan1, which this printer never had. Every boot() saves its snapshot as
+// discovery does, whether or not anyone was asked (a print running, a wizard left open).
+TEST_CASE("guided_reconfig_steps: asks only about hardware this printer has reported",
+          "[hwrole][reconfig]") {
+    Config* cfg = Config::get_instance();
+    const std::string hw_key = cfg->df() + "hardware";
+    const nlohmann::json* hw_node = cfg->try_get_json(hw_key);
+    const nlohmann::json saved_hw = hw_node ? *hw_node : nlohmann::json::object();
+    cfg->set<nlohmann::json>(hw_key, nlohmann::json::object());
+    GuidedKeyStash stash(cfg);
+    stash.clear_all();
+    stash.set(helix::wizard::EXHAUST_FAN, "output_pin fan1");
+    stash.set(helix::wizard::PART_FAN, "fan"); // the resolving roles are never asked about
+    stash.set(helix::wizard::HOTEND_HEATER, "extruder");
+    stash.set(helix::wizard::BED_HEATER, "heater_bed");
+    const std::vector<std::string> fans = {"fan", "fan_generic chamber", "heater_fan hotend"};
+    MoonrakerClientMock client;
+    client.set_fans(fans);
+    client.set_heaters({"extruder", "heater_bed"});
+    const auto boot = [&] { HardwareValidator().save_session_snapshot(cfg, client.hardware()); };
+    const auto steps = [&] {
+        return helix::guided_reconfig_steps(cfg, client.hardware(),
+                                            HardwareValidator::load_seen_hardware(cfg));
+    };
+    using helix::wizard::StepId;
+
+    SECTION("a preset fan the printer never had is settled, not asked") {
+        boot();
+        CHECK(steps().empty());
+        CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, "?").empty());
+    }
+    SECTION("a fan that went away while nobody was asked still gets the step") {
+        client.set_fans({"fan", "output_pin fan1"});
+        boot();
+        client.set_fans(fans);
+        boot();
+        CHECK(steps() == std::vector<StepId>{StepId::FanSelect});
+    }
+    SECTION("a bed heater that went away while nobody was asked still gets the step") {
+        stash.set(helix::wizard::EXHAUST_FAN, "");
+        boot();
+        client.set_heaters({"extruder"});
+        boot();
+        CHECK(steps() == std::vector<StepId>{StepId::HeaterSelect});
+    }
+    SECTION("with no record of this printer's fans it is asked, once for two roles") {
+        stash.set(helix::wizard::HOTEND_FAN, "heater_fan gone_fan");
+        client.set_fans({"fan"}); // no candidate for either stale fan role
+        CHECK(steps() == std::vector<StepId>{StepId::FanSelect});
+    }
+    cfg->set<nlohmann::json>(hw_key, saved_hw);
 }

@@ -130,14 +130,14 @@ TEST_CASE("buffer_reading: a switched buffer snaps to three places on the scale"
     CHECK(buffer_reading(info, 1).source == BufferSource::Fps);
 
     SECTION("advancing is compressed, short of the end stop") {
-        info.units[0].buffer_health->motion = BufferMotion::Advancing;
+        info.units[0].buffer_health->motion = BufferMotion::Compressed;
         const BufferReading r = buffer_reading(info, 0);
         CHECK(r.bias == Catch::Approx(kSwitchedBufferBias));
         CHECK(r.status == ClogMeterStatus::Ok);
     }
 
     SECTION("trailing is expanded") {
-        info.units[0].buffer_health->motion = BufferMotion::Trailing;
+        info.units[0].buffer_health->motion = BufferMotion::Expanded;
         CHECK(buffer_reading(info, 0).bias == Catch::Approx(-kSwitchedBufferBias));
     }
 
@@ -226,9 +226,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words", "[buffer][reading][tex
         info.units.push_back(unit);
         CHECK(std::string(buffer_label(buffer_reading(info, 0))) == "Buffer");
         CHECK(buffer_short_text(buffer_reading(info, 0)) == "Neutral");
-        info.units[0].buffer_health->motion = BufferMotion::Advancing;
+        info.units[0].buffer_health->motion = BufferMotion::Compressed;
         CHECK(buffer_short_text(buffer_reading(info, 0)) == "Compressed");
-        info.units[0].buffer_health->motion = BufferMotion::Trailing;
+        info.units[0].buffer_health->motion = BufferMotion::Expanded;
         CHECK(buffer_short_text(buffer_reading(info, 0)) == "Expanded");
     }
     SECTION("nothing to read") {

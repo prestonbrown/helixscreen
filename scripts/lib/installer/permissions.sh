@@ -203,6 +203,15 @@ install_power_polkit_rule() {
         log_warn "ensure-polkit-rule.sh not found, so screen Shutdown/Reboot may be refused"
         return 0
     fi
+    # Without polkitd (Armbian on the BTT CB1 ships none) neither rule directory
+    # exists, there is nothing to write, and logind refuses every non-root
+    # power request whatever is written.
+    if ! $SUDO test -d "${polkit_dir}/rules.d" &&
+        ! $SUDO test -d "${polkit_dir}/localauthority/50-local.d"; then
+        log_warn "polkit is not installed on this host, so no power-off/reboot rule was installed and screen Shutdown/Reboot may be refused."
+        log_warn "To allow them, install polkit (Debian/Armbian: sudo apt install polkitd), then restart HelixScreen, which adds the rule."
+        return 0
+    fi
     $SUDO sh "$ensure_script" "$helix_user" >/dev/null || true
     if $SUDO test -f "${polkit_dir}/rules.d/49-helixscreen-power.rules" ||
         $SUDO test -f "${polkit_dir}/localauthority/50-local.d/helixscreen-power.pkla"; then

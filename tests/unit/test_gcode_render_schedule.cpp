@@ -67,6 +67,39 @@ TEST_CASE("the moving plan halves resolution when the mesh itself overflows the 
     REQUIRE(p.half_resolution);
 }
 
+TEST_CASE("a gesture that dropped to half resolution stays there", "[gcode][render_schedule]") {
+    // A fast half-resolution sample makes the next plan ask for full resolution.
+    const MovingPlan full = plan_moving(80000, 0, 4000.0f);
+    REQUIRE_FALSE(full.half_resolution);
+
+    const MovingPlan held = hold_half_resolution(full, true);
+    REQUIRE(held.half_resolution);
+    REQUIRE(held.stride == full.stride);
+    REQUIRE(held.use_mesh == full.use_mesh);
+
+    REQUIRE_FALSE(hold_half_resolution(full, false).half_resolution);
+}
+
+TEST_CASE("3D gives way to 2D only after a run of slow half-resolution frames",
+          "[gcode][render_schedule]") {
+    int streak = 0;
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    // A full-resolution frame has a cheaper rung left, and a fast one breaks the run.
+    REQUIRE_FALSE(moving_too_slow(streak, 400.0f, false));
+    REQUIRE(streak == 0);
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    REQUIRE_FALSE(moving_too_slow(streak, kMaxUsableMovingFrameMs, true));
+    REQUIRE(streak == 0);
+    for (int i = 1; i < kSlowMovingFramesToFallBack; ++i) {
+        REQUIRE_FALSE(moving_too_slow(streak, 400.0f, true));
+    }
+    REQUIRE(moving_too_slow(streak, 400.0f, true));
+}
+
 TEST_CASE("plan_bands sizes shell bands to the budget left after surfaces",
           "[gcode][render_schedule]") {
     // 11 triangles per N=4 segment: 36k shell segments project to 396k
@@ -99,6 +132,15 @@ TEST_CASE("plan_bands strides surfaces with the shell past half the budget",
     p = plan_bands(30000, 20000, 100000);
     REQUIRE_FALSE(p.surfaces_every_layer);
     REQUIRE(p.band_layers == 6); // 550k over 100k
+}
+
+TEST_CASE("a faster measured GPU gets a denser moving mesh", "[gcode][render_schedule]") {
+    // Benchy-sized shell, no surfaces: the band depth tracks the moving budget.
+    REQUIRE(moving_budget_triangles(0.0f) == 100000); // unmeasured: Pi 3B seed
+    const int seed_bands = plan_bands(400000, 0, moving_budget_triangles(0.0f)).band_layers;
+    const int pi4_bands = plan_bands(400000, 0, moving_budget_triangles(12000.0f)).band_layers;
+    REQUIRE(seed_bands == 44); // ceil(400k * 11 tris / 100k)
+    REQUIRE(pi4_bands == 15);  // ceil(400k * 11 tris / 300k)
 }
 
 TEST_CASE("plan_bands with no budget is off", "[gcode][render_schedule]") {

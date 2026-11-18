@@ -55,6 +55,17 @@ TEST_CASE("Happy Hare status parse core fields", "[happy_hare][status_parse]") {
     CHECK_FALSE(happy_hare::parse_core(json{{"has_bypass", "yes"}}).has_bypass);
 }
 
+TEST_CASE("Happy Hare status parse reads pause_hint when the frame carries it",
+          "[happy_hare][status_parse]") {
+    // v4.2 publishes pause_hint beside reason_for_pause; earlier versions never do.
+    const auto c = happy_hare::parse_core(
+        json{{"reason_for_pause", "Gate 2 is empty!"}, {"pause_hint", "Load gate 2, then RESUME"}});
+    CHECK(c.reason_for_pause == "Gate 2 is empty!");
+    CHECK(c.pause_hint == "Load gate 2, then RESUME");
+    CHECK(happy_hare::parse_core(json{{"pause_hint", ""}}).pause_hint == "");
+    CHECK_FALSE(happy_hare::parse_core(json{{"reason_for_pause", "x"}}).pause_hint);
+}
+
 TEST_CASE("Happy Hare status parse topology reads each gate-count spelling",
           "[happy_hare][status_parse]") {
     using happy_hare::parse_topology;

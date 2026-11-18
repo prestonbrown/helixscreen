@@ -1225,7 +1225,7 @@ BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) 
     // A unit's buffer describes one unit: the one asked for, else the one the
     // system reading came from. Without one, a buffer serving the whole system.
     const auto motion_state = [](BufferMotion m) {
-        return m == BufferMotion::Advancing ? 1 : m == BufferMotion::Trailing ? 2 : 0;
+        return m == BufferMotion::Compressed ? 1 : m == BufferMotion::Expanded ? 2 : 0;
     };
     const AmsUnit* unit = info.get_unit(buffer_view_unit(info, unit_index));
     if (unit && unit->buffer_health) {

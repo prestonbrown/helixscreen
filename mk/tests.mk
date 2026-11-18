@@ -1465,8 +1465,9 @@ APP_TSAN_BIN_DIR := $(BUILD_DIR)/bin-tsan
 APP_ASAN_BIN := $(APP_ASAN_BIN_DIR)/helix-screen
 APP_TSAN_BIN := $(APP_TSAN_BIN_DIR)/helix-screen
 
-# Runtime options for the APP, not the suite; mirrors mk/cross.mk's
-# PI_ASAN_OPTIONS (reliable stacks, first error fatal, no leak gate). Leak
+# Runtime options for the APP, not the suite: complete allocation stacks
+# (the slow unwinder, affordable on a desktop, unlike mk/cross.mk's Pi
+# default), first error fatal, no leak gate. Leak
 # detection stays off because the app's panels/widgets/subjects are
 # process-scoped by design and the real WiFi backend leaves an unjoined
 # probe thread at exit. TSan takes the same shape plus the shared

@@ -896,6 +896,7 @@
   <translation tag="Completed {}m ago" ru="Завершено {} мин назад"/>
   <translation tag="Completed: {}" ru="Завершено: {}"/>
   <translation tag="Compressed" ru="Сжат"/>
+  <translation tag="Compressed: filament arrives faster than it is used" ru="Сжат: филамент поступает быстрее, чем расходуется"/>
   <translation tag="Computing calibration..." ru="Вычисление калибровки..."/>
   <translation tag="Config Dir" ru="Директория конфигурации"/>
   <translation tag="Config Edit Failed" ru="Не удалось изменить конфигурацию"/>
@@ -1411,6 +1412,7 @@
   <translation tag="Exhaust: keep chamber at or below" ru="Вытяжка: держать камеру не выше"/>
   <translation tag="Exit Code" ru="Код выхода"/>
   <translation tag="Expanded" ru="Растянут"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" ru="Растянут: голова тянет филамент быстрее, чем он поступает"/>
   <translation tag="Expected boolean" ru="Ожидалось логическое значение"/>
   <translation tag="Expected float" ru="Ожидалось дробное число"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." ru="Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса."/>
@@ -1592,7 +1594,6 @@
   <translation tag="Feed the filament back" ru="Верните филамент"/>
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
-  <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
   <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
@@ -3181,7 +3182,6 @@
   <translation tag="Pull" ru="Вытянуть"/>
   <translation tag="Pull now" ru="Тяните сейчас"/>
   <translation tag="Pulled" ru="Вытянуто"/>
-  <translation tag="Pulling filament back" ru="Откат филамента"/>
   <translation tag="Purge" ru="Продуть"/>
   <translation tag="Purge &amp; Wipe" ru="Продувка и очистка"/>
   <translation tag="Purge Chute Calibration" ru="Калибровка жёлоба продувки"/>
@@ -3198,6 +3198,7 @@
   <translation tag="Purging nozzle" ru="Продувка сопла"/>
   <translation tag="Purging old filament" ru="Продувка старого филамента"/>
   <translation tag="Purging..." ru="Продувка..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." ru="Вставьте филамент в печатающую головку вручную, затем нажмите «Продолжить»."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ru="Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
   <translation tag="QGL" ru="QGL"/>

@@ -77,7 +77,11 @@ struct TrayState {
     int leader_count = 0;
 };
 
-extern TrayState s_tray;
+/// The one TrayState. It lives in zero-initialised storage, so the firmware keeps it
+/// in PSRAM .bss: its non-zero defaults would otherwise put the whole object in
+/// internal DRAM .data, which comes out of the heap the WiFi driver starts in.
+/// It is never destroyed.
+extern TrayState& s_tray;
 
 void tray_back_draw_cb(lv_event_t* e);
 void tray_front_draw_cb(lv_event_t* e);

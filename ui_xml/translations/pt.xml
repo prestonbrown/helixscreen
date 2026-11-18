@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" pt="Concluído há {} min"/>
   <translation tag="Completed: {}" pt="Concluído: {}"/>
   <translation tag="Compressed" pt="Comprimido"/>
+  <translation tag="Compressed: filament arrives faster than it is used" pt="Comprimido: o filamento chega mais rápido do que é usado"/>
   <translation tag="Computing calibration..." pt="Calculando calibração..."/>
   <translation tag="Config Dir" pt="Diretório de Configuração"/>
   <translation tag="Config Edit Failed" pt="Falha ao Editar a Configuração"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" pt="Exaustão: manter a câmara no máximo a"/>
   <translation tag="Exit Code" pt="Código de Saída"/>
   <translation tag="Expanded" pt="Expandido"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" pt="Expandido: o cabeçote puxa o filamento mais rápido do que ele chega"/>
   <translation tag="Expected boolean" pt="Esperava-se um valor booleano"/>
   <translation tag="Expected float" pt="Esperava-se um número decimal"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." pt="Explore como a paleta selecionada molda texto, controles e cores de status."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" pt="Recoloque o filamento"/>
   <translation tag="Feeder" pt="Alimentador"/>
   <translation tag="Feeders" pt="Alimentadores"/>
-  <translation tag="Feeding filament forward" pt="Avançando filamento"/>
   <translation tag="Feeding filament to nozzle" pt="Avançando filamento até o bico"/>
   <translation tag="Filament" pt="Filamento"/>
   <translation tag="Filament Buffer" pt="Buffer de filamento"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" pt="Puxar"/>
   <translation tag="Pull now" pt="Puxe agora"/>
   <translation tag="Pulled" pt="Puxado"/>
-  <translation tag="Pulling filament back" pt="Retraindo filamento"/>
   <translation tag="Purge" pt="Purgar"/>
   <translation tag="Purge &amp; Wipe" pt="Purgar e limpar"/>
   <translation tag="Purge Chute Calibration" pt="Calibração da calha de purga"/>
@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" pt="Purgando bico"/>
   <translation tag="Purging old filament" pt="Purgando filamento anterior"/>
   <translation tag="Purging..." pt="Purgando..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." pt="Empurre o filamento manualmente para o cabeçote e toque em Retomar."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." pt="Empurre o filamento de limpeza na extrusora até parar e toque em Extrudar."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." pt="Empurre o filamento no extrusor até parar. Ele é puxado automaticamente, ou toque em Extrudar."/>
   <translation tag="QGL" pt="QGL"/>

@@ -26,7 +26,7 @@ config, not hardware-verified. Build targets are `PLATFORM_TARGET` values in `mk
 | QIDI Plus 4 and 3-series | RK3328, aarch64 | TJC serial HMI | stock | QIDI Box (Plus 4) | remote only | Supported as a remote target |
 | Creality Sonic Pad | Allwinner R818, armv7 userspace | 1024x600 | SonicPad-Debian | n/a | `pi32` | Supported |
 | Anycubic Kobra 2 Pro / 3 / S1, Sovol SV06 ACE | various | n/a | Rinkhals or community Klipper | ACE Pro | remote | Community |
-| BigTreeTech K-Touch | ESP32-S3 | standalone panel | none (talks to any Moonraker) | n/a | `firmware/helixscreen-esp32` | Alpha, 1.1 betas |
+| BigTreeTech K-Touch | ESP32-S3 | standalone panel | none (talks to any Moonraker) | n/a | `firmware/helixscreen-esp32` | Beta in 1.1 |
 
 The Kobra S1, Plus 4 and K2 rows rest on community captures as much as on our own hardware; the
 documents below record which.
@@ -52,6 +52,7 @@ documents below record which.
 | [QIDI_BOX_HEATER.md](QIDI_BOX_HEATER.md) | QIDI Box PTC heater: Klipper objects, command surfaces, firmware variants, HelixScreen integration |
 | [QIDI_PLUS_5_RESEARCH.md](QIDI_PLUS_5_RESEARCH.md) | Stock Plus 5 recon: RK3308 host, no-VT kernel, sideways 480x800 panel, STM32F407/F103 MCUs, and why detection keys off the ~325mm bed |
 | [ANYCUBIC_KOBRA_COREXY_RESEARCH.md](ANYCUBIC_KOBRA_COREXY_RESEARCH.md) | Kobra S1 / 3 series, ACE Pro, Rinkhals, native `filament_hub` interface |
+| [ANYCUBIC_ACE_DRIVER_LANDSCAPE.md](ANYCUBIC_ACE_DRIVER_LANDSCAPE.md) | Every Klipper driver for the ACE Pro / ACE 2 Pro (Kobra-S1/ACEPRO and its forks, multiACE, AFC, ace2k): lineage, status surfaces, which HelixScreen backend reads each |
 | [ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md](ANYCUBIC_ACE_KOBRA_S1_LOG_ANALYSIS.md) | ACE Pro on the mainline-Python Kobra S1 fork, from real logs; raw samples in [`kobra-s1-ace-1098/`](kobra-s1-ace-1098/README.md) |
 | [BTT_K_TOUCH_HARDWARE.md](BTT_K_TOUCH_HARDWARE.md) | K-Touch (ESP32-S3) hardware recon and stock firmware layout |
 | [KLIPPER_FORKS_AND_PORTS.md](KLIPPER_FORKS_AND_PORTS.md) | Vendor Klipper reimplementations, how vendors skip Moonraker, MQTT-vs-Moonraker transport notes |

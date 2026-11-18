@@ -222,6 +222,8 @@ class PrintStatusPanel : public OverlayBase {
      * by the hook firing, the explicit teardown, or the destructor.
      */
     void forget_cached_widgets();
+    /// Unregister viewer callbacks that carry `this`.
+    void disarm_viewer_callbacks();
 
     /**
      * @brief The widget on_ui_destroyed()/~PrintStatusPanel must uninstall the
@@ -372,6 +374,7 @@ class PrintStatusPanel : public OverlayBase {
 
     // Viewer mode subject (0=thumbnail mode, 1=gcode viewer mode)
     helix::Subject gcode_viewer_mode_subject_{};
+    helix::Subject preview_drawn_2d_subject_{}; ///< 1: viewer draws 2D although 3D was asked for
 
     // 1 while the exclude-object overhead map overlay covers the thumbnail
     // section; drives XML bindings that hide print_thumbnail/gradient underneath.

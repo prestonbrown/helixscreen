@@ -21,8 +21,8 @@ BufferReading buffer_reading(const AmsSystemInfo& info, int unit) {
         r.source = BufferSource::Switch;
         r.unit = u;
         r.has_slider = true;
-        r.bias = h.motion == BufferMotion::Advancing  ? kSwitchedBufferBias
-                 : h.motion == BufferMotion::Trailing ? -kSwitchedBufferBias
+        r.bias = h.motion == BufferMotion::Compressed ? kSwitchedBufferBias
+                 : h.motion == BufferMotion::Expanded ? -kSwitchedBufferBias
                                                       : 0.0f;
         r.value_pct = static_cast<int>(std::lround(r.bias * 100.0f));
         r.status = ui::pressure_status_of_bias(r.bias);

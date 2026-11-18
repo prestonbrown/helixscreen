@@ -18,6 +18,7 @@
 #include "settings_manager.h"
 
 #include <array>
+#include <optional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -50,8 +51,10 @@ struct KeypadLayoutFixture : LVGLUITestFixture {
     }
 
     lv_obj_t* show(bool allow_decimal, bool allow_negative = false, float min_value = 0,
-                   float max_value = 300, const char* title = nullptr) {
+                   float max_value = 300, const char* title = nullptr,
+                   std::optional<float> default_value = std::nullopt) {
         ui_keypad_config_t config = {};
+        config.default_value = default_value;
         config.title_label = title;
         config.min_value = min_value;
         config.max_value = max_value;
@@ -274,4 +277,39 @@ TEST_CASE_METHOD(KeypadLayoutFixture, "The field name sits in the header between
     CHECK(lv_label_get_long_mode(title) == LV_LABEL_LONG_MODE_DOTS);
     const lv_font_t* font = lv_obj_get_style_text_font(title, LV_PART_MAIN);
     CHECK(lv_obj_get_height(title) <= 2 * lv_font_get_line_height(font));
+}
+
+TEST_CASE_METHOD(KeypadLayoutFixture,
+                 "The reset key appears only on a field with a default, and types it",
+                 "[keypad][keypad_layout]") {
+    lv_obj_t* keypad = show(false);
+    CHECK_FALSE(shown(keypad, "btn_default"));
+    ui_keypad_hide();
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(show(false, false, 1, 500, nullptr, 25.0f) == keypad);
+    REQUIRE(shown(keypad, "btn_default"));
+    // In front of the display, its top and bottom edges on the display's border.
+    CHECK(y_of(keypad, "btn_default") == y_of(keypad, "input_display"));
+    CHECK(height_of(keypad, "btn_default") == height_of(keypad, "input_display"));
+    CHECK(x_of(keypad, "btn_default") < x_of(keypad, "input_display"));
+
+    press(keypad, "btn_4");
+    press(keypad, "btn_default");
+    CHECK(display() == "25");
+    press(keypad, "action_button");
+    CHECK(confirms_ == 1);
+    CHECK(confirmed_ == 25.0f);
+
+    SECTION("a fractional default types its decimals") {
+        REQUIRE(show(true, false, 0, 10, nullptr, 0.85f) == keypad);
+        press(keypad, "btn_default");
+        CHECK(display() == "0.85");
+    }
+    SECTION("a default the keys cannot type leaves the draft alone") {
+        REQUIRE(show(false, false, 1, 500, nullptr, 2.5f) == keypad);
+        press(keypad, "btn_4");
+        press(keypad, "btn_default");
+        CHECK(display() == "4");
+    }
 }
