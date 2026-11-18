@@ -481,6 +481,22 @@ void migrate_legacy_state_roots();
  */
 std::string app_get_install_root();
 
+/**
+ * @brief app_get_install_root() for a caller that writes into it
+ *
+ * Empty when the firmware owns the running install
+ * (helix::platform_defaults_to_external_updates()): the app never writes into a
+ * firmware's package directory, whose next package update replaces it anyway.
+ */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_writable_install_root();
+
+namespace helix {
+/// The rule behind app_get_writable_install_root(), for any @p install_root: it, or
+/// empty when the firmware owns the running install.
+std::string writable_install_root(const std::string& install_root);
+} // namespace helix
+
 // Returns the cache directory (thumbnails, update tarballs, transient
 // assets). Resolved via the same platform-specific hierarchy as
 // get_helix_cache_dir(""), with any trailing slash stripped for display.

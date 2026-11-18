@@ -464,6 +464,15 @@ std::string app_get_install_root() {
     return cached;
 }
 
+std::string helix::writable_install_root(const std::string& install_root) {
+    return platform_defaults_to_external_updates() ? std::string() : install_root;
+}
+
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_writable_install_root() {
+    return helix::writable_install_root(app_get_install_root());
+}
+
 std::string app_get_cache_dir() {
     static const std::string cached = []() {
         std::string p = get_helix_cache_dir(""); // base, no subdir
