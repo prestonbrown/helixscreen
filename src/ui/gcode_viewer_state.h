@@ -237,8 +237,9 @@ class GCodeViewerState {
     // Public State (accessed by static callbacks)
     // ========================================================================
 
-    // G-code data
-    std::unique_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
+    // G-code data. Shared: the 3D renderer's draw thread holds its own
+    // reference for as long as it draws from the file.
+    std::shared_ptr<helix::gcode::ParsedGCodeFile> gcode_file;
     GcodeViewerState viewer_state{GcodeViewerState::Empty};
     /// The last load stopped because the preview would cost too much CPU; set
     /// with viewer_state Error, cleared when the next load starts.
@@ -304,7 +305,6 @@ class GCodeViewerState {
 
     // Rendering settings
     bool first_render{true};
-    bool needs_3d_refresh_{false}; ///< Force one extra frame after first GPU render
     bool rendering_paused_{
         false}; ///< When true, draw_cb skips rendering (for visibility optimization)
 

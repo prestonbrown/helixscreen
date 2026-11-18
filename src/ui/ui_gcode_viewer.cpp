@@ -511,7 +511,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         }
         gcode_viewer_refresh_content_offset(st, obj, lv_area_get_width(&widget_coords),
                                             lv_area_get_height(&widget_coords));
-        st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
+        st->renderer_->render(layer, st->gcode_file, *st->camera_, &widget_coords);
 
         // The GPU path is unusable on this device — either GL never came up, or
         // a draw batch returned a fatal error (out-of-memory /
@@ -538,17 +538,8 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             helix::ui::queue_invalidate(obj);
             return;
         }
-
-        // During chunked VBO upload, renderer returns early without drawing.
-        // After the first real GPU render, force one extra frame so the
-        // cached-buffer path (no GL context switch) blits cleanly.
-        if (st->renderer_->is_uploading() || st->renderer_->is_refining() ||
-            st->needs_3d_refresh_) {
-            if (!st->renderer_->is_uploading()) {
-                st->needs_3d_refresh_ = false;
-            }
-            helix::ui::queue_invalidate(obj);
-        }
+        // Upload and refinement run on the renderer's own thread, which
+        // invalidates the viewer whenever it finishes a frame.
     }
 #endif
 
@@ -578,8 +569,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             }
         } else {
 #ifdef ENABLE_3D_RENDERER
-            // is_uploading(): VBO upload in progress, no frame on the canvas yet.
-            if (st->renderer_ && st->renderer_->is_uploading())
+            // No frame of this geometry on the canvas yet (upload or the first
+            // refinement still running on the renderer's thread).
+            if (st->renderer_ && !st->renderer_->has_frame())
                 frame_complete = false;
 #endif
         }
@@ -710,7 +702,7 @@ static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
     if (st->print_progress_layer_ < 0)
         return; // Preview mode — not tracking a print
     if (!st->is_using_2d_mode())
-        return; // 3D path has its own continuation chain via needs_3d_refresh_
+        return; // 3D path: the renderer's thread invalidates on each finished frame
     if (!st->layer_renderer_2d_)
         return;
 
@@ -817,6 +809,13 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
         // Stop build thread before state destruction
         state->cancel_build();
 
+#ifdef ENABLE_3D_RENDERER
+        // The renderer's thread must not schedule work for this widget again.
+        if (state->renderer_) {
+            state->renderer_->set_frame_ready_callback(nullptr);
+        }
+#endif
+
         spdlog::trace("[GCode Viewer] Widget destroyed");
 
         // RAII destruction of remaining members
@@ -865,6 +864,12 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
 
     // Register in active-viewers list (drained in gcode_viewer_delete_cb).
     active_viewers().push_back(obj);
+
+#ifdef ENABLE_3D_RENDERER
+    // Runs on the renderer's draw thread. queue_invalidate resolves the widget
+    // on the LVGL thread and skips it if it is gone by then.
+    st->renderer_->set_frame_ready_callback([obj]() { helix::ui::queue_invalidate(obj); });
+#endif
 
     // Initialize viewport size based on current widget dimensions
     // This ensures correct aspect ratio from the start

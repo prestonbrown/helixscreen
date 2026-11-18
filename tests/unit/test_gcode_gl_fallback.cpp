@@ -224,7 +224,7 @@ TEST_CASE("gpu_triangle_budget leaves every other driver uncapped", "[gcode][gl_
 
 TEST_CASE("GLES init failure surfaces through render_failed", "[gcode][gl_fallback][1555]") {
     helix::gcode::GCodeGLESRenderer renderer;
-    const helix::gcode::ParsedGCodeFile empty_gcode;
+    const auto empty_gcode = std::make_shared<const helix::gcode::ParsedGCodeFile>();
     const helix::gcode::GCodeCamera camera;
 
     // render() attempts GL init first and returns before touching the layer
