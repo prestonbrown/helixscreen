@@ -20,6 +20,7 @@ struct AmsSlotLayout {
     int32_t slot_width = 0;       ///< Width of each slot widget (pixels)
     int32_t overlap = 0;          ///< Overlap between adjacent slots (pixels, 0 for ≤4 slots)
     int32_t centering_offset = 0; ///< Left padding to center slots within available width
+    int label_rows = 0; ///< Rows of labels above a drawn unit; 0 keeps the slots' own labels
 };
 
 /**
@@ -96,6 +97,17 @@ struct AmsLabelRow {
     int rows = 1;
     int row = 0;
 };
+
+/**
+ * @brief A label row that alternates lane by lane over @p rows rows (1 or 2): even
+ * lanes nearest the spools, odd lanes above.
+ */
+inline AmsLabelRow ams_alternate_row(int slot_index, int rows) {
+    AmsLabelRow r;
+    r.rows = rows > 1 ? 2 : 1;
+    r.row = r.rows > 1 ? slot_index % 2 : 0;
+    return r;
+}
 
 /**
  * @brief Which row a slot's label stands in, so neighbouring labels never share one.

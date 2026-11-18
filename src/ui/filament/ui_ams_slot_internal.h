@@ -71,12 +71,14 @@ struct AmsSlotData {
     lv_obj_t* material_label = nullptr;
     lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
     lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
-    lv_obj_t* status_badge_bg = nullptr; // Status badge background (colored circle)
-    lv_obj_t* slot_badge = nullptr;      // Slot number label inside status badge
-    lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
-    lv_obj_t* container = nullptr;       // The ams_slot widget itself
-    lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
+    bool label_on_layer = false;         // The label stands on the labels layer, not in the slot
+    bool label_spread = false; // ... spread across the width above a drawn unit, material alone
+    lv_obj_t* status_badge_bg = nullptr;    // Status badge background (colored circle)
+    lv_obj_t* slot_badge = nullptr;         // Slot number label inside status badge
+    lv_obj_t* tool_badge_bg = nullptr;      // Tool badge background (top-left corner)
+    lv_obj_t* tool_badge = nullptr;         // Tool badge label (T0, T1, etc.)
+    lv_obj_t* container = nullptr;          // The ams_slot widget itself
+    lv_obj_t* lane_humidity = nullptr;      // Droplet + value row, under a per-lane lid
     lv_obj_t* lane_humidity_text = nullptr; // The row's value
     lv_obj_t* lane_humidity_drop = nullptr; // The row's drop, filled to the value
     lv_obj_t* lane_temp_row = nullptr;      // Thermometer + value, above the humidity

@@ -50,11 +50,16 @@ struct TrayState {
     TrayOpacities opa = kDarkOpa;
     const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
     float spool_size = 0;
+    // Leaders from the labels above the unit to their spools: label, knee, spool top.
+    tray::PointF leader[kAmsDetailMaxSlots][3] = {};
+    int leader_count = 0;
 };
 
 extern TrayState s_tray;
 
 void tray_back_draw_cb(lv_event_t* e);
 void tray_front_draw_cb(lv_event_t* e);
+/// The labels' dotted leaders, drawn on labels_layer under the labels.
+void leader_draw_cb(lv_event_t* e);
 
 } // namespace helix::ui::ams_tray

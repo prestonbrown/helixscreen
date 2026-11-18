@@ -30,10 +30,10 @@ float box_rise(float depth) {
     return std::round(kDepthRise * depth);
 }
 
-float cap_width(const UnitShell& shell, float spool_size, float pitch) {
-    return std::min(spool_size * kSpoolWidth / 2.0f +
-                        shell.cap_clearance_px * spool_size / kShellReferenceSpool,
-                    pitch / 2.0f);
+float end_cap_width(const UnitShell* shell, float spool_size) {
+    const float clearance = shell ? shell->cap_clearance_px * spool_size / kShellReferenceSpool
+                                  : kDepthSkew * kSpoolFlangeRadius * spool_size;
+    return spool_size * kSpoolWidth / 2.0f + clearance;
 }
 
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i) {
@@ -108,12 +108,19 @@ void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_si
 }
 
 float spool_pitch(float spool_size) {
-    // The spool canvas's own integer geometry: width between flanges plus a
-    // flange ellipse each side.
-    const int width = (int)(spool_size * kSpoolWidth);
-    const int flange_rx = (int)((float)(int)(spool_size * kSpoolFlangeRadius) * kDepthSkew);
-    const float footprint = (float)(width + 2 * flange_rx);
-    return std::round(footprint + kDepthSkew * box_depth(spool_size) / 2.0f + kPitchClearance);
+    return std::round(spool_size * kSpoolWidth * kPackedPitch);
+}
+
+float unit_width(int lanes, float spool_size) {
+    return (float)std::max(lanes - 1, 0) * spool_pitch(spool_size) +
+           2 * end_cap_width(nullptr, spool_size) + kDepthSkew * box_depth(spool_size);
+}
+
+int32_t fit_spool_size(float width, int lanes, int32_t max_size) {
+    int32_t size = max_size;
+    while (size > 1 && unit_width(lanes, (float)size) > width)
+        --size;
+    return size;
 }
 
 PointF proj(const TrayBox& b, float x, float y, float z) {
@@ -200,6 +207,26 @@ float pill_left_x(const TrayBox& b) {
 
 float pill_left_x(const TrayBox& b, float clear_of) {
     return std::max(pill_left_x(b), clear_of);
+}
+
+int leader_dots(const PointF* pts, int n, float step, PointF* out, int max) {
+    if (n <= 0 || step <= 0 || max <= 0)
+        return 0;
+    int count = 0;
+    out[count++] = {std::round(pts[0].x), std::round(pts[0].y)};
+    float carried = 0; // distance walked since the last dot
+    for (int i = 0; i + 1 < n && count < max; ++i) {
+        const float dx = pts[i + 1].x - pts[i].x, dy = pts[i + 1].y - pts[i].y;
+        const float len = std::sqrt(dx * dx + dy * dy);
+        float at = step - carried;
+        while (at <= len && count < max) {
+            out[count++] = {std::round(pts[i].x + dx * at / len),
+                            std::round(pts[i].y + dy * at / len)};
+            at += step;
+        }
+        carried = len - (at - step);
+    }
+    return count;
 }
 
 LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_supported) {

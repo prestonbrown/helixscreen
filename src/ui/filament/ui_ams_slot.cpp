@@ -186,9 +186,15 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
     const char* material = material_subject ? lv_subject_get_string(material_subject) : "";
     const char* name = name_subject ? lv_subject_get_string(name_subject) : "";
 
-    return helix::slot_card_lines(
+    // A label standing above a drawn unit has its own share of the width, so it reads
+    // like an uncrowded card's material line, alone.
+    helix::SlotCardLines lines = helix::slot_card_lines(
         name, material, helix::ui::lane_material_text(data->last_lane_state, material),
-        data->total_count, data->last_lane_state == helix::ui::LaneState::Empty);
+        data->label_spread ? 1 : data->total_count,
+        data->last_lane_state == helix::ui::LaneState::Empty);
+    if (data->label_spread)
+        lines.name.clear();
+    return lines;
 }
 
 /// Whether @p name fits the slot's width on one line. A slot not laid out yet
@@ -1130,6 +1136,29 @@ lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj) {
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size) {
+    auto* data = get_slot_data(obj);
+    if (!data || !data->lane_spool || !data->spool_container || spool_size <= 0)
+        return;
+    helix::ui::ams_lane_spool_set_size(data->lane_spool, spool_size);
+    // DECLARATIVE_OK: measured layout; the drawn unit sizes its spools to the width
+    lv_obj_set_size(data->spool_container, spool_size, spool_size);
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->material_label : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_hide_leader(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    if (data && data->leader_line)
+        lv_obj_set_hidden(data->leader_line, true); // DECLARATIVE_OK: the view draws leaders
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->status_badge_bg : nullptr;
@@ -1164,7 +1193,7 @@ void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t
     data->hit_band.right_inset = std::max<int32_t>(0, right_inset);
 }
 
-void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count) {
+void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count, int label_rows) {
     if (!obj) {
         return;
     }
@@ -1178,9 +1207,12 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
     const UiBreakpoint bp = helix::widget_size::current_breakpoint();
     const helix::ui::AmsLabelRow placement =
-        helix::ui::ams_stagger_row(slot_index, total_count, bp);
+        label_rows > 0 ? helix::ui::ams_alternate_row(slot_index, label_rows)
+                       : helix::ui::ams_stagger_row(slot_index, total_count, bp);
     const int stagger_rows = placement.rows;
     const int row = placement.row;
+    data->label_on_layer = label_rows > 0 || stagger_rows > 1;
+    data->label_spread = label_rows > 0;
 
     // Staggered labels below the medium breakpoint take the extra-small font, so
     // their rows stay one short line apart.
@@ -1197,7 +1229,7 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
     // For staggered labels, we use absolute positioning
     // Remove label from flex flow and position it at the correct stagger row
-    if (data->material_label && stagger_rows > 1) {
+    if (data->material_label && data->label_on_layer) {
         int32_t total_label_height = row_height * stagger_rows;
 
         // Remove label from flex layout - it will be positioned absolutely
