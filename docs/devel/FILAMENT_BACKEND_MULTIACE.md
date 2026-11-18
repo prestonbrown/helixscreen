@@ -152,7 +152,8 @@ one head's extruder) draws onto its head's nozzle and a multi-mode unit (PARALLE
 naming head s) onto all four: one physical head is one nozzle everywhere (4 on this rig,
 never 8 or 20).
 
-A routed head lane's spool lives in its bay, so `upstream_slot(h)` answers the routed bay
+A routed head lane's spool lives in its bay, so MultiACE implements `ISharedSpoolLanes`
+(`include/ams_shared_spool_lanes.h`): `upstream_slot(h)` answers the routed bay
 and `spool_display_number()` resolves through it: a routed head wears its bay's number and
 the badges on lanes holding their own spools run 1..N with no gap or repeat. The unit view
 draws the upstream lane's name as a small caption on the fed head's column

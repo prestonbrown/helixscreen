@@ -17,6 +17,7 @@
 #include "ams_bypass_policy.h"
 #include "ams_dryer.h"
 #include "ams_feeder_control.h"
+#include "ams_lane_faults.h"
 #include "ams_lane_state.h"
 #include "ams_runout_grace.h"
 #include "ams_standing_fault.h"
@@ -1849,7 +1850,17 @@ void AmsState::refresh_fault_cause() {
 
 std::optional<ErrorEvent> AmsState::standing_fault() const {
     const AmsBackend* backend = get_backend();
-    return backend ? backend->current_error_with_cause(fault_cause_) : std::nullopt;
+    if (!backend) {
+        return std::nullopt;
+    }
+    if (const auto* lane_faults = backend->as<ILaneFaults>()) {
+        return lane_faults->current_error_with_cause(fault_cause_);
+    }
+    auto fault = backend->current_error();
+    if (fault && !fault_cause_.empty()) {
+        fault->detail = fault_cause_;
+    }
+    return fault;
 }
 
 void AmsState::recompute_action_detail() {

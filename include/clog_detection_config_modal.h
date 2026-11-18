@@ -32,7 +32,7 @@ class AmsBackend;
  *   detection-mode gcode, 0 otherwise — drives hidden on the mode/length controls
  *
  * Detection mode and detection length are written with whatever command the
- * active backend names (AmsBackend::clog_detection_mode_gcode). The widget
+ * active backend names (IClogDetectionConfig::clog_detection_mode_gcode). The widget
  * itself is offered whenever clog_meter_mode > 0, which includes AFC buffer
  * fault detection (mode 3), so the modal is reachable on backends with no such
  * setting; they name none and the controls hide.
@@ -47,8 +47,8 @@ class ClogDetectionConfigModal : public Modal {
     /**
      * @brief Build the detection-mode gcode for a backend, if it has one.
      *
-     * The backend answers (AmsBackend::clog_detection_mode_gcode); one with no
-     * detection-mode setting returns nullopt so the caller sends nothing.
+     * The backend answers (IClogDetectionConfig::clog_detection_mode_gcode); one
+     * without that capability gets nullopt so the caller sends nothing.
      *
      * @param backend    Active AMS backend, or nullptr
      * @param mode       0=off, 1=manual, 2=auto

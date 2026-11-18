@@ -24,6 +24,7 @@
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
+#include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_error.h"
@@ -5053,4 +5054,59 @@ TEST_CASE("a save that is not confirmed names the reason, or a generic one",
         "Not saved: the printer did not confirm it. Try again.");
     CHECK(AmsEditOverlayViewTestAccess::not_saved_message(helix::ams::PendingOutcome::Failed, "") ==
           "Not saved: the printer refused it. Try again.");
+}
+
+namespace {
+
+/// A filament system whose firmware validates the material against its own
+/// list, as the tool changer's zmod_color does.
+struct FirmwareListMock : AmsBackendMock {
+    using AmsBackendMock::AmsBackendMock;
+    std::optional<std::vector<std::string>> get_supported_materials() const override {
+        return std::vector<std::string>{"pla", "PETG"};
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "the material dropdown offers only what the firmware accepts",
+                 "[ams_edit_overlay][dropdown][firmware_materials]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    auto open = [&](std::unique_ptr<AmsBackend> owned, const std::string& material) {
+        AmsState::instance().set_backend(std::move(owned));
+        SlotInfo info = untracked_slot();
+        info.material = material;
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    };
+    auto options = [&](const char* name) { return split_options(access.dropdown_options(name)); };
+    auto variants_of = [&](const char* family) {
+        REQUIRE(access.pick_dropdown("dropdown_material", family));
+        process_lvgl(5);
+        return options("dropdown_variant");
+    };
+    using List = std::vector<std::string>;
+
+    SECTION("AD5X: its whitelist, with the slot's own value still shown") {
+        open(std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr), "ASA");
+        CHECK(options("dropdown_material") ==
+              List{"ASA", "PLA", "PETG", "ABS", "TPU", "Browse catalog..."});
+        CHECK(access.dropdown_selected("dropdown_material") == "ASA");
+        CHECK(variants_of("PLA") == List{"Basic", "CF", "Silk"});
+    }
+    SECTION("any backend that publishes a list, matched case-insensitively") {
+        open(std::make_unique<FirmwareListMock>(4), "PETG");
+        CHECK(options("dropdown_material") == List{"PLA", "PETG", "Browse catalog..."});
+        CHECK(variants_of("PLA") == List{"Basic"});
+    }
+    SECTION("a backend with no list keeps the whole catalog") {
+        open(std::make_unique<AmsBackendMock>(4), "PETG");
+        const List materials = options("dropdown_material");
+        CHECK(std::find(materials.begin(), materials.end(), "ASA") != materials.end());
+        CHECK(variants_of("PLA").size() > 3);
+    }
+    close_editor_overlay();
 }

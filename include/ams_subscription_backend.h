@@ -351,9 +351,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// the lane and announces the slot when identity_slot_locked() finds no
     /// SlotInfo for the index: a slot not cached yet, before the first frame or
     /// after a topology change. Default false: the clear is logged and nothing
-    /// moves.
-    [[nodiscard]] virtual bool clears_override_without_slot() const {
-        return false;
+    /// moves. A BackendTraits field.
+    [[nodiscard]] bool clears_override_without_slot() const {
+        return traits().clears_override_without_slot;
     }
 
     /// Extra checks before subscribing (e.g., ToolChanger requires tools discovered).
@@ -422,12 +422,12 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// it gets got wrong: Happy Hare's MMU_SELECT drives the gate selector and
     /// never touches the carriage, while on a Snapmaker U1 a slot select IS a
     /// physical tool change (do_select_slot forwards to do_change_tool, which
-    /// emits `T{n}`). Override to true when yours moves the toolhead.
+    /// emits `T{n}`). Set the BackendTraits field when yours moves the toolhead.
     ///
     /// This can only ADD motion, never remove it. There is deliberately no hook
     /// for declaring an operation gate-free.
-    [[nodiscard]] virtual bool select_slot_moves_toolhead() const {
-        return false;
+    [[nodiscard]] bool select_slot_moves_toolhead() const {
+        return traits().select_slot_moves_toolhead;
     }
 
     /// Which gate the public filament operations run. Neither value means

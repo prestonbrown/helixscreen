@@ -10,6 +10,7 @@
 
 #include "ams_error.h"
 #include "ams_feeder_control.h"
+#include "ams_lane_faults.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -1086,10 +1087,13 @@ void ToolSwitcherWidget::refresh_action_support() {
 bool ToolSwitcherWidget::changer_fault() {
     // Only a machine whose heads dock can have one out of place; a shared
     // toolhead's filament-system error says nothing about the heads.
+    // Without ILaneFaults every error on such a machine is a changer error.
     const AmsBackend* backend = AmsState::instance().get_backend();
-    return backend && backend->fault_concerns_carriage() &&
-           lv_subject_get_int(AmsState::instance().get_ams_action_subject()) ==
-               static_cast<int>(AmsAction::ERROR);
+    const auto* lane_faults = backend ? backend->as<helix::ILaneFaults>() : nullptr;
+    const bool carriage_fault = lane_faults ? lane_faults->fault_concerns_carriage()
+                                            : backend && backend->carriage_can_be_empty();
+    return carriage_fault && lv_subject_get_int(AmsState::instance().get_ams_action_subject()) ==
+                                 static_cast<int>(AmsAction::ERROR);
 }
 
 bool ToolSwitcherWidget::refuse_while_spools_on_bed() const {

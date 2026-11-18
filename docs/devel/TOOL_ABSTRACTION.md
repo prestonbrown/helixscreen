@@ -227,9 +227,9 @@ a carriage has reported its mount state (`toolchanger.tool_number`, or `on_shutt
 multi-extruder machine), and an empty carriage clears its current tool, so every head
 parked reads -1 (`src/printer/ams_backend_afc.cpp#apply_mount_state`).
 The home tool switcher marks the unmounted heads faulted only when
-`AmsBackend::fault_concerns_carriage()` says the current ERROR is the changer's
-(`src/ui/panel_widgets/tool_switcher_widget.cpp#changer_fault`). It defaults to
-`carriage_can_be_empty()`; AFC answers true only while `toolchanger.status` reads
+the backend says the current ERROR is the changer's
+(`src/ui/panel_widgets/tool_switcher_widget.cpp#changer_fault`): `carriage_can_be_empty()`, unless
+it implements `ILaneFaults::fault_concerns_carriage()` (`include/ams_lane_faults.h`). AFC answers true only while `toolchanger.status` reads
 `error`, so a lane fault on an AFC toolchanger leaves the heads alone.
 
 The Snapmaker U1 docks every head too: `AmsBackendSnapmaker` answers

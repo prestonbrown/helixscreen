@@ -13,6 +13,7 @@
 
 #include "ams_backend.h"
 #include "ams_lane_state.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
@@ -696,7 +697,8 @@ static void drop_spool_cells(AmsMiniStatusData* data) {
  */
 static int spool_badge_number(int slot_index) {
     helix::AmsBackend* backend = helix::AmsState::instance().get_backend();
-    return backend ? backend->spool_display_number(slot_index) : helix::ui::lane_number(slot_index);
+    return backend ? helix::spool_display_number(*backend, slot_index)
+                   : helix::ui::lane_number(slot_index);
 }
 
 static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_size) {

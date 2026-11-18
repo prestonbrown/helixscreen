@@ -569,7 +569,7 @@ owns it.** AFC reports a per-lane `remember_spool`; a lane at `false` that
 empties drops every HelixScreen record of its spool
 (`AmsBackendAfc::forget_lane_spool_locked()`), so the screen shows what AFC and
 Mainsail show. Once every lane reports it,
-`AmsBackend::firmware_owns_spool_retention()` is true and the overlay shows a
+`ISpoolRetention::firmware_owns_spool_retention()` (`include/ams_spool_retention.h`) is true and the overlay shows a
 switch bound to `ams_device_ops_printer_retains_spool_info`
 (`printer_retains_spool_info()`, true when every lane remembers) that writes
 through `set_firmware_spool_retention()` (`AFC_SET_REMEMBER_SPOOL` per lane).
@@ -887,7 +887,8 @@ the re-parse cost matters.
 vendor/type/product browser; `FilamentCatalogPickerModal`
 (`src/ui/filament/ui_filament_catalog_picker.cpp`) is a thin `Modal` over it, which the
 spool editor opens from "Browse catalog..." (§ "Edit Spool"). The editor's
-dropdowns read the pure family queries `all_families()`,
+dropdowns read the pure family queries `all_families()` (or `families_allowing()` under a
+firmware list),
 `variants_in_family()`, `brands_in_family()` and `products_in_family()`, keyed
 on `filament::display_family()`; a recycled grade (`rPLA`) files under its
 polymer there as the Recycled variant, while `extract_base_material()` keeps it a
@@ -1564,6 +1565,17 @@ also carries the no-camera build gate). They sit in `header_bar`'s
 `action_icon`, in a row padded by their `ext_click_area` reach so each reaches
 the header's height (or 44px) while staying inside its parent's hit box.
 
+**Materials the firmware accepts.** A backend whose firmware validates the material against
+its own list publishes it through `AmsBackend::get_supported_materials()` (the AD5X IFS
+whitelist plus its user-defined types, the tool changer's `zmod_color.valid_types`). The
+editor's Material and Variant dropdowns then offer only those types, and "Browse
+catalog..." opens the picker on the same list: `helix::printer::type_allowed()`
+(`include/filament_catalog.h`) is the one rule, a case-insensitive match, and
+`FilamentCatalog::families_allowing()` keeps a family when one of its variants is allowed
+and lists an allowed type no variant carries as its own family. The slot's current
+material still shows, selected, when it is off the list. A backend with no list offers the
+whole catalog.
+
 **The lane's own settings** sit in one row above More (`lane_section`): **Assigned
 Tool**, shown only where `helix::printer::can_write_mapping_table()` says a mapping
 write lands (`ams_edit_tool_row_visible`), and the Endless Spool backup
@@ -1934,13 +1946,13 @@ A backend fault reaches the user through one of **two independent channels**. Th
 
 **A fault standing while the print is paused.** Channel B also fires off the pause:
 `StandingFaultTrigger` (`include/ams_standing_fault.h`) raises a fault once when
-`current_error_with_cause()` has one while the print is paused (or, on the firmware, while no
+`AmsState::standing_fault()` has one while the print is paused (or, on the firmware, while no
 print runs), fed on every action, pause and `print_stop_reason` change, so it does not matter
 which came first or whether `error_state` was already set before the load that failed.
-`current_error_with_cause(cause)` is `current_error()` told by the stop reason (the newest `!!`
+`AmsState::standing_fault()` is `current_error()` told by the stop reason (the newest `!!`
 line near the pause) or, outside a pause, the newest `!!` line within `kEventCauseWindowS`
 (`recent_gcode_error()`), since a queued `AFC.message` can be an earlier fault's; AFC also
-takes the faulted lane from it for Eject. The desktop presents it through `AmsErrorBridge`
+takes the faulted lane from it for Eject (`ILaneFaults::current_error_with_cause()`). The desktop presents it through `AmsErrorBridge`
 (the ERROR edge covers faults outside a pause); the firmware, which has no bridge, through
 `helix::ui::AmsStandingFaultDialog`, the AMS panel's loading-error dialog raised whether the
 panel is open or not. The panel's own dialog still stands aside for a backend with
@@ -3606,7 +3618,7 @@ And the pure virtuals of `AmsBackend` (`include/ams_backend.h`) that the subscri
 - `can_set_tool_mapping()`, `set_tool_mapping_impl()` -- Tool mapping. `set_tool_mapping()` is non-virtual and calls them
 - `enable_bypass()`, `disable_bypass()`, `is_bypass_active()` -- Bypass mode
 
-**Optional `do_*` hooks**, each behind the same gate as its public entry point and each refusing with not-supported by default: `do_park_active_tool()`, `do_filament_batch()`, `do_execute_device_action()`, `do_run_device_action()` (which by default runs `do_execute_device_action()`) and `do_run_edit_follow_up()`. Two more questions shape the gate: `select_slot_moves_toolhead()` and `filament_op_gate()`.
+**Optional `do_*` hooks**, each behind the same gate as its public entry point and each refusing with not-supported by default: `do_park_active_tool()`, `do_filament_batch()`, `do_execute_device_action()`, `do_run_device_action()` (which by default runs `do_execute_device_action()`) and `do_run_edit_follow_up()`. Two more questions shape the gate: `select_slot_moves_toolhead` (a `kTraits` field) and `filament_op_gate()`.
 
 **Constant capabilities go in `kTraits`, not in overrides.** A capability your backend
 answers the same way for its whole life (`has_physical_tray`, `supports_auto_heat_on_load`,
@@ -3663,6 +3675,22 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   MultiACE, CFS, the AD5X IFS and the mock implement it. Without it nothing is sent. Whether a start runs the
   step is `requires_preprint_send()` in `BackendTraits`, and `firmware_default_routing()` (§ 1b) stays on
   `AmsBackend`, since every backend answers it.
+- `ISpoolRetention` (`include/ams_spool_retention.h`) -- The firmware's own setting for what an eject does
+  to a lane's spool details: whether it is reported on every lane, its value, and the write. AFC implements
+  it with `remember_spool`. Without it HelixScreen's "Keep Spool Info on Eject" applies.
+- `IClogDetectionConfig` (`include/ams_clog_detection.h`) -- The clog detection mode command and the configured
+  manual detection length, for the clog config modal. Happy Hare implements it. Without it the modal's mode and
+  length controls hide and nothing is sent.
+- `IFirmwarePromptDedup` (`include/ams_firmware_prompt_dedup.h`) -- Whether a firmware prompt is the backend's own
+  dialog for a fault the recovery popup shows, and which of its buttons are the dialog's own. The recovery
+  presenter closes such a prompt. Happy Hare implements it.
+- `ISharedSpoolLanes` (`include/ams_shared_spool_lanes.h`) -- A lane showing another lane's spool, and the badge
+  number that counts each spool once. MultiACE implements it. Generic code calls the free `helix::upstream_slot()`
+  and `helix::spool_display_number()`, which answer nullopt and the lane's global number without it.
+- `ILaneFaults` (`include/ams_lane_faults.h`) -- Faults that name a lane: the standing fault read with its cause,
+  whether the current ERROR is the carriage's, and the lane menu's latched "Clear error". AFC implements it.
+  Without it `AmsState::standing_fault()` uses `current_error()` with the cause as its detail, and the tool
+  switcher treats every error on a docking machine as a changer error.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
 

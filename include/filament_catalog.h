@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -193,6 +194,12 @@ class FilamentCatalog {
     /// the family itself as "Basic".
     std::vector<FamilyVariant> variants_in_family(const std::string& family) const;
 
+    /// all_families() narrowed to the types on @p allowed (type_allowed()): a
+    /// family stays when one of its variants' sample types is allowed, and an
+    /// allowed type no variant carries (AD5X's "SILK") is its own family, in
+    /// its list spelling, so a firmware material is never out of reach.
+    std::vector<std::string> families_allowing(const std::vector<std::string>& allowed) const;
+
     /// Every brand with at least one product in @p family (case-insensitive
     /// family match on display_family()), deduped case-insensitively and
     /// alphabetical. "Generic" appears only when a Generic product exists.
@@ -231,5 +238,12 @@ class FilamentCatalog {
 /// base-type products ahead of each variant type's own run, alphabetical within
 /// a run with "Support..." last. Stable, so equal rows keep catalog order.
 void sort_for_display(std::vector<const EffectiveFilament*>& products, const std::string& family);
+
+/// Whether @p type is on @p allowed, case-insensitively: a firmware list may
+/// spell "pla" where the catalog says "PLA". No list allows every type. The
+/// one rule for filtering material choices to what a filament system accepts
+/// (AmsBackend::get_supported_materials()).
+[[nodiscard]] bool type_allowed(const std::optional<std::vector<std::string>>& allowed,
+                                const std::string& type);
 
 } // namespace helix::printer

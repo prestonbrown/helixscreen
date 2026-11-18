@@ -134,6 +134,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         // recovery already offers.
         t.supports_reset = false;
         t.lane_noun = helix::ui::LaneNoun::Tool;
+        // Selecting a slot mounts that toolhead: do_select_slot() forwards to
+        // do_change_tool(), which emits SELECT_TOOL and swaps the carriage.
+        t.select_slot_moves_toolhead = true;
+        // A clear before the first frame sticks: the stored override and the
+        // lane are cleared even for a tool not cached yet.
+        t.clears_override_without_slot = true;
         return t;
     }();
     /// With a firmware feed command (Z-Mod's afclite shim), Load feeds filament
@@ -294,13 +300,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// the tools.
     AmsError do_filament_batch(const std::vector<int>& slots, bool load) override;
     AmsError do_select_slot(int slot_index) override;
-
-    /// On a tool changer, selecting a slot means mounting that toolhead —
-    /// do_select_slot() forwards to do_change_tool(), which emits SELECT_TOOL
-    /// and swaps what is on the carriage.
-    [[nodiscard]] bool select_slot_moves_toolhead() const override {
-        return true;
-    }
 
     /**
      * @brief Mount a physical toolhead. The argument is a SLOT INDEX.
@@ -581,11 +580,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
-    /// The stored override and the lane are cleared even for a tool not cached
-    /// yet, so a clear before the first frame sticks.
-    [[nodiscard]] bool clears_override_without_slot() const override {
-        return true;
-    }
 
     /// Whether this machine's firmware holds each head's colour and material
     /// (a material source with a writer, whose slots and palette a frame has
@@ -600,7 +594,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     }
     void on_stopping() override;
     void on_stopped() override;
-    [[nodiscard]] bool needs_mount_to_feed(int head) const override;
+    /// Whether filament reaches @p head only through the mounted tool: load and
+    /// unload mount it themselves and put the carriage back afterwards.
+    [[nodiscard]] bool needs_mount_to_feed(int head) const;
 
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.

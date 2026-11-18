@@ -674,6 +674,43 @@ FilamentCatalog::variants_in_family(const std::string& family) const {
     return out;
 }
 
+std::vector<std::string>
+FilamentCatalog::families_allowing(const std::vector<std::string>& allowed) const {
+    const std::optional<std::vector<std::string>> list = allowed;
+    std::set<std::string> covered;
+    std::vector<std::string> out;
+    for (const auto& family : all_families()) {
+        bool kept = false;
+        for (const auto& variant : variants_in_family(family)) {
+            if (type_allowed(list, variant.sample_type)) {
+                covered.insert(tio::to_lower(variant.sample_type));
+                kept = true;
+            }
+        }
+        if (kept) {
+            out.push_back(family);
+        }
+    }
+    std::set<std::string> keys;
+    for (const auto& family : out) {
+        keys.insert(tio::to_lower(family));
+    }
+    for (const auto& type : allowed) {
+        if (!covered.count(tio::to_lower(type))) {
+            insert_ci(keys, out, type, type);
+        }
+    }
+    return out;
+}
+
+bool type_allowed(const std::optional<std::vector<std::string>>& allowed, const std::string& type) {
+    if (!allowed) {
+        return true;
+    }
+    return std::any_of(allowed->begin(), allowed->end(),
+                       [&type](const std::string& a) { return tio::equals_ignore_case(a, type); });
+}
+
 std::vector<std::string> FilamentCatalog::brands_in_family(const std::string& family) const {
     std::set<std::string> keys;
     std::vector<std::string> out;

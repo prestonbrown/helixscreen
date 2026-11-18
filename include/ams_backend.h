@@ -110,6 +110,8 @@ struct BackendTraits {
     bool heads_share_heater = false;
     bool carriage_can_be_empty = false;
     bool firmware_owns_lane_identity = false;
+    bool select_slot_moves_toolhead = false;
+    bool clears_override_without_slot = false;
     helix::ui::LaneNoun lane_noun = helix::ui::LaneNoun::Slot;
     helix::ui::LaneNoun tool_noun = helix::ui::LaneNoun::Tool;
     helix::ui::ToolNumberStyle tool_number_style = helix::ui::ToolNumberStyle::Physical;
@@ -616,22 +618,6 @@ class AmsBackend : public AmsCapabilityHost {
         return std::nullopt;
     }
 
-    /// Whether the firmware prompt titled @p title is this backend's own dialog
-    /// for a fault the recovery popup already shows. The presenter closes such a
-    /// prompt when it raises the popup, so one fault reads as one dialog.
-    [[nodiscard]] virtual bool duplicates_firmware_prompt(const std::string& /*title*/) const {
-        return false;
-    }
-
-    /// Whether a button sending @p gcode on a prompt duplicates_firmware_prompt()
-    /// claims is one of that dialog's own actions, which the recovery popup
-    /// covers. A firmware dialog can carry buttons a user's macros added, and
-    /// closing it would take those away, so the presenter keeps a prompt with
-    /// any button this answers false for.
-    [[nodiscard]] virtual bool firmware_prompt_button_is_own(const std::string& /*gcode*/) const {
-        return true;
-    }
-
     /// Channel B: the current actionable fault, derived from backend STATUS
     /// rather than from a console line. Read through AmsState::standing_fault()
     /// by the surfaces that raise a standing fault, and by AmsState to know
@@ -646,20 +632,6 @@ class AmsBackend : public AmsCapabilityHost {
     /// only; AD5X IFS and QIDI are channel B only.
     [[nodiscard]] virtual std::optional<helix::ErrorEvent> current_error() const {
         return std::nullopt;
-    }
-
-    /// current_error() told by @p cause: why the print paused
-    /// (print_stop_reason), or the newest recent `!!` line, empty when nothing
-    /// said. A non-empty cause is the detail, since a backend's own status text
-    /// can belong to an earlier fault. Overridden by a backend that reads more
-    /// from the cause, such as which lane faulted.
-    [[nodiscard]] virtual std::optional<helix::ErrorEvent>
-    current_error_with_cause(const std::string& cause) const {
-        auto e = current_error();
-        if (e && !cause.empty()) {
-            e->detail = cause;
-        }
-        return e;
     }
 
   protected:
@@ -726,19 +698,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] bool carriage_can_be_empty() const {
         return traits().carriage_can_be_empty;
-    }
-
-    /**
-     * @brief True when the backend's current ERROR is about the carriage or the
-     *        changer, so a docked head may not be where the changer thinks.
-     *
-     * Asked only while the action reads ERROR. A backend whose every error is a
-     * changer error (a tool changer, the Snapmaker U1) answers with
-     * carriage_can_be_empty(), the default. One that also reports lane faults on
-     * a machine with docking heads answers true only for the carriage's own.
-     */
-    [[nodiscard]] virtual bool fault_concerns_carriage() const {
-        return carriage_can_be_empty();
     }
 
     /**
@@ -1050,32 +1009,6 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual bool slot_has_load_sensor(int slot_index) const {
         (void)slot_index;
         return false;
-    }
-
-    /**
-     * @brief The lane whose spool is this lane's, when the two lanes share one
-     *
-     * A lane fed from storage upstream (a bay routed to a toolhead lane) shows
-     * another lane's spool: the spool's home is the bay, and the fed lane is
-     * the same filament's path onward. nullopt when the lane's spool is its
-     * own, which is every lane on a backend that does not answer this.
-     */
-    [[nodiscard]] virtual std::optional<int> upstream_slot(int slot_index) const {
-        (void)slot_index;
-        return std::nullopt;
-    }
-
-    /**
-     * @brief The number a spool badge shows for this lane
-     *
-     * The base numbers lanes in global order. A backend whose lanes
-     * share spools resolves through upstream_slot(), so a fed lane and the
-     * storage lane feeding it wear one number and each spool counts once.
-     *
-     * @return the number, or a negative value for a lane with none to show
-     */
-    [[nodiscard]] virtual int spool_display_number(int slot_index) const {
-        return ui::lane_number(slot_index);
     }
 
     // ========================================================================
@@ -1644,22 +1577,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief Whether this slot carries a latched fault that clear_fault() clears
-     *
-     * A fault can outlive both the operation that raised it and the error dialog
-     * whose dismissal clears it: a recovery action that closes the dialog leaves
-     * the firmware still reporting the error, with nothing else on screen able to
-     * reach clear_fault(). The lane menu offers "Clear error" on this.
-     *
-     * False while an operation that may clear the fault itself is still running.
-     * Default false.
-     */
-    [[nodiscard]] virtual bool has_clearable_fault(int slot_index) const {
-        (void)slot_index;
-        return false;
-    }
-
-    /**
      * @brief Eject filament from a specific lane (async)
      *
      * Reverses the lane's extruder motor to release filament so the spool
@@ -1943,26 +1860,6 @@ class AmsBackend : public AmsCapabilityHost {
         if (on_ready) {
             on_ready(AmsErrorHelper::success());
         }
-    }
-
-    /**
-     * @brief True when the current runout signal looks like a stale-sensor
-     *        false positive rather than a genuine filament-out.
-     *
-     * On Snapmaker U1 the encoder-based motion sensor latches
-     * filament_detected=false whenever no extrusion has happened recently —
-     * so it can fire pause_on_runout at print start, before filament has
-     * physically moved. The port/buffer sensor at the spool side still reads
-     * filament present in that case. Callers use this to suppress the runout
-     * guidance modal and auto-trigger prepare_for_resume + RESUME silently.
-     *
-     * Default: false (treat every runout signal as real).
-     *
-     * @param slot_index Slot to check (typically current active slot)
-     */
-    [[nodiscard]] virtual bool is_stuck_motion_sensor_runout(int slot_index) const {
-        (void)slot_index;
-        return false;
     }
 
     // ========================================================================
@@ -2539,31 +2436,6 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
-     * @brief G-code that sets clog detection mode, if this backend has the setting.
-     *
-     * @param mode       0 off, 1 manual (fixed detection length), 2 automatic
-     * @param det_length Detection length in mm, sent in manual mode when positive
-     * @return The command, or nullopt when the backend has no such setting
-     */
-    [[nodiscard]] virtual std::optional<std::string>
-    clog_detection_mode_gcode(int mode, float det_length) const {
-        (void)mode;
-        (void)det_length;
-        return std::nullopt;
-    }
-
-    /**
-     * @brief The detection length (mm) a manual clog mode write sets, as the
-     *        printer is configured.
-     *
-     * @return nullopt when the backend reports none; callers then show the
-     *         live encoder length
-     */
-    [[nodiscard]] virtual std::optional<float> clog_detection_length_setting() const {
-        return std::nullopt;
-    }
-
-    /**
      * @brief Execute a device action
      *
      * @param action_id The action ID from get_device_actions()
@@ -2726,25 +2598,6 @@ class AmsBackend : public AmsCapabilityHost {
      */
     [[nodiscard]] virtual bool owns_tool_mapping_table() const {
         return false;
-    }
-
-    /**
-     * @brief Clear the backend's persistent message/error queue.
-     *
-     * AFC keeps a persistent message queue that will not clear until
-     * AFC_CLEAR_MESSAGE is sent; without it the error dialog re-fires immediately
-     * because AFC keeps reporting ERROR (#497). Default is a no-op
-     * (NOT_SUPPORTED); backends with such a queue override it.
-     *
-     * Callers do not need to ask whether a backend has a queue first — the
-     * default is already a harmless no-op, which is why the former
-     * supports_clear_message_queue() capability query was removed once
-     * clear_fault() took over the dismiss path.
-     *
-     * @return AmsError indicating success/failure
-     */
-    virtual AmsError clear_message_queue() {
-        return AmsErrorHelper::not_supported("Clear message queue");
     }
 
     /**
@@ -3086,23 +2939,6 @@ class AmsBackend : public AmsCapabilityHost {
         return traits().printer_reports_spool_ids;
     }
 
-    /// Whether the firmware is retaining spool identity across an eject on
-    /// every lane (AFC's per-lane remember_spool = true everywhere). Dynamic,
-    /// unlike the capabilities above: it reflects a config choice, not a
-    /// firmware property. Read alongside firmware_owns_spool_retention().
-    [[nodiscard]] virtual bool printer_retains_spool_info() const {
-        return false;
-    }
-
-    /// Whether the firmware has its own setting for what an eject does to a
-    /// lane's spool details, reported on every lane. When true that setting
-    /// decides, and HelixScreen's "Keep Spool Info on Eject" does not apply:
-    /// the switch shows printer_retains_spool_info() and writes through
-    /// set_firmware_spool_retention().
-    [[nodiscard]] virtual bool firmware_owns_spool_retention() const {
-        return false;
-    }
-
     /// Whether the firmware's own state is the authority for a lane's material
     /// and colour, so a linked spool never overrides them. The editor shows what
     /// the lane holds and names the spool when the two disagree.
@@ -3126,24 +2962,7 @@ class AmsBackend : public AmsCapabilityHost {
         (void)keep_identity;
     }
 
-    /// Write the firmware's own spool-retention setting on every lane.
-    virtual AmsError set_firmware_spool_retention(bool keep) {
-        (void)keep;
-        return AmsErrorHelper::not_supported("Firmware spool retention");
-    }
-
   protected:
-    /**
-     * @brief Whether filament reaches @p head only through the mounted tool.
-     *
-     * A backend answering true mounts the tool inside its own load and unload
-     * and puts the carriage back afterwards. Never a question the UI asks: to
-     * every surface the op is simply a Load or an Unload.
-     */
-    [[nodiscard]] virtual bool needs_mount_to_feed(int /*head*/) const {
-        return false;
-    }
-
     /**
      * @brief Send this backend's tool-mapping verb.
      *
@@ -3222,8 +3041,9 @@ class AmsBackend : public AmsCapabilityHost {
      *
      * Returns a non-empty vector when firmware validates the string against
      * a fixed list (e.g., AD5X IFS rejects anything outside its 7-item set).
-     * Callers should filter dropdowns and normalize outgoing values to this
-     * list. An empty vector is treated the same as nullopt (no restriction).
+     * The spool editor offers only these (helix::printer::type_allowed()), and
+     * the backend normalizes outgoing values to them. An empty vector is
+     * treated the same as nullopt (no restriction).
      */
     [[nodiscard]] virtual std::optional<std::vector<std::string>> get_supported_materials() const {
         return std::nullopt;

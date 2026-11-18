@@ -68,6 +68,9 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
         BackendTraits t;
         // `units[].slots[].loaded` is reported per slot.
         t.has_per_slot_loaded_authority = true;
+        // A clear before the first frame sticks: the stored override and the
+        // lane are cleared even for a lane not cached yet.
+        t.clears_override_without_slot = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -163,11 +166,6 @@ class AmsBackendOpenAms : public AmsSubscriptionBackend, public helix::IDryer {
         return "[AMS OpenAMS]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
-    /// The stored override and the lane are cleared even for a lane not cached
-    /// yet, so a clear before the first frame sticks.
-    [[nodiscard]] bool clears_override_without_slot() const override {
-        return true;
-    }
     void prepare_lane_repaint_locked(int slot_index, SlotInfo& slot) override;
 
     /// With [openams_spoolman] loaded, lane_data is its protected namespace
