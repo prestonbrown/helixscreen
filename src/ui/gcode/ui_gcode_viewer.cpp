@@ -871,6 +871,12 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     // by then; the frame is adopted there so one refresh never mixes two.
     st->renderer_->set_frame_ready_callback([obj]() {
         helix::ui::queue_widget_update(obj, [](lv_obj_t* viewer) {
+            // A deleted viewer's address can come back as another object before
+            // this runs; only a registered viewer's user data is a viewer state.
+            const auto& viewers = active_viewers();
+            if (std::find(viewers.begin(), viewers.end(), viewer) == viewers.end()) {
+                return;
+            }
             gcode_viewer_state_t* state = get_state(viewer);
             if (state && state->renderer_) {
                 state->renderer_->adopt_ready_frame();

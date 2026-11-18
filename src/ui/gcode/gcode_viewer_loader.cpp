@@ -526,8 +526,15 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Automatically cancels any existing build and joins the thread
     const uint32_t default_rgb = default_3d_extrusion_rgb();
     const float measured_rate = helix::gcode::render_schedule::last_measured_rate().load();
+#ifdef ENABLE_3D_RENDERER
+    // A renderer that gave up on the GPU this session draws nothing more, so
+    // building 3D geometry for it only holds memory beside the 2D renderer.
+    const bool gpu_given_up = st->renderer_ && st->renderer_->render_failed();
+#else
+    const bool gpu_given_up = true;
+#endif
     st->start_build([st, obj = helix::ui::WeakWidget(obj), path = std::string(file_path), gen,
-                     default_rgb, measured_rate]() {
+                     default_rgb, measured_rate, gpu_given_up]() {
         auto result = std::make_unique<AsyncBuildResult>();
 
         try {
@@ -595,7 +602,10 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                 // build runs on demand from helix::ui::gcode_viewer_set_render_mode().
                 // Segments are deliberately retained even after the build so the 2D
                 // renderer can walk them when the user switches back.
-                if (!st->is_using_2d_mode()) {
+                if (gpu_given_up && !st->is_using_2d_mode()) {
+                    spdlog::debug("[GCode Viewer] GPU path given up this session - 2D");
+                    result->force_2d = true;
+                } else if (!st->is_using_2d_mode()) {
                     result->geometry = build_3d_geometry_in_budget(
                         *result->gcode_file, "Initial load", default_rgb, measured_rate,
                         [st]() { return st->is_cancelled(); });
@@ -608,6 +618,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 #else
                 (void)default_rgb;
                 (void)measured_rate;
+                (void)gpu_given_up;
                 spdlog::debug("[GCode Viewer] 2D renderer - skipping geometry build");
 #endif
             }
