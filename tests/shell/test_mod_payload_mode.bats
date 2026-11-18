@@ -717,6 +717,80 @@ exit 0"
     [ ! -s "$CALLS" ] || fail "started the adopted root through the chroot: $(cat "$CALLS")"
 }
 
+@test "payload update trusts a running UI over a failing init script" {
+    # An init script that cannot write its pid file exits non-zero after its
+    # supervisor has already launched the UI.
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    mock_command_script "chroot" "echo \"\$*\" >> '$CALLS'; touch '$RUNNING'; echo 'Failed to start helixscreen'; exit 1"
+
+    start_service "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1 || fail "start failure was fatal"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    run print_summary v1.2.3
+
+    contains "HelixScreen is running" "$(cat "$BATS_TEST_TMPDIR/out")"
+    contains "is running" "$output"
+    lacks "Reboot" "$output"
+}
+
+@test "the reboot note follows only a UI that did not start" {
+    _payload_update_fakes 0
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    touch "$RUNNING"
+    stop_service "ad5m"
+    start_service "ad5m" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    run print_reboot_note ad5m
+    lacks "reboot" "$output"
+
+    HELIX_UI_CONFIRMED=""
+    run print_reboot_note ad5m
+    contains "reboot" "$output"
+    run print_reboot_note pi
+    lacks "reboot" "$output"
+}
+
+@test "apply_install prints the reboot note through print_reboot_note" {
+    _fn_body() { awk -v f="$1" '$0 ~ "^"f"\\(\\) *\\{" {p=1} p {print} p && /^}/ {exit}' "$2"; }
+    _fn_body apply_install "$WORKTREE_ROOT/scripts/lib/installer/main.sh" | grep -q 'print_reboot_note "\$platform"' \
+        || fail "apply_install does not route the note through print_reboot_note"
+    ! grep -q 'You may need to reboot' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" \
+        || fail "main.sh still prints the note unconditionally"
+}
+
+@test "payload update replaces our shipped config scripts and keeps user config" {
+    HELIX_MOD_PAYLOAD=1
+    seed_payload_root
+    printf '#!/bin/sh\n# OLD init\n' > "$INSTALL_DIR/config/helixscreen.init"
+    printf '[{"operator":1}]\n' > "$INSTALL_DIR/config/tool_spools.json"
+    mkdir -p "$INSTALL_DIR/config/themes"
+    printf 'mine\n' > "$INSTALL_DIR/config/themes/custom.json"
+    local staging="$BATS_TEST_TMPDIR/staging"
+    rm -rf "$staging"
+    mkdir -p "$staging/helixscreen/bin" "$staging/helixscreen/config/themes" \
+             "$staging/helixscreen/ui_xml" "$staging/helixscreen/assets"
+    create_fake_mips_elf "$staging/helixscreen/bin/helix-screen"
+    chmod +x "$staging/helixscreen/bin/helix-screen"
+    printf '#!/bin/sh\n# NEW init\n' > "$staging/helixscreen/config/helixscreen.init"
+    printf '[]\n' > "$staging/helixscreen/config/tool_spools.json"
+    printf '{"bundled":true}\n' > "$staging/helixscreen/config/settings.json"
+    printf 'shipped\n' > "$staging/helixscreen/config/themes/custom.json"
+    tar -czf "$TMP_DIR/helixscreen.tar.gz" -C "$staging" helixscreen
+
+    extract_release "ad5x"
+
+    grep -q 'NEW init' "$INSTALL_DIR/config/helixscreen.init" \
+        || fail "the shipped init script kept the old payload's copy"
+    grep -q '"operator":1' "$INSTALL_DIR/config/tool_spools.json" || fail "user tool_spools.json replaced"
+    grep -q '"operator":true' "$INSTALL_DIR/config/settings.json" || fail "user settings.json replaced"
+    grep -q mine "$INSTALL_DIR/config/themes/custom.json" || fail "user theme replaced"
+    cmp -s "$BATS_TEST_TMPDIR/env.operator" "$INSTALL_DIR/config/helixscreen.env" \
+        || fail "operator helixscreen.env was modified"
+}
+
 @test "payload self-update leaves the restart to the watchdog" {
     _payload_update_fakes 0
     touch "$RUNNING"
