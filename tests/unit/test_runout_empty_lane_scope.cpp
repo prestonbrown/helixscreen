@@ -24,11 +24,13 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "ams_subscription_backend.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -344,6 +346,38 @@ TEST_CASE("has_real_runout: with no current lane every present lane still counts
     // Nothing names the lane being fed, so a present lane's empty switch is
     // taken at its word.
     CHECK(fsm.has_real_runout());
+}
+
+TEST_CASE("has_real_runout: the head being fed runs dry mid-print though its lane now reads empty",
+          "[runout][scope]") {
+    HelixTestFixture fx;
+    ScopedSnapmakerBackend backend;
+    auto& fsm = FilamentSensorManager::instance();
+    setup_u1_printing_on_head_2(backend, fsm, /*pick_head_2=*/true);
+    get_printer_state().init_subjects(false);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+
+    // Head 2's spool runs out: its toolhead switch drops, then its feeder
+    // port, and the channel waits for a new spool, so the backend reports the
+    // lane it is printing from as empty.
+    feed_switch(backend, fsm, 2, false);
+    RunoutScopeTestAccess::handle_status(
+        *backend.backend,
+        json{{"filament_feed right", json{{"extruder2", json{{"filament_detected", false},
+                                                             {"channel_state", "wait_insert"},
+                                                             {"channel_error", "ok"}}}}}});
+    drain();
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PAUSED);
+    AmsBackend* be = AmsState::instance().get_backend();
+    REQUIRE(be->get_current_slot() == 2);
+    REQUIRE_FALSE(be->get_slot_info(2).is_present());
+
+    REQUIRE(fsm.real_runout_lane().has_value());
+    CHECK(*fsm.real_runout_lane() == 2);
+
+    // With no job running, the same picked-but-empty head is an idle lane.
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
+    CHECK_FALSE(fsm.has_real_runout());
 }
 
 namespace {
