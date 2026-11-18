@@ -171,6 +171,7 @@ src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
 src/printer/ams_backend_snapmaker.cpp
+src/printer/ams_backend_snapmaker_auto_load.cpp
 src/printer/ams_backend_toolchanger.cpp
 src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
@@ -270,6 +271,7 @@ src/printer/sensor_state.cpp
 src/printer/slot_registry.cpp
 src/printer/snapmaker_channel_state.cpp
 src/printer/snapmaker_exceptions.cpp
+src/printer/snapmaker_feed_mode.cpp
 src/printer/pause_descriptor.cpp
 src/printer/snapmaker_nozzle_offset.cpp
 src/printer/snapmaker_nozzle_properties.cpp
@@ -937,6 +939,7 @@ src/calibration/shaper_csv_parser.cpp
 # MOCK: src/api/moonraker_client_mock_skips.cpp
 # MOCK: src/api/moonraker_client_mock_layer_pause.cpp
 # MOCK: src/api/moonraker_client_mock_plr.cpp
+# MOCK: src/api/moonraker_client_mock_u1_feeder.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp

@@ -1481,6 +1481,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the printer.objects.query / subscribe handlers read it).
     bool is_mock_openams() const;
     [[nodiscard]] nlohmann::json openams_status_json() const;
+    /// One U1 filament_feed side's channels object (the side owning extruder
+    /// @p ext), both of its channels whole.
+    [[nodiscard]] nlohmann::json u1_feed_side_json(int ext) const;
     /// HELIX_MOCK_OPENAMS_UNITS=shared: an AMS HT and an AMS 2 Pro on one lane.
     [[nodiscard]] static bool openams_shared_lane_units();
     /// HELIX_MOCK_OPENAMS_UNITS=two_lanes: that pair on lane `fps`, two AMS 2 Pro on `fps2`.
@@ -2766,6 +2769,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         "load_finish", "preload_finish", "load_finish", "preload_finish"};
     std::array<bool, static_cast<size_t>(kU1Channels)> u1_filament_detected_{true, true, true,
                                                                              true};
+    /// Per head: its feeder's Auto loading is off (`disable_auto`). Set by
+    /// FEED_AUTO ... AUTO=<0|1>; an AUTO_FEEDING load on such a head does nothing,
+    /// as the firmware answers it.
+    std::array<bool, static_cast<size_t>(kU1Channels)> u1_disable_auto_{};
+
+    /// FEED_AUTO MODULE=<m> CHANNEL=<c> AUTO=<0|1>: set that channel's head's
+    /// automatic mode and publish it. @return true when the line was one.
+    bool apply_u1_auto_mode_gcode(const std::string& gcode);
     /// defect_detection main_enable, clean_bed.enable and noodle.enable,
     /// switched by DEFECT_DETECTION_CONFIG.
     std::atomic<bool> u1_defect_main_enable_{true};
@@ -2782,8 +2793,6 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// present-but-partial channel object resets the fields the backend's
     /// delta parse would otherwise carry forward.
     void publish_u1_channel_frame(int ext);
-    /// One filament_feed side's channels object, both of its channels whole.
-    [[nodiscard]] nlohmann::json u1_feed_side_json(int ext) const;
 
     // --- Standalone IFS module mock -----------------------------------------
     // HELIX_MOCK_AMS=ifs-module: pushes the module's objects (ifs /

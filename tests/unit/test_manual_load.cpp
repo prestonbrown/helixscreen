@@ -401,7 +401,11 @@ TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head with no automatic feeder lo
     const helix::HeadFilamentOps ops = backend.head_filament_ops(1);
     CHECK(ops.load == helix::FilamentOpSupport::Manual);
     CHECK(ops.guided_hand_load);
-    CHECK_FALSE(ops.load_reason.empty());
+    // A feeder that is there with Auto loading off names the setting; a missing
+    // one says there is no feeder.
+    INFO(ops.load_reason);
+    CHECK((ops.load_reason.find("Auto loading is off") != std::string::npos) == !no_module);
+    CHECK((ops.load_reason.find("no automatic feeder") != std::string::npos) == no_module);
     // Only that head: its neighbour's feeder said nothing.
     CHECK(backend.head_filament_ops(0).load == helix::FilamentOpSupport::Automatic);
 

@@ -57,6 +57,7 @@ src/api/moonraker_client_mock.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_gcode.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_gcode_calibration.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_files.cpp  # not in the v1 Core+AMS cut
+src/api/moonraker_client_mock_u1_feeder.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_history.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_plr.cpp  # not in the v1 Core+AMS cut
 src/api/moonraker_client_mock_layer_pause.cpp  # not in the v1 Core+AMS cut
