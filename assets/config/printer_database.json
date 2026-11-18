@@ -8041,6 +8041,7 @@
     },
     {
       "id": "duender_medusahc",
+      "toolhead_style": "medusahc",
       "variant_of": "duender",
       "variant_label": "MedusaHC",
       "name": "Duender (MedusaHC)",
@@ -8087,6 +8088,7 @@
     },
     {
       "id": "ducr10_medusahc",
+      "toolhead_style": "medusahc",
       "variant_of": "ducr10",
       "variant_label": "MedusaHC",
       "name": "DuCR10 (MedusaHC)",

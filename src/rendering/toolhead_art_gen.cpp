@@ -9,7 +9,7 @@ namespace helix::ui {
 const ToolheadArt kToolheadArt[] = {
     {ToolheadStyle::STEALTHBURNER, "stealthburner", 0.6364f, 0.3326f, 0.9602f, 0.9775f, 0.4625f, 0.0876f},
     {ToolheadStyle::MINI_STEALTHBURNER, "mini_stealthburner", 0.6717f, 0.4089f, 0.9290f, 0.9498f, 0.4692f, 0.0986f},
-    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.6027f, 0.4035f, 0.9614f, 0.9813f, 0.4949f, 0.0304f},
+    {ToolheadStyle::DRAGONBURNER, "dragonburner", 0.5424f, 0.3910f, 0.9892f, 1.0703f, 0.5307f, 0.0680f},
     {ToolheadStyle::A4T, "a4t", 0.6192f, 0.4110f, 0.9589f, 0.9310f, 0.4542f, 0.0161f},
     {ToolheadStyle::ANTHEAD, "anthead", 0.5389f, 0.3964f, 0.9392f, 1.0422f, 0.5033f, 0.0038f},
     {ToolheadStyle::JABBERWOCKY, "jabberwocky", 0.4592f, 0.3736f, 0.9809f, 1.2387f, 0.4547f, 0.2839f},
@@ -25,7 +25,8 @@ const ToolheadArt kToolheadArt[] = {
     {ToolheadStyle::ARTILLERY_M1, "artillery_m1", 0.7136f, 0.3440f, 0.9846f, 1.0335f, 0.4636f, 0.1120f},
     {ToolheadStyle::QIDI, "qidi", 0.5807f, 0.3123f, 0.9860f, 0.9637f, 0.4636f, 0.1172f},
     {ToolheadStyle::SOVOL_SV08, "sovol_sv08", 0.7200f, 0.3640f, 0.9630f, 0.9819f, 0.4401f, 0.1030f},
+    {ToolheadStyle::MEDUSAHC, "medusahc", 0.5091f, 0.3103f, 0.9949f, 1.3093f, 0.4488f, 0.1392f},
 };
-const int kToolheadArtCount = 18;
+const int kToolheadArtCount = 19;
 
 } // namespace helix::ui

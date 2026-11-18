@@ -29,12 +29,13 @@ enum class ToolheadStyle : int8_t {
     ELEGOO_CENTAURI = 16,
     ARTILLERY_M1 = 17,
     QIDI = 18,
-    SOVOL_SV08 = 19
+    SOVOL_SV08 = 19,
+    MEDUSAHC = 20
 };
 
 /// The highest ToolheadStyle value, the upper bound of the stored setting. The settings
 /// dropdown lists every style in enum order, so a style's value is its dropdown index.
-inline constexpr int kLastToolheadStyle = static_cast<int>(ToolheadStyle::SOVOL_SV08);
+inline constexpr int kLastToolheadStyle = static_cast<int>(ToolheadStyle::MEDUSAHC);
 
 /// Maps a printer-database toolhead_style string to its style; AUTO means "no opinion".
 inline ToolheadStyle toolhead_style_from_name(std::string_view name) {
@@ -60,6 +61,7 @@ inline ToolheadStyle toolhead_style_from_name(std::string_view name) {
         {"artillery_m1", ToolheadStyle::ARTILLERY_M1},
         {"qidi", ToolheadStyle::QIDI},
         {"sovol_sv08", ToolheadStyle::SOVOL_SV08},
+        {"medusahc", ToolheadStyle::MEDUSAHC},
         {"ender3", ToolheadStyle::ENDER3},
         {"default", ToolheadStyle::DEFAULT},
     };

@@ -471,7 +471,7 @@ std::string SettingsManager::get_toolhead_style_options() {
     return std::string(lv_tr("Auto")) + "\n" + lv_tr("Default") +
            "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2"
            "\nDragonburner\nMini Stealthburner\nBambu Lab\nEnder 3\nXOL\nSnapmaker U1\nFlashForge "
-           "AD5\nFlashForge Creator 5\nElegoo Centauri\nArtillery M1\nQidi\nSovol SV08";
+           "AD5\nFlashForge Creator 5\nElegoo Centauri\nArtillery M1\nQidi\nSovol SV08\nMedusaHC";
 }
 
 int SettingsManager::toolhead_style_to_dropdown_index(ToolheadStyle style) {

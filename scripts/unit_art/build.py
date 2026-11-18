@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import head as head_kit, kit  # noqa: E402
-from unit_art.heads import a4t, anthead, bambu, creality_k1, creality_k2, dragonburner, artillery_m1, qidi, sovol_sv08, elegoo_centauri, ender3, flashforge_ad5, flashforge_creator5, snapmaker_u1, xol, jabberwocky, mini_stealthburner, stealthburner  # noqa: E402
+from unit_art.heads import a4t, anthead, bambu, creality_k1, creality_k2, dragonburner, medusahc, artillery_m1, qidi, sovol_sv08, elegoo_centauri, ender3, flashforge_ad5, flashforge_creator5, snapmaker_u1, xol, jabberwocky, mini_stealthburner, stealthburner  # noqa: E402
 from unit_art.units import (  # noqa: E402
     ace_pro,
     ad5x_ifs,
@@ -74,6 +74,7 @@ HEADS = [
     artillery_m1.HEAD,
     qidi.HEAD,
     sovol_sv08.HEAD,
+    medusahc.HEAD,
 ]
 HEAD_TIER_HEIGHT = {"full": 160, "path": 72}
 # A rail's head-on art, baked once at the tallest the path screen draws it.
