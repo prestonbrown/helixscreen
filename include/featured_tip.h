@@ -54,8 +54,15 @@ double max_age_seconds(bool featured_only);
 /// skew) is too.
 bool is_fresh(const FeaturedTip& tip, double now_s, double max_age_s = kMaxAgeSeconds);
 
+/// PrintingTip::category of a featured line, which the tile shows without the
+/// "Tip:" label and in the largest font that holds all of it.
+inline constexpr const char* kCategory = "featured";
+
 /// The tips widget's tip for @p tip: the line as the title, and for the tap,
 /// the line again above its details under the writer's name.
 PrintingTip to_printing_tip(const FeaturedTip& tip);
+
+/// Whether @p tip came from to_printing_tip().
+bool is_featured(const PrintingTip& tip);
 
 } // namespace helix::featured_tip

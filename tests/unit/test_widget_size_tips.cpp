@@ -22,6 +22,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "featured_tip.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/tips_widget.h"
@@ -32,6 +33,100 @@
 
 using namespace helix;
 using namespace helix::widget_size;
+
+namespace helix {
+class TipsWidgetTestAccess {
+  public:
+    static void display(TipsWidget& w, const PrintingTip& tip) {
+        w.set_displayed_tip(tip);
+    }
+};
+} // namespace helix
+
+namespace {
+PrintingTip featured_line(const std::string& title) {
+    featured_tip::FeaturedTip f;
+    f.id = "t";
+    f.title = title;
+    f.source = "Print Handy";
+    return featured_tip::to_printing_tip(f);
+}
+
+/// Height @p label needs for all of its text at its own font and laid-out width.
+int32_t full_text_height(lv_obj_t* label, const char* text) {
+    lv_point_t size;
+    lv_text_get_size(&size, text, lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                     lv_obj_get_style_text_letter_space(label, LV_PART_MAIN),
+                     lv_obj_get_style_text_line_space(label, LV_PART_MAIN),
+                     lv_obj_get_content_width(label), LV_TEXT_FLAG_NONE);
+    return size.y;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a featured line drops the Tip label and shrinks until it fits",
+                 "[widget_size][tips][featured_tip]") {
+    // The "Tip:" label's hidden flag binds to a widget subject, as at startup.
+    PanelWidgetManager::instance().init_widget_subjects();
+    PanelWidgetHarness<TipsWidget> h(test_screen());
+    lv_obj_t* tip_container = h.child("tip_container");
+    REQUIRE(tip_container != nullptr);
+    lv_obj_t* label = h.child("status_text_label");
+    REQUIRE(label != nullptr);
+    lv_obj_t* prefix = lv_obj_get_child(tip_container, 0);
+    REQUIRE(prefix != label);
+
+    // The one-row tile the 1024x600 home page gives tips, measured with ctl geom.
+    const int tile_w = 446;
+    const int tile_h = 108;
+    REQUIRE(tile_w >= w_wide());
+    h.resize(2, 1, tile_w, tile_h);
+
+    SECTION("a long joke steps down a face and shows whole") {
+        const std::string joke =
+            "Looking for self intersections with the patience of a tax auditor. I would ask "
+            "the vertices to explain, but they all point elsewhere.";
+        TipsWidgetTestAccess::display(h.widget(), featured_line(joke));
+        lv_obj_update_layout(h.root());
+
+        CHECK(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) !=
+              theme_manager_get_font("font_heading"));
+        // The row gives the line the tile's whole height...
+        CHECK(lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) == 0);
+        CHECK(lv_obj_get_style_pad_bottom(tip_container, LV_PART_MAIN) == 0);
+        // ...and the text needs no more than that, so no ellipsis.
+        CHECK(full_text_height(label, joke.c_str()) <= tile_h);
+        CHECK(lv_obj_get_style_max_height(label, LV_PART_MAIN) == tile_h);
+    }
+
+    SECTION("a joke too long for every face ends in the small one") {
+        TipsWidgetTestAccess::display(h.widget(), featured_line(std::string(60, 'x') + " " +
+                                                                std::string(400, 'y')));
+        CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
+              theme_manager_get_font("font_small"));
+    }
+
+    SECTION("a short joke keeps the heading face") {
+        TipsWidgetTestAccess::display(h.widget(), featured_line("These go to eleven."));
+        lv_obj_update_layout(h.root());
+        CHECK(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
+              theme_manager_get_font("font_heading"));
+    }
+
+    SECTION("an ordinary tip after it gets its label and face back") {
+        TipsWidgetTestAccess::display(h.widget(), featured_line(std::string(200, 'x')));
+        PrintingTip tip;
+        tip.title = "Level the bed before the first layer.";
+        TipsWidgetTestAccess::display(h.widget(), tip);
+        lv_obj_update_layout(h.root());
+        CHECK_FALSE(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
+              theme_manager_get_font("font_heading"));
+        CHECK(lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) ==
+              theme_manager_get_spacing("space_sm"));
+    }
+}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "tips text font follows width, not colspan",
                  "[widget_size][tips]") {

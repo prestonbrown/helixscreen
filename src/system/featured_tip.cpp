@@ -44,8 +44,12 @@ PrintingTip to_printing_tip(const FeaturedTip& tip) {
     out.title = tip.title;
     out.heading = tip.source;
     out.content = tip.details.empty() ? tip.title : tip.title + "\n\n" + tip.details;
-    out.category = "featured";
+    out.category = kCategory;
     return out;
+}
+
+bool is_featured(const PrintingTip& tip) {
+    return tip.category == kCategory;
 }
 
 } // namespace helix::featured_tip

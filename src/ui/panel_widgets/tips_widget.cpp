@@ -78,6 +78,8 @@ static bool featured_tip_holds_tile(bool featured_only) {
 // Subject owned by TipsWidget module — created before XML bindings resolve
 static helix::Subject s_status_subject;
 static HELIX_PSRAM_BSS char s_status_buffer[512];
+// 1 while the label shows a featured line, which hides the "Tip:" label
+static helix::Subject s_featured_subject;
 static helix::WidgetSubjects s_subjects{"TipsWidgetSubjects"};
 
 /// Widest unbreakable run of any tip title in `font`. LVGL wraps after any of
@@ -114,8 +116,11 @@ static void tips_widget_init_subjects() {
                                      "Welcome to HelixScreen");
         s_subjects.publish("status_text", &s_status_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING);
+        s_featured_subject.init_int(0);
+        s_subjects.publish("tip_is_featured", &s_featured_subject);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_featured_subject, "tip_is_featured", LV_SUBJECT_TYPE_INT);
 
-        spdlog::debug("[TipsWidget] Subjects initialized (status_text)");
+        spdlog::debug("[TipsWidget] Subjects initialized (status_text, tip_is_featured)");
     });
 }
 
@@ -249,16 +254,9 @@ void TipsWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
     if (!tip_container)
         return;
 
-    // The tip text label (named). Its height is capped at what the tile leaves
-    // inside the container's padding: the XML max height resolves against a
-    // content-height row, so without the cap a long title stops at one line
-    // instead of wrapping into a tall tile and ending in its ellipsis there.
-    if (tip_label_) {
-        lv_obj_set_style_text_font(tip_label_, text_font, 0);
-        const int32_t pad_v = lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) +
-                              lv_obj_get_style_pad_bottom(tip_container, LV_PART_MAIN);
-        lv_obj_set_style_max_height(tip_label_, std::max<int32_t>(0, height_px - pad_v), 0);
-    }
+    tile_w_ = width_px;
+    tile_h_ = height_px;
+    fit_title_font();
 
     // The "Tip:" prefix label is the first child of tip_container (unnamed text_heading)
     lv_obj_t* prefix = lv_obj_get_child(tip_container, 0);
@@ -289,6 +287,61 @@ bool TipsWidget::fits_at(int width_px, int /*height_px*/) const {
         helix::ui::measure_text_px(helix::ui::icon::lookup_codepoint("help_circle"), icon_font) +
         2 * theme_manager_get_spacing("space_sm");
     return width_px - chrome >= widest_title_run_px(text_font);
+}
+
+void TipsWidget::fit_title_font() {
+    if (!tip_label_ || tile_w_ <= 0)
+        return;
+    // The title's height is capped at what the tile leaves inside the row's
+    // padding, which a featured line drops: the XML max height resolves against
+    // a content-height row, so without the cap a long title stops at one line
+    // instead of wrapping into a tall tile and ending in its ellipsis there.
+    auto* tip_container = lv_obj_get_parent(tip_label_);
+    const int32_t pad_v = lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) +
+                          lv_obj_get_style_pad_bottom(tip_container, LV_PART_MAIN);
+    const int32_t max_h = std::max<int32_t>(0, tile_h_ - pad_v);
+    lv_obj_set_style_max_height(tip_label_, max_h, 0);
+    // Below wide-tier width the tile reads in the body face (on_size_changed).
+    const bool compact = tile_w_ < widget_size::w_wide();
+    const lv_font_t* font = theme_manager_get_font(compact ? "font_body" : "font_heading");
+    if (!font)
+        return;
+    if (featured_tip::is_featured(current_tip_)) {
+        // A joke cut off before its punchline is no joke: step down a face at a
+        // time until all of it fits the tile, and only the smallest may end in
+        // the ellipsis. Measured on the laid-out label, which the hidden "Tip:"
+        // has just widened: the row decides its width to the pixel, and a pixel
+        // short wraps the last word into the ellipsis.
+        lv_obj_update_layout(widget_obj_);
+        const int32_t max_w = lv_obj_get_content_width(tip_label_);
+        const int32_t letter_space = lv_obj_get_style_text_letter_space(tip_label_, LV_PART_MAIN);
+        const int32_t line_space = lv_obj_get_style_text_line_space(tip_label_, LV_PART_MAIN);
+        const char* faces[] = {"font_heading", "font_body", "font_small"};
+        for (const char* face : faces) {
+            if (compact && std::strcmp(face, "font_heading") == 0)
+                continue;
+            const lv_font_t* candidate = theme_manager_get_font(face);
+            if (!candidate)
+                continue;
+            font = candidate;
+            lv_point_t size;
+            lv_text_get_size(&size, current_tip_.title.c_str(), font, letter_space, line_space,
+                             max_w, LV_TEXT_FLAG_NONE);
+            spdlog::debug("[TipsWidget] Featured line in {}: {}x{} in {}x{}", face, size.x, size.y,
+                          max_w, max_h);
+            if (size.y <= max_h)
+                break;
+        }
+    }
+    lv_obj_set_style_text_font(tip_label_, font, 0);
+}
+
+void TipsWidget::set_displayed_tip(const PrintingTip& tip) {
+    current_tip_ = tip;
+    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
+    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    lv_subject_set_int(&s_featured_subject, featured_tip::is_featured(tip) ? 1 : 0);
+    fit_title_font();
 }
 
 void TipsWidget::set_config(const nlohmann::json& config) {
@@ -343,9 +396,7 @@ void TipsWidget::show_tip(const PrintingTip& tip) {
         return;
     }
     // No label to animate (initial load): instant update
-    current_tip_ = tip;
-    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
-    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    set_displayed_tip(tip);
     spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
 }
 
@@ -418,9 +469,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
 
     // Skip animation if disabled — apply text immediately
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
-        current_tip_ = pending_tip_;
-        std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-        lv_subject_set_string(&s_status_subject, s_status_buffer);
+        set_displayed_tip(pending_tip_);
         // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         tip_animating_ = false;
@@ -456,9 +505,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
 
 void TipsWidget::apply_pending_tip() {
     // Apply the pending tip text
-    current_tip_ = pending_tip_;
-    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    set_displayed_tip(pending_tip_);
 
     spdlog::debug("[TipsWidget] Applied pending tip: {}", pending_tip_.title);
 

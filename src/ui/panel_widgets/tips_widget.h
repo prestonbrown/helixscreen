@@ -38,6 +38,8 @@ class TipsWidget : public PanelWidget {
     static void tip_text_clicked_cb(lv_event_t* e);
 
   private:
+    friend class TipsWidgetTestAccess;
+
     helix::ui::WidgetRef widget_obj_;
     helix::ui::WidgetRef parent_screen_;
 
@@ -59,9 +61,17 @@ class TipsWidget : public PanelWidget {
     // Featured lines replace the tips while one is current (featured_tip.h)
     bool featured_only_ = true;
 
+    // The tile's size from on_size_changed; 0 until it is sized
+    int tile_w_ = 0;
+    int tile_h_ = 0;
+
     // Tip logic
     void update_tip_of_day();
     void show_tip(const PrintingTip& tip);
+    /// Puts @p tip on the label now: text, the "Tip:" label, and its font.
+    void set_displayed_tip(const PrintingTip& tip);
+    /// The tile's text font, stepped down for a featured line until all of it fits.
+    void fit_title_font();
     void poll_featured_tip();
     void apply_featured_tip(const nlohmann::json& value);
     void drop_featured_tip();
