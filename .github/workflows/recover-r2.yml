@@ -102,6 +102,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
