@@ -307,6 +307,67 @@ TEST_CASE_METHOD(HubStackFixture,
     }
 }
 
+// Every head, on canvases from the 480x272 unit view's up: the toolhead band stays above the
+// head and the tube ends on the head's own filament inlet, never down over its face.
+TEST_CASE_METHOD(HubStackFixture, "HUB tube ends on the head's inlet, its band above the head",
+                 "[filament-path][hub-stack]") {
+    const auto style = GENERATE(
+        helix::ToolheadStyle::DEFAULT, helix::ToolheadStyle::STEALTHBURNER,
+        helix::ToolheadStyle::MINI_STEALTHBURNER, helix::ToolheadStyle::DRAGONBURNER,
+        helix::ToolheadStyle::A4T, helix::ToolheadStyle::ANTHEAD, helix::ToolheadStyle::JABBERWOCKY,
+        helix::ToolheadStyle::BAMBU, helix::ToolheadStyle::CREALITY_K1,
+        helix::ToolheadStyle::CREALITY_K2, helix::ToolheadStyle::ENDER3, helix::ToolheadStyle::XOL,
+        helix::ToolheadStyle::SNAPMAKER_U1, helix::ToolheadStyle::FLASHFORGE_AD5,
+        helix::ToolheadStyle::FLASHFORGE_CREATOR5, helix::ToolheadStyle::ELEGOO_CENTAURI);
+    ScopedToolheadStyle scoped(style);
+    const int32_t height = GENERATE(66, 124, 253);
+    const bool buffer = GENERATE(true, false);
+    const bool bypass = GENERATE(false, true);
+    CAPTURE(static_cast<int>(style), height, buffer, bypass);
+
+    FilamentPathData d;
+    d.topology = static_cast<int>(helix::PathTopology::HUB);
+    d.slot_count = 4;
+    d.theme.tube_gauge = 5;
+    d.theme.sensor_radius = 4;
+    d.theme.hub_width = 50;
+    d.theme.extruder_scale = 8;
+    for (int i = 0; i < 4; i++)
+        d.slot_has_prep_sensor[i] = true;
+    d.has_hub_sensor = true;
+    d.has_toolhead_sensor = true;
+    d.buffer_present = buffer;
+    d.show_bypass = bypass;
+    BaseGeometry g;
+    g.width = 285;
+    g.height = height;
+    g.slot_count = 4;
+    for (int i = 0; i < 4; i++)
+        g.slot_x[i] = 54 + 58 * i;
+    g.center_x = 141;
+
+    const LinearHubFrame f = compute_linear_hub_frame(
+        d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+    const helix::ui::ToolheadInlet inlet = path_toolhead_inlet(f.nozzle_y, f.tool_scale);
+    CAPTURE(f.toolhead_y, f.nozzle_y, f.tool_scale, head_top, inlet.y);
+    CHECK(f.toolhead_y + d.theme.sensor_radius <= head_top);
+    // The head stands where its inlet meets the tube's column.
+    CHECK(f.head_x == g.center_x + inlet.dx);
+
+    static PathPlan plan;
+    plan_linear_hub(f, d, g, plan);
+    REQUIRE(plan.trunk_route >= 0);
+    const pg::FilamentPath& trunk = plan.routes[plan.trunk_route].path;
+    REQUIRE(trunk.count > 0);
+    // The trunk runs down to the inlet and no further.
+    for (int k = 0; k < trunk.count; ++k)
+        CHECK(seg_end(trunk.segs[k]).y <= (float)inlet.y + 0.01f);
+    const pg::PathPoint end = seg_end(trunk.segs[trunk.count - 1]);
+    CHECK(end.x == Catch::Approx((float)g.center_x));
+    CHECK(end.y == Catch::Approx((float)inlet.y));
+}
+
 TEST_CASE_METHOD(HubStackFixture,
                  "HUB on the toolhead draws its output run from the hub's bottom edge",
                  "[filament-path][hub-stack]") {

@@ -304,13 +304,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.hub_y = g.y_off + (int32_t)(g.height * kHubYRatio);
     f.hub_h = (int32_t)(g.height * kHubHeightRatio);
     f.toolhead_y = g.y_off + (int32_t)(g.height * kToolheadYRatio);
-    if (data.hub_on_toolhead) {
-        // The selector is part of the unit, butted against the prep sensors;
-        // the hub moves down to the print head with a short shared stub below.
+    // The selector is part of the unit, butted against the prep sensors.
+    if (data.hub_on_toolhead)
         f.selector_y = f.prep_y + (int32_t)(g.height * (kHubHeightRatio / 2 + 0.02f));
-        const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
-        f.hub_y = f.toolhead_y - stub - f.hub_h / 2;
-    }
     f.sensor_r = theme.sensor_radius;
     const int32_t r = f.sensor_r;
     const int32_t buf_box_h = LV_MAX(16, f.hub_h);
@@ -338,6 +334,14 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // The head is drawn first and the tube painted over it, down to the head's filament inlet.
     f.inlet_y = inlet.y;
     f.head_x = g.center_x + inlet.dx;
+    // The toolhead sensor band stays in the clear room above the head, so the tube never
+    // runs down over the head's face to reach it.
+    f.toolhead_y = LV_MIN(f.toolhead_y, glyph_top - r);
+    if (data.hub_on_toolhead) {
+        // The hub moves down to the print head with a short shared stub below.
+        const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
+        f.hub_y = f.toolhead_y - stub - f.hub_h / 2;
+    }
     f.bypass_merge_y = g.y_off + (int32_t)(g.height * kBypassMergeYRatio);
     if (hub_unit)
         f.bypass_merge_y = LV_MIN(f.bypass_merge_y, glyph_top - 2 * r);
