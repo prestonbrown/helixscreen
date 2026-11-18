@@ -25,11 +25,13 @@
 #include "test_helpers/registered_backend.h"
 #include "three_mf_reader.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -485,6 +487,8 @@ TEST_CASE_METHOD(ArchiveStart,
                  "Reprint of an archive plate goes through the extraction, not a direct start",
                  "[print_preparation][three_mf][reprint]") {
     plant("single_plate.gcode.3mf");
+    // A reprint starts only on a printer free to take it.
+    printer.state.print_state().retire_preparing(PreparingExit::Superseded);
     PrintStartController controller{printer.state, &printer.api};
     controller.set_prep_manager(&manager);
     bool started = false;
@@ -682,6 +686,8 @@ TEST_CASE_METHOD(ArchiveStart, "a reprint before Print Files is built runs the p
                              "G28\nT0\nT2\n"
                              "; filament used [g] = 1.50, 0.00, 2.25\n");
     printer.client.clear_gcode_script_history();
+    // A reprint starts only on a printer free to take it.
+    printer.state.print_state().retire_preparing(PreparingExit::Superseded);
 
     PrintStatusPanel panel{printer.state, &printer.api};
     panel.init_subjects();
@@ -703,6 +709,8 @@ TEST_CASE_METHOD(ArchiveStart, "a reprint before Print Files is built runs the p
 
 TEST_CASE_METHOD(ArchiveStart, "a plate reprint before Print Files is built is refused",
                  "[print_status][reprint][three_mf]") {
+    // A reprint starts only on a printer free to take it.
+    printer.state.print_state().retire_preparing(PreparingExit::Superseded);
     PrintStatusPanel panel{printer.state, &printer.api};
     panel.init_subjects();
     helix::ui::PrintStartController controller(printer.state, &printer.api);
@@ -733,10 +741,22 @@ void report_job(PrinterState& state, const char* job_state, const std::string& f
 /// nullopt when it started nothing.
 std::optional<PrintStartParams> reprint(MockPrinter& printer, PrintPreparationManager& manager,
                                         const std::string& file) {
+    // A reprint starts only on a printer free to take it.
+    if (printer.state.print_state().has_preparing_job()) {
+        printer.state.print_state().retire_preparing(PreparingExit::Superseded);
+    }
     PrintStartController controller{printer.state, &printer.api};
     controller.set_prep_manager(&manager);
     const size_t before = printer.api.job_mock().started_print_params().size();
-    controller.initiate_reprint(file, "", {}, [] {}, [] {});
+    bool done = false;
+    controller.initiate_reprint(file, "", {}, [&done] { done = true; }, [&done] { done = true; });
+    // The reprint reads the file for its pre-print checks first, which for a
+    // file naming no tools is a download on a worker thread.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!done && std::chrono::steady_clock::now() < deadline) {
+        drain_until_quiet();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     drain_until_quiet();
     const auto& sent = printer.api.job_mock().started_print_params();
     if (sent.size() == before) {

@@ -6,6 +6,7 @@
 #include "ui_filename_utils.h"
 
 #include "ams_state.h"
+#include "app_constants.h"
 #include "app_globals.h"
 #include "filament_chip_model.h"
 #include "file_analysis.h"
@@ -182,6 +183,12 @@ std::optional<FitMachine> current_fit_machine() {
         fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
                                ams.is_available(), ams.printable_y_shrink_mm()),
         live_nozzles(state.temperature_state()));
+}
+
+uint32_t file_facts_stall_ms(const FileMetadata& metadata) {
+    constexpr uint64_t kSlowestReadBytesPerMs = 100; // 100 kB/s
+    return app_constants::transfer::STALL_MS +
+           static_cast<uint32_t>(metadata.size / kSlowestReadBytesPerMs);
 }
 
 PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed) {

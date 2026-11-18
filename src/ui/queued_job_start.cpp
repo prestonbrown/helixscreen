@@ -254,8 +254,7 @@ void QueuedJobStarter::gather(const JobQueueEntry& job, QueuedJobOptions saved) 
         [this, gen](const std::optional<FileMetadata>& metadata) {
             // A footer that cannot answer falls back to reading the whole file.
             if (gen == start_generation_ && in_flight_ && metadata) {
-                arm_stall_watchdog(kStallMs +
-                                   static_cast<uint32_t>(metadata->size / kSlowestReadBytesPerMs));
+                arm_stall_watchdog(file_facts_stall_ms(*metadata));
             }
         });
 }

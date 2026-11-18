@@ -179,18 +179,16 @@ void PrintStartController::initiate() {
         lv_subject_set_int(can_print_subject_, 0);
     }
 
-    // Check if a print is already active before allowing a new one to start
-    if (!printer_state_.print_state().can_start_new_print()) {
-        // RAW_PRINT_STATE_OK: the preparing axis is carried separately here by
-        // can_start_new_print(); this arm asks only what the printer reports.
-        PrintJobState current_state = printer_state_.print_state().get_print_job_state();
-        const char* state_str = print_job_state_to_string(current_state);
-        NOTIFY_ERROR(lv_tr("Cannot start print: printer is {}"), state_str);
-        spdlog::warn("[PrintStartController] Attempted to start print while printer is in {} state",
-                     state_str);
+    if (refuse_while_printer_busy()) {
         end_without_print();
         return;
     }
+
+    // This start supersedes a reprint still waiting on its file checks or on
+    // a gate dialog: two starts must not race to the printer from one
+    // controller.
+    abandon_pending_reprint();
+    end_live_reprint_gates();
 
     // Ordered pre-print gate pipeline: insufficient spool weight, bypass
     // engaged on a lane print, unaccounted toolhead filament, required
@@ -520,6 +518,20 @@ void PrintStartController::report_preprint_failure(const std::string& reason) {
                                                "The print was not started.")));
 }
 
+bool PrintStartController::refuse_while_printer_busy() {
+    if (printer_state_.print_state().can_start_new_print()) {
+        return false;
+    }
+    // RAW_PRINT_STATE_OK: the preparing axis is carried separately here by
+    // can_start_new_print(); this arm asks only what the printer reports.
+    PrintJobState current_state = printer_state_.print_state().get_print_job_state();
+    const char* state_str = print_job_state_to_string(current_state);
+    NOTIFY_ERROR(lv_tr("Cannot start print: printer is {}"), state_str);
+    spdlog::warn("[PrintStartController] Attempted to start print while printer is in {} state",
+                 state_str);
+    return true;
+}
+
 bool PrintStartController::refuse_while_filament_op_runs() {
     if (!AmsState::instance().any_operation_running_here()) {
         return false;
@@ -640,6 +652,168 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         return;
     }
 
+    // A reprint asks the same pre-print questions as any other start, through
+    // the same gates, about the file it reprints; the gates end in the
+    // reprint's own start. The loader is this controller's, so its answer
+    // never outlives it. A load still unanswered is superseded, and its
+    // caller hears so.
+    abandon_pending_reprint();
+    if (!reprint_gate_facts_) {
+        reprint_gate_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
+    }
+    reprint_gate_facts_->set_api(api_);
+    reprint_pending_ = true;
+    pending_reprint_on_error_ = on_error;
+    // Each step answers within the transfer stall window until the file's
+    // size is known; then the read is allowed that size too.
+    arm_reprint_stall_watchdog(filename, app_constants::transfer::STALL_MS);
+    reprint_gate_facts_->load(
+        filename,
+        [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
+         native_plate](helix::FileStartFacts facts) {
+            reprint_pending_ = false;
+            pending_reprint_on_error_ = nullptr;
+            reprint_stall_.reset();
+            // The printer and this screen moved on while the file was read: a
+            // start already waiting on a dialog here, or one the printer took,
+            // keeps it, and this reprint ends.
+            if (print_gate_modal_ || reprint_gates_ || divert_to_spool_removal() ||
+                refuse_while_filament_op_runs() || refuse_while_printer_busy()) {
+                spdlog::info("[PrintStartController] Not reprinting {}: the start it checked "
+                             "for is no longer free",
+                             filename);
+                if (on_error) {
+                    on_error();
+                }
+                return;
+            }
+            // The tools the caller saw print are this job's; the file read
+            // answers for a caller that has none.
+            if (!tools_used.empty()) {
+                facts.tools_used = tools_used;
+            }
+            const std::set<int> start_tools = tools_used.empty() && archive_plate == 0
+                                                  ? helix::file_tools_used(facts)
+                                                  : tools_used;
+            // The lanes this reprint's pre-print send will route to, which are
+            // the lanes the gates must judge.
+            std::optional<std::map<int, int>> remap;
+            if (AmsBackend* backend = AmsState::instance().get_backend();
+                backend && backend->requires_preprint_send()) {
+                remap = reprint_routing(*backend, routing, start_tools);
+                // With the routing unknown, a firmware that returns to identity
+                // at each print end runs tool n on head n, which the unrouted
+                // pre-print step relies on too.
+                if (!remap && backend->print_routing_resets_to_identity()) {
+                    remap = std::map<int, int>{};
+                }
+            }
+            reprint_gates_ =
+                ReprintGateRun{std::move(facts),
+                               [this, filename, path, start_tools, routing, on_started, on_error,
+                                archive_plate, native_plate]() {
+                                   start_reprint(filename, path, start_tools, routing, on_started,
+                                                 on_error, archive_plate, native_plate);
+                               },
+                               on_error, std::move(remap)};
+            run_gates_from(0);
+        },
+        nullptr,
+        [this, filename](const std::optional<FileMetadata>& metadata) {
+            if (reprint_pending_ && metadata) {
+                arm_reprint_stall_watchdog(filename, helix::file_facts_stall_ms(*metadata));
+            }
+        },
+        reprint_file_read(tools_used, archive_plate));
+}
+
+std::optional<std::map<int, int>>
+PrintStartController::reprint_routing(const AmsBackend& backend,
+                                      const std::optional<std::map<int, int>>& routing,
+                                      const std::set<int>& tools_used) {
+    auto remap = routing ? routing
+                         : helix::FilamentMapper::reprint_remap(backend.last_print_tool_mapping(),
+                                                                tools_used);
+    if (!remap && backend.default_print_routing_is_identity()) {
+        // The firmware's own default is tool n = slot n, so the empty remap
+        // sends exactly that for the file's tools and overwrites any map the
+        // printer still holds for its next print.
+        remap = std::map<int, int>{};
+    }
+    return remap;
+}
+
+void PrintStartController::abandon_pending_reprint() {
+    if (!reprint_pending_) {
+        return;
+    }
+    spdlog::info("[PrintStartController] Dropping a reprint whose file checks had not answered");
+    if (reprint_gate_facts_) {
+        reprint_gate_facts_->cancel();
+    }
+    reprint_stall_.reset();
+    reprint_pending_ = false;
+    auto on_error = std::move(pending_reprint_on_error_);
+    pending_reprint_on_error_ = nullptr;
+    if (on_error) {
+        on_error();
+    }
+}
+
+void PrintStartController::end_live_reprint_gates() {
+    if (!reprint_gates_) {
+        return;
+    }
+    spdlog::info("[PrintStartController] Ending a reprint still answering its gates");
+    auto on_end = std::move(reprint_gates_->on_end);
+    reprint_gates_.reset();
+    // A programmatic hide runs none of the dialog's callbacks.
+    if (print_gate_modal_) {
+        helix::ui::modal_hide(print_gate_modal_);
+        print_gate_modal_ = nullptr;
+    }
+    if (on_end) {
+        on_end();
+    }
+}
+
+helix::FileRead PrintStartController::reprint_file_read(const std::set<int>& tools_used,
+                                                        int archive_plate) {
+    // Only a pre-print send needs the file's tools badly enough to download
+    // the whole file for them; the gates' palette and grams never earn that.
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const bool tools_needed =
+        tools_used.empty() && archive_plate == 0 && backend && backend->requires_preprint_send();
+    return tools_needed ? helix::FileRead::Whole : helix::FileRead::Footer;
+}
+
+void PrintStartController::arm_reprint_stall_watchdog(const std::string& filename, uint32_t ms) {
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<PrintStartController*>(lv_timer_get_user_data(t));
+            // LVGL deletes a finished one-shot itself.
+            self->reprint_stall_.release();
+            if (!self->reprint_pending_) {
+                return;
+            }
+            spdlog::warn("[PrintStartController] Not reprinting {}: its file checks did not "
+                         "answer in time",
+                         self->reprint_stall_file_);
+            NOTIFY_WARNING(lv_tr("Failed to reprint: {}"), self->reprint_stall_file_);
+            self->abandon_pending_reprint();
+        },
+        ms, this);
+    lv_timer_set_repeat_count(timer, 1);
+    reprint_stall_file_ = filename;
+    reprint_stall_.reset(timer);
+}
+
+void PrintStartController::start_reprint(const std::string& filename, const std::string& path,
+                                         const std::set<int>& tools_used,
+                                         const std::optional<std::map<int, int>>& routing,
+                                         std::function<void()> on_started,
+                                         std::function<void()> on_error, int archive_plate,
+                                         std::optional<int> native_plate) {
     helix::warn_printer_stop_check_skipped("a reprint", filename,
                                            "a reprint does not scan the file");
 
@@ -752,15 +926,8 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             // which is what last_print_tool_mapping() snapshots. An empty remap is
             // not "no routing": build_preprint_gcode resolves a tool it is not told
             // about to that tool's firmware-default head.
-            auto remap = routing ? routing
-                                 : helix::FilamentMapper::reprint_remap(
-                                       backend->last_print_tool_mapping(), tools_used);
-            if (!remap && backend->default_print_routing_is_identity()) {
-                // The firmware's own default is tool n = slot n, so the empty remap
-                // sends exactly that for the file's tools and overwrites any map the
-                // printer still holds for its next print.
-                remap = std::map<int, int>{};
-            } else if (!remap) {
+            auto remap = reprint_routing(*backend, routing, tools_used);
+            if (!remap) {
                 // Not known (no configured task observed, e.g. the app started after
                 // the print ended). Sending a map here means inventing a routing: an
                 // identity map is a confident wrong answer for exactly the files that
@@ -794,15 +961,10 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             send_backend_preprint_then(remap ? tools_used : std::set<int>{},
                                        remap ? *remap : std::map<int, int>{}, start, abort);
         };
-        // The pre-print step tells the firmware which heads to feed and unload,
-        // so a reprint with no tools in hand reads them from the file first, the
-        // same reading the slicer-start check uses. A file that answers nothing
-        // keeps the routing-free step.
-        if (tools_used.empty() && archive_plate == 0) {
-            read_file_tools(filename, preprint);
-        } else {
-            preprint(tools_used);
-        }
+        // The pre-print step tells the firmware which heads to feed and unload;
+        // a reprint with no tools in hand has the file's, read for the gates. A
+        // file that answers nothing keeps the routing-free step.
+        preprint(tools_used);
         return; // start fires from the send continuation — do NOT also start here
     }
 
@@ -816,6 +978,26 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
 // ============================================================================
 // Gate Pipeline
 // ============================================================================
+
+namespace {
+/// Point @p ctx at the heads a reprint's pre-print send routes to
+/// (PrintStartController::reprint_routing()): @p remap's head for each tool it
+/// names, and the firmware-default head (tool n = head n) for a tool it leaves
+/// out, which only an identity-default backend's empty remap does.
+void apply_reprint_routing(helix::PrintStartContext& ctx, const std::map<int, int>& remap) {
+    ctx.effective_remap = remap;
+    for (auto& m : ctx.mappings) {
+        if (m.tool_index < 0) {
+            continue;
+        }
+        const auto it = remap.find(m.tool_index);
+        m.mapped_slot = it != remap.end() ? it->second : m.tool_index;
+        m.mapped_backend = 0;
+        m.is_auto = false;
+        m.reason = helix::ToolMapping::MatchReason::FIRMWARE_MAPPING;
+    }
+}
+} // namespace
 
 helix::PrintStartContext PrintStartController::gather_print_start_context() const {
     helix::PrintStartContext ctx;
@@ -847,7 +1029,14 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         }
     }
 
-    if (detail_view_) {
+    if (reprint_gates_) {
+        // filament_colors_ is the file Print Files has open, not this one.
+        ctx.filament_color_count = reprint_gates_->facts.palette.colors.size();
+        helix::fill_file_context(ctx, reprint_gates_->facts);
+        if (const auto& remap = reprint_gates_->remap) {
+            apply_reprint_routing(ctx, *remap);
+        }
+    } else if (detail_view_) {
         ctx.has_file_facts = true;
         ctx.metadata = detail_view_->get_file_metadata();
         ctx.mappings = detail_view_->get_filament_mappings();
@@ -862,7 +1051,9 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         helix::fill_file_context(ctx, *file_facts_);
     }
     ctx.fit_machine = helix::current_fit_machine();
-    if (!ctx.has_file_facts) {
+    if (reprint_gates_) {
+        ctx.printer_stop.not_run_reason = "a reprint does not scan the file";
+    } else if (!ctx.has_file_facts) {
         ctx.printer_stop.not_run_reason = "no file detail view";
     } else if (auto* prep = active_prep_manager()) {
         ctx.printer_stop = prep->printer_stop_check_for(file_scan_key());
@@ -891,7 +1082,7 @@ void PrintStartController::run_gates_from(size_t index) {
     // A start with no detail view has no screen that read the file, so an
     // unrun printer-stopping command check ends it, at every (re-)entry: the
     // macros can be read again while a dialog waits.
-    if (!detail_view_ && file_facts_ &&
+    if (!reprint_gates_ && !detail_view_ && file_facts_ &&
         ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
         spdlog::warn("[PrintStartController] Not starting {}: printer-stopping command check "
                      "did not run ({})",
@@ -902,7 +1093,8 @@ void PrintStartController::run_gates_from(size_t index) {
         end_without_print();
         return;
     }
-    if (index == 0 && ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
+    if (index == 0 && !reprint_gates_ &&
+        ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
         helix::warn_printer_stop_check_skipped(detail_view_ ? "the print select panel"
                                                             : "a queued job start",
                                                filename_, ctx.printer_stop.not_run_reason);
@@ -937,7 +1129,7 @@ void PrintStartController::run_gates_from(size_t index) {
             if (!print_gate_modal_) {
                 spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                               gate_list_[i].name);
-                end_without_print();
+                end_gate_run_without_print();
             }
             return;
         }
@@ -955,14 +1147,32 @@ void PrintStartController::run_gates_from(size_t index) {
         if (!print_gate_modal_) {
             spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                           gate_list_[i].name);
-            end_without_print();
+            end_gate_run_without_print();
             return;
         }
         spdlog::debug("[PrintStartController] Gate '{}' warned - showing dialog",
                       gate_list_[i].name);
         return; // the dialog drives continuation
     }
+    if (reprint_gates_) {
+        auto start = std::move(reprint_gates_->start);
+        reprint_gates_.reset();
+        start();
+        return;
+    }
     execute_print_start();
+}
+
+void PrintStartController::end_gate_run_without_print() {
+    if (reprint_gates_) {
+        auto on_end = std::move(reprint_gates_->on_end);
+        reprint_gates_.reset();
+        if (on_end) {
+            on_end();
+        }
+        return;
+    }
+    end_without_print();
 }
 
 void PrintStartController::on_gate_proceed() {
@@ -977,7 +1187,7 @@ void PrintStartController::on_gate_proceed() {
 
 void PrintStartController::on_gate_cancel() {
     print_gate_modal_ = nullptr;
-    end_without_print();
+    end_gate_run_without_print();
     spdlog::debug("[PrintStartController] Print cancelled by user (gate: {})",
                   gate_list_[gate_resume_index_].name);
 }
