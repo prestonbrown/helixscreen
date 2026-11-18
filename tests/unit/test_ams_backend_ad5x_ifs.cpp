@@ -10180,9 +10180,9 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     SECTION("runout Purge on zMod goes to the bin with the stock purge, never homing") {
         AmsBackendAd5xIfs backend(nullptr, nullptr);
         helix::PrinterDiscovery zmod;
-        zmod.parse_objects(nlohmann::json::array({"save_variables", "gcode_macro _G28",
-                                                  "gcode_macro _GOTO_TRASH",
-                                                  "gcode_macro PURGE_FILAMENT"}));
+        zmod.parse_objects(
+            nlohmann::json::array({"save_variables", "gcode_macro _G28", "gcode_macro _GOTO_TRASH",
+                                   "gcode_macro PURGE_FILAMENT"}));
         backend.set_discovery(zmod);
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         set_print_state(helix::PrintJobState::PAUSED);
@@ -10909,4 +10909,37 @@ TEST_CASE("AD5X IFS takes the printer's records once a late read lands, and neve
         CHECK(after->brand == "Polymaker");
         CHECK(after->color_rgb == 0x00FF00u);
     }
+}
+
+TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
+          "[ams][ad5x_ifs][clear_fault]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
+
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS clear_fault drops a latched runout",
+                 "[ams][ad5x_ifs][clear_fault][runout]") {
+    GcodeCapturingBackend backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_running(backend, true);
+
+    set_print_state(helix::PrintJobState::PAUSED);
+    seat_then_drop_head(backend);
+    Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
+    REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
+    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    backend.captured_gcodes.clear();
+
+    REQUIRE(backend.clear_fault(-1).success());
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+    CHECK_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
 }

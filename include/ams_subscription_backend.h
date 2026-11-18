@@ -72,9 +72,10 @@ class AmsSubscriptionBackend : public AmsBackend {
     AmsError select_slot(int slot_index) final;
     AmsError change_tool(int tool_number) final;
 
-    /// Retires the ERROR this backend raised itself (a failed load or unload
-    /// it judged from the printer's signals) and sends nothing: these
-    /// firmwares keep no latched fault of their own to reset.
+    /// Retires an ERROR this backend raised itself (fault_is_own_locked()) and
+    /// sends nothing. An ERROR that mirrors a fault the firmware still reports
+    /// is left standing and answered not_supported: clearing the mirror would
+    /// only hide it until the next status frame raised it again.
     AmsError clear_fault(int slot_index) override;
 
     // --- Shared utilities (public for AmsState and tests) ---
@@ -148,6 +149,12 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Called after subscription is established and running_ is set.
     /// Lock is NOT held. Safe to call emit_event().
     virtual void on_started() {}
+
+    /// Whether the current ERROR is one this backend raised from its own
+    /// judgement, which clear_fault() may retire. Runs under mutex_.
+    [[nodiscard]] virtual bool fault_is_own_locked() const {
+        return false;
+    }
 
     /// When @p store's load got no answer, read the namespace without blocking,
     /// and from the status frames until a read lands, then replace @p overrides

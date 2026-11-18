@@ -378,6 +378,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend {
     AmsError recover() override;
     AmsError reset() override;
     AmsError cancel() override;
+    /// Retires the ERROR and clears the runout latch. On ZMOD firmware it also
+    /// releases the operation lock with IFS_UNLOCK, which moves no filament:
+    /// an operation that timed out or failed leaves the IFS locked, and the
+    /// next load would hang on it. The standalone module keeps no such lock.
+    AmsError clear_fault(int slot_index) override;
     /// Also ends the phase tracking, so a later head-sensor edge cannot drive
     /// the steps of an operation the restart already ended.
     void on_klipper_restarted() override;

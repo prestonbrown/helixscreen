@@ -493,6 +493,12 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     }
 
   protected:
+    /// CFS raises ERROR only from its own phase verification, never as a
+    /// mirror of a box fault, so clear_fault() may retire any ERROR it holds.
+    [[nodiscard]] bool fault_is_own_locked() const override {
+        return true;
+    }
+
     /// Recovery buttons for a CFS runout. **Caller must hold mutex_** (base
     /// contract; this override takes no lock of its own and mutex_ is not
     /// recursive).

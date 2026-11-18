@@ -250,6 +250,11 @@ class AmsBackendAceTestHelper : public AmsBackendAce {
         return get_system_info();
     }
 
+    void set_test_action(AmsAction action) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = action;
+    }
+
     DryerInfo get_test_dryer_info() const {
         return get_dryer_info();
     }
@@ -1873,5 +1878,20 @@ TEST_CASE("ACE clear_fault sends nothing, so dismissing an error cannot unload t
     AceGcodeCapture backend;
     CHECK(backend.clear_fault(0).success());
     CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.sent.empty());
+}
+
+TEST_CASE("ACE clear_fault leaves a fault the unit still reports and sends nothing",
+          "[ams][ace][clear_fault]") {
+    AceGcodeCapture backend;
+    backend.set_test_action(AmsAction::ERROR);
+
+    const AmsError result = backend.clear_fault(0);
+    INFO("clear_fault answered: " << result.technical_msg);
+
+    // ACE mirrors the unit's own status, so clearing only the mirror would
+    // hide the fault until the next frame raised it again.
+    CHECK(result.result == AmsResult::NOT_SUPPORTED);
+    CHECK(backend.get_test_system_info().action == AmsAction::ERROR);
     CHECK(backend.sent.empty());
 }

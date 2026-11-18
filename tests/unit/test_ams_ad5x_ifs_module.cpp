@@ -737,3 +737,29 @@ TEST_CASE("AD5X IFS module colour normalisation", "[ams][ad5x_ifs][ifs_module]")
     CHECK(Ad5xIfsTestAccess::normalize_module_color("#GGGGGG").empty());
     CHECK(Ad5xIfsTestAccess::normalize_module_color(std::string()).empty());
 }
+
+TEST_CASE("AD5X IFS module clear_fault retires the fault and sends nothing",
+          "[ams][ad5x_ifs][ifs_module][clear_fault]") {
+    struct Capturing : AmsBackendAd5xIfs {
+        using AmsBackendAd5xIfs::AmsBackendAd5xIfs;
+        std::vector<std::string> sent;
+        AmsError execute_gcode(const std::string& gcode) override {
+            sent.push_back(gcode);
+            return AmsErrorHelper::success();
+        }
+        AmsError execute_gcode(const std::string& gcode, std::function<void()>) override {
+            sent.push_back(gcode);
+            return AmsErrorHelper::success();
+        }
+    };
+    Capturing backend(nullptr, nullptr);
+    Ad5xIfsTestAccess::handle_status(backend, module_ifs_frame(0, {}));
+    REQUIRE(Ad5xIfsTestAccess::module_live(backend));
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::ERROR);
+    backend.sent.clear();
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.sent.empty());
+}
