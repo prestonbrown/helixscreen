@@ -2909,6 +2909,7 @@ translations:
   Paused: Paused
   Paused (attention needed): Paused (attention needed)
   Paused by a command: Paused by a command
+  'Paused by {}: {}': 'Paused by {}: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   Pausing at layer {}.: Pausing at layer {}.

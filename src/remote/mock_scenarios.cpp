@@ -10,7 +10,9 @@
 
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/http_executor.h"
+#include "moonraker_client_mock.h"
 #include "print_start_phase.h"
 #include "thumbnail_processor.h"
 
@@ -373,6 +375,22 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("print_start_phase",
                                      static_cast<int>(PrintStartPhase::COMPLETE));
                          }});
+
+    // --- monitor_pause ---
+    // What Print Handy sends to pause a print it judged failed: the M117
+    // announcement, then Moonraker's /printer/print/pause, which runs PAUSE.
+    // Through the mock's G-code path, so the screen sees the real frames.
+    // Needs a running print (HELIX_MOCK_AUTO_PRINT=1).
+    scenarios.push_back(
+        {"monitor_pause", "An outside monitor (Print Handy) pauses the running print", []() {
+             auto* mock = get_moonraker_client_mock();
+             if (!mock) {
+                 spdlog::warn("[Scenario] No mock Moonraker client: monitor_pause skipped");
+                 return;
+             }
+             mock->gcode_script("M117 Paused by Print Handy: possible spaghetti");
+             mock->gcode_script("PAUSE");
+         }});
 
     // --- error ---
     scenarios.push_back({"error", "Klippy error state", []() {

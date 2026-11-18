@@ -2843,6 +2843,7 @@
   <translation tag="Paused" ja="一時停止"/>
   <translation tag="Paused (attention needed)" ja="一時停止（対応が必要）"/>
   <translation tag="Paused by a command" ja="コマンドで一時停止"/>
+  <translation tag="Paused by {}: {}" ja="{}により一時停止: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ja="選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。"/>
   <translation tag="Pausing at layer {}." ja="レイヤー {} で一時停止します。"/>
   <translation tag="Pausing..." ja="一時停止中..."/>

@@ -13,6 +13,14 @@
 // live and finds again in the store; a store with no such line explains
 // nothing, since its lines cannot be placed relative to the stop.
 //
+// An outside monitor (Print Handy, and any tool that follows its convention)
+// pauses through Moonraker's /printer/print/pause, which carries no reason.
+// Just before it pauses it sets the display message with
+// `M117 Paused by <source>: <reason>`; display_status.message is already
+// subscribed. The announcement explains a pause it arrived shortly before (or
+// just after), so a stale one left up by an earlier pause never explains a
+// user's own.
+//
 // Compiled into the ESP32 firmware: no exceptions, no RTTI.
 
 #include "async_lifetime_guard.h"
@@ -35,6 +43,19 @@ class PrinterPrintState;
 class PrinterState;
 enum class PrintJobState;
 
+/// A pause an outside monitor announced in the display message.
+struct MonitorPause {
+    std::string source; ///< the tool, as it names itself ("Print Handy")
+    std::string reason; ///< the tool's own words ("possible spaghetti")
+};
+
+/// @p display_message as `Paused by <source>: <reason>`, both non-empty; the
+/// source ends at the first ": ". nullopt for any other text.
+std::optional<MonitorPause> parse_monitor_pause(const std::string& display_message);
+
+/// The pause reason the screen shows for @p pause.
+std::string monitor_pause_reason_text(const MonitorPause& pause);
+
 /// What a `!!` response says, shown as a reason: its first line (filament
 /// systems follow theirs with diagrams and instructions), without the prefix,
 /// decoded like print_stats.message.
@@ -47,12 +68,14 @@ std::optional<std::string> last_gcode_error_text(const nlohmann::json& msg);
 /// @p state's last `!!` line when is_recent_cause() of @p now, else empty.
 std::string recent_gcode_error(const PrinterPrintState& state, double now);
 
-/// The reason a print stopped as @p stop at @p stop_time: @p print_message when
-/// Klipper set one, else the newest gcode_error among @p entries that
-/// is_recent_cause() of the stop. Empty unless @p stop is PAUSED, CANCELLED or
-/// ERROR, or when nothing explains it.
+/// The reason a print stopped as @p stop at @p stop_time: a pause's
+/// @p monitor announcement when it arrived is_recent_cause() of the stop, else
+/// @p print_message when Klipper set one, else the newest gcode_error among
+/// @p entries that is_recent_cause() of the stop. Empty unless @p stop is
+/// PAUSED, CANCELLED or ERROR, or when nothing explains it.
 std::string decide_print_stop_reason(PrintJobState stop, const std::string& print_message,
-                                     const std::vector<JournalEntry>& entries, double stop_time);
+                                     const std::vector<JournalEntry>& entries, double stop_time,
+                                     const std::optional<JournalEntry>& monitor = std::nullopt);
 
 /// What to add to a time in @p store to put it on the screen's clock, given
 /// that the screen saw @p line arrive at @p seen_at: the newest response in
@@ -83,6 +106,7 @@ class PrintStopReasonTracker {
     [[nodiscard]] bool stopped() const;
     void on_state();
     void on_gcode_error(JournalEntry e);
+    void on_display_message(const char* text);
     void on_gcode_store(const std::vector<GcodeStoreEntry>& store, std::uint32_t stop_id);
     void publish();
 
@@ -108,6 +132,10 @@ class PrintStopReasonTracker {
     /// A pause's reason, kept when the paused print is then canceled.
     std::string carried_reason_;
     std::optional<JournalEntry> last_error_;
+    /// The newest monitor announcement, its text as shown, stamped on arrival.
+    /// Kept while the display message moves on: a pause macro's own M117 can
+    /// replace it before the pause lands.
+    std::optional<JournalEntry> monitor_;
     /// From gcode_store, moved onto the screen's clock.
     std::vector<JournalEntry> recovered_;
     std::shared_ptr<LiveLine> live_line_ = std::make_shared<LiveLine>();
@@ -115,6 +143,7 @@ class PrintStopReasonTracker {
     ObserverGuard outcome_observer_;
     ObserverGuard job_state_observer_;
     ObserverGuard message_observer_;
+    ObserverGuard display_message_observer_;
     AsyncLifetimeGuard lifetime_;
 };
 

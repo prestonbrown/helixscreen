@@ -2992,6 +2992,7 @@ translations:
   Paused: Приостановлено
   Paused (attention needed): Приостановлено (требует внимания)
   Paused by a command: Приостановлено командой
+  'Paused by {}: {}': 'Приостановлено ({}): {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати.'
   Pausing at layer {}.: 'Пауза на слое {}.'
