@@ -2202,11 +2202,18 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
     } else if (pending == helix::ui::PendingAction::Resuming) {
         reason = lv_tr("Resuming...");
     } else if (paused) {
-        if (!helix::non_filament_pause::explained() &&
-            FilamentSensorManager::instance().has_real_runout()) {
+        const std::optional<int> runout_lane =
+            helix::non_filament_pause::explained()
+                ? std::nullopt
+                : FilamentSensorManager::instance().real_runout_lane();
+        if (runout_lane.has_value()) {
+            // Name the lane that ran out, which a pause on an idle head's
+            // runout leaves different from the current one.
             AmsBackend* backend = AmsState::instance().get_backend();
-            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(),
-                                                               backend->get_current_slot())
+            const int named = *runout_lane >= 0 ? *runout_lane
+                              : backend         ? backend->get_current_slot()
+                                                : -1;
+            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(), named)
                                        : std::string();
             reason = lane.empty() ? std::string(lv_tr("Filament Runout"))
                                   : std::string(lv_tr("Filament Runout")) + " (" + lane + ")";

@@ -580,7 +580,10 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
         }
         if (lane >= 0) {
             const bool fed = lane == current_slot || lane == current_tool;
-            const bool feeding_the_job = job_running && current_slot >= 0 && fed;
+            // Only the current slot vouches for an empty lane: a lane that
+            // merely shares the active tool's number may be one the job never
+            // draws from.
+            const bool feeding_the_job = job_running && current_slot >= 0 && lane == current_slot;
             if (!slot.is_present() && !feeding_the_job) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
