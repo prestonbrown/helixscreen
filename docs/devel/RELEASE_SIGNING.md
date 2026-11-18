@@ -90,6 +90,22 @@ A tag push runs the build as before; `upload-r2` then waits with "Waiting for re
 release-signing needs approval". Approve it in the run's page (or
 `gh run view <id> --web`). Nothing reaches R2 until you do.
 
+### 5. Recovering a failed R2 upload
+
+`recover-r2.yml` runs the tag's own copy of the workflow, not the branch's. Tags cut after the
+signing port use it as `CI_CD_GUIDE.md` § "Manual Recovery" describes. A tag cut before recover-r2
+learned to sign carries an unsigned copy: run for such a tag, it would republish `manifest.json`
+beside the previous release's signature, which every verifying client refuses. Never run
+recover-r2 for those tags. Instead:
+
+- **The tag's `release.yml` already signs** (v1.1.0-rc.3, and any later 1.1 tag cut before
+  recover-r2 signed): re-run that tag's Release workflow `upload-r2` job, which signs. Use `gh run
+  rerun <run-id> --job <job-id>`, the job id being upload-r2's `databaseId` from `gh run view
+  <run-id> --json jobs`, and approve `release-signing` when it waits. GitHub re-runs a workflow
+  run only within 30 days of it.
+- **The tag predates signing entirely** (the 1.1 betas through v1.1.0-rc.2, and every 1.0.x):
+  nothing can republish it signed. Cut a new tag from a branch that signs.
+
 ## Rollout order
 
 A client that requires a signature cannot update from a channel that serves none, so:
