@@ -89,6 +89,14 @@ A tag push runs the build as before; `upload-r2` then waits with "Waiting for re
 release-signing needs approval". Approve it in the run's page (or
 `gh run view <id> --web`). Nothing reaches R2 until you do.
 
+## Recovering a broken channel
+
+`recover-r2.yml` runs the workflow file of the tag it is dispatched from, not the branch's
+current one. Tags cut before signing reached this branch (v1.0.9 and earlier) have signing in
+neither their `release.yml` nor their `recover-r2.yml`, so recover-r2 cannot republish them
+signed. To recover a channel whose latest release is such a tag, cut a new tag instead: its
+release run signs the manifests it publishes.
+
 ## Rollout order
 
 A client that requires a signature cannot update from a channel that serves none, so:
