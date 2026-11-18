@@ -617,3 +617,20 @@ INIT_SCRIPT="config/helixscreen.init"
     contains "cache=/opt/config/mod_data/helixscreen-state/cache" "$output"
     [[ "$output" == *"file=/opt/config/mod_data/log/helix.log"* ]]
 }
+
+@test "ad5m-forgex backlight runs the script directly from inside the chroot" {
+    local T="$BATS_TEST_TMPDIR/bl"
+    mkdir -p "$T"
+    printf '#!/bin/sh\necho "$*" > "%s/called"\n' "$T" > "$T/backlight.py"
+    chmod +x "$T/backlight.py"
+    run sh -c '
+        . "$1/hooks-ad5m-forgex.sh"
+        FORGEX_CHROOT="$2/no-such-chroot"
+        FORGEX_BACKLIGHT="$2/backlight.py"
+        platform_enable_backlight
+    ' _ "$HOOKS_DIR" "$T"
+
+    [ "$status" -eq 0 ] || fail "backlight failed: $output"
+    [[ "$output" != *"Could not enable backlight"* ]] || fail "warned from inside the chroot: $output"
+    [ "$(cat "$T/called" 2>/dev/null)" = "100" ] || fail "backlight script not run"
+}
