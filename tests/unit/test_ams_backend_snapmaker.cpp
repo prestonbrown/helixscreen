@@ -4058,7 +4058,13 @@ TEST_CASE_METHOD(SnapmakerGoldenFixture, "Snapmaker golden status sequence",
         {"unload: prepare", golden_feed(1, "unload_prepare")},
         {"unload: finish", golden_feed(1, "unload_finish")},
         // Head 0 loses its spool and a tagless one goes in, then a tagged one in head 3.
-        {"insert: port drops", golden_feed(0, "wait_insert", false)},
+        // Pulling the spool takes its filament out of the toolhead too.
+        {"insert: port drops",
+         [] {
+             json j = golden_feed(0, "wait_insert", false);
+             j["filament_motion_sensor e0_filament"] = json{{"filament_detected", false}};
+             return j;
+         }()},
         {"insert: port rises", golden_feed(0, "wait_insert", true)},
         {"insert: reader answers NONE",
          json{{"filament_detect",

@@ -435,11 +435,20 @@ TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head fed past its feeder loads b
     head_switch(false);
     CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
 
+    CHECK(backend.get_slot_info(1).status == helix::SlotStatus::EMPTY);
+
     head_switch(true);
     const helix::HeadFilamentOps ops = backend.head_filament_ops(1);
     CHECK(ops.load == helix::FilamentOpSupport::Manual);
     CHECK(ops.guided_hand_load);
     CHECK_FALSE(ops.load_reason.empty());
+    // Filament is in the head, so the pre-print check and the editor see a spool.
+    CHECK(backend.get_slot_info(1).status == helix::SlotStatus::AVAILABLE);
+    port(false);
+    CHECK(backend.get_slot_info(1).status == helix::SlotStatus::AVAILABLE);
+    head_switch(false);
+    CHECK(backend.get_slot_info(1).status == helix::SlotStatus::EMPTY);
+    head_switch(true);
 
     // A spool in the feeder port is a feed the firmware can run.
     port(true);

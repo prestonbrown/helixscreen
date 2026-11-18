@@ -824,6 +824,17 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     void derive_active_tool_loaded_locked(FrameEffects& fx);
     /// A slot whose runout sensor reports no filament is AVAILABLE, not LOADED.
     void demote_runout_slots_locked(FrameEffects& fx);
+    /// A head fed past its feeder holds filament its empty port cannot see. The lane
+    /// model lays EMPTY on its slot each frame; this runs after it and says AVAILABLE.
+    void converge_hand_fed_slots_locked(FrameEffects& fx) {
+        for (int i = 0; i < kNumTools; ++i) {
+            auto* slot = system_info_.units[0].get_slot(i);
+            if (slot && slot->status == SlotStatus::EMPTY && fed_past_feeder_locked(i)) {
+                slot->status = SlotStatus::AVAILABLE;
+                fx.changed = true;
+            }
+        }
+    }
     /// Override layering and the lane-model ingest, once per slot.
     void converge_lanes_locked(FrameEffects& fx);
     /// The active tool's first-gate (port) presence, flagged for publication

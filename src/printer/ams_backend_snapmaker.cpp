@@ -2116,10 +2116,8 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
 }
 
 void AmsBackendSnapmaker::apply_port_presence_locked(int i, bool detected, FrameEffects& fx) {
-    // Mirror into port_sensor_filament_present_ so is_stuck_motion_sensor_runout can
-    // distinguish a real runout (both sensors false) from a stale motion-sensor false
-    // positive (motion=false, port=true). Tracked independent of slot->status, which
-    // flips to AVAILABLE/LOADED on the extruder pin, orthogonal to the port sensor.
+    // Mirrored for is_stuck_motion_sensor_runout: a real runout reads both sensors false, a
+    // stale motion sensor reads motion=false, port=true. Independent of slot->status.
     if (i >= 0 && i < kNumTools) {
         // The port flag's false -> true edge is an insert into the channel; the first
         // sighting is the baseline, not an edge. The tag reader's answer lands a frame
@@ -2834,6 +2832,7 @@ void AmsBackendSnapmaker::converge_locked(FrameEffects& fx) {
     derive_active_tool_loaded_locked(fx);
     demote_runout_slots_locked(fx);
     converge_lanes_locked(fx);
+    converge_hand_fed_slots_locked(fx);
     track_active_port_present_locked(fx);
 }
 
