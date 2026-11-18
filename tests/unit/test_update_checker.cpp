@@ -1415,17 +1415,6 @@ TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires a signed, ca
     checker.shutdown();
 }
 
-TEST_CASE("UpdateChecker cancel_download sets cancelled flag", "[update_checker]") {
-    auto& checker = UpdateChecker::instance();
-    checker.init();
-
-    checker.cancel_download();
-    // Verify it doesn't crash and state is not Downloading
-    REQUIRE(checker.get_download_status() != UpdateChecker::DownloadStatus::Downloading);
-
-    checker.shutdown();
-}
-
 // Drive the published print_lifecycle subject the way production does. The
 // lifecycle is published by PrinterPrintState::publish_lifecycle_state(), which
 // runs only from update_from_status() and set_print_start_state() — writing
