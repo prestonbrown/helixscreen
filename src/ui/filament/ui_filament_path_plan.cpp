@@ -241,6 +241,14 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
             return false;
         if (data.view_hub_h <= 0)
             return true;
+        // A pass-through unit's own drawing needs its room between the lanes and the hub.
+        if (has_through_art(data) && f.through.w <= 0)
+            return false;
+        // Whatever stands between, the head stands clear below where the lanes leave the
+        // unit: their bands, a run of tube and the room over the head.
+        const int32_t head_top = toolhead_top_y(nozzle, data.theme.extruder_scale);
+        if (head_top - f.prep_band_y < 6 * f.sensor_r + kBandThickness)
+            return false;
         // Under a view scale the lanes keep room to converge smoothly into the hub (one and a
         // half hub heights), the hub keeps the room over the head, and a buffer on the trunk
         // its even gaps: as much room over it as the bypass merge and toolhead band take
@@ -265,9 +273,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
     const int32_t own = g.height;
     // Under a view scale the answer is the least height that lays it out, so a unit above
     // can take what the path leaves; otherwise a canvas that fits keeps its own.
-    // A pass-through unit's own drawing takes the room the canvas has, so there the canvas
-    // keeps its height as without a scale.
-    const bool least = data.view_hub_h > 0 && !has_through_art(data);
+    const bool least = data.view_hub_h > 0;
     if (own <= 0 || (!least && fits(own)))
         return own;
     if (least) {
@@ -282,11 +288,14 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
                                   data.theme.extruder_scale) -
                    g.y_off;
         };
+        // The search reaches well past a canvas the unit has squeezed: its own height says
+        // nothing about what the path needs.
+        const int32_t ceiling = std::max(own * 4, data.view_hub_h * 24);
         int32_t h = data.view_hub_h;
         const int32_t stack = data.view_hub_h * 5 / 2 + 3 * data.theme.sensor_radius;
-        while (h <= own * 4 && head_room(h) < stack)
+        while (h <= ceiling && head_room(h) < stack)
             h += 2;
-        for (; h <= own * 4; h += 2)
+        for (; h <= ceiling; h += 2)
             if (fits(h))
                 return h;
         return own;

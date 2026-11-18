@@ -549,6 +549,22 @@ TEST_CASE("The required height is the least that lays the path out at full size"
     CHECK(linear_hub_required_height(d, g) == need + 40);
 }
 
+TEST_CASE("Under a view scale a squeezed canvas still learns the height its path needs",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    // A unit drawn too tall has left the path a sliver, far less than a quarter of its need.
+    g.height = 30;
+    const int32_t need = linear_hub_required_height(d, g);
+    CAPTURE(need);
+    CHECK(need > 4 * g.height);
+    CHECK(full_size_at(d, g, need, false));
+}
+
 TEST_CASE("A path no taller canvas would help asks for no height past its own",
           "[filament-path][hub-stack][art-fit][buffer]") {
     FilamentPathData d;
