@@ -202,8 +202,8 @@ def _roller_end(sc, x, y, z, r, face, hub):
         sc.poly([(x, a, b) for a, b in circle_yz(y, z, r * 0.42)], hub)
 
 
-def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, left_flange=True, sheen=None, end_face=None, end_hub=None, solid=False):
-    """A drum along x, flanged at its right end and, unless told not to, its left.
+def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, left_flange=True, sheen=None, end_face=None, end_hub=None, solid=False, right_flange=True):
+    """A drum along x, flanged at either end; each flange can be left off.
 
     sheen is the colour of a highlight along the drum's lit shoulder, for a colour too dark
     to show its curve by shading alone. end_face fills each flange inside its edge,
@@ -221,6 +221,9 @@ def roller(sc, x0, x1, y, z, r, color, flange, flange_k=1.18, flange_w=0.016, le
     sc.extrude_x(ring, x0, x1, color, 1.0, front=not solid)
     if sheen:
         sc.line([(x0 + r * 0.1, y - r * 0.6, z + r * 0.8), (x1 - r * 0.1, y - r * 0.6, z + r * 0.8)], sheen, r * 0.2, 0.75)
+    if not right_flange:
+        sc.poly([(x1, a, b) for a, b in ring], shift(color, 10))
+        return
     sc.extrude_x(edge, x1, x1 + flange_w, flange, 1.0, front=not solid)
     sc.poly([(x1 + flange_w, a, b) for a, b in edge], shift(flange, 18))
     if end_face:

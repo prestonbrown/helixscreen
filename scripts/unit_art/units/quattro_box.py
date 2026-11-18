@@ -4,6 +4,7 @@
 Proportions come from the open-source v2 design (Batalhoti/QuattroBox): its base, panel
 cut files and renders. 1.0 is 400 mm.
 """
+import math
 from pathlib import Path
 
 from .. import feeder, kit, spool
@@ -41,14 +42,22 @@ SPOOL_R = 0.25
 SPOOL_Y, SPOOL_Z = 156 * MM, 199 * MM + FOOT
 ROLLER_R = 20 * MM
 ROLLER_Z = 95 * MM + FOOT
-ROLLER_FRONT_Y, ROLLER_REAR_Y = SPOOL_Y - 60 * MM, SPOOL_Y + 60 * MM
-FEEDER_Y0, FEEDER_Y1 = 52 * MM, 98 * MM
-FEEDER_Z0, FEEDER_Z1 = 70 * MM + FOOT, 118 * MM + FOOT
+ROLLER_REAR_Y = SPOOL_Y + 60 * MM
+# The front drum is the drive roller: as tall as the feeder block that straddles it, and
+# placed so the spool rests on it.
+FRONT_R = 30 * MM
+FRONT_Z = 118 * MM + FOOT
+FRONT_Y = SPOOL_Y - ((SPOOL_R + FRONT_R) ** 2 - (SPOOL_Z - FRONT_Z) ** 2) ** 0.5
+# The feeder's front block stands before the drum; its black cap reaches back over the drum's top.
+FEEDER_Y0, FEEDER_Y1 = 22 * MM, 46 * MM
+CAP_Y1 = 80 * MM
+FEEDER_Z0, FEEDER_Z1 = 92 * MM + FOOT, 152 * MM + FOOT
 # The tray's lid stands on the feeder row.
-FEED_TOP = FEEDER_Z1
+FEED_TOP = 118 * MM + FOOT
 
 BODY, INSIDE, ACCENT, ACCENT_DARK, GLOW, GLASS = "#3b3836", "#1a1918", "#7b2fd0", "#4a1d84", "#62e6a0", "#2c2f34"
 ROLLER = "#1e1d1c"
+RUBBER = "#3d3733"
 EDGE = "#5d5a56"
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
@@ -126,20 +135,40 @@ def _rollers(sc, xc, y):
     kit.roller(sc, xc + half, xc + reach, y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
 
 
+def _spokes(sc, x, y, z, r):
+    """The open spokes of a flange's outer face: dark windows between five arms."""
+    for k in range(5):
+        a0, a1 = 2 * math.pi * k / 5 + 0.22, 2 * math.pi * (k + 1) / 5 - 0.22
+        arc = [a0 + (a1 - a0) * i / 6 for i in range(7)]
+        pts = [(r * 0.9 * math.cos(a), r * 0.9 * math.sin(a)) for a in arc]
+        pts += [(r * 0.45 * math.cos(a), r * 0.45 * math.sin(a)) for a in reversed(arc)]
+        sc.poly([(x, y + a, z + b) for a, b in pts], "#1b0f2c")
+
+
+def _front_rollers(sc, xc, detail):
+    """One lane's drive drum: black rubber either side of its feeder, a purple flange at each outer end."""
+    half, reach, flange_w = 0.04, PITCH / 2 - 0.024, 0.012
+    rim = {"flange_k": 1.2, "flange_w": flange_w, "sheen": "#7a746e", "end_face": ACCENT, "end_hub": ACCENT_DARK, "solid": True}
+    kit.roller(sc, xc - reach, xc - half, FRONT_Y, FRONT_Z, FRONT_R, RUBBER, ACCENT, right_flange=False, **rim)
+    kit.roller(sc, xc + half, xc + reach, FRONT_Y, FRONT_Z, FRONT_R, RUBBER, ACCENT, left_flange=False, **rim)
+    if detail:
+        _spokes(sc, xc + reach + flange_w + 0.001, FRONT_Y, FRONT_Z, FRONT_R * 1.2)
+
+
 def _feeder(sc, xc, detail):
     """One lane's drive in front of its rollers: a purple block, a black cap and its LED button."""
     half = 0.046
     cap = 0.008
+    feeder.box(sc, xc - half + 0.008, xc + half - 0.008, FEEDER_Y0 + 0.006, CAP_Y1, FEEDER_Z1 - cap, FEEDER_Z1, "#202020")
     feeder.box(sc, xc - half, xc + half, FEEDER_Y0, FEEDER_Y1, FEEDER_Z0, FEEDER_Z1 - cap, ACCENT)
-    feeder.box(sc, xc - half + 0.004, xc + half - 0.004, FEEDER_Y0 + 0.006, FEEDER_Y1, FEEDER_Z1 - cap, FEEDER_Z1, "#202020")
     y = FEEDER_Y0 - 0.001
-    sc.poly(kit.rrect_front(xc - 0.03, xc + 0.03, FEEDER_Z0 + 0.03, FEEDER_Z1 - cap - 0.008, 0.006, y), ACCENT_DARK)
+    sc.poly(kit.rrect_front(xc - 0.03, xc + 0.03, FEEDER_Z0 + 0.062, FEEDER_Z1 - cap - 0.006, 0.006, y), ACCENT_DARK)
     if detail:
-        for dz in (0.0, 0.024):
-            z = FEEDER_Z0 + 0.048 + dz
+        for dz in (0.0, 0.026):
+            z = FEEDER_Z0 + 0.076 + dz
             sc.line([(xc - 0.018, y - 0.001, z), (xc, y - 0.001, z + 0.015), (xc + 0.018, y - 0.001, z)], GLOW, 0.007)
     else:
-        sc.poly(kit.rrect_front(xc - 0.018, xc + 0.018, FEEDER_Z0 + 0.045, FEEDER_Z1 - 0.022, 0.004, y - 0.001), GLOW)
+        sc.poly(kit.rrect_front(xc - 0.018, xc + 0.018, FEEDER_Z0 + 0.075, FEEDER_Z1 - 0.02, 0.004, y - 0.001), GLOW)
 
 
 def _strip(sc, cam, edge, x0, x1, hole=None, to3=None):
@@ -211,7 +240,7 @@ def draw_art(sc, colors, tier):
 
     sc.layer = "front"
     for xc in centers():
-        _rollers(sc, xc, ROLLER_FRONT_Y)
+        _front_rollers(sc, xc, detail)
     for xc in centers():
         _feeder(sc, xc, detail)
     # The base's slanted front under the feeder row, inside the lid.
