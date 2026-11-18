@@ -335,7 +335,6 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." zh="打印机上配置的动态灯光效果。可在 LED 控制中开关。"/>
   <translation tag="Animations" zh="动画"/>
   <translation tag="Anonymous data to help improve HelixScreen" zh="匿名数据以帮助改进 HelixScreen"/>
-  <translation tag="Anonymous stats — no personal data, ever." zh="匿名统计 — 绝不收集个人数据。"/>
   <translation tag="Anonymous usage statistics" zh="匿名使用统计"/>
   <translation tag="Another filament operation is heating the nozzle." zh="其他耗材操作正在加热喷嘴。"/>
   <translation tag="Any notes..." zh="备注..."/>
@@ -3651,7 +3650,6 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." zh="沿每条对角线振动工具头，并同时显示两条响应曲线。张力一致的皮带峰值重合。"/>
   <translation tag="Share Screen" zh="共享屏幕"/>
   <translation tag="Share Usage Data" zh="共享使用数据"/>
-  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." zh="分享匿名使用统计数据，帮助我们改进 HelixScreen。绝不会收集任何个人数据。"/>
   <translation tag="Share this code in Discord or support:" zh="请将此代码分享至 Discord 或支持渠道："/>
   <translation tag="Sheet Label Print" zh="标签纸打印"/>
   <translation tag="Shelf A" zh="货架A"/>
@@ -4001,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" zh="测试旋转: %d° (%d/%d) - 剩余%ds"/>
   <translation tag="Testing, servo, and motor operations" zh="测试、舵机与电机操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." zh="感谢！匿名使用数据有助于改进 HelixScreen。"/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." zh="感谢！完全匿名的使用数据有助于改进 HelixScreen。"/>
   <translation tag="That print is no longer paused" zh="该打印已不再暂停"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." zh="这次读数跳动过大,不可信。请不转动再测量一次。"/>
   <translation tag="That setting cannot be changed while a print is running" zh="打印进行中无法更改该设置"/>

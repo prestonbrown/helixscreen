@@ -367,7 +367,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'Effetti di luce animati configurati sulla stampante. Attivali e disattivali dai controlli LED.'
   Animations: Animazioni
   Anonymous data to help improve HelixScreen: Dati anonimi per migliorare HelixScreen
-  Anonymous stats — no personal data, ever.: Statistiche anonime — mai dati personali.
   Anonymous usage statistics: Statistiche di utilizzo anonime
   Another filament operation is heating the nozzle.: "Un'altra operazione sul filamento sta riscaldando l'ugello."
   Any notes...: Note...
@@ -3958,9 +3957,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Scuote la testina lungo ciascuna diagonale e sovrappone le due risposte. Cinghie bilanciate hanno il picco insieme.
   Share Screen: 'Condividi schermo'
   Share Usage Data: Condividi dati d'uso
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: Condividi
-    statistiche di utilizzo anonime per aiutarci a migliorare HelixScreen. Nessun
-    dato personale viene mai raccolto.
   'Share this code in Discord or support:': 'Condividi questo codice su Discord o
     al supporto:'
   Sheet Label Print: Stampa etichette su foglio
@@ -4342,8 +4338,6 @@ translations:
   Testing, servo, and motor operations: 'Operazioni di test, servo e motore'
   Thanks! Anonymous usage data helps improve HelixScreen.: Grazie! I dati anonimi
     di utilizzo aiutano a migliorare HelixScreen.
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Grazie! I dati
-    di utilizzo TOTALMENTE anonimi aiutano a migliorare HelixScreen.
   That print is no longer paused: 'Quella stampa non è più in pausa'
   That reading jumped too far to trust. Re-measure without turning.: "Questa lettura è saltata troppo per fidarsi. Misura di nuovo senza girare."
   'That setting cannot be changed while a print is running': 'Quell''impostazione non può essere modificata durante una stampa in corso'

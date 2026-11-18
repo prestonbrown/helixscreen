@@ -36,10 +36,11 @@
         <!-- ================================================================== -->
         <!-- TELEMETRY -->
         <!-- ================================================================== -->
-        <setting_toggle_row name="row_telemetry"
-                            label="Share Usage Data" icon="chart_line"
-                            description="Anonymous data to help improve HelixScreen"
-                            subject="settings_telemetry_enabled" callback="on_telemetry_changed"/>
+        <!-- The firmware sends no telemetry: platform_extras_available is 0 there -->
+        <lv_obj name="container_telemetry" width="100%" style_pad_all="0" scrollable="false">
+          <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
+          <telemetry_opt_in_row/>
+        </lv_obj>
         <setting_action_row name="row_telemetry_view_data"
                             label="View Telemetry Data" icon="list" description="See exactly what data will be sent"
                             callback="on_telemetry_view_data">

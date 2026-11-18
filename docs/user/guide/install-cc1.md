@@ -65,7 +65,7 @@ HelixScreen starts as soon as the installer finishes. The Centauri Carbon releas
 2. **Network:** pick a Wi-Fi network, or continue if the printer is already connected by Wi-Fi or Ethernet.
 3. **Connection:** HelixScreen connects to the printer's own Moonraker by itself and skips this step when it can. On COSMOS, Moonraker listens on port `80`, not the usual `7125`. If the step appears, tap **Test Connection**: with the port field still on its default it tries port `80` as well. If you typed a port yourself, enter `80`.
 4. **Preferences:** a few choices, such as sounds, that you can change later in Settings.
-5. **Help Improve HelixScreen:** choose whether to send anonymous usage statistics. You can change this later in **Settings > System**.
+5. **Updates & Data:** pick an update channel, and choose whether to send anonymous usage statistics with **Share Usage Data**. You can change these later in **Settings > Updates** and **Settings > System**.
 
 Then the Home screen appears. Worth doing first:
 

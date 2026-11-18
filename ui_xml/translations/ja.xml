@@ -335,7 +335,6 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." ja="プリンターに設定されたアニメーション照明エフェクト。LEDコントロールからオン/オフできます。"/>
   <translation tag="Animations" ja="アニメーション"/>
   <translation tag="Anonymous data to help improve HelixScreen" ja="HelixScreen改善のための匿名データ"/>
-  <translation tag="Anonymous stats — no personal data, ever." ja="匿名の統計情報 — 個人データは一切収集しません。"/>
   <translation tag="Anonymous usage statistics" ja="匿名の使用統計"/>
   <translation tag="Another filament operation is heating the nozzle." ja="別のフィラメント操作がノズルを加熱しています。"/>
   <translation tag="Any notes..." ja="メモ..."/>
@@ -3651,7 +3650,6 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." ja="ツールヘッドを対角線ごとに動かし、2つの結果を同時に表示します。張りが同じベルトは同じ位置でピークになります。"/>
   <translation tag="Share Screen" ja="画面を共有"/>
   <translation tag="Share Usage Data" ja="使用データを共有"/>
-  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." ja="匿名の使用統計を共有して、HelixScreen の改善にご協力ください。個人データは一切収集されません。"/>
   <translation tag="Share this code in Discord or support:" ja="このコードをDiscordまたはサポートで共有してください:"/>
   <translation tag="Sheet Label Print" ja="シートラベル印刷"/>
   <translation tag="Shelf A" ja="棚A"/>
@@ -4001,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" ja="回転テスト: %d° (%d/%d) - %ds残り"/>
   <translation tag="Testing, servo, and motor operations" ja="テスト・サーボ・モーター操作"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。"/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." ja="ご協力ありがとうございます！完全匿名の使用データが HelixScreen の改善に役立ちます。"/>
   <translation tag="That print is no longer paused" ja="その印刷はもう一時停止中ではありません"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." ja="この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"/>
   <translation tag="That setting cannot be changed while a print is running" ja="印刷中はこの設定を変更できません"/>

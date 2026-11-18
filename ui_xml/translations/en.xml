@@ -335,7 +335,6 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." en="Animated light effects configured on the printer. Turn them on and off from the LED controls."/>
   <translation tag="Animations" en="Animations"/>
   <translation tag="Anonymous data to help improve HelixScreen" en="Anonymous data to help improve HelixScreen"/>
-  <translation tag="Anonymous stats — no personal data, ever." en="Anonymous stats — no personal data, ever."/>
   <translation tag="Anonymous usage statistics" en="Anonymous usage statistics"/>
   <translation tag="Another filament operation is heating the nozzle." en="Another filament operation is heating the nozzle."/>
   <translation tag="Any notes..." en="Any notes..."/>
@@ -3651,7 +3650,6 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." en="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together."/>
   <translation tag="Share Screen" en="Share Screen"/>
   <translation tag="Share Usage Data" en="Share Usage Data"/>
-  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." en="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected."/>
   <translation tag="Share this code in Discord or support:" en="Share this code in Discord or support:"/>
   <translation tag="Sheet Label Print" en="Sheet Label Print"/>
   <translation tag="Shelf A" en="Shelf A"/>
@@ -4001,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" en="Testing rotation: %d° (%d/%d) - %ds remaining"/>
   <translation tag="Testing, servo, and motor operations" en="Testing, servo, and motor operations"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." en="Thanks! Anonymous usage data helps improve HelixScreen."/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." en="Thanks! TOTALLY anonymous usage data helps improve HelixScreen."/>
   <translation tag="That print is no longer paused" en="That print is no longer paused"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." en="That reading jumped too far to trust. Re-measure without turning."/>
   <translation tag="That setting cannot be changed while a print is running" en="That setting cannot be changed while a print is running"/>

@@ -335,7 +335,6 @@
   <translation tag="Animated light effects configured on the printer. Turn them on and off from the LED controls." it="Effetti di luce animati configurati sulla stampante. Attivali e disattivali dai controlli LED."/>
   <translation tag="Animations" it="Animazioni"/>
   <translation tag="Anonymous data to help improve HelixScreen" it="Dati anonimi per migliorare HelixScreen"/>
-  <translation tag="Anonymous stats — no personal data, ever." it="Statistiche anonime — mai dati personali."/>
   <translation tag="Anonymous usage statistics" it="Statistiche di utilizzo anonime"/>
   <translation tag="Another filament operation is heating the nozzle." it="Un&apos;altra operazione sul filamento sta riscaldando l&apos;ugello."/>
   <translation tag="Any notes..." it="Note..."/>
@@ -3651,7 +3650,6 @@
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." it="Scuote la testina lungo ciascuna diagonale e sovrappone le due risposte. Cinghie bilanciate hanno il picco insieme."/>
   <translation tag="Share Screen" it="Condividi schermo"/>
   <translation tag="Share Usage Data" it="Condividi dati d&apos;uso"/>
-  <translation tag="Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected." it="Condividi statistiche di utilizzo anonime per aiutarci a migliorare HelixScreen. Nessun dato personale viene mai raccolto."/>
   <translation tag="Share this code in Discord or support:" it="Condividi questo codice su Discord o al supporto:"/>
   <translation tag="Sheet Label Print" it="Stampa etichette su foglio"/>
   <translation tag="Shelf A" it="Scaffale A"/>
@@ -4001,7 +3999,6 @@
   <translation tag="Testing rotation: %d° (%d/%d) - %ds remaining" it="Test rotazione: %d° (%d/%d) - %ds rimanenti"/>
   <translation tag="Testing, servo, and motor operations" it="Operazioni di test, servo e motore"/>
   <translation tag="Thanks! Anonymous usage data helps improve HelixScreen." it="Grazie! I dati anonimi di utilizzo aiutano a migliorare HelixScreen."/>
-  <translation tag="Thanks! TOTALLY anonymous usage data helps improve HelixScreen." it="Grazie! I dati di utilizzo TOTALMENTE anonimi aiutano a migliorare HelixScreen."/>
   <translation tag="That print is no longer paused" it="Quella stampa non è più in pausa"/>
   <translation tag="That reading jumped too far to trust. Re-measure without turning." it="Questa lettura è saltata troppo per fidarsi. Misura di nuovo senza girare."/>
   <translation tag="That setting cannot be changed while a print is running" it="Quell&apos;impostazione non può essere modificata durante una stampa in corso"/>

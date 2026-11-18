@@ -177,9 +177,9 @@ If HelixScreen already recognized your printer, the step opens on it, inside its
 
 Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Updates & Data** instead of the Review step.
 
-![The Updates & Data step, with its anonymous statistics switch and update channel](../../images/user/wizard-telemetry.png)
+![The Updates & Data step, with its Update Channel and Share Usage Data rows](../../images/user/wizard-telemetry.png)
 
-**Updates & Data** asks whether to send anonymous usage statistics. No personal data is collected, and you can change your answer later in **Settings > System > Share Usage Data**. The [Telemetry guide](../TELEMETRY.md) lists what is and is not sent. The same step offers the **Update Channel**: **Stable** for released versions, or **Beta** to get new versions sooner. You can change it later in **Settings > Updates** (see [Upgrading](../UPGRADING.md)). Where your printer's firmware manages HelixScreen updates, the channel row is not shown.
+**Updates & Data** asks whether to send anonymous usage statistics, with the **Share Usage Data** switch. No personal data is collected, the info button on that row shows what is sent, and you can change your answer later in **Settings > System > Share Usage Data**. The [Telemetry guide](../TELEMETRY.md) lists what is and is not sent. The same step offers the **Update Channel**: **Stable** for released versions, or **Beta** to get new versions sooner. You can change it later in **Settings > Updates** (see [Upgrading](../UPGRADING.md)). Where your printer's firmware manages HelixScreen updates, the channel row is not shown.
 
 On a printer without a profile you see the full set of hardware steps, ending with Review, which asks the same two questions above the summary.
 

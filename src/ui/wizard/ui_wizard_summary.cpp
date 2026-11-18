@@ -3,12 +3,9 @@
 
 #include "ui_wizard_summary.h"
 
-#include "ui_event_safety.h"
-#include "ui_modal.h"
+#include "ui_settings_system.h"
 #include "ui_settings_updates.h"
 #include "ui_subject_registry.h"
-#include "ui_telemetry_info_modal.h"
-#include "ui_toast_manager.h"
 #include "ui_wizard.h"
 #include "ui_wizard_input_shaper.h"
 #include "ui_wizard_telemetry.h"
@@ -29,7 +26,6 @@
 #include <spdlog/spdlog.h>
 
 #include <cstring>
-#include <memory>
 #include <sstream>
 #include <string>
 
@@ -289,13 +285,10 @@ void WizardSummaryStep::init_subjects() {
 
 void WizardSummaryStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
-    lv_xml_register_event_cb(nullptr, "on_wizard_summary_telemetry_changed",
-                             WizardSummaryStep::on_wizard_telemetry_changed);
-    lv_xml_register_event_cb(nullptr, "on_wizard_summary_telemetry_info",
-                             WizardSummaryStep::on_wizard_telemetry_info);
-    // The update channel row reuses Settings > Updates' callback, registered there only
-    // when that overlay first opens.
+    // The update channel and statistics rows reuse Settings > Updates' and Settings >
+    // System's callbacks, registered there only when those overlays first open.
     helix::settings::get_updates_settings_overlay().register_callbacks();
+    helix::settings::get_system_settings_overlay().register_callbacks();
 }
 
 // ============================================================================
@@ -351,24 +344,3 @@ bool WizardSummaryStep::is_validated() const {
 // ============================================================================
 // Static Callbacks
 // ============================================================================
-
-void WizardSummaryStep::on_wizard_telemetry_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_changed");
-    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
-    spdlog::info("[WizardSummary] Telemetry toggled: {}", enabled ? "ON" : "OFF");
-    SystemSettingsManager::instance().set_telemetry_enabled(enabled);
-    if (enabled) {
-        ToastManager::instance().show(
-            ToastSeverity::SUCCESS,
-            lv_tr("Thanks! Anonymous usage data helps improve HelixScreen."), 4000);
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void WizardSummaryStep::on_wizard_telemetry_info(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_info");
-    spdlog::debug("[WizardSummary] Showing telemetry info modal");
-    Modal::show_owned(std::make_unique<TelemetryInfoModal>(), lv_screen_active());
-    LVGL_SAFE_EVENT_CB_END();
-}

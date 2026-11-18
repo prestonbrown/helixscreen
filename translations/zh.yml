@@ -348,7 +348,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: '打印机上配置的动态灯光效果。可在 LED 控制中开关。'
   Animations: 动画
   Anonymous data to help improve HelixScreen: 匿名数据以帮助改进 HelixScreen
-  Anonymous stats — no personal data, ever.: 匿名统计 — 绝不收集个人数据。
   Anonymous usage statistics: 匿名使用统计
   Another filament operation is heating the nozzle.: "其他耗材操作正在加热喷嘴。"
   Any notes...: 备注...
@@ -3768,8 +3767,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: 沿每条对角线振动工具头，并同时显示两条响应曲线。张力一致的皮带峰值重合。
   Share Screen: '共享屏幕'
   Share Usage Data: 共享使用数据
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: 分享匿名使用统计数据，帮助我们改进
-    HelixScreen。绝不会收集任何个人数据。
   'Share this code in Discord or support:': 请将此代码分享至 Discord 或支持渠道：
   Sheet Label Print: 标签纸打印
   Shelf A: 货架A
@@ -4130,8 +4127,6 @@ translations:
     - 剩余%ds'
   Testing, servo, and motor operations: '测试、舵机与电机操作'
   Thanks! Anonymous usage data helps improve HelixScreen.: 感谢！匿名使用数据有助于改进 HelixScreen。
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: 感谢！完全匿名的使用数据有助于改进
-    HelixScreen。
   That print is no longer paused: '该打印已不再暂停'
   That reading jumped too far to trust. Re-measure without turning.: "这次读数跳动过大,不可信。请不转动再测量一次。"
   'That setting cannot be changed while a print is running': '打印进行中无法更改该设置'

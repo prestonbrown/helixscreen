@@ -365,8 +365,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'Efectos de luz animados configurados en la impresora. Actívalos y desactívalos desde los controles LED.'
   Animations: Animaciones
   Anonymous data to help improve HelixScreen: Datos anónimos para mejorar HelixScreen
-  Anonymous stats — no personal data, ever.: Estadísticas anónimas — sin datos personales,
-    nunca.
   Anonymous usage statistics: Estadísticas de uso anónimas
   Another filament operation is heating the nozzle.: "Otra operación de filamento está calentando la boquilla."
   Any notes...: Notas...
@@ -3960,9 +3958,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Sacude el cabezal a lo largo de cada diagonal y superpone las dos respuestas. Las correas igualadas alcanzan su pico juntas.
   Share Screen: 'Compartir pantalla'
   Share Usage Data: Compartir datos de uso
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: Comparta
-    estadísticas de uso anónimas para ayudarnos a mejorar HelixScreen. Nunca se recopilan
-    datos personales.
   'Share this code in Discord or support:': 'Comparte este código en Discord o soporte:'
   Sheet Label Print: Impresión de etiquetas en hoja
   Shelf A: Estante A
@@ -4343,8 +4338,6 @@ translations:
   Testing, servo, and motor operations: 'Operaciones de prueba, servo y motor'
   Thanks! Anonymous usage data helps improve HelixScreen.: ¡Gracias! Los datos de
     uso anónimos ayudan a mejorar HelixScreen.
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: ¡Gracias! Los datos
-    de uso TOTALMENTE anónimos ayudan a mejorar HelixScreen.
   That print is no longer paused: 'Esa impresión ya no está en pausa'
   That reading jumped too far to trust. Re-measure without turning.: "Esa lectura saltó demasiado para fiarse. Vuelve a medir sin girar."
   'That setting cannot be changed while a print is running': 'Ese ajuste no se puede cambiar mientras hay una impresión en curso'

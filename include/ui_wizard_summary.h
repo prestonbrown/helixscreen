@@ -117,12 +117,6 @@ class WizardSummaryStep : public helix::wizard::Step {
         return "Wizard Summary";
     }
 
-    /** @brief Telemetry toggle callback (wired from XML) */
-    static void on_wizard_telemetry_changed(lv_event_t* e);
-
-    /** @brief "Learn more" link callback — shows telemetry info modal */
-    static void on_wizard_telemetry_info(lv_event_t* e);
-
   private:
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;

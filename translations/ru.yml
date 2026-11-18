@@ -409,8 +409,6 @@ translations:
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'Анимированные световые эффекты, настроенные на принтере. Включаются и выключаются в управлении LED.'
   Animations: Анимации
   Anonymous data to help improve HelixScreen: Анонимные данные для улучшения HelixScreen
-  Anonymous stats — no personal data, ever.: Анонимная статистика — никаких личных
-    данных.
   Anonymous usage statistics: Анонимная статистика использования
   Another filament operation is heating the nozzle.: "Другая операция с филаментом нагревает сопло."
   Any notes...: Заметки...
@@ -4009,9 +4007,6 @@ translations:
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Раскачивает печатающую головку вдоль каждой диагонали и накладывает два отклика. У одинаково натянутых ремней пики совпадают.
   Share Screen: 'Поделиться экраном'
   Share Usage Data: Делиться данными использования
-  Share anonymous usage statistics to help us make HelixScreen better. No personal data is ever collected.: Делитесь
-    анонимной статистикой использования, чтобы помочь нам улучшить HelixScreen. Персональные
-    данные никогда не собираются.
   'Share this code in Discord or support:': 'Поделитесь этим кодом в Discord или с
     поддержкой:'
   Sheet Label Print: Печать этикеток на листе
@@ -4398,8 +4393,6 @@ translations:
   Testing, servo, and motor operations: 'Тестирование, сервопривод и работа моторов'
   Thanks! Anonymous usage data helps improve HelixScreen.: Спасибо! Анонимные данные
     использования помогают улучшить HelixScreen.
-  Thanks! TOTALLY anonymous usage data helps improve HelixScreen.: Спасибо! ПОЛНОСТЬЮ
-    анонимные данные использования помогают улучшить HelixScreen.
   That print is no longer paused: 'Эта печать больше не приостановлена'
   That reading jumped too far to trust. Re-measure without turning.: "Это показание скакнуло слишком сильно, чтобы ему доверять. Измерьте снова, не вращая."
   'That setting cannot be changed while a print is running': 'Этот параметр нельзя изменить во время печати'
