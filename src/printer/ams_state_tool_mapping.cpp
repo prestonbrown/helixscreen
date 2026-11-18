@@ -9,6 +9,7 @@
  * class and its threading contract are in ams_state.h.
  */
 
+#include "ams_lane_state.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_state_internal.h"
@@ -131,7 +132,7 @@ std::vector<helix::AvailableSlot> AmsState::collect_available_slots() const {
                 as.material_required = slot_info.material_required;
                 as.is_empty = (slot_info.status == SlotStatus::EMPTY ||
                                slot_info.status == SlotStatus::UNKNOWN);
-                as.ghost = as.is_empty && slot_info.has_filament_info();
+                as.ghost = helix::ui::classify_lane(slot_info) == helix::ui::LaneState::Ghosted;
                 as.remaining_weight_g = slot_info.remaining_weight_g;
                 as.current_tool_mapping = slot_info.mapped_tool;
                 as.unit_index = unit.unit_index;

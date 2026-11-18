@@ -84,9 +84,9 @@ struct AvailableSlot {
     /// until its material is set. Defaulted for the aggregate initializers.
     bool material_required = false;
 
-    /// An empty slot that keeps the identity of the spool taken out of it (SlotInfo
-    /// has_filament_info()): shown as that spool, dimmed. Defaulted for the aggregate
-    /// initializers.
+    /// An empty slot that keeps the identity of the spool taken out of it
+    /// (classify_lane() == LaneState::Ghosted, the rule the unit's drawing uses): shown as
+    /// that spool, dimmed. Defaulted for the aggregate initializers.
     bool ghost = false;
 
     /// Unique key for this slot across all backends
