@@ -416,8 +416,22 @@ class UpdateQueue {
         return pending_.size() + frozen_buffer_.size();
     }
 
+    /// Called after each enqueue from any thread, outside the lock; nullptr for none. A
+    /// sleeping main loop sets it so queued work wakes it instead of waiting for the
+    /// drain timer.
+    void set_enqueue_hook(void (*hook)()) {
+        enqueue_hook_.store(hook, std::memory_order_release);
+    }
+
   private:
     void queue_impl(const char* tag, UpdateCallback callback, const char* file, int line) {
+        enqueue_locked(tag, std::move(callback), file, line);
+        if (void (*hook)() = enqueue_hook_.load(std::memory_order_acquire)) {
+            hook();
+        }
+    }
+
+    void enqueue_locked(const char* tag, UpdateCallback callback, const char* file, int line) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (shut_down_) {
             if (tag)
@@ -616,6 +630,7 @@ class UpdateQueue {
     int freeze_depth_ = 0;
     /// process_pending() calls on the stack. Main thread only.
     int drain_depth_ = 0;
+    std::atomic<void (*)()> enqueue_hook_{nullptr};
 
     /// Tag of the currently executing callback (read by crash handler).
     /// Only written from the main LVGL thread; read by the crash signal handler.

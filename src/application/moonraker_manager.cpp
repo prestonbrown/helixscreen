@@ -32,6 +32,7 @@
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lan_sweep.h"
+#include "main_loop_wake.h"
 #include "mock_persona.h"
 #include "moonraker_api.h"
 #include "moonraker_client.h"
@@ -681,6 +682,7 @@ void MoonrakerManager::register_callbacks() {
             state_change["old_state"] = static_cast<int>(old_state);
             state_change["new_state"] = static_cast<int>(new_state);
             m_notification_queue.push({std::move(state_change), 0});
+            helix::main_loop_wake::notify();
         });
 
     // Register notification callback to queue updates for main thread
@@ -693,6 +695,8 @@ void MoonrakerManager::register_callbacks() {
         // freshness on close, so a frame always carries the session it arrived in.
         m_notification_queue.push(
             {notification, get_printer_state().network_state().klippy_epoch()});
+        // A sleeping loop waits up to 200 ms; status that has to wake the screen must not.
+        helix::main_loop_wake::notify();
     });
 }
 

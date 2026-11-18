@@ -25,6 +25,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /**
  * @brief Display backend types supported by HelixScreen
@@ -358,6 +359,16 @@ inline int startup_rotation(int requested, bool probe_wanted, int kernel_orienta
 
 } // namespace helix
 
+namespace helix {
+
+/// An input device whose events arrive on a file descriptor the main loop can wait on.
+struct InputWakeSource {
+    lv_indev_t* indev = nullptr;
+    int fd = -1;
+};
+
+} // namespace helix
+
 /**
  * @brief Abstract display backend interface
  *
@@ -471,6 +482,16 @@ class DisplayBackend {
      */
     virtual lv_indev_t* reopen_input_pointer() {
         return nullptr;
+    }
+
+    /**
+     * @brief Input devices whose events arrive on a file descriptor
+     *
+     * While the display sleeps, the main loop waits on these instead of polling them
+     * (helix::SleepInputWait). A device left out keeps its read timer.
+     */
+    virtual std::vector<helix::InputWakeSource> input_wake_sources() const {
+        return {};
     }
 
     /// Whether reopen_input_pointer() can ever bring a pointer back. DisplayManager

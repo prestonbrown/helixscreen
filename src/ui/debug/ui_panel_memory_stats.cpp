@@ -127,6 +127,9 @@ void MemoryStatsOverlay::show() {
         return;
 
     lv_obj_set_hidden(overlay_, false);
+    if (update_timer_) {
+        lv_timer_resume(update_timer_);
+    }
     lv_obj_move_to_index(overlay_, -1);
     update(); // Immediate update when shown
     spdlog::debug("[MemoryStats] Overlay shown");
@@ -137,6 +140,9 @@ void MemoryStatsOverlay::hide() {
         return;
 
     lv_obj_set_hidden(overlay_, true);
+    if (update_timer_) {
+        lv_timer_pause(update_timer_);
+    }
     spdlog::debug("[MemoryStats] Overlay hidden");
 }
 

@@ -1062,10 +1062,12 @@ class PrintSelectPanel : public PanelBase {
     /// The boot-time prompt: opens once a session when discovery finds the
     /// plugin absent, following helix::decide_plugin_turn(). A wait for the
     /// job is resumed by the lifecycle observer, a wait for the screen by
-    /// plugin_prompt_timer_.
+    /// plugin_prompt_timer_ while the display is awake and by the wake itself.
     void maybe_prompt_plugin_install();
     helix::PluginTurnStep plugin_prompt_wait_ = helix::PluginTurnStep::Stop;
     helix::ui::LvglTimerGuard plugin_prompt_timer_;
+    /// Guards the display-sleep callback that pauses and resumes the wait for the screen.
+    helix::AsyncLifetimeGuard plugin_prompt_lifetime_;
     /// How often a prompt waiting for the screen looks again.
     static constexpr uint32_t kPluginPromptRecheckMs = 1000;
 

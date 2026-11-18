@@ -14,6 +14,7 @@
 #include "display_manager.h"
 
 #include "image_cache_env.h"
+#include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::timer_cb: LVGL has no getter
 #include "print_lifecycle_state.h"
 
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
@@ -777,6 +778,21 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
     // Refresh pacing overrides, now that the refresh, animation, input and update-queue
     // timers they set all exist.
     helix::apply_refresh_timing(m_refresh_timing);
+
+    // Asleep, input is read when its fd turns readable rather than every 33 ms. Waking
+    // resumes the timers before anything else reads input.
+    register_sleep_callback([this](bool sleeping) {
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            if (t->timer_cb == &DisplayManager::debug_touch_tick) {
+                sleeping ? lv_timer_pause(t) : lv_timer_resume(t);
+            }
+        }
+        if (sleeping && m_backend) {
+            m_input_wait.begin(m_backend->input_wake_sources());
+        } else if (!sleeping) {
+            m_input_wait.end();
+        }
+    });
 }
 
 void DisplayManager::create_keyboard_input() {
@@ -813,6 +829,14 @@ uint32_t DisplayManager::get_ticks() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<uint32_t>(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #endif
+}
+
+void DisplayManager::wait_for_work(uint32_t ms) {
+    if (m_input_wait.active()) {
+        m_input_wait.wait(ms);
+        return;
+    }
+    delay(ms);
 }
 
 void DisplayManager::delay(uint32_t ms) {

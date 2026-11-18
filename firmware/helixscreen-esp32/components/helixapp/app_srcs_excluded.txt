@@ -128,6 +128,7 @@ src/application/detect_printer_cmd.cpp  # not in the v1 Core+AMS cut
 src/application/discovery_steps.cpp  # desktop tail: update checker, telemetry, wizard prompts, timelapse; the firmware runs discovery_steps_core.cpp
 src/application/display_manager.cpp  # not in the v1 Core+AMS cut
 src/application/display_sleep_controller.cpp  # not in the v1 Core+AMS cut
+src/application/sleep_input_wait.cpp  # waits for DisplayManager, which the firmware does not build
 src/application/refresh_period_hold.cpp  # not in the v1 Core+AMS cut
 src/application/rotation_probe.cpp  # not in the v1 Core+AMS cut
 src/application/screen_hide_hold.cpp  # not in the v1 Core+AMS cut

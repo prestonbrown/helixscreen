@@ -131,7 +131,30 @@ than the rest (16.9 with animations on, 4.0 with them off); they look like the m
 in a different state and are left out of the medians. The AD5M runs in Forge-X's chroot,
 which `perf-farm-check.sh` reaches through the row's `chroot` field.
 
-### For comparison
+### Display asleep, K1C and AD5M, 2026-11-17
+
+Idle printer, the board's own Moonraker, a config copy with `"sleep_sec": 60` and
+`"dim_sec": 0`, three 60 s windows after a 110 s settle, the original service stopped. A
+temporary probe could switch each change off by environment and counted which timers ran
+(prestonbrown/helixscreen#2037). Medians, percent of one core (main-loop wakes a second).
+The K1C sleeps with the software overlay, the AD5M with hardware blank.
+
+| Build | K1C | AD5M |
+|---|---:|---:|
+| Status applied at full rate (no telemetry hold) | 2.46 (44) | 2.20 (43) |
+| Telemetry held, as on main before this work | 1.65 (40) | 1.46 (40) |
+| Plus `mcu.last_stats` on the telemetry list | 1.55 (40) | 1.38 (40) |
+| Plus input read on arrival instead of every 33 ms | 1.26 (14) | 1.11 (13) |
+| Plus the update queue, debug-touch and memory-stats timers idle | 1.18 (11) | 1.00 (10) |
+| Plus the plugin-install prompt's wait for the screen stopped while asleep | 1.15 (11) | 0.96 (9) |
+| Every status frame dropped while asleep (the ceiling, on the 1.65 build) | 1.18 (39) | 1.06 (39) |
+| Awake idle | 3.65 (65) | 3.45 (65) |
+
+Status arrives at about 4 frames a second on both boards (`toolhead.estimated_print_time`
+changes in every one), and each MCU reports `last_stats` once a second, which released the
+telemetry hold every second until it joined the list. What still wakes the loop asleep is
+in "Open costs".
+
 
 GrumpyScreen, as its users quote it: about 5% at idle and 0.7% with the screen off, 5 MB
 of RAM. Whether that is one core or the whole machine is not stated.
@@ -234,16 +257,23 @@ whether the screen was on or asleep, at about 0.25-0.4 ms per wake:
 
 | Timer | Period | Now |
 |---|---|---|
-| Input read (`lv_indev_read_timer_cb`) | 33 ms | unchanged: a tap shorter than the read period is lost, and wake needs the press |
-| UI update queue drain | 33 ms | 200 ms while the display sleeps (`update_queue_period_ms`) |
-| Debug-touch ripple | 30 ms, always | 500 ms while the setting is off (`debug_touch_period_ms`) |
+| Input read (`lv_indev_read_timer_cb`) | 33 ms | paused while the display sleeps for each device whose fd the backend knows (fbdev evdev): the main loop `poll()`s those fds and reads a device the moment it turns readable (`SleepInputWait`) |
+| UI update queue drain | 33 ms | paused while the display sleeps: an enqueue from another thread wakes the loop through the main-loop wake pipe, and the loop drains the queue in every pass |
+| Debug-touch ripple | 30 ms, always | 500 ms while the setting is off (`debug_touch_period_ms`), paused while the display sleeps |
 | LVGL animation timer | 33 ms | stops when no spinner is visible: a hidden `<spinner>` parks its animations and restarts on its next draw |
 
 ## Open costs
 
-- **About 3% of a core while asleep is real work, not wakes.** Status updates still flow
-  through subjects into widgets nobody can see. Gating that work while the display sleeps
-  is the next lever.
+- **About 1.15% of a core asleep on the K1C, 0.96% on the AD5M** (the table above).
+  The loop still wakes about 10 times a second: about 5 for status frames and the work
+  other threads queue, about 4 for the 200 ms cap on its wait (`main_loop_sleep_ms`) and
+  about 1 for the display refresh when a label changes on the hidden screen. Awake, the
+  plugin-install prompt still looks once a second while it waits for a free screen. Status processing and the widget
+  updates behind it are most of the remaining CPU: dropping every frame read 1.18 and 1.06
+  on the build before the input wait. Raising the cap would delay what the loop still
+  polls (Moonraker request timeouts, a remote screen viewer's arrival). Boards whose input
+  is not fbdev evdev (DRM with libinput, SDL) still poll input every 33 ms asleep. The
+  Creator 5 Pro read 3.0% before this work and has not been measured since.
 - **About 10% of one core while printing on the C5, 40-51% for the first 10-30 s** as the
   print status panel loads the toolpath preview. Twice the idle cost.
 - **fbdev self-heal repaints the whole screen every 10 s** (`kFbSelfhealIntervalMs`): about

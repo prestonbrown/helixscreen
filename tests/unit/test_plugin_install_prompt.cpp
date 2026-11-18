@@ -22,6 +22,7 @@
 
 #include "../test_helpers/advanced_panel_test_access.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/helix_plugin_installer_test_access.h"
 #include "../test_helpers/plugin_script_sandbox.h"
 #include "../test_helpers/plugin_self_heal_test_access.h"
@@ -35,6 +36,8 @@
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "discovery_steps.h"
+#include "display_manager.h"
+#include "display_settings_manager.h"
 #include "printer_state.h"
 
 #include <chrono>
@@ -1121,4 +1124,61 @@ TEST_CASE_METHOD(SelfHealFixture, "a remote Moonraker's plugin is only reported,
 
     CHECK(scripts.script_args().empty());
     CHECK(restarts() == restarts_before);
+}
+
+namespace {
+
+/// An active DisplayManager from before the panel's setup, so the panel subscribes to its
+/// sleep and wake. No init(): the test display sleeps under the software overlay.
+struct ActiveDisplay {
+    DisplayManager dm;
+    ActiveDisplay() {
+        DisplayManagerTestAccess::set_active_instance(&dm);
+    }
+    ~ActiveDisplay() {
+        DisplayManagerTestAccess::set_active_instance(nullptr);
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+    }
+    ActiveDisplay(const ActiveDisplay&) = delete;
+    ActiveDisplay& operator=(const ActiveDisplay&) = delete;
+};
+
+struct AsleepPromptFixture : ActiveDisplay, PromptFixture {
+    void sleep_display() {
+        Config* config = Config::get_instance();
+        config->set<int>("/display/screensaver_type", 0);
+        config->set<int>("/display/dim_sec", 600);
+        config->set<int>("/display/sleep_sec", 60);
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+        dm.set_dim_timeout(600);
+        lv_display_trigger_activity(nullptr);
+        lv_tick_inc(61000);
+        dm.check_display_sleep();
+        REQUIRE(dm.is_display_sleeping());
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(AsleepPromptFixture,
+                 "a prompt waiting for the screen stops looking while asleep and looks on wake",
+                 "[plugin_installer][print_select][sleep]") {
+    lv_obj_t* busy = helix::ui::modal_alert("Busy", "a modal holds the screen");
+    drain();
+    set_plugin_installed(false);
+    REQUIRE(PrintSelectPanelTestAccess::plugin_prompt_waiting_for_screen(*panel_));
+
+    sleep_display();
+    CHECK_FALSE(PrintSelectPanelTestAccess::plugin_prompt_waiting_for_screen(*panel_));
+    Modal::hide(busy);
+    drain();
+    CHECK(prompt() == nullptr);
+
+    REQUIRE(dm.note_wake_press(10, 10));
+    dm.check_display_sleep();
+    drain();
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    CHECK(prompt() != nullptr);
 }

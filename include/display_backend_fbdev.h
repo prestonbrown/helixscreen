@@ -59,6 +59,9 @@ class DisplayBackendFbdev : public DisplayBackend {
 
     // Input device creation
     lv_indev_t* create_input_pointer() override;
+    std::vector<helix::InputWakeSource> input_wake_sources() const override {
+        return input_wake_sources_;
+    }
     lv_indev_t* create_input_keyboard() override;
     bool has_hardware_keyboard() const override {
         return keyboard_ != nullptr;
@@ -194,6 +197,10 @@ class DisplayBackendFbdev : public DisplayBackend {
     lv_indev_t* touch_ = nullptr;
     lv_indev_t* mouse_ = nullptr;
     lv_indev_t* keyboard_ = nullptr;
+    /// Every evdev device this backend opened, with its fd
+    std::vector<helix::InputWakeSource> input_wake_sources_;
+
+    lv_indev_t* open_evdev(lv_indev_type_t type, const char* path);
 
     /// Affine touch calibration coefficients
     helix::TouchCalibration calibration_;

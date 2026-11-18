@@ -758,6 +758,14 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                 resize_self->handle_resize();
             }
         });
+        // A sleeping screen shows no prompt, so a prompt waiting for the screen stops
+        // looking until the wake, which looks once at once.
+        dm->register_sleep_callback([this, token = plugin_prompt_lifetime_.token()](bool) {
+            if (token.expired() || plugin_prompt_wait_ != helix::PluginTurnStep::WaitForScreen) {
+                return;
+            }
+            maybe_prompt_plugin_install();
+        });
     }
 
     // Mark panel as fully initialized (enables resize callbacks)
@@ -3549,6 +3557,10 @@ void PrintSelectPanel::maybe_prompt_plugin_install() {
         return;
     case PluginTurnStep::WaitForScreen:
         plugin_prompt_wait_ = step;
+        if (DisplayManager* dm = DisplayManager::instance(); dm && dm->is_display_sleeping()) {
+            plugin_prompt_timer_.reset();
+            return;
+        }
         if (!plugin_prompt_timer_) {
             plugin_prompt_timer_.reset(lv_timer_create(
                 [](lv_timer_t* timer) {

@@ -878,6 +878,7 @@ src/api/moonraker_motion_api.cpp
 src/api/moonraker_queue_api.cpp
 src/api/rpc_error_correlation.cpp
 src/api/webcam_selection.cpp
+src/application/main_loop_wake.cpp
 src/application/moonraker_manager.cpp
 src/generated/theme_token_table.cpp
 # New-since-audit core files the link pass proved are referenced by kept core:
