@@ -259,7 +259,7 @@ One numbered step per phase; a step with nothing to do is skipped under the same
 4. **Installing files** -- `--clean` removal, `stop_service` on update, state migration, then `extract_release`: validates ELF architecture, backs up config, `mv` old to `.old`, re-checks free space when the swap crosses filesystems, rollback on failure
 5. **Setting up service** -- systemd unit or SysV init script (templated with `@@HELIX_USER@@`, etc.), `hooks-{platform}.sh` to `$INSTALL_DIR/platform/hooks.sh`, udev/polkit rules, KIAUH extension (`install_kiauh_extension`, honoring `--skip-kiauh-registration`; see "How the Extension Gets Installed"), K1 extras, `verify_binary_deps`
 6. **Connecting to Moonraker** -- `printer_data/config/helixscreen` symlink for Mainsail/Fluidd, `[update_manager helixscreen]` section, the release info file
-7. **Starting HelixScreen** -- recovery script, install-time printer detection (see [Install-Time Printer Detection](#install-time-printer-detection)), then `start_service`, which waits up to 5 seconds for startup confirmation. On a payload install, where the mod starts the UI at boot, the same step is titled **Finishing setup**.
+7. **Starting HelixScreen** -- recovery script, install-time printer detection (see [Install-Time Printer Detection](#install-time-printer-detection)), then `start_service`, which waits up to 5 seconds for startup confirmation. On a payload install that replaced a running HelixScreen, `start_service` starts it again inside the mod's chroot (`chroot <chroot> /etc/init.d/S*helixscreen start`, the same script boot runs). A fresh payload install, where the mod starts the UI at the next boot, titles the step **Finishing setup** and ends with "Reboot to start it".
 
 Then `INSTALL_COMPLETE=1`, the old-install cleanups, `finalize_install_log`, `cleanup_on_success` and `print_summary`.
 
@@ -579,7 +579,10 @@ On a verified mod host a bare install is the payload contract, no flags:
   (the incoming one lands beside it as `.env.new`).
 - **No service is installed on the host.** The service lands inside the mod chroot's
   `/etc/init.d`, which the mod's own bootstrap (`<chroot>/.root/start.sh`) starts at boot; nothing
-  host-side iterates an `/etc/init.d`, and the installer never starts the UI itself.
+  host-side iterates an `/etc/init.d`. An update that replaced a running UI (`mod_payload_restarts_ui`)
+  restarts it through that same script, run with `chroot`, since the display is already ours. A fresh
+  install leaves the first start to the reboot: the display mode and the disabled stock UI only settle
+  at boot. A chroot start that fails is a warning, and the summary asks for a reboot.
 - **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
   git-tracked - dirtying it breaks their OTA. The sanctioned include point is
   `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`

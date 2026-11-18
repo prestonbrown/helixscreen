@@ -721,11 +721,16 @@ start_service() {
     # an operator-chosen INSTALL_DIR on a mod host runs the whole install and
     # would otherwise die here at start_service_sysv's missing-init-script
     # exit - after which the error names a script this host never had and the
-    # .old backups sit uncollected. The installed service starts from inside
-    # the mod's chroot at boot; the host cannot usefully start it now, since
-    # on the AD5X the binary only loads against the chroot's glibc.
+    # .old backups sit uncollected. The installed service runs inside the
+    # mod's chroot (on the AD5X the binary only loads against the chroot's
+    # glibc), so a payload install that replaced a running UI starts it there;
+    # anything else waits for the mod's boot.
     if [ "${HOST_SERVICE_MECHANISM:-}" = "mod-managed" ]; then
-        log_info "mod host: the UI starts from the chroot at boot; not starting now"
+        if mod_payload_restarts_ui; then
+            start_service_mod_chroot
+        else
+            log_info "mod host: the UI starts from the chroot at boot; not starting now"
+        fi
         return 0
     fi
 
@@ -739,6 +744,70 @@ start_service() {
     else
         start_service_sysv
     fi
+}
+
+# Whether this payload install restarts the UI now rather than at the mod's
+# next boot: only when it replaces a HelixScreen that was running, stopped by
+# this run's update step or still up (--local without --update). The display
+# is then already ours, so the start needs nothing from the boot sequence. A
+# fresh install waits for the reboot: the mod's display mode and the stock
+# UI it disabled only settle at boot. A self-update counts as restarting, by
+# the app's own watchdog.
+mod_payload_restarts_ui() {
+    [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] || return 1
+    [ -n "${HOST_MOD_CHROOT:-}" ] || return 1
+    case "${INIT_SCRIPT_DEST:-}" in
+        "$HOST_MOD_CHROOT/etc/init.d/"*) ;;
+        *) return 1 ;;
+    esac
+    [ "${HELIX_UI_START_FAILED:-}" = "1" ] && return 1
+    _is_self_update && return 0
+    [ "${HELIX_UI_WAS_RUNNING:-}" = "1" ] || pidof helix-screen >/dev/null 2>&1
+}
+
+# Run the payload's init script the way the mod's boot does: inside the chroot,
+# where the binary's libraries live. Run from inside the chroot already, the
+# script's host path is its own.
+_mod_chroot_init() { # action
+    if [ "${HOST_CHROOT_STATE:-}" = "inside" ]; then
+        $SUDO "$INIT_SCRIPT_DEST" "$1"
+    else
+        $SUDO chroot "$HOST_MOD_CHROOT" "/etc/init.d/$(basename "$INIT_SCRIPT_DEST")" "$1"
+    fi
+}
+
+# Start (or restart) the payload's UI through the mod's chroot. A failure is
+# not fatal: the files are installed and the mod starts them at boot, so the
+# summary asks for a reboot instead (HELIX_UI_START_FAILED).
+start_service_mod_chroot() {
+    if _is_self_update; then
+        log_info "Skipping service start (self-update; restart via watchdog)"
+        return 0
+    fi
+
+    local action=start
+    if pidof helix-screen >/dev/null 2>&1; then
+        log_info "HelixScreen is already running -- restarting to load the new version..."
+        action=restart
+    fi
+    log_info "Starting HelixScreen inside the mod's chroot..."
+
+    if [ -x "$INIT_SCRIPT_DEST" ] && _mod_chroot_init "$action"; then
+        local _
+        for _ in 1 2 3 4 5; do
+            sleep 1
+            if _mod_chroot_init status >/dev/null 2>&1; then
+                log_success "HelixScreen is running!"
+                return 0
+            fi
+        done
+        log_warn "Service may still be starting..."
+        return 0
+    fi
+    # shellcheck disable=SC2034  # consumed by plan.sh (print_summary)
+    HELIX_UI_START_FAILED=1
+    log_warn "HelixScreen did not start from the mod's chroot; it starts at the next boot."
+    log_warn "Check logs: ${INSTALL_DIR}/logs/launcher.log"
 }
 
 # Start service (Snapmaker U1)
@@ -995,6 +1064,11 @@ stop_service() {
         if _is_self_update; then
             log_info "Skipping service stop (self-update; restart via watchdog)"
         else
+            # Whether a UI was up decides whether a payload install starts
+            # one again (mod_payload_restarts_ui).
+            if pidof helix-screen >/dev/null 2>&1; then
+                HELIX_UI_WAS_RUNNING=1
+            fi
             # Try the configured init script location first
             if [ -n "$INIT_SCRIPT_DEST" ] && [ -x "$INIT_SCRIPT_DEST" ]; then
                 log_info "Stopping existing HelixScreen service (SysV)..."
