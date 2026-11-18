@@ -307,6 +307,7 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                 manifest["drawn"] = _rounded(art_drawn_box(scene))
                 manifest["bottom_edge"] = _rounded(art_bottom_edge(scene))
                 manifest["geometry"] = [_rounded(dataclasses.asdict(g)) for g in geometry]
+                manifest["lane_order"] = scene.lane_order()
         if has_carriage:
             carriage = f"{tier}_carriage.png"
             render(scene.layer_svg("carriage", width), width, target / carriage)
@@ -325,7 +326,8 @@ def _rounded(value):
 
 
 def _geometry_rows(unit):
-    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes) per baked lane count."""
+    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes, lane order)
+    per baked lane count."""
     rows = []
     for _, lanes in art_dirs(unit, "."):
         scene = kit.Scene(kit.ART_CAMERA)
@@ -342,7 +344,8 @@ def _geometry_rows(unit):
             "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
             for g in geometry
         ]
-        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows, scene.stacks_hold_more_than_spools()))
+        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows,
+                     scene.stacks_hold_more_than_spools(), scene.lane_order()))
     return rows
 
 
@@ -422,13 +425,17 @@ def generate_shell_table(units):
     for unit in units:
         if unit.tray is None:
             continue
-        for lanes, aspect, drawn, edge, lane_rows, silhouettes in _geometry_rows(unit):
+        for lanes, aspect, drawn, edge, lane_rows, silhouettes, order in _geometry_rows(unit):
             name = f"k_{unit.id}_{lanes}_lanes"
             out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
             box = ", ".join(f"{v:.5f}f" for v in drawn)
             foot = ", ".join(f"{v:.5f}f" for v in edge)
-            flag = ", true" if silhouettes else ""
-            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}{flag}}},')
+            # The painter order only where it is not the lanes' own numbering.
+            tail = _trailing_fields([
+                ("true" if silhouettes else "false", "false"),
+                ("{" + ", ".join(str(lane) for lane in order) + "}", "{" + ", ".join(str(i) for i in range(lanes)) + "}"),
+            ])
+            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}{tail}}},')
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "", "const UnitArtGeom kArtGeoms[] = {"] + geoms + ["};", "} // namespace", ""]
     out += [
         "const UnitShell* unit_shell_by_id(const char* id) {",

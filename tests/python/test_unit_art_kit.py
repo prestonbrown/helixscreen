@@ -661,18 +661,34 @@ def test_the_back_layer_and_each_lanes_stack_split_the_drawing_in_painter_order(
     if not scene.spools:
         pytest.skip("draws no spools")
     back = scene.back_items()
-    stacks = [scene.lane_items(lane) for lane in range(unit.lanes)]
+    order = scene.lane_order()
+    # Every lane is painted once, in the recorded order the runtime composes.
+    assert sorted(order) == list(range(unit.lanes))
+    stacks = [scene.lane_items(lane) for lane in order]
     # Every back-layer item lands in exactly one place, in its drawing order.
     painted = back + [i for stack in stacks for i in stack]
     assert painted == [i for i in scene.items if i.layer == "back"]
-    # The back holds no part of any spool; a lane's stack holds its whole spool, and lanes run
-    # left to right, the farthest first.
+    # The back holds no part of any spool; a lane's stack holds its whole spool.
     assert all(i.spool is None for i in back)
-    for lane, stack in enumerate(stacks):
+    for lane, stack in zip(order, stacks):
         assert stack and stack[0].spool == lane
         assert all(i.spool in (None, lane) for i in stack)
-    centers = [scene.spools[lane]["far"][0] for lane in range(unit.lanes)]
-    assert centers == sorted(centers)
+
+
+def test_a_unit_painted_out_of_lane_order_records_its_order(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    ams_lite = next(u for u in build.UNITS if u.id == "ams_lite")
+    build.bake_unit(ams_lite, tmp_path, render=fake_render)
+    manifest = json.loads(next(tmp_path.rglob("manifest.json")).read_text())
+    assert manifest["lane_order"] == _art_scene(ams_lite).lane_order() != sorted(manifest["lane_order"])
+    # The generated table carries it; a unit painted in lane order leaves it out.
+    table = build.generate_shell_table(build.UNITS)
+    row = next(line for line in table.splitlines() if line.startswith('    {"ams_lite", 4, '))
+    assert row.rstrip("},").endswith("{" + ", ".join(str(lane) for lane in manifest["lane_order"]))
+    bt = next(line for line in table.splitlines() if line.startswith('    {"box_turtle", 4, '))
+    assert bt.endswith("_lanes},")
 
 
 def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):

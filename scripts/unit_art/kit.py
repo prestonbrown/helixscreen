@@ -458,6 +458,12 @@ class Scene:
                 starts[item.spool] = k
         return starts
 
+    def lane_order(self):
+        """The lanes with spools in the order the drawing paints their stacks, back to front.
+        The runtime composes the lane stacks in this order, whatever the lanes' numbering."""
+        starts = self._spool_starts()
+        return sorted(starts, key=lambda lane: starts[lane])
+
     def back_items(self):
         """The back layer's items drawn before any spool: what stands behind every lane."""
         starts = self._spool_starts()

@@ -166,14 +166,17 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->geom = shell->has_stub_art && look == FeederLook::Stubs
                      ? nullptr
                      : tray::unit_art_geometry(shell->id, lane_count);
-    // Back to front, left to right: the back layer, then each lane's stack from the leftmost,
-    // which the camera sees farthest, to the rightmost, then the front layer. A lane's glow
-    // stands just behind its spool and its dim just in front of it, so whatever stands nearer
-    // covers both as it covers the spool.
+    // Back to front: the back layer, then each lane's stack in the order the bake painted
+    // them (UnitArtGeom::lane_at, farthest first), then the front layer. A lane's glow stands
+    // just behind its spool and its dim just in front of it, so whatever stands nearer covers
+    // both as it covers the spool.
     lv_obj_set_name(add_layer(data->layers, base + "_back.png"), "back");
     const bool stacks = data->geom != nullptr; // a drawing with spools bakes a stack per lane
     const bool marked = stacks && data->tier == UnitArtTier::Full;
-    for (int lane = 0; lane < lane_count; ++lane) {
+    data->lanes.resize(static_cast<size_t>(lane_count));
+    for (int pos = 0; pos < lane_count; ++pos) {
+        const int drawn = data->geom ? data->geom->lane_at(pos) : pos;
+        const int lane = drawn >= 0 && drawn < lane_count ? drawn : pos;
         const std::string stem = base + "_lane" + std::to_string(lane);
         const std::string name = "lane" + std::to_string(lane);
         LaneImages images{};
@@ -197,7 +200,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         }
         // DECLARATIVE_OK: each lane's colour is per-widget live data.
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
-        data->lanes.push_back(images);
+        data->lanes[static_cast<size_t>(lane)] = images;
     }
     data->front = add_layer(data->layers, base + "_front.png");
     lv_obj_set_name(data->front, "front");

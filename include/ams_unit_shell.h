@@ -162,6 +162,9 @@ struct ArtLaneGeom {
 
 /// A unit drawing's lanes at one lane count: its aspect (width over height), what the drawing
 /// covers, its bottom edge, and one ArtLaneGeom per lane.
+/// The most lanes one drawing is baked with.
+constexpr int kMaxArtLanes = 8;
+
 struct UnitArtGeom {
     const char* id;
     int lanes;
@@ -172,6 +175,17 @@ struct UnitArtGeom {
     /// Its lanes' stacks hold parts besides their spools, so a dim lays each spool's own baked
     /// silhouette over its stack instead of recoloring the stack.
     bool silhouettes = false;
+    /// The lanes in the order the drawing paints their stacks, back to front; the runtime
+    /// composes them in this order. Unset (all zero) means the lanes' own numbering.
+    uint8_t order[kMaxArtLanes] = {};
+
+    /// The lane painted at position @p pos of the back-to-front order.
+    [[nodiscard]] int lane_at(int pos) const {
+        // A permutation of more than one lane is never all zero, so all zero is unset.
+        const bool numbered = std::all_of(order, order + std::min(lanes, kMaxArtLanes),
+                                          [](uint8_t lane) { return lane == 0; });
+        return numbered || pos < 0 || pos >= kMaxArtLanes ? pos : order[pos];
+    }
 };
 
 /// The baked lane geometry of @p id's drawing at @p lanes lanes, or nullptr when it has none.
