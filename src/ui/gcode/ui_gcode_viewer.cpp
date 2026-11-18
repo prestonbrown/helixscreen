@@ -866,17 +866,12 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     active_viewers().push_back(obj);
 
 #ifdef ENABLE_3D_RENDERER
-    // Runs on the renderer's draw thread. queue_widget_update resolves the
-    // widget on the LVGL thread, between refreshes, and skips it if it is gone
-    // by then; the frame is adopted there so one refresh never mixes two.
-    st->renderer_->set_frame_ready_callback([obj]() {
-        helix::ui::queue_widget_update(obj, [](lv_obj_t* viewer) {
-            // A deleted viewer's address can come back as another object before
-            // this runs; only a registered viewer's user data is a viewer state.
-            const auto& viewers = active_viewers();
-            if (std::find(viewers.begin(), viewers.end(), viewer) == viewers.end()) {
-                return;
-            }
+    // Runs on the renderer's draw thread, so the widget travels as a WeakWidget
+    // made here on the LVGL thread: the queued update runs between refreshes and
+    // finds nullptr once the viewer is deleted. The frame is adopted there so one
+    // refresh never mixes two.
+    st->renderer_->set_frame_ready_callback([viewer_ref = helix::ui::WeakWidget(obj)]() {
+        helix::ui::queue_widget_update(viewer_ref, [](lv_obj_t* viewer) {
             gcode_viewer_state_t* state = get_state(viewer);
             if (state && state->renderer_) {
                 state->renderer_->adopt_ready_frame();
