@@ -167,6 +167,8 @@ HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps tha
 
 Your settings are kept. See [Upgrading](../UPGRADING.md) for installing a specific version or reinstalling with fresh settings.
 
+On Forge-X, an update over SSH starts the new version the way the printer does at boot, and the summary says HelixScreen is running; no reboot is needed. If the installer cannot see the new version start, the summary asks you to reboot instead. A first install always asks for a reboot.
+
 > **Forge-X:** the installer refuses `--auto-update`, which would let Moonraker replace the whole HelixScreen folder and lose your settings. Update with the commands above.
 
 ---

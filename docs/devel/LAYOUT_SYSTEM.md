@@ -28,7 +28,7 @@ any theme works with any layout.
 | Layout | Status | What Exists |
 |--------|--------|-------------|
 | `standard` | **Complete** | All panels — this is the default UI everyone uses today |
-| `ultrawide` | Not started | Directory doesn't exist yet |
+| `ultrawide` | **Started** | `print_status_panel.xml` |
 | `portrait` | **Started** | `print_status_panel.xml`, `print_tune_panel.xml` |
 | `micro` | **Started** | `controls_panel.xml`, `header_bar.xml`, `material_temps_overlay.xml`, `theme_editor_overlay.xml`, `theme_preview_overlay.xml` |
 | `micro_portrait` | **Started** | `material_temps_overlay.xml` |
@@ -125,7 +125,11 @@ shrink or remove the overflow). Its callers:
 
 - **Overlays:** each overlay root, on every push and resize. `NavigationManager` records the
   built padding per overlay. The root keeps the opaque width its class gives it, so the
-  backdrop stays covered.
+  backdrop stays covered. The record belongs to the widget, not the stack: a stack clear
+  (`src/ui/ui_nav_manager.cpp#clear_overlay_stack`, on a connection loss) keeps it, so a cached
+  overlay pushed again reads its true built padding rather than the capped padding it still
+  carries. Records go only when the widget is deleted (`src/ui/ui_nav_manager.cpp#scrub_deleted_widget`),
+  at shutdown and on a reset.
 - **Main panels:** the container the panels share, when a panel is shown, when its instance
   registers, when a rebuilt widget replaces it and on every resize, capped or not by the
   shown panel's declaration (`PanelRegistry`).
@@ -158,7 +162,9 @@ These do, because their content is built to fill the width:
 
 Overlays already exempt from width management through
 `NavigationManager::set_overlay_width_unmanaged()` (camera fullscreen, keypad, widget
-catalog, image tagger) are never capped either.
+catalog, image tagger) are never capped either. The mark lives as long as the record above,
+so an overlay that marks itself once, when it creates its root, stays unmanaged after a
+stack clear.
 
 ## Directory Structure
 

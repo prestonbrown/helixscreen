@@ -168,7 +168,11 @@ Interactive panel for dialing in your Z-offset when not printing. Works with all
 5. Tap **Accept** when satisfied, or **Abort** to cancel
 6. The offset is saved to your Klipper config automatically. On printers whose firmware keeps the Z-offset itself (FlashForge with ZMOD, for example) HelixScreen applies it and the firmware stores it. On the Snapmaker U1 nothing stores it: the firmware re-applies each head's own stored offset whenever that head is picked up, so the result lasts only until the next tool change. With **Save Z-Offset Buttons** off in [Settings > Motion](motion.md#motion-settings), HelixScreen does not save the result: Klipper holds it until the next config save, and the completion screen says so
 
-HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE`, `Z_ENDSTOP_CALIBRATE`, or `SET_GCODE_OFFSET`) based on your printer's detected probe configuration.
+HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE`, `Z_ENDSTOP_CALIBRATE`, or `SET_GCODE_OFFSET`). For most printers the choice follows how Z homes, and a few printers known to HelixScreen have the method set for them instead:
+
+- **Z homes on an endstop switch** (`position_endstop` set under `[stepper_z]`), such as a stock Voron 2.4 or an Ender whose BLTouch only probes the bed mesh: calibration and Save set the Z endstop position, even when a probe is fitted, because that is what sets where Z0 is.
+- **Z homes with the probe**: calibration and Save set the probe's Z offset.
+- **A delta with no probe**: the offset is adjusted for the current session only, because Klipper has no endstop calibration for deltas.
 
 > **Quick access:** A **Z Calibration** button is also available on the Controls panel for one-tap access.
 
@@ -188,7 +192,7 @@ For tool-changer printers that can measure their own tool positions: one tap cal
 
 This screen only appears on a tool changer whose firmware exposes the calibration macro. If your printer doesn't have it, use the regular [Z-Offset Calibration](#z-offset-calibration) flow instead — it still works per-tool.
 
-On a Snapmaker U1, toolhead offsets are calibrated from the filament system settings instead: see [Toolhead Offset Calibration](filament.md#toolhead-offset-calibration).
+On a Snapmaker U1, the same **Tool Offsets** entry runs the printer's own guided calibration instead of the screen below: see [Toolhead Offset Calibration](filament-tool-changers.md#toolhead-offset-calibration).
 
 Every tool your printer reports gets its own row, however many there are:
 

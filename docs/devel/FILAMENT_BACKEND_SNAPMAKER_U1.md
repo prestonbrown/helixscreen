@@ -119,7 +119,22 @@ Slot status arbitration across those sources, in parse order: extruder pins
 when status is still UNKNOWN, then the port sensor, then `print_task_config.filament_exist`.
 The active tool is detected from extruder pin state or `toolhead.extruder`, and
 `current_slot`/`current_tool` track the picked-up tool 1:1
-(`src/printer/ams_backend_snapmaker.cpp#handle_status`, `1456-1529`).
+(`src/printer/ams_backend_snapmaker.cpp#handle_status`).
+
+**A head fed past its feeder.** Filament can reach a toolhead without its own feeder
+moving it: a BMCU or a passive reloader feeds the head directly, or the user pushes
+filament in by hand. The backend calls a head fed past its feeder when all of these
+hold (`include/ams_backend_snapmaker.h#AmsBackendSnapmaker/fed_past_feeder_locked`):
+the toolhead switch has reported and reads filament, the `channel_state` latch does not
+call the head loaded (`loaded_at_toolhead_`, so it is not a `load_finish` the feeder
+reached), the feeder has reported a port reading for the lane at least once and that
+port reads empty, and the head is not upstream-fed (`head_is_upstream_fed_locked()`,
+true for a multiACE head whose ACE gate feeds it). The lane model reads only the feeder
+port and lays EMPTY on such a slot every frame, so `converge_locked()` runs
+`converge_hand_fed_slots_locked()` after `converge_lanes_locked()` and turns an EMPTY slot
+that is fed past its feeder into AVAILABLE. Preflight then counts the head as holding
+filament instead of naming it an empty slot. The same rule makes `head_filament_ops()`
+answer a manual load (see [Auto Loading](#auto-loading)).
 
 ### RFID (filament_detect.info)
 
@@ -469,7 +484,7 @@ plain RESUME re-pauses immediately. The chain heats, feeds, and flushes (~86 s m
 the caller dispatches RESUME; `on_ready` always fires on the main thread. What is
 recorded as live-verified (#991) is the `AUTO_FEEDING` command itself - it blocks until
 `load_finish`, is idempotent, and the ~86 s figure was measured live
-(`src/printer/ams_backend_snapmaker.cpp#prepare_for_resume`, `:722-724`). The full chain - runout pause ->
+(`src/printer/ams_backend_snapmaker.cpp#run_runout_refeed`). The full chain - runout pause ->
 runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 
 **Resume waits for a confirmed load.** `FEED_AUTO` answers OK without feeding when the
@@ -726,6 +741,23 @@ same pointer (`do_load_filament`, `head_filament_ops`). The mock's U1 feeder tak
 ignores `AUTO_FEEDING` loads on a head with it off; `HELIX_MOCK_AMS=multiace` answers both feeder
 sides in its query and subscribe, so the rows show from the start.
 
+`head_filament_ops()` answers `FilamentOpSupport::Manual` with `guided_hand_load` for a head
+whose feeder cannot feed it: `feeder_absent()` (the frame reports `module_exist: false`, or
+`disable_auto` is set) or a head fed past its feeder (see
+[Status the Backend Reads](#status-the-backend-reads)). Its `load_reason` names which:
+Auto loading off (a feeder is there with `disable_auto` set, `auto_load_off()`) points at
+Print Behavior, no feeder says so, and otherwise the filament went in past the feeder.
+Outside a job, Load opens `GuidedLoadModal::show_manual()`; while a job holds the machine
+the guided load is refused, so `ui_manual_pull_prompt.cpp` shows `load_reason` as a toast
+instead (`src/ui/ui_manual_pull_prompt.cpp`). A Load Filament macro the user configured in
+Standard Macros outranks both. A runout on a head fed past its feeder still takes the
+runout refeed if Resume is tapped before the head is reloaded: `AUTO_FEEDING` on an empty
+port answers OK without feeding, so the load is marked unconfirmed and Resume is refused. The
+mark clears only on that feeder's `load_finish` or `manual_sta_finish` or when the print
+ends (see [Runout and Resume](#runout-and-resume)); whether filament pushed past the feeder
+ever produces either state has not been checked on a U1, so the user guide tells the user to
+reload such a head before tapping Resume.
+
 What the stock screen sends for its toggle has not been captured; `FEED_AUTO ... AUTO=` is read
 from Snapmaker's open-source `u1-klipper`, where nothing else changes the mode. Not yet run on a U1.
 
@@ -753,6 +785,9 @@ Mock: `MoonrakerClientMock::set_nozzle_properties` keeps the firmware's checks a
 | `include/snapmaker_resume.h` + `src/printer/snapmaker_resume.cpp` | Terminal-pause matchers (dirty bed vs runout) and coded-error `msg` extraction |
 | `include/snapmaker_nozzle_offset.h` + `src/printer/snapmaker_nozzle_offset.cpp` | Toolhead offset calibration: capability check, step plan, `Runner` |
 | `include/ui_snapmaker_nozzle_offset_overlay.h` + `src/ui/ui_snapmaker_nozzle_offset_overlay.cpp` | The guided flow's overlay, registered by `src/ui/ui_snapmaker_device_flows.cpp` |
+| `include/snapmaker_feed_mode.h` + `src/printer/snapmaker_feed_mode.cpp` | The head-to-feeder-channel map from `_FILAMENT_FEED_VARIABLE` and the `FEED_AUTO ... AUTO=` command (see [Auto Loading](#auto-loading)) |
+| `src/printer/ams_backend_snapmaker_auto_load.cpp` | The per-head Auto loading rows in Print Behavior and the command a row sends |
+| `src/api/moonraker_client_mock_u1_feeder.cpp` | The mock U1 feeder: `AUTO_FEEDING`, `FEED_AUTO ... AUTO=` and the feeder fields it publishes |
 | `include/batch_feed_reconcile.h` | Connect-time cleanup of a firmware batch left in the `doing` state |
 | `include/snapmaker_print_preferences.h` | `PrintPreferences` read/write model for the firmware prefs surfaced as device actions, plus each head's `filament_soft` |
 | `include/snapmaker_nozzle_properties.h` + `src/printer/snapmaker_nozzle_properties.cpp` | The Nozzle rows' options, the `nozzle_properties` params a pick sends, and the reading of its reply |

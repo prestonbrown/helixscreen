@@ -43,7 +43,7 @@ Ultrawide and portrait screens start from their own default layouts rather than 
 
 On portrait panels, buttons, input fields and headers are sized from the screen's height, so a tall screen gets taller, easier-to-hit controls.
 
-> Portrait is still alpha overall. Print Status, Print Tune, Motion, Bed Mesh and the temperature graph rearrange for a tall screen, and other panels fall back to the landscape layout. See [Ultrawide or portrait screen looks stretched, cramped, or clipped](../TROUBLESHOOTING.md#ultrawide-or-portrait-screen-looks-stretched-cramped-or-clipped).
+> Portrait and ultrawide are still alpha overall. On a portrait screen, Controls, Print Status, Print Tune, Motion, Bed Mesh and the temperature graph rearrange for a tall screen. On an ultrawide screen, Print Status has its own layout in columns, and other panels keep their content to 2.4 times the screen height beside the navigation bar instead of stretching it across the display. Other panels fall back to the landscape layout. See [Ultrawide or portrait screen looks stretched, cramped, or clipped](../TROUBLESHOOTING.md#ultrawide-or-portrait-screen-looks-stretched-cramped-or-clipped).
 
 ### Emergency Stop and the tool badge
 

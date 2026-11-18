@@ -246,19 +246,21 @@ The interface is sized by the screen's resolution and by the **UI Scale** settin
 ### An ultrawide or portrait screen looks stretched, cramped or clipped
 
 **Symptoms:**
-- On a very wide screen (e.g. 1920x480), panels look stretched with large empty gaps
+- On a very wide screen (e.g. 1920x480), panels look stretched, or sit at the left with empty space to their right
 - On a taller-than-wide screen (e.g. 480x800), content is cramped, clipped, or runs off the bottom
 
 **This is expected, ultrawide and portrait layouts are alpha at best.**
 
-HelixScreen detects both orientations and adjusts the navigation bar and grid sizing. Portrait is the better covered of the two: besides the app shell and navigation bar, the home dashboard, Print Status, Print Tune, Motion, Bed Mesh, the temperature graph and the Advanced panel's E-stop bar all rearrange themselves for a tall screen. Ultrawide has a home dashboard layout and nothing else. Any panel not in that list falls back to the standard landscape layout, which is what you are seeing on it. Neither orientation has been tested much on real hardware.
+HelixScreen detects both orientations and adjusts the navigation bar and grid sizing. Portrait is the better covered of the two: besides the app shell and navigation bar, the home dashboard, Controls, Print Status, Print Tune, Motion, Bed Mesh, the temperature graph and the Advanced panel's E-stop bar all rearrange themselves for a tall screen. Ultrawide has its own home dashboard and Print Status layouts. Any panel not in those lists falls back to the standard landscape layout, which is what you are seeing on it. Neither orientation has been tested much on real hardware.
+
+**On an ultrawide screen, panels stop short of the right edge on purpose.** A settings list or the jog pad stretched across the whole display is hard to read and to reach, so the content of panels and overlays stops at 2.4 times the screen height and stays next to the navigation bar, with empty space to its right: about 770 pixels across on a 1480x320 screen and 1150 on a 1920x480 one. An overlay's header still runs the full width, with its buttons at the right edge. The home screen, the print file list, Print Status, Bed Mesh and the filament system screens use the full width, because they lay out more content when they have room. On screens such as 800x480 and 1024x600, and on portrait screens, that limit is wider than the screen itself, so nothing changes there.
 
 **The home dashboard is the exception, in both orientations.** Its grid is sized from the actual screen so the cells come out square, a 480x800 portrait panel gets 4 columns by 6 rows, a 320x1480 one gets 4x17, a 1920x440 ultrawide gets 23x5, and portrait and ultrawide each have their own default layout rather than a stretched landscape one. Buttons, inputs, and headers on a portrait panel are sized from the screen's height, so they come out taller rather than cramped.
 
 **What you can do:**
 
 - **On a portrait panel, rotate it to landscape.** This is the well-tested path and what the Creality K2 does out of the box. Set `"rotate": 90` (or `270`) in the `display` section of your config, see [The picture is upside down or rotated](#the-picture-is-upside-down-or-rotated).
-- **On an ultrawide screen,** there is no better fallback today. The layout will be a landscape layout stretched wide.
+- **On an ultrawide screen,** there is no better fallback today. Panels without their own layout use the landscape one, held to the width described above.
 - **Force the standard layout** if the alpha layout is worse than the fallback: `--layout standard`, or `"layout": "standard"` in the `display` section.
 
 Contributions are very welcome here and only need XML, not C++, see the [UI Contributor Guide](../../devel/UI_CONTRIBUTOR_GUIDE.md).

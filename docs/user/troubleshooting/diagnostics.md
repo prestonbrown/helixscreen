@@ -104,7 +104,7 @@ free -h
 
 ### Collecting logs
 
-Where the app's log lives depends on the printer. The app log has everything HelixScreen logs; the launcher log has the startup banner and crash output. Send both when you report a problem, or send a debug bundle instead.
+Where the app's log lives depends on the printer. The app log has everything HelixScreen logs; the launcher log has the startup banner and crash output. Send both when you report a problem, or send a debug bundle instead. A debug bundle carries both logs, and also the system's record of any program on the computer running HelixScreen, such as Klipper when it runs there too, that was stopped for running out of memory or that crashed.
 
 **Raspberry Pi and other systemd hosts:**
 ```bash

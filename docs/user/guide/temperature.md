@@ -64,7 +64,7 @@ Above the graph, a row of **sensor chips** lets you choose which traces are visi
 - Each chip shows a colored dot matching its graph line and the sensor name.
 - Tap a chip to show or hide that sensor's trace.
 - When you open the screen from a heater, that view starts with its own defaults, and your chip choices are remembered for that printer and that view the next time you open it.
-- Chips wrap across several lines when you have many sensors.
+- Chips wrap across several lines when you have many sensors. On a portrait screen they stay on one line that you scroll sideways, so the chart keeps a readable height.
 - Every generic heater (`[heater_generic]`) other than your chamber heater gets its own chip with a target line, for example a filament dryer's heater.
 
 ### Graph Features

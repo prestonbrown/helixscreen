@@ -15,12 +15,13 @@ These are in the `filament` section of the printer entry.
 | `filament.auto_cooldown` | `true` | `true` or `false` | Whether HelixScreen turns the extruder heater off after a filament load or unload finishes. Turn it off if your filament system runs its own cooldown, as recent AFC versions do, so the two do not both drive the heater. **Settings > Printing > Cool nozzle after filament ops**. |
 | `filament.cooldown_delay_seconds` | `120` | seconds | How long to wait after a load or unload before turning the heater off, so you can run several operations back to back without the nozzle cooling in between. `0` also turns auto-cooldown off, but prefer `auto_cooldown`, which is the one the switch writes. |
 | `filament.extrude_speed` | `5` | `1` to `50` | The extrude and retract speed of the Filament panel, in mm/s. **Settings > Printing > Machine Limits > Extrude Speed**. This is a HelixScreen setting, not a Klipper limit. |
+| `filament.presets_heat_bed_and_chamber` | `true` | `true` or `false` | Whether a material preset on the Filament panel, the Home screen's Preheat widget or the temperature graph's nozzle presets also sets the bed, and the chamber where the material has a chamber temperature. Off, a preset heats only the nozzle and the bed and chamber keep their targets. **Settings > Printing > Material presets heat the bed and chamber**. See [Temperature Presets](../guide/temperature.md#temperature-presets). |
 | `filament.auto_open_editor` | `false` | `true` or `false` | Opens the slot editor when a filament is inserted. **Settings > Printing > Edit filament on insert**. |
-| `filament.auto_color_map` | `false` | `true` or `false` | How a print's colours are matched to slots. Off maps by position; on matches by colour. See [Filament mapping](../guide/filament-mapping.md). |
+| `filament.auto_color_map` | `false` | `true` or `false` | How a print's colors are matched to slots. Off maps by position; on matches by color. See [Filament mapping](../guide/filament-mapping.md). |
 
 **Allow cold load/unload** (**Settings > Printing**) is stored once for the whole screen as `safety.allow_cold_extrude`, default `false`. See [Safety and Alerts](safety-alerts.md).
 
-### Favourite filaments
+### Favorite filaments
 
 `filament.favorite_ids` is stored for the whole screen, not per printer. It lists the filament types you starred in a filament selector, in star order. It defaults to `[]`. Each entry is the filament's product id. Tapping a star writes it. Edit it only to reorder or clear it; an id that matches nothing is never shown.
 

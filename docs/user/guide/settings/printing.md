@@ -231,7 +231,7 @@ This covers every material preset: the PLA, PETG, ABS/ASA and TPU buttons and th
 
 Below them, Number slots from 0 changes how slots are labelled, and Confirm tool changes asks before a tool change, on multi-tool printers only.
 
-Only the display changes. Tool names such as T0 and T1 stay as they are. See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
+Only the display changes. Tool names such as T0 and T1 stay as they are. Counting from 0, a tool's number and its G-code name agree, so tool lists show "Tool 0" rather than "Tool 0 (T0)". Counting from 1 they show both, as in "Tool 1 (T0)". See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
 
 ---
 

@@ -97,7 +97,7 @@ Each tool gets its own button, sized so a fingertip can always hit it. How much 
 - **One large button** when the tools do not all fit at a usable size. It shows the mounted tool, for example "Tool 2 (T1)", and its temperature when there is room. Tap it to open a **tool picker** listing every tool.
 - **A detail list** under the row on tall widgets: the mounted tool's material and temperature first, then the other tools in smaller text. Temperatures of 150°C and up show in the hot color.
 
-On a Snapmaker U1 the tools are called toolheads ("Toolhead 1"). If your Klipper config gives a tool its own name, such as `[tool Left]` with klipper-toolchanger, that name appears instead of "Tool N": "Left (T0)", or "T0" where space is tight.
+On a Snapmaker U1 the tools are called toolheads ("Toolhead 1"). If your Klipper config gives a tool its own name, such as `[tool Left]` with klipper-toolchanger, that name appears instead of "Tool N": "Left (T0)", or "T0" where space is tight. With [Number slots from 0](settings/printing.md#number-slots-from-0) turned on, a tool's number and its G-code number are the same, so it reads "Tool 0" rather than "Tool 0 (T0)".
 
 The widget updates automatically when the active tool changes, whether you switch it here, run a tool-change macro, or it changes during a print.
 
@@ -112,7 +112,9 @@ Tap a tool that is not mounted to switch to it. Tapping the tool that is already
 
 Where a hub feeds several lanes into one toolhead, tapping that head picks up the lane already loaded in it, so its filament stays where it is (#1811). With no lane loaded, or more than one claiming the head, the head's lowest lane is used.
 
-A toolhead on your [filament system's screen](filament.md#switching-toolheads-from-the-filament-path) and the tool list on the Filament screen switch tools the same way.
+A toolhead on your [filament system's screen](filament.md#switching-toolheads-from-the-filament-path) and the **Pick up** button on the Filament screen switch tools the same way. Choosing a tool on the Controls, Filament or temperature graph screens only picks which tool those screens work on, and never moves the carriage.
+
+The Controls panel's Temperature card opens this widget's tool picker from the small tool button in its header, to choose the tool the card shows. There the picker highlights that tool, leaves out Park and the feeder button, and never changes tools.
 
 ### Parking the Tool
 

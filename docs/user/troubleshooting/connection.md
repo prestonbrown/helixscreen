@@ -308,7 +308,7 @@ If Klipper shuts down, hits an error, or loses contact with the printer's contro
 |--------------|-----------------|-----------------------|
 | **Printer Shutdown** | Klipper has entered a shutdown state | An emergency stop was triggered, a thermal runaway was detected, or a configuration problem stopped the printer. When Klipper reports a specific reason (for example "Max force exceeded"), that exact message is shown instead of the generic text. |
 | **Printer Error** | Klipper has entered an error state | Usually the control board (MCU) lost its connection, or there's a configuration error. |
-| **Printer Firmware Disconnected** | The printer's firmware has disconnected from the host | The host software lost its link to the printer's control board. |
+| **Printer Firmware Disconnected** | The printer's firmware has disconnected from the host, or Klipper has not come up within two minutes of HelixScreen connecting | The host software lost its link to the printer's control board, or Klipper is not running on the printer at all. |
 
 **The buttons and when to use each:**
 
@@ -318,7 +318,7 @@ If Klipper shuts down, hits an error, or loses contact with the printer's contro
 | **Firmware Restart** | Does everything Restart Klipper does, and also resets the printer's control board (MCU) firmware. | Use when a plain Restart Klipper isn't enough, for example after fixing a configuration error, or when the control board itself shut down or lost communication. |
 | **X** (top right) | Closes the dialog without doing anything. The printer stays exactly as it was, still shut down, errored, or disconnected. | When you want to read logs, check wiring, or fix a config file first, and you'll restart afterward. Closing it does **not** fix anything on its own. |
 
-> **Note:** When the printer is fully disconnected, HelixScreen can't send restart commands to it, so the restart buttons are hidden and only the **X** that closes the dialog is left. Once the connection comes back, the restart buttons return.
+> **Note:** The restart buttons are there even when Klipper itself is not running. Then both buttons, and **Restart Klipper** elsewhere, such as on the Advanced panel, restart the Klipper service from outside: first with the recovery script HelixScreen installed for the printer, if it has one, then by asking Moonraker to restart the service. If neither works, for example on a printer whose Moonraker cannot restart services, a message says **HelixScreen cannot restart Klipper on this printer. Turn the printer off and on again to restart it.** If HelixScreen cannot reach Moonraker at all, the buttons cannot reach the printer either, and a **Restart failed** message says so: check the printer's network connection and power.
 
 **If Klipper fails to start again.** Whenever Klipper goes away, after a restart or for any other reason, HelixScreen keeps checking for up to two minutes until Klipper reports ready. If Klipper stops at a startup error instead (a mistake in `printer.cfg`, say, or a control board it can't reach), the dialog changes to **Printer Error** and shows Klipper's own message, so you can see what to fix without opening the log. On printers where HelixScreen installed a recovery script for the platform (such as the Creality K2 and the Snapmaker U1), it runs that script once when a restart alone doesn't bring Klipper back.
 

@@ -51,6 +51,8 @@ Older links and bookmarks land on this page. Each entry below points to where th
 <a id="update-failed-in-mainsail--screen-wont-start-after-update-ad5x"></a>
 - Update failed in Mainsail, screen won't start after update (AD5X): [updates-install](troubleshooting/updates-install.md#ad5x-the-screen-will-not-start-after-an-update-failed-in-mainsail)
 
+- Mainsail says Z-Mod is modified and will not update it (AD5X): [updates-install](troubleshooting/updates-install.md#ad5x-mainsail-says-z-mod-is-modified-and-will-not-update-it)
+
 <a id="binary-wont-start-glibc-version-not-found"></a>
 - Binary won't start (GLIBC version not found): [updates-install](troubleshooting/updates-install.md#the-service-never-starts-glibc-version-not-found)
 

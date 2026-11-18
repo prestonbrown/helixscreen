@@ -22,7 +22,7 @@ If HelixScreen controls more than one printer, each printer keeps its own Screen
 2. Turn on **Share Screen** ("Show this screen in a web browser"). The screen is now visible to browsers on your network, and a **HelixScreen Screen** webcam appears in this printer's Mainsail and Fluidd.
 3. To use the screen from a browser too, turn on **Allow Remote Control** ("Let a browser tap and drag on this screen").
 
-**Add to Mainsail/Fluidd Webcams** is on unless you turn it off. Turn it off to keep sharing the screen at its browser address without listing it among the printer's webcams. Turning it off removes the **HelixScreen Screen** webcam, and turning it back on adds it again. This row and **Allow Remote Control** are greyed out while **Share Screen** is off.
+**Add to Mainsail/Fluidd Webcams** is on unless you turn it off. Turn it off to keep sharing the screen at its browser address without listing it among the printer's webcams. Turning it off removes the **HelixScreen Screen** webcam, and turning it back on adds it again. The webcam takes the shape of the printer's screen, such as 5:3 on an 800x480 screen, so its tile shows the whole picture without bars. A webcam that is already listed keeps the aspect ratio it has, including one you set yourself in Mainsail or Fluidd; to have HelixScreen set it from the screen, turn this row off and on again. This row and **Allow Remote Control** are grayed out while **Share Screen** is off.
 
 ![Screen Sharing settings](../../images/user/screen-sharing-settings.png)
 
@@ -73,7 +73,7 @@ Any printer where HelixScreen runs on a different computer from the printer's Mo
 
 ![The pairing prompt](../../images/user/screen-sharing-pair.png)
 
-  1. On the printer, open **Settings > Connection > Screen Sharing** and read the **Pairing Code**.
+  1. On the printer, open **Settings > Connection > Screen Sharing** and read the **Pairing Code**. While the code is on the printer's screen, the shared picture shows a placeholder instead, so the code never reaches a browser.
   2. Type it into the browser and press **Pair**.
   3. That browser is now paired and won't ask again. Each new browser or device needs the code once.
 
@@ -136,7 +136,7 @@ Your computer isn't on Moonraker's trusted list and Moonraker requires logins. A
 Check **Share Screen** is on, and that nothing on your network blocks port 7130.
 
 **Behind my own reverse proxy (for example `https://example.com/printer/`), the webcam tile is blank or taps are refused.**
-Mainsail and Fluidd look for webcams at the root of your site, so the **HelixScreen Screen** tile does not follow a path like `/printer/`. Open the screen page itself instead: `https://example.com/printer/helixscreen/screen/` on printers that need no code. For taps to work, your proxy must pass the browser's host name on, either by keeping the `Host` header or by sending `X-Forwarded-Host` (Caddy and Traefik send it; in nginx add `proxy_set_header X-Forwarded-Host $host;`). Printers that use a pairing code serve the screen on port 7130 over plain `http`, which a proxy has to forward separately.
+Mainsail and Fluidd look for webcams at the root of your site, so the **HelixScreen Screen** tile does not follow a path like `/printer/`. Open the screen page itself instead: `https://example.com/printer/helixscreen/screen/` on printers that need no code. For taps to work, your proxy must pass the browser's host name on, either by keeping the `Host` header or by sending `X-Forwarded-Host` or `Forwarded` (Caddy and Traefik send `X-Forwarded-Host`; in nginx add `proxy_set_header X-Forwarded-Host $host;`). The page address also works without its final slash, and the redirect stays on your proxy's address; a printer set up by an older HelixScreen gets that redirect when you run the installer again. Printers that use a pairing code serve the screen on port 7130 over plain `http`, which a proxy has to forward separately, and they ignore the forwarded headers, so there the proxy must keep the `Host` header.
 
 **I use HelixScreen on a separate screen (for example a Pi) to drive a different printer.**
 Then it always uses a pairing code, and its webcam is named **HelixScreen Screen (your-pi's-name)** so it never replaces the printer's own entry.
