@@ -11,10 +11,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using namespace helix::ui;
@@ -654,4 +657,43 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a missing bay dims its own sp
     // Undimmed, the spool is as it was.
     unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
     CHECK(pixel(art, mx, my) == mine);
+}
+
+namespace {
+/// The `lane_order` the bake recorded in @p unit_dir's manifest.
+std::vector<int> manifest_lane_order(const std::string& unit_dir) {
+    std::ifstream in("assets/images/units/" + unit_dir + "/manifest.json");
+    std::stringstream text;
+    text << in.rdbuf();
+    const nlohmann::json manifest = nlohmann::json::parse(text.str(), nullptr, false);
+    std::vector<int> order;
+    if (manifest.is_object() && manifest.contains("lane_order"))
+        for (const auto& lane : manifest["lane_order"])
+            order.push_back(lane.get<int>());
+    return order;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: lane stacks compose in the bake's painter order",
+                 "[ams][unit-art][draw_order]") {
+    // The Yammu paints its rows back to front, not in lane order.
+    AmsSystemInfo info = rail_system("YAMMU", "Other", 4, PathTopology::HUB);
+    info.units.push_back(info.units[0]);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    unit_art_set_unit(art, info, 1, false, UnitArtScope::Device);
+
+    const std::vector<int> order = manifest_lane_order("yammu");
+    REQUIRE(order.size() == 8);
+    std::vector<int> sorted = order;
+    std::sort(sorted.begin(), sorted.end());
+    REQUIRE(sorted != order); // a drawing that does not paint in lane order
+    for (size_t pos = 1; pos < order.size(); ++pos) {
+        CAPTURE(pos, order[pos - 1], order[pos]);
+        lv_obj_t* behind = unit_art_lane_color_obj(art, order[pos - 1]);
+        lv_obj_t* front = unit_art_lane_color_obj(art, order[pos]);
+        REQUIRE(behind != nullptr);
+        REQUIRE(front != nullptr);
+        CHECK(lv_obj_get_index(behind) < lv_obj_get_index(front));
+    }
 }
