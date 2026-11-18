@@ -180,7 +180,10 @@ struct OpSlotHarness {
                   const ToolTopology& topo)
         : fx(f), topology(topo) {
         // The panel wires observers on ToolState + AmsState in its ctor, so their
-        // subjects must exist first.
+        // subjects must exist first. ToolState starts empty: the topology below
+        // is the whole tool list, with no tools, mount report or topology left
+        // by an earlier case.
+        ToolState::instance().deinit_subjects();
         ToolState::instance().init_subjects(true);
         helix::AmsState::instance().init_subjects(true);
 
