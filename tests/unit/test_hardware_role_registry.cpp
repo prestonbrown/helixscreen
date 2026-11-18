@@ -471,3 +471,81 @@ TEST_CASE("guess never returns a non-candidate", "[hwrole][guess]") {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// guided_reconfig_steps: the targeted wizard asks only about hardware that went away
+// ---------------------------------------------------------------------------
+
+namespace {
+// A K1C running a modded Klipper config: the k1c preset saved stock Creality names
+// (output_pin fan0..fan2), and this printer names its fans differently.
+const std::vector<std::string> kModdedK1cFans = {"fan", "fan_generic chamber",
+                                                 "fan_generic auxiliary", "heater_fan hotend",
+                                                 "temperature_fan chamber_fan"};
+
+void save_k1c_roles(GuidedKeyStash& stash) {
+    stash.clear_all();
+    stash.set(helix::wizard::PART_FAN, "fan");
+    stash.set(helix::wizard::HOTEND_FAN, "heater_fan hotend");
+    stash.set(helix::wizard::CHAMBER_FAN, "temperature_fan chamber_fan");
+    stash.set(helix::wizard::EXHAUST_FAN, "output_pin fan1");
+    stash.set(helix::wizard::kAuxFan, "fan_generic auxiliary");
+    stash.set(helix::wizard::HOTEND_HEATER, "extruder");
+    stash.set(helix::wizard::BED_HEATER, "heater_bed");
+}
+} // namespace
+
+TEST_CASE("guided_reconfig_steps: a preset fan the printer never had is settled, not asked",
+          "[hwrole][reconfig]") {
+    Config* cfg = Config::get_instance();
+    GuidedKeyStash stash(cfg);
+    save_k1c_roles(stash);
+
+    MoonrakerClientMock client;
+    client.set_fans(kModdedK1cFans);
+    client.set_heaters({"extruder", "heater_bed"});
+
+    // Last boot discovered the same hardware: output_pin fan1 never existed here.
+    const PreviousSessionHardware previous{kModdedK1cFans, {"extruder", "heater_bed"}};
+    CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), previous).empty());
+    CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, "MISSING").empty());
+    // Every role that resolves keeps its value.
+    CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::kAuxFan, "") == "fan_generic auxiliary");
+}
+
+TEST_CASE("guided_reconfig_steps: a fan present last boot that disappeared still gets the step",
+          "[hwrole][reconfig]") {
+    Config* cfg = Config::get_instance();
+    GuidedKeyStash stash(cfg);
+    save_k1c_roles(stash);
+    stash.set(helix::wizard::EXHAUST_FAN, "fan_generic exhaust_fan");
+
+    MoonrakerClientMock client;
+    client.set_fans(kModdedK1cFans);
+    client.set_heaters({"extruder", "heater_bed"});
+
+    std::vector<std::string> last_boot = kModdedK1cFans;
+    last_boot.push_back("fan_generic exhaust_fan");
+    const PreviousSessionHardware previous{last_boot, {"extruder", "heater_bed"}};
+    const std::vector<helix::wizard::StepId> expected = {helix::wizard::StepId::FanSelect};
+    CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), previous) == expected);
+    CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, "") ==
+          "fan_generic exhaust_fan");
+}
+
+TEST_CASE("guided_reconfig_steps: with no record of the last boot's fans, a stale role is asked",
+          "[hwrole][reconfig]") {
+    Config* cfg = Config::get_instance();
+    GuidedKeyStash stash(cfg);
+    save_k1c_roles(stash);
+
+    MoonrakerClientMock client;
+    client.set_fans(kModdedK1cFans);
+    client.set_heaters({"extruder", "heater_bed"});
+
+    // No snapshot, or one taken while Klipper reported no fans: nothing says the
+    // fan was never there.
+    const std::vector<helix::wizard::StepId> expected = {helix::wizard::StepId::FanSelect};
+    CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), {}) == expected);
+    CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, "") == "output_pin fan1");
+}
