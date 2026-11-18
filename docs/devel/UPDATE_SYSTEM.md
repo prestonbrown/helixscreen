@@ -564,7 +564,7 @@ That matters because the GitHub API returns release assets **sorted by name**, a
 
 ### Service Allowlist
 
-The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory).
+The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory). Moonraker reads that file only at startup, so a run that appends the entry restarts Moonraker once; until then Mainsail and Fluidd cannot restart HelixScreen.
 
 ### Migration
 
