@@ -547,6 +547,13 @@ class GCodeGLESRenderer {
     int viewport_width_ = 800;
     int viewport_height_ = 480;
     bool interaction_mode_ = false;
+    /// The scene and frame the last moving render drew, so the other draw
+    /// events of the same refresh blit it instead of drawing it again.
+    CachedRenderState moving_state_;
+    uint64_t moving_epoch_ = 0;
+    bool moving_frame_valid_ = false;
+    /// Half resolution, once a gesture's frame needed it, for the rest of the gesture.
+    bool moving_half_res_held_ = false;
 
     // ====== Geometry ======
 
@@ -622,6 +629,10 @@ class GCodeGLESRenderer {
     // ====== Frame Skip ======
 
     bool frame_dirty_ = true;
+    /// Bumped with every mark_frame_dirty(): frame_dirty_ is consumed by the
+    /// still path, so the moving path compares epochs instead.
+    uint64_t scene_epoch_ = 0;
+    void mark_frame_dirty();
     size_t triangles_rendered_ = 0;
 
     // ====== Time-sliced refinement ======

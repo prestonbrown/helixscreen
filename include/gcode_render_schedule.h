@@ -69,6 +69,19 @@ inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, flo
     return {false, static_cast<int>((total_triangles + budget - 1) / budget), true};
 }
 
+/// Keeps a gesture at half resolution once one of its frames needed it. The
+/// measured rate is triangles per millisecond, but a half-resolution frame
+/// also fills a quarter of the pixels, so its sample overstates what a
+/// full-resolution frame can do. Planning from it alone flips the next frame
+/// back to full resolution, which overruns the budget, and every flip
+/// reallocates the framebuffer.
+inline MovingPlan hold_half_resolution(MovingPlan plan, bool held) {
+    if (held) {
+        plan.half_resolution = true;
+    }
+    return plan;
+}
+
 /// How the moving mesh is banded.
 struct BandPlan {
     int band_layers;           ///< layers one shell band covers (1 = off)
