@@ -110,6 +110,13 @@ class CfsRemapHelper : public AmsBackendCfs {
         running_ = true;
     }
 
+    // Raise the ERROR a failed load or unload leaves behind.
+    void raise_error() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = AmsAction::ERROR;
+        system_info_.operation_detail = "load failed";
+    }
+
     std::vector<std::string> captured;
     std::vector<std::string> dispatched;
 };
@@ -5885,4 +5892,34 @@ TEST_CASE_METHOD(LVGLTestFixture, "CFS start arms the unit settle; a device re-q
 
     CfsTestAccess::finish_unit_settle(cfs);
     CHECK_FALSE(CfsTestAccess::unit_settle_armed(cfs));
+}
+
+TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it",
+          "[ams][cfs][clear_fault]") {
+    // The same backend state sends CANCEL_PRINT through cancel(), so a
+    // clear_fault() that fell back to it would be caught here.
+    CfsRemapHelper canceller;
+    canceller.mark_running();
+    REQUIRE(canceller.cancel().success());
+    REQUIRE(canceller.captured == std::vector<std::string>{"CANCEL_PRINT"});
+
+    CfsRemapHelper backend;
+    backend.mark_running();
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.captured.empty());
+    CHECK(backend.dispatched.empty());
+}
+
+TEST_CASE("CFS clear_fault retires the backend's own ERROR without a command",
+          "[ams][cfs][clear_fault]") {
+    CfsRemapHelper backend;
+    backend.mark_running();
+    backend.raise_error();
+    REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK(backend.get_system_info().operation_detail.empty());
+    CHECK(backend.captured.empty());
 }

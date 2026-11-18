@@ -1781,7 +1781,8 @@ struct AceUnreadRig {
     void hold_unread_store(AmsBackendAce& backend) {
         auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(api.get(), "ace");
         FilamentSlotOverrideStoreTestAccess::set_cache_directory(*store, tmp.path);
-        FilamentSlotOverrideStoreTestAccess::set_load_timeout(*store, std::chrono::milliseconds(20));
+        FilamentSlotOverrideStoreTestAccess::set_load_timeout(*store,
+                                                              std::chrono::milliseconds(20));
         api->mock_defer_next_db_get();
         (void)store->load_blocking();
         REQUIRE(store->namespace_unread());
@@ -1859,4 +1860,18 @@ TEST_CASE("Lane records read late reach the slots the default walk finds",
         helix::ui::UpdateQueue::instance().drain();
         CHECK(AceTestAccess::slot_brand(backend, 0, 1) == "Polymaker");
     }
+}
+
+TEST_CASE("ACE clear_fault sends nothing, so dismissing an error cannot unload the lane",
+          "[ams][ace][clear_fault]") {
+    // The same backend sends the unload through cancel(), so a clear_fault()
+    // that fell back to it would be caught here.
+    AceGcodeCapture canceller;
+    REQUIRE(canceller.cancel().success());
+    REQUIRE(canceller.sent == std::vector<std::string>{"ACE_CHANGE_TOOL TOOL=-1"});
+
+    AceGcodeCapture backend;
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.sent.empty());
 }

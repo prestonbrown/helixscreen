@@ -72,6 +72,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     AmsError select_slot(int slot_index) final;
     AmsError change_tool(int tool_number) final;
 
+    /// Retires the ERROR this backend raised itself (a failed load or unload
+    /// it judged from the printer's signals) and sends nothing: these
+    /// firmwares keep no latched fault of their own to reset.
+    AmsError clear_fault(int slot_index) override;
+
     // --- Shared utilities (public for AmsState and tests) ---
     void emit_event(const std::string& event, const std::string& data = "");
     /// Common gating before an AMS action runs.
@@ -150,9 +155,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// then. Call from on_started() outside mutex_, passing the backend's own
     /// members, which must outlive it: both are read under mutex_ when the answer
     /// lands, and a store replaced meanwhile drops it. Main thread.
-    void read_unread_overrides(
-        std::unique_ptr<helix::ams::FilamentSlotOverrideStore>& store,
-        std::unordered_map<int, helix::ams::FilamentSlotOverride>& overrides);
+    void
+    read_unread_overrides(std::unique_ptr<helix::ams::FilamentSlotOverrideStore>& store,
+                          std::unordered_map<int, helix::ams::FilamentSlotOverride>& overrides);
 
     /// Layers the backend's overrides on @p slot. Caller holds mutex_.
     virtual void apply_overrides(SlotInfo& slot, int slot_index) {

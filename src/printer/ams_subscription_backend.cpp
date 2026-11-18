@@ -133,11 +133,10 @@ AmsError AmsSubscriptionBackend::start() {
                 // to need defer_critical to survive the splash→home scoped_freeze(); under
                 // the new buffer-not-drop semantics, plain defer is sufficient — buffered
                 // callbacks splice back into pending_ when the freeze releases.
-                token.defer("AmsSubscriptionBackend::notify_update",
-                            [this, notification]() {
-                                retry_unread_overrides();
-                                handle_status_update(notification);
-                            });
+                token.defer("AmsSubscriptionBackend::notify_update", [this, notification]() {
+                    retry_unread_overrides();
+                    handle_status_update(notification);
+                });
             });
 
         if (id == helix::INVALID_SUBSCRIPTION_ID) {
@@ -592,6 +591,23 @@ AmsSubscriptionBackend::dispatch_payload(std::string gcode, std::function<void()
                         [this, err, on_error]() { handle_dispatch_error(err, on_error); });
         },
         timeout_ms, silent, /*on_queued=*/nullptr, caller_surfaces);
+    return AmsErrorHelper::success();
+}
+
+AmsError AmsSubscriptionBackend::clear_fault(int /*slot_index*/) {
+    bool cleared = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.action == AmsAction::ERROR) {
+            system_info_.action = AmsAction::IDLE;
+            system_info_.operation_detail.clear();
+            cleared = true;
+        }
+    }
+    if (cleared) {
+        spdlog::info("{} Fault cleared: ERROR -> IDLE", backend_log_tag());
+        emit_event(EVENT_STATE_CHANGED);
+    }
     return AmsErrorHelper::success();
 }
 
