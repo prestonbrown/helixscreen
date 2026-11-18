@@ -640,6 +640,48 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         return;
     }
 
+    // A reprint asks the same pre-print questions as any other start, through
+    // the same gates, about the file it reprints; the gates end in the
+    // reprint's own start. The loader is this controller's, so its answer
+    // never outlives it.
+    if (!reprint_facts_) {
+        reprint_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
+    }
+    reprint_facts_->set_api(api_);
+    reprint_facts_->load(
+        filename,
+        [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
+         native_plate](helix::FileStartFacts facts) {
+            // The tools the caller saw print are this job's; the file read
+            // answers for a caller that has none.
+            if (!tools_used.empty()) {
+                facts.tools_used = tools_used;
+            }
+            const std::set<int> start_tools = tools_used.empty() && archive_plate == 0
+                                                  ? helix::file_tools_used(facts)
+                                                  : tools_used;
+            reprint_gates_ =
+                ReprintGateRun{std::move(facts),
+                               [this, filename, path, start_tools, routing, on_started, on_error,
+                                archive_plate, native_plate]() {
+                                   start_reprint(filename, path, start_tools, routing, on_started,
+                                                 on_error, archive_plate, native_plate);
+                               },
+                               on_error};
+            run_gates_from(0);
+        },
+        nullptr, nullptr,
+        // Tools in hand leave only the palette and grams to read, which never
+        // earn a download of the whole file.
+        tools_used.empty() ? helix::FileRead::Whole : helix::FileRead::Footer);
+}
+
+void PrintStartController::start_reprint(const std::string& filename, const std::string& path,
+                                         const std::set<int>& tools_used,
+                                         const std::optional<std::map<int, int>>& routing,
+                                         std::function<void()> on_started,
+                                         std::function<void()> on_error, int archive_plate,
+                                         std::optional<int> native_plate) {
     helix::warn_printer_stop_check_skipped("a reprint", filename,
                                            "a reprint does not scan the file");
 
@@ -794,15 +836,10 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             send_backend_preprint_then(remap ? tools_used : std::set<int>{},
                                        remap ? *remap : std::map<int, int>{}, start, abort);
         };
-        // The pre-print step tells the firmware which heads to feed and unload,
-        // so a reprint with no tools in hand reads them from the file first, the
-        // same reading the slicer-start check uses. A file that answers nothing
-        // keeps the routing-free step.
-        if (tools_used.empty() && archive_plate == 0) {
-            read_file_tools(filename, preprint);
-        } else {
-            preprint(tools_used);
-        }
+        // The pre-print step tells the firmware which heads to feed and unload;
+        // a reprint with no tools in hand has the file's, read for the gates. A
+        // file that answers nothing keeps the routing-free step.
+        preprint(tools_used);
         return; // start fires from the send continuation — do NOT also start here
     }
 
@@ -847,7 +884,9 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         }
     }
 
-    if (detail_view_) {
+    if (reprint_gates_) {
+        helix::fill_file_context(ctx, reprint_gates_->facts);
+    } else if (detail_view_) {
         ctx.has_file_facts = true;
         ctx.metadata = detail_view_->get_file_metadata();
         ctx.mappings = detail_view_->get_filament_mappings();
@@ -862,7 +901,9 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
         helix::fill_file_context(ctx, *file_facts_);
     }
     ctx.fit_machine = helix::current_fit_machine();
-    if (!ctx.has_file_facts) {
+    if (reprint_gates_) {
+        ctx.printer_stop.not_run_reason = "a reprint does not scan the file";
+    } else if (!ctx.has_file_facts) {
         ctx.printer_stop.not_run_reason = "no file detail view";
     } else if (auto* prep = active_prep_manager()) {
         ctx.printer_stop = prep->printer_stop_check_for(file_scan_key());
@@ -891,7 +932,7 @@ void PrintStartController::run_gates_from(size_t index) {
     // A start with no detail view has no screen that read the file, so an
     // unrun printer-stopping command check ends it, at every (re-)entry: the
     // macros can be read again while a dialog waits.
-    if (!detail_view_ && file_facts_ &&
+    if (!reprint_gates_ && !detail_view_ && file_facts_ &&
         ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
         spdlog::warn("[PrintStartController] Not starting {}: printer-stopping command check "
                      "did not run ({})",
@@ -902,7 +943,8 @@ void PrintStartController::run_gates_from(size_t index) {
         end_without_print();
         return;
     }
-    if (index == 0 && ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
+    if (index == 0 && !reprint_gates_ &&
+        ctx.printer_stop.state == helix::PrinterStopCheck::State::NotRun) {
         helix::warn_printer_stop_check_skipped(detail_view_ ? "the print select panel"
                                                             : "a queued job start",
                                                filename_, ctx.printer_stop.not_run_reason);
@@ -937,7 +979,7 @@ void PrintStartController::run_gates_from(size_t index) {
             if (!print_gate_modal_) {
                 spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                               gate_list_[i].name);
-                end_without_print();
+                end_gate_run_without_print();
             }
             return;
         }
@@ -955,14 +997,32 @@ void PrintStartController::run_gates_from(size_t index) {
         if (!print_gate_modal_) {
             spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
                           gate_list_[i].name);
-            end_without_print();
+            end_gate_run_without_print();
             return;
         }
         spdlog::debug("[PrintStartController] Gate '{}' warned - showing dialog",
                       gate_list_[i].name);
         return; // the dialog drives continuation
     }
+    if (reprint_gates_) {
+        auto start = std::move(reprint_gates_->start);
+        reprint_gates_.reset();
+        start();
+        return;
+    }
     execute_print_start();
+}
+
+void PrintStartController::end_gate_run_without_print() {
+    if (reprint_gates_) {
+        auto on_end = std::move(reprint_gates_->on_end);
+        reprint_gates_.reset();
+        if (on_end) {
+            on_end();
+        }
+        return;
+    }
+    end_without_print();
 }
 
 void PrintStartController::on_gate_proceed() {
@@ -977,7 +1037,7 @@ void PrintStartController::on_gate_proceed() {
 
 void PrintStartController::on_gate_cancel() {
     print_gate_modal_ = nullptr;
-    end_without_print();
+    end_gate_run_without_print();
     spdlog::debug("[PrintStartController] Print cancelled by user (gate: {})",
                   gate_list_[gate_resume_index_].name);
 }

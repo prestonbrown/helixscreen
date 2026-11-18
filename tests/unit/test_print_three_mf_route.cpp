@@ -25,11 +25,13 @@
 #include "test_helpers/registered_backend.h"
 #include "three_mf_reader.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <optional>
 #include <string>
+#include <thread>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -736,7 +738,15 @@ std::optional<PrintStartParams> reprint(MockPrinter& printer, PrintPreparationMa
     PrintStartController controller{printer.state, &printer.api};
     controller.set_prep_manager(&manager);
     const size_t before = printer.api.job_mock().started_print_params().size();
-    controller.initiate_reprint(file, "", {}, [] {}, [] {});
+    bool done = false;
+    controller.initiate_reprint(file, "", {}, [&done] { done = true; }, [&done] { done = true; });
+    // The reprint reads the file for its pre-print checks first, which for a
+    // file naming no tools is a download on a worker thread.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (!done && std::chrono::steady_clock::now() < deadline) {
+        drain_until_quiet();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     drain_until_quiet();
     const auto& sent = printer.api.job_mock().started_print_params();
     if (sent.size() == before) {

@@ -32,7 +32,10 @@ TEST_CASE("a reprint with an explicit routing sends that map", "[pa_tune][prepri
 
     controller.initiate_reprint_with_routing(
         "helix_pa_tuning.gcode", {2}, {{2, 2}}, []() {}, []() {});
-    helix::ui::UpdateQueue::instance().drain();
+    // The reprint reads the file for its pre-print checks first.
+    for (int i = 0; i < 8; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
     CHECK(client.last_send_script().find(
               "SET_PRINT_EXTRUDER_MAP CONFIG_EXTRUDER=2 MAP_EXTRUDER=2") != std::string::npos);
     client.stop_temperature_simulation();

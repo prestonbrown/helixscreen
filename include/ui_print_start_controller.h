@@ -279,6 +279,14 @@ class PrintStartController {
                       std::function<void()> on_started, std::function<void()> on_error,
                       int archive_plate, std::optional<int> native_plate = std::nullopt);
 
+    /// reprint_impl() past its gates: arms the preparing window, then the
+    /// backend's pre-print send where it needs one, then job().start_print.
+    void start_reprint(const std::string& filename, const std::string& path,
+                       const std::set<int>& tools_used,
+                       const std::optional<std::map<int, int>>& routing,
+                       std::function<void()> on_started, std::function<void()> on_error,
+                       int archive_plate, std::optional<int> native_plate);
+
     /// The plate a Reprint of the .3mf @p filename, which printed as itself,
     /// names: the plate of the job this session confirmed starting
     /// (PrinterPrintState::confirmed_start_plate()), else the one the printer's
@@ -301,8 +309,13 @@ class PrintStartController {
     /// Ordered gate pipeline. Runs gates[index..], shows ONE modal at the
     /// first non-Pass verdict; proceed resumes at the next index with a
     /// freshly gathered context. All-Pass falls through to
-    /// execute_print_start().
+    /// execute_print_start(), or to the reprint's own start while a reprint
+    /// runs the gates (reprint_gates_).
     void run_gates_from(size_t index);
+
+    /// A gate run ended without a print: the reprint's on_error while a
+    /// reprint runs the gates, else end_without_print().
+    void end_gate_run_without_print();
 
     /// Snapshot every input a gate may read (single source of truth — gates
     /// never fetch singletons themselves). Gathered per pipeline entry so a
@@ -348,6 +361,17 @@ class PrintStartController {
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
     size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
     lv_obj_t* print_gate_modal_ = nullptr;         ///< the ONE gate dialog handle
+
+    /// A reprint running the gates. Its facts answer the gates in place of the
+    /// detail view's file and file_facts_: the controller a reprint goes
+    /// through is Print Files' own, whose file state belongs to the file the
+    /// user has open there. All-Pass runs @c start, an ended run @c on_end.
+    struct ReprintGateRun {
+        helix::FileStartFacts facts;
+        std::function<void()> start;
+        std::function<void()> on_end;
+    };
+    std::optional<ReprintGateRun> reprint_gates_;
 
     // === Callbacks ===
     PrintStartedCallback on_print_started_;
