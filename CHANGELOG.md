@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0-rc.4] - UNRELEASED
 
 ### Added
+- **Happy Hare 4.2's pause hint in the recovery popup** - when Happy Hare 4.2 pauses a print, the recovery popup now shows its hint about what to do next under the reason, since HelixScreen closes Happy Hare's own dialog that carried it.
 - **Load filament by hand in one dialog** (#2000) - on a printer with no filament system and no load macro, and on a Snapmaker U1 toolhead with no feeder, with Auto loading off, or fed past its feeder, Load opens one dialog that heats the nozzle, waits while you push the filament in, and primes it. Cancel or closing it turns the heater off.
 - **Snapmaker U1: Auto loading per toolhead** (#1982) - each toolhead's Auto loading switch is in the filament system's Settings under Print Behavior.
 
