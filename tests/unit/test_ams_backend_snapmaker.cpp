@@ -4449,6 +4449,9 @@ json golden_full_frame() {
         {"gcode_macro AUTO_FEEDING_BATCH", json{{"doing", false}}}};
 }
 
+// Pulling a spool from its feeder takes its filament out of the toolhead too.
+const json t0_switch_off{
+    {"filament_motion_sensor e0_filament", json{{"filament_detected", false}}}};
 json golden_feed(int ext, const char* state, std::optional<bool> detected = std::nullopt) {
     json ch{{"channel_state", state}};
     if (detected) {
@@ -4591,13 +4594,7 @@ TEST_CASE_METHOD(SnapmakerGoldenFixture, "Snapmaker golden status sequence",
         {"unload: prepare", golden_feed(1, "unload_prepare")},
         {"unload: finish", golden_feed(1, "unload_finish")},
         // Head 0 loses its spool and a tagless one goes in, then a tagged one in head 3.
-        // Pulling the spool takes its filament out of the toolhead too.
-        {"insert: port drops",
-         [] {
-             json j = golden_feed(0, "wait_insert", false);
-             j["filament_motion_sensor e0_filament"] = json{{"filament_detected", false}};
-             return j;
-         }()},
+        {"insert: port drops", merged({golden_feed(0, "wait_insert", false), t0_switch_off})},
         {"insert: port rises", golden_feed(0, "wait_insert", true)},
         {"insert: reader answers NONE",
          json{{"filament_detect",
