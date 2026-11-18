@@ -138,6 +138,17 @@ struct KeypadInput {
         return true;
     }
 
+    /// Replaces the draft with @p text when every key of it types; otherwise leaves
+    /// the draft as it was and returns false.
+    bool retype(const char* text) {
+        KeypadInput attempt = *this;
+        if (!attempt.type(text)) {
+            return false;
+        }
+        *this = attempt;
+        return true;
+    }
+
     /// Remove the last character.
     bool backspace() {
         size_t len = length();

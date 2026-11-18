@@ -87,6 +87,17 @@ static float temperature_min_c = 0.0f;
 static float temperature_max_c = 0.0f;
 // Set by a confirm: the close that follows is not a cancel, and carries this value.
 static bool confirmed = false;
+
+/// @p value as the keys would type it: plain decimal digits, never exponent form,
+/// with no trailing fractional zeros.
+static std::string keypad_plain_decimal(float value) {
+    std::string text = fmt::format("{:.6f}", value);
+    text.erase(text.find_last_not_of('0') + 1); // "{:.6f}" always writes a '.'
+    if (text.back() == '.') {
+        text.pop_back();
+    }
+    return text;
+}
 static float confirmed_value = 0.0f;
 static std::string confirmed_text;
 static helix::ui::KeypadInput input;
@@ -195,8 +206,8 @@ void ui_keypad_init(lv_obj_t* parent) {
         {"on_keypad_default",
          [](lv_event_t*) {
              helix::ui::event_safe_call("keypad_default", []() {
-                 if (current_config.default_value) {
-                     input.type(fmt::format("{}", *current_config.default_value).c_str());
+                 if (current_config.default_value &&
+                     input.retype(keypad_plain_decimal(*current_config.default_value).c_str())) {
                      update_display();
                  }
              });
