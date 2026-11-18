@@ -12,7 +12,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
+from unit_art.units import ace_pro, ad5x_ifs, ams_ht, ams_lite, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -169,7 +169,25 @@ def test_the_night_owl_spools_rest_on_the_base_and_share_its_width():
     assert touch == pytest.approx(night_owl.LOCAL_R + night_owl.ROLLER_R)
 
 
-@pytest.mark.parametrize("unit", [bmcu, night_owl], ids=["bmcu", "night_owl"])
+def test_the_ams_lite_hangs_two_spools_off_each_face_of_its_slab():
+    seen = {}
+    real = spool.draw_spool
+    ams_lite.spool.draw_spool = lambda sc, center, radius, color, c, lane, **k: seen.setdefault(lane, center)
+    try:
+        ams_lite.UNIT.draw_art(kit.Scene(kit.ART_CAMERA), ["#ffffff"] * 4, "full")
+    finally:
+        ams_lite.spool.draw_spool = real
+    width = ams_lite.SPOOL_R / 0.42 * 0.294
+    for lanes, side in (((0, 1), -1), ((2, 3), 1)):
+        for lane in lanes:
+            assert side * seen[lane][0] - width / 2 > ams_lite.SLAB_T * ams_lite.SCALE
+        assert {seen[lane][1] > 0 for lane in lanes} == {True, False}
+    # Holders 1 and 4 share the high back end, 2 and 3 the low front one.
+    assert seen[0][1:] == seen[3][1:] and seen[1][1:] == seen[2][1:]
+    assert seen[0][2] > seen[1][2]
+
+
+@pytest.mark.parametrize("unit", [bmcu, night_owl, ams_lite], ids=["bmcu", "night_owl", "ams_lite"])
 def test_a_scaled_unit_draws_the_one_spool_size(unit):
     assert unit.SPOOL_R == 0.25
     seen = []
