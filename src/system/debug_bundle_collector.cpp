@@ -910,6 +910,12 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
             helix::Regex::ICase);
         redact(service_url_re, "$1://[REDACTED]");
 
+        // A webhook's id is its secret and sits in the path after /webhook/
+        // (Home Assistant) or /webhooks/, on whatever host serves it.
+        static const helix::Regex webhook_path_re(R"((/webhooks?/)[^\s?#"'<>]+)",
+                                                  helix::Regex::ICase);
+        redact(webhook_path_re, "$1[REDACTED]");
+
         // An Authorization value is a scheme name and its credential, in
         // whatever shape the scheme takes (Bearer, Basic, Token, Digest k=v
         // lists): the scheme stays, everything after it goes.

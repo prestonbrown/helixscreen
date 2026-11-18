@@ -493,6 +493,13 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
         {"Authorization: Digest username=\"bob\", response=\"6629fae4\"",
          {"bob", "6629fae4"},
          {"Authorization: Digest [REDACTED]"}},
+        // A webhook id in the path is the secret, on any host
+        {"POST https://ha.local:8123/api/webhook/print_done_a8f3c2 -> 200",
+         {"print_done_a8f3c2"},
+         {"https://ha.local:8123/api/webhook/[REDACTED] -> 200"}},
+        {"https://hooks.example.net/webhooks/T0123/B456/xyz?fmt=json",
+         {"T0123", "xyz"},
+         {"/webhooks/[REDACTED]?fmt=json"}},
         // An escaped quote does not end a quoted value
         {"{\"password\": \"ab\\\"cd\", \"x\": 1}",
          {"ab", "cd"},
