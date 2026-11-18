@@ -965,11 +965,13 @@ If R2 is unavailable or returns a corrupt file:
 1. Query `api.github.com/repos/.../releases/latest` for the tag name
 2. Download from `github.com/.../releases/download/{version}/{filename}`
 
+### Plain-HTTP Mirror (Last Resort)
+
+`dl.helixscreen.org` (`server/dl-worker`) serves the same R2 bucket over plain HTTP, tarballs and manifests only: it has no `.zip`, so the installer asks it for the `.tar.gz` alone. Hashes fetched from it detect corruption but cannot prove authenticity, and an archive with no published hash is refused over this transport.
+
 ### HTTPS Capability Check
 
-On embedded platforms (AD5M), BusyBox wget does not support HTTPS. The installer:
-1. Tests curl HTTPS, then wget HTTPS
-2. If neither works, prints step-by-step manual install instructions with `scp` commands
+On embedded platforms (AD5M), BusyBox wget does not support HTTPS. `check_https_capability` tests python's `ssl`, then curl, then wget. Without HTTPS, `download_release` skips the CDN and GitHub candidates and goes straight to the mirror's tarball; when even that fails, `get_latest_version` prints step-by-step manual install instructions with `scp` commands.
 
 ### Architecture Validation
 

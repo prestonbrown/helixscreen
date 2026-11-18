@@ -103,6 +103,7 @@ is out.
 - **Screensavers on slow boards** - a board that is slow because of its cores keeps half a core for the screensaver instead of falling back to black.
 - **No stacked AFC errors over AFC's own prompts** - while AFC shows one of its calibration or toolhead-load prompts, its messages go to the notification list instead of popping up over the prompt, as they already did for prompts with AFC in the title.
 - **Installer on boards without polkit** - on a board with no polkit, such as Armbian on the BTT CB1, the installer says polkit is not installed and how to add it (`sudo apt install polkitd`, then restart HelixScreen), instead of reporting a failed power rule write.
+- **Installer downloads without HTTPS** - on printers whose downloader cannot use HTTPS, such as the FlashForge Adventurer 5M, the installer goes to the plain-HTTP download server first and asks it only for the tarball it carries, so a "404 Not Found" for a .zip no longer shows up before the download succeeds.
 
 ## [1.1.0-rc.4] - UNRELEASED
 
