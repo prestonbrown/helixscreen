@@ -18,7 +18,12 @@ external hub before the toolhead. The **ACE Pro** (gen 1) speaks a JSON protocol
 serial at 115200 baud and daisy-chains. The **ACE 2 Pro** speaks a binary, sequence-numbered,
 protobuf-style framing over **RS-485** at 230400 baud and adds a humidity sensor. On a
 non-Anycubic host it needs an RS485-to-USB adapter; the drivers name the Anycubic KS1/K3
-conversion cable, which enumerates as a CH343 (`usb-1a86_USB_Single_Serial_*`). An ACE 2
+conversion cable, which enumerates as a CH343 (`usb-1a86_USB_Single_Serial_*`). That
+cable (labeled "For K3/K3M/S1") carries the converter in its boot, powered from the ACE: its
+6-pin end goes into the ACE's 6-pin socket, and its 4-pin end presents plain USB in the gen-1
+layout. Measured on a unit (face view of the 4-pin plug, latch up): top-right D+ (3.3 V
+pull-up with the ACE on), top-left D-, bottom-right GND (passes through to the 6-pin side),
+bottom-left unconnected. Host VBUS stays unwired. An ACE 2
 **clamps the filament** when its link drops or when the extruder retracts against it, which
 is why the drivers that support it carry disconnect-pause and "rollback assist" logic. The
 ACE 2 has no firmware-side tangle detection during feed assist; the host has to watch for it.

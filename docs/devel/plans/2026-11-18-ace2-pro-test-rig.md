@@ -27,11 +27,32 @@ No cutter, so swaps rely on tip forming (`AFC_form_tip`).
 
 ## Phase 0: hardware (Preston's hands)
 
-- [ ] Photo of the hub's connectors and cable ends. Settle whether the hub cable carries
-      the ACE's RS-485 through to the printer, or only the hub sensor. No driver surveyed
-      mentions a hub device on the ACE 2 bus.
-- [ ] Multimeter the ACE 2 connector against Kobra-S1/ACEPRO's `img/connector.png`, and find
-      out whether it carries 24 V, before the BMCU RS485-to-USB adapter goes on it.
+What came in the box: two signal cables (one labeled "For K3/K3M/S1" with a larger boot, one
+plain), each with a 6-pin end and a 4-pin end, both male; and the return detection module
+(RDM), a filament sensor with its own 6-pin cable. The ACE 2 has two sockets at the back,
+lower left: a 6-pin above a 4-pin.
+
+**The K3/K3M/S1 cable is an RS485-to-USB converter**, measured 2026-11-18 with its 6-pin end
+in the ACE's 6-pin socket (the S1 manual page: "4-pin signal cable into the printer's back
+panel ... 6-pin cable to the port ... of the ACE 2 Pro"). Its 4-pin end, face view, latch up:
+
+| Pin | Measured | Wire to USB-A |
+|---|---|---|
+| TR | 3.3 V to BR with the ACE on (full-speed pull-up) | D+ |
+| TL | about 0 V; diode 0.52 V from BR | D- |
+| BR | passes straight through to the 6-pin bottom-center | GND |
+| BL | OL to every pin on both ends | none |
+
+The converter is powered from the ACE side, so host VBUS stays unwired. This matches the
+gen-1 pinout in Kobra-S1/ACEPRO's README. The ACE's 4-pin socket is unused by every manual
+page seen. The BMCU RS-485 adapter is not needed.
+
+- [x] Identify the cables and the ACE sockets; meter the K3 cable's printer end.
+- [ ] Rewirable USB-A adapter (D+, D-, GND), then enumeration on thelio: expect a WCH
+      (`1a86`) serial device under `/dev/serial/by-id/`.
+- [ ] Crimp a proper 2x2 receptacle once it enumerates.
+- [ ] RDM pinout (its 6-pin cable goes to the printer per the manual; Kobra-S1 wires it as a
+      `filament_switch_sensor`, optionally a `filament_tracker` with an encoder line).
 - [ ] Mount the ACE and the hub; route one PTFE run from hub to the V0 extruder; measure it.
 - [ ] Hub sensor: if it is a plain switch, wire it to a free Pico or SHT36 input (or reuse
       `gpio16` if the runout switch moves to the hub).
