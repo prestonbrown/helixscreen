@@ -184,9 +184,11 @@ void PrintStartController::initiate() {
         return;
     }
 
-    // This start supersedes a reprint still waiting on its file checks: two
-    // starts must not race to the printer from one controller.
+    // This start supersedes a reprint still waiting on its file checks or on
+    // a gate dialog: two starts must not race to the printer from one
+    // controller.
     abandon_pending_reprint();
+    end_live_reprint_gates();
 
     // Ordered pre-print gate pipeline: insufficient spool weight, bypass
     // engaged on a lane print, unaccounted toolhead filament, required
@@ -673,8 +675,8 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
             // The printer and this screen moved on while the file was read: a
             // start already waiting on a dialog here, or one the printer took,
             // keeps it, and this reprint ends.
-            if (print_gate_modal_ || divert_to_spool_removal() || refuse_while_filament_op_runs() ||
-                refuse_while_printer_busy()) {
+            if (print_gate_modal_ || reprint_gates_ || divert_to_spool_removal() ||
+                refuse_while_filament_op_runs() || refuse_while_printer_busy()) {
                 spdlog::info("[PrintStartController] Not reprinting {}: the start it checked "
                              "for is no longer free",
                              filename);
@@ -741,6 +743,23 @@ void PrintStartController::abandon_pending_reprint() {
     pending_reprint_on_error_ = nullptr;
     if (on_error) {
         on_error();
+    }
+}
+
+void PrintStartController::end_live_reprint_gates() {
+    if (!reprint_gates_) {
+        return;
+    }
+    spdlog::info("[PrintStartController] Ending a reprint still answering its gates");
+    auto on_end = std::move(reprint_gates_->on_end);
+    reprint_gates_.reset();
+    // A programmatic hide runs none of the dialog's callbacks.
+    if (print_gate_modal_) {
+        helix::ui::modal_hide(print_gate_modal_);
+        print_gate_modal_ = nullptr;
+    }
+    if (on_end) {
+        on_end();
     }
 }
 

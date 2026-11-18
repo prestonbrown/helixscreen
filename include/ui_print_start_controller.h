@@ -249,6 +249,10 @@ class PrintStartController {
     /// through its on_error. Nothing when none is pending.
     void abandon_pending_reprint();
 
+    /// End a reprint whose gates are running (reprint_gates_): its dialog
+    /// closes and its caller hears through on_error. Nothing when none runs.
+    void end_live_reprint_gates();
+
     /// How much of a reprinted file its gate facts load may read.
     [[nodiscard]] static helix::FileRead reprint_file_read(const std::set<int>& tools_used,
                                                            int archive_plate);

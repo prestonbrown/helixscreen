@@ -358,3 +358,32 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a reprint with no callbacks still gives u
     settle();
     CHECK(start_params.empty());
 }
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a Print Files start ends a reprint waiting on a gate dialog",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 60.0F);
+    PlantedGcode file("reprint_dialog_raced.gcode", "", kRedPla140g);
+
+    reprint(file.name());
+    auto& c = controller();
+    REQUIRE(PrintStartControllerTestAccess::print_gate_modal(c) != nullptr);
+    REQUIRE(PrintStartControllerTestAccess::open_gate_name(c) == "insufficient_lane_weight");
+
+    c.set_file("print_files_pick.gcode", "", {"#FF0000"}, "");
+    c.initiate();
+    settle();
+    lv_timer_handler();
+    settle();
+
+    // The reprint's caller hears, and no dialog left open belongs to it.
+    CHECK(errors == 1);
+    CHECK(started == 0);
+    if (PrintStartControllerTestAccess::print_gate_modal(c) != nullptr) {
+        CHECK(PrintStartControllerTestAccess::open_gate_name(c) != "insufficient_lane_weight");
+        press("btn_secondary");
+    }
+    for (const auto& params : start_params) {
+        CHECK(params.value("filename", std::string()) != file.name());
+    }
+}
