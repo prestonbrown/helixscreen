@@ -47,6 +47,45 @@ TEST_CASE("unit art geometry: the bake records every spool unit's lanes", "[unit
     CHECK(unit_art_geometry("box_turtle", 9) == nullptr);
 }
 
+TEST_CASE("unit art geometry: the unit view needs an outlet and a tap band per lane",
+          "[unit-art][geometry]") {
+    // YAMMU's staggered rows and the AMS Lite's two-high hubs share outlets between lanes.
+    CHECK_FALSE(unit_view_fits(*unit_art_geometry("ams_lite", 4)));
+    CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu_upper", 4)));
+    CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu_lower", 4)));
+    CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu", 8)));
+    // Hand-moved lanes of a drawing that fits.
+    UnitArtGeom moved = *unit_art_geometry("box_turtle", 2);
+    ArtLaneGeom lanes[2] = {moved.lane[0], moved.lane[1]};
+    moved.lane = lanes;
+    REQUIRE(unit_view_fits(moved));
+    // Each in its own band, level with its spool, but a hair apart: tubes and badges stack.
+    const float mid = (lanes[0].box_x0 + lanes[0].box_x1 + lanes[1].box_x0 + lanes[1].box_x1) / 4;
+    for (int i = 0; i < 2; ++i) {
+        lanes[i].outlet_x = mid + (i ? 0.003f : -0.003f);
+        lanes[i].outlet_y = (lanes[i].box_y0 + lanes[i].box_y1) / 2;
+    }
+    CHECK_FALSE(unit_view_fits(moved));
+    // Numbered right to left, with outlets far apart: each spool stands in its neighbour's band.
+    lanes[0] = *unit_art_geometry("box_turtle", 2)->lane;
+    lanes[0].box_x0 += 0.5f;
+    lanes[0].box_x1 += 0.5f;
+    lanes[0].outlet_x += 0.5f;
+    lanes[1] = *unit_art_geometry("box_turtle", 2)->lane;
+    CHECK_FALSE(unit_view_fits(moved));
+    // Every row of spools fits.
+    for (const char* id : {"ace_pro", "box_turtle", "box_turtle_enclosed", "ams_2_pro", "ams",
+                           "cfs", "qidi_box", "btt_vivid", "kms", "ams_ht", "bmcu", "night_owl",
+                           "quattro_box", "mmx", "3ms", "ad5x_ifs", "elegoo_canvas", "emu"}) {
+        for (int n = 1; n <= kMaxArtLanes; ++n) {
+            if (const UnitArtGeom* geom = unit_art_geometry(id, n)) {
+                CAPTURE(id, n);
+                CHECK(unit_view_fits(*geom));
+            }
+        }
+    }
+}
+
 namespace {
 /// The point @p radius flange radii from the end of @p g's axis, straight out along it
 /// (past the near flange when @p near_end, else past the far one).

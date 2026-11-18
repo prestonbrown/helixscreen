@@ -35,4 +35,9 @@ float art_lane_coverage(const ArtLaneGeom& g, float x, float y, float radius, fl
 /// Pixels per flange radius at a drawing @p drawn_w pixels wide.
 float art_lane_px_per_unit(const ArtLaneGeom& g, float drawn_w);
 
+/// Whether the unit view can stand its slots on @p geom's lanes: each lane's outlet has a column
+/// of its own, and each lane's tap band (ams_slot_lane_hit_band) holds its spool's middle and its
+/// outlet. A drawing that fails keeps the drawn tray.
+bool unit_view_fits(const UnitArtGeom& geom);
+
 } // namespace helix::ui::tray

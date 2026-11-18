@@ -3,6 +3,8 @@
 
 #include "unit_art_geometry.h"
 
+#include "ui_ams_slot_layout.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -45,6 +47,35 @@ float art_lane_px_per_unit(const ArtLaneGeom& g, float drawn_w) {
 
 float art_lane_coverage(const ArtLaneGeom& g, float x, float y, float radius, float px_per_unit) {
     return std::clamp((radius - art_lane_distance(g, x, y)) * px_per_unit + 0.5f, 0.0f, 1.0f);
+}
+
+bool unit_view_fits(const UnitArtGeom& geom) {
+    const int n = std::clamp(geom.lanes, 0, kMaxArtLanes);
+    // The bands are integer pixels, so the drawing is measured at a width fine enough that
+    // rounding cannot move a point across a boundary.
+    constexpr float kScale = 10000.0f;
+    constexpr float kMinOutletGap = 0.01f; ///< of the drawing's width, about a tube apart
+    auto px = [&](float v) { return static_cast<int32_t>(std::lround(v * kScale)); };
+    AmsLaneLine lines[kMaxArtLanes];
+    for (int i = 0; i < n; ++i) {
+        const ArtLaneGeom& g = geom.lane[i];
+        lines[i] = {px((g.box_x0 + g.box_x1) / 2), px((g.box_y0 + g.box_y1) / 2), px(g.outlet_x),
+                    px(g.outlet_y)};
+        for (int j = 0; j < i; ++j) {
+            if (std::abs(geom.lane[j].outlet_x - g.outlet_x) < kMinOutletGap)
+                return false;
+        }
+    }
+    // Each slot spans the whole drawing, so only the boundaries between lanes trim its band.
+    const int32_t x1 = px(-1.0f), x2 = px(2.0f);
+    for (int i = 0; i < n; ++i) {
+        const AmsSlotHitBand band = ams_slot_lane_hit_band(lines, i, n, x1, 0, x2);
+        const AmsLaneLine& l = lines[i];
+        if (!ams_slot_hit_band_holds(band, x1, 0, x2, l.x, l.y) ||
+            !ams_slot_hit_band_holds(band, x1, 0, x2, l.out_x, l.out_y))
+            return false;
+    }
+    return true;
 }
 
 } // namespace helix::ui::tray

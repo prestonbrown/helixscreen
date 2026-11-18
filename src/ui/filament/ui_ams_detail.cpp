@@ -37,6 +37,7 @@
 #include "theme_manager.h"
 #include "tool_change_request.h"
 #include "ui/ams_drawing_utils.h"
+#include "unit_art_geometry.h"
 
 #include <spdlog/spdlog.h>
 
@@ -622,9 +623,9 @@ void unit_view_lane_changed(void* /*user*/) {
 }
 
 /// Shows @p unit_index's baked art in place of the drawn tray when it has art and lane
-/// geometry for its lane count, scaled so its lanes stand on the slots' spools, which stay as
-/// tap targets with their own graphic hidden. False, with the art hidden and the spools
-/// shown, otherwise.
+/// geometry for its lane count that the slots fit (tray::unit_view_fits), scaled so its lanes
+/// stand on the slots' spools, which stay as tap targets with their own graphic hidden. False,
+/// with the art hidden and the spools shown, otherwise.
 bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_widgets[], int n,
                          int unit_index, const float cx[], float cy, UnitViewArt& out) {
     const auto info = helix::AmsState::instance().system_info();
@@ -635,7 +636,8 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
                                            helix::ui::unit_art_available(*info, u, dryer)
                                        ? tray::unit_shell_for(*info, u, dryer)
                                        : nullptr;
-    const tray::UnitArtGeom* geom = shell ? tray::unit_art_geometry(shell->id, n) : nullptr;
+    const tray::UnitArtGeom* found = shell ? tray::unit_art_geometry(shell->id, n) : nullptr;
+    const tray::UnitArtGeom* geom = found && tray::unit_view_fits(*found) ? found : nullptr;
     lv_obj_t* art = lv_obj_find_by_name(container, "unit_view_art");
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = slot_widgets[i];
