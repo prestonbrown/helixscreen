@@ -253,6 +253,12 @@ class FilamentOpHeater {
     /// op_failed() or op_cancelled() names the ticket, it is never dropped as stale.
     void hold_heat(FilamentOpTicket ticket);
 
+    /// The printer is about to go away (a printer switch, the app exiting) while it
+    /// can still hear us: heat an op holds (hold_heat()) goes off unless a job holds
+    /// the machine, and a waiting preheat backs its heater off. Every ticket it ends
+    /// is forgotten, so the op's own later report sends nothing.
+    void before_disconnect();
+
     /// Whether an op holds the nozzle hot through hold_heat().
     [[nodiscard]] bool holding() const {
         return !holds_.empty();

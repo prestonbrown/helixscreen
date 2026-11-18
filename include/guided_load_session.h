@@ -20,7 +20,9 @@
  * pushes it holds the heat (FilamentOpHeater::hold_heat()) for as long as the user
  * takes. Every ending reports to it once: Done schedules the post-op cooldown
  * (op_succeeded()), every other ending, the session's own teardown included, turns
- * the heater off (op_cancelled()).
+ * the heater off (op_cancelled()). A printer switch or app exit ends the hold
+ * before the session hears of it (FilamentOpHeater::before_disconnect()). A
+ * SIGTERM exits without either, leaving the heater to Klipper's idle timeout.
  */
 
 #pragma once

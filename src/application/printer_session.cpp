@@ -39,6 +39,7 @@
 #include "discovery_steps.h"
 #include "display_manager.h"
 #include "filament_consumption_tracker.h"
+#include "filament_op_heater.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_version.h"
 #include "job_queue_state.h"
@@ -676,6 +677,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
     // Backends speak last while the client can still send: an operation left running
     // (a calibration holding the heaters) is ended on the printer, not abandoned there.
     AmsState::instance().before_disconnect();
+    if (auto* heater = helix::ui::get_filament_op_heater()) {
+        heater->before_disconnect();
+    }
 
     // Disconnect the WebSocket client FIRST to stop background threads (mock simulation,
     // WebSocket I/O). Otherwise a notification delivered mid-teardown can trigger new API

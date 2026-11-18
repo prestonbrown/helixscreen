@@ -647,6 +647,35 @@ void FilamentOpHeater::op_cancelled(FilamentOpTicket ticket) {
     }
 }
 
+void FilamentOpHeater::before_disconnect() {
+    if (handoff_) {
+        restore_prior(handoff_->heater, handoff_->prior_target_c);
+        handoff_.reset();
+    }
+    const std::vector<FilamentOpTicket> holds = std::move(holds_);
+    holds_.clear();
+    const bool job_holds = job_holds_machine(state_.print_state().get_print_lifecycle());
+    for (const FilamentOpTicket ticket : holds) {
+        const Heated* heated = heated_for(ticket);
+        const std::string heater = heated ? heated->extruder : std::string{};
+        forget(ticket);
+        if (!heater.empty() && !job_holds) {
+            spdlog::info("[FilamentOpHeater] Disconnecting while an op holds {} hot: heater off",
+                         heater);
+            if (auto* c = get_temperature_controller()) {
+                c->set_target(heater, 0.0, {.toast = false});
+            }
+        }
+    }
+    if (!pending_) {
+        return;
+    }
+    spdlog::info("{} Disconnecting while {} preheats: backing the heater off",
+                 pending_->req.log_tag, filament_heat_op_name(pending_->req.op));
+    restore_prior(pending_->heater, pending_->prior_target_c);
+    end_pending(PreheatPhase::Cancelled);
+}
+
 void FilamentOpHeater::hold_heat(FilamentOpTicket ticket) {
     if (ticket != 0) {
         holds_.push_back(ticket);
