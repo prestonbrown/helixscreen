@@ -162,11 +162,18 @@ platform_stop_competing_uis() {
 # ForgeX may leave the backlight off when display mode is STOCK or during
 # boot transitions. We explicitly set it to 100% before starting HelixScreen.
 # The backlight.py script uses ioctl calls that must run inside the chroot.
+# A payload install runs this script from inside the chroot already, where
+# the chroot's root is "/" and the script's own path resolves directly.
 platform_enable_backlight() {
     local full_backlight_path="${FORGEX_CHROOT}${FORGEX_BACKLIGHT}"
     if [ -d "$FORGEX_CHROOT" ] && [ -x "$full_backlight_path" ]; then
         echo "Enabling backlight via ForgeX chroot..."
         /usr/sbin/chroot "$FORGEX_CHROOT" "$FORGEX_BACKLIGHT" 100 2>/dev/null || true
+        return 0
+    fi
+    if [ -x "$FORGEX_BACKLIGHT" ]; then
+        echo "Enabling backlight via ForgeX backlight script..."
+        "$FORGEX_BACKLIGHT" 100 2>/dev/null || true
         return 0
     fi
 

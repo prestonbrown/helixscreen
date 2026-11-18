@@ -1249,9 +1249,7 @@ apply_install() {
     cleanup_on_success
     print_summary "$version"
 
-    if [ "$platform" = "ad5m" ] || [ "$platform" = "k1" ] || [ "$platform" = "k2" ]; then
-        log_note "You may need to reboot for the display to update."
-    fi
+    print_reboot_note "$platform"
 
     # Last thing on screen: the safety feature this install took away.
     print_k2_stock_ai_notice "$platform"

@@ -202,3 +202,15 @@ print_summary() { # version
     [ -n "${KIAUH_EXT_ADDED:-}" ] && _summary_row KIAUH "restart KIAUH to see the HelixScreen extension"
     [ -z "${INSTALL_LOG_KEPT:-}" ] || _summary_row Log "$(display_path "$INSTALL_LOG_KEPT")"
 }
+
+# The closing hedge on the boards whose display has needed a reboot to show a
+# new install. Printed only when this run did not see the UI come up, so it
+# never follows a summary that says the UI is running.
+print_reboot_note() { # platform
+    case "$1" in
+        ad5m|k1|k2) ;;
+        *) return 0 ;;
+    esac
+    [ "${HELIX_UI_CONFIRMED:-}" = "1" ] && return 0
+    log_note "You may need to reboot for the display to update."
+}
