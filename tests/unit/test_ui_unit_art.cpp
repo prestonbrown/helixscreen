@@ -3,6 +3,7 @@
 #include "ui_unit_art.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/draw_buf_alloc_spy.h"
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "display_settings_manager.h"
@@ -497,6 +498,41 @@ TEST_CASE_METHOD(LVGLTestFixture,
     unit_art_set_unit(art, info, 0);
     CHECK(unit_art_lane_fill_pct(art, 1) == 100);
     CHECK(lv_obj_get_style_bitmap_mask_src(lane1, LV_PART_MAIN) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: a new fill or drawing frees the buffers it replaces",
+                 "[ams][unit-art][fill]") {
+    AmsSystemInfo four = ace_system(4);
+    AmsSystemInfo two = emu_system(2);
+    for (AmsSystemInfo* info : {&four, &two})
+        for (SlotInfo& s : info->units[0].slots) {
+            s.total_weight_g = 1000.0f;
+            s.remaining_weight_g = 500.0f;
+        }
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 640, 400); // each lane's A8 mask is big enough for the spy to count
+    BufAllocSpy bufs;
+    unit_art_set_unit(art, four, 0);
+    process_lvgl(20);
+    const size_t settled = bufs.live_bytes;
+    REQUIRE(bufs.allocations >= 3);
+
+    for (int i = 0; i < 6; ++i) {
+        // A new part fill, a refill that lifts a mask, then the other drawing and back.
+        four.units[0].slots[1].remaining_weight_g = 300.0f + 10.0f * (float)i;
+        unit_art_set_unit(art, four, 0);
+        four.units[0].slots[2].remaining_weight_g = 1000.0f;
+        unit_art_set_unit(art, four, 0);
+        four.units[0].slots[1].remaining_weight_g = 500.0f;
+        four.units[0].slots[2].remaining_weight_g = 500.0f;
+        unit_art_set_unit(art, two, 0);
+        process_lvgl(20);
+        unit_art_set_unit(art, four, 0);
+        process_lvgl(20);
+    }
+
+    CHECK(bufs.live_bytes == settled);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

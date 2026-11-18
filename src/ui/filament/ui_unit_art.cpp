@@ -14,6 +14,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lv_draw_buf_guard.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 #include "theme_manager.h"
 #include "ui/opa_pulse.h"
@@ -59,7 +60,6 @@ struct ArtData {
     lv_obj_t* layers = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
     lv_obj_t* flat = nullptr;   // WIDGET_PTR_OK: child of this widget, gone with it
     lv_draw_buf_t* flat_buf = nullptr;
-    std::vector<lv_draw_buf_t*> retired; // swapped out while widgets may still draw them
     uint64_t flat_key = 0;
     lv_obj_t* front = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
     lv_obj_t* glow = nullptr;  // WIDGET_PTR_OK: child of this widget, gone with it
@@ -121,29 +121,43 @@ void set_lane_visible(lv_obj_t* image, bool visible) {
         lv_obj_set_hidden(image, true);
 }
 
+/// Frees a buffer no widget shows any more, once any draw still reading it has finished.
+void destroy_buf(lv_draw_buf_t* buf) {
+    lv_image_cache_drop(buf);
+    helix::safe_draw_buf_destroy(buf, "unitart");
+}
+
+void destroy_buf_cb(lv_event_t* e) {
+    destroy_buf(static_cast<lv_draw_buf_t*>(lv_event_get_user_data(e)));
+}
+
+/// Frees @p buf when @p holder, a widget that may still draw it, is deleted.
+void free_with(lv_obj_t* holder, lv_draw_buf_t*& buf) {
+    if (!buf)
+        return;
+    if (holder) {
+        // DECLARATIVE_OK: a condemned widget's buffer lives exactly as long as it does.
+        lv_obj_add_event_cb(holder, destroy_buf_cb, LV_EVENT_DELETE, buf);
+    } else {
+        destroy_buf(buf);
+    }
+    buf = nullptr;
+}
+
 void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
+    // The old children are deleted asynchronously and may draw once more, so each old buffer
+    // goes with the child that shows it: the masks with the lane stacks under layers.
+    free_with(data->flat, data->flat_buf);
+    free_with(data->glow, data->glow_buf);
+    free_with(data->carriage_flat, data->carriage_buf);
+    for (LaneImages& lane : data->lanes)
+        free_with(data->layers, lane.mask);
     // Runs under subject observers, where a synchronous delete corrupts the event batch.
     helix::ui::safe_clean_children(art);
     data->flat_key = 0;
-    if (data->flat_buf) {
-        data->retired.push_back(data->flat_buf);
-        data->flat_buf = nullptr;
-    }
     data->front = nullptr;
     data->glow = nullptr;
     data->glow_key = 0;
-    if (data->glow_buf) {
-        data->retired.push_back(data->glow_buf);
-        data->glow_buf = nullptr;
-    }
-    if (data->carriage_buf) {
-        data->retired.push_back(data->carriage_buf);
-        data->carriage_buf = nullptr;
-    }
-    for (const LaneImages& lane : data->lanes) {
-        if (lane.mask)
-            data->retired.push_back(lane.mask);
-    }
     data->carriage = nullptr;
     data->carriage_flat = nullptr;
     data->carriage_gate = 0;
@@ -246,11 +260,6 @@ uint64_t marks_key(const ArtData* data) {
     return key;
 }
 
-void destroy_buf(lv_draw_buf_t* buf) {
-    lv_image_cache_drop(buf);
-    lv_draw_buf_destroy(buf);
-}
-
 /// Where the drawing stands in a widget @p w by @p h: it is contained and centered.
 struct Content {
     float x, y, w;
@@ -270,7 +279,7 @@ void apply_fill_mask(ArtData* data, int i, int pct, int32_t w, int32_t h) {
         if (lane.mask) {
             lv_obj_set_style_bitmap_mask_src(lane.color, nullptr, LV_PART_MAIN);
             lv_obj_set_style_bitmap_mask_src(lane.shade, nullptr, LV_PART_MAIN);
-            data->retired.push_back(lane.mask);
+            destroy_buf(lane.mask);
             lane.mask = nullptr;
         }
         lane.mask_pct = 100;
@@ -298,7 +307,7 @@ void apply_fill_mask(ArtData* data, int i, int pct, int32_t w, int32_t h) {
     lv_obj_set_style_bitmap_mask_src(lane.color, buf, LV_PART_MAIN);
     lv_obj_set_style_bitmap_mask_src(lane.shade, buf, LV_PART_MAIN);
     if (lane.mask)
-        data->retired.push_back(lane.mask);
+        destroy_buf(lane.mask);
     lane.mask = buf;
     lane.mask_pct = pct;
 }
@@ -517,8 +526,6 @@ void delete_cb(lv_event_t* e) {
             if (lane.mask)
                 lv_draw_buf_destroy(lane.mask);
         }
-        for (lv_draw_buf_t* buf : data->retired)
-            lv_draw_buf_destroy(buf);
     }
     delete data_of(art);
     lv_obj_set_user_data(art, nullptr);
