@@ -21,6 +21,7 @@
 #include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/queued_start_fixture.h"
 #include "../test_helpers/scoped_mock_ams.h"
+#include "app_constants.h"
 #include "app_globals.h"
 #include "moonraker_client_mock.h"
 
@@ -256,4 +257,27 @@ TEST_CASE_METHOD(ReprintGatesFixture,
     CHECK(started == 0);
     CHECK(errors == 1);
     CHECK(ModalStack::instance().top_dialog() == nullptr);
+}
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a reprint whose file checks stall gives up",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 500.0F);
+    PlantedGcode file("reprint_stalled.gcode", "", kRedPla140g);
+
+    mock_client_.defer_next("server.files.metadata");
+    reprint(file.name());
+    REQUIRE(errors == 0);
+
+    lv_tick_inc(app_constants::transfer::STALL_MS + 1);
+    lv_timer_handler();
+    settle();
+    CHECK(errors == 1);
+
+    // A read that answers after all starts nothing.
+    mock_client_.fire_deferred("server.files.metadata");
+    settle();
+    CHECK(start_params.empty());
+    CHECK(started == 0);
+    CHECK(errors == 1);
 }

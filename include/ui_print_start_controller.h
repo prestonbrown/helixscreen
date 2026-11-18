@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_observer_guard.h"
+#include "ui_timer_guard.h"
 
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
@@ -237,6 +238,16 @@ class PrintStartController {
     /// Drop a reprint whose facts load has not answered, telling its caller
     /// through its on_error. Nothing when none is pending.
     void abandon_pending_reprint();
+
+    /// How much of a reprinted file its gate facts load may read.
+    [[nodiscard]] static helix::FileRead reprint_file_read(const std::set<int>& tools_used,
+                                                           int archive_plate);
+
+    /// Ends a reprint whose facts load has not answered within the transfer
+    /// stall limit (abandon_pending_reprint()), with a toast naming @p filename.
+    void arm_reprint_stall_watchdog(const std::string& filename);
+    helix::ui::LvglTimerGuard reprint_stall_;
+    std::string reprint_stall_file_;
 
     // Test-only access to the gate-pipeline runner (toy-gate injection and
     // dialog introspection).

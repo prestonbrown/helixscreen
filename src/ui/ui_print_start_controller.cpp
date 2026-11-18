@@ -661,11 +661,13 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
     }
     reprint_gate_facts_->set_api(api_);
     pending_reprint_on_error_ = on_error;
+    arm_reprint_stall_watchdog(filename);
     reprint_gate_facts_->load(
         filename,
         [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
          native_plate](helix::FileStartFacts facts) {
             pending_reprint_on_error_ = nullptr;
+            reprint_stall_.reset();
             // The printer and this screen moved on while the file was read: a
             // start already waiting on a dialog here, or one the printer took,
             // keeps it, and this reprint ends.
@@ -697,10 +699,7 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
                                on_error};
             run_gates_from(0);
         },
-        nullptr, nullptr,
-        // Tools in hand leave only the palette and grams to read, which never
-        // earn a download of the whole file.
-        tools_used.empty() ? helix::FileRead::Whole : helix::FileRead::Footer);
+        nullptr, nullptr, reprint_file_read(tools_used, archive_plate));
 }
 
 void PrintStartController::abandon_pending_reprint() {
@@ -711,9 +710,42 @@ void PrintStartController::abandon_pending_reprint() {
     if (reprint_gate_facts_) {
         reprint_gate_facts_->cancel();
     }
+    reprint_stall_.reset();
     auto on_error = std::move(pending_reprint_on_error_);
     pending_reprint_on_error_ = nullptr;
     on_error();
+}
+
+helix::FileRead PrintStartController::reprint_file_read(const std::set<int>& tools_used,
+                                                        int archive_plate) {
+    // Only a pre-print send needs the file's tools badly enough to download
+    // the whole file for them; the gates' palette and grams never earn that.
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const bool tools_needed =
+        tools_used.empty() && archive_plate == 0 && backend && backend->requires_preprint_send();
+    return tools_needed ? helix::FileRead::Whole : helix::FileRead::Footer;
+}
+
+void PrintStartController::arm_reprint_stall_watchdog(const std::string& filename) {
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<PrintStartController*>(lv_timer_get_user_data(t));
+            // LVGL deletes a finished one-shot itself.
+            self->reprint_stall_.release();
+            if (!self->pending_reprint_on_error_) {
+                return;
+            }
+            spdlog::warn("[PrintStartController] Not reprinting {}: its file checks did not "
+                         "answer in time",
+                         self->reprint_stall_file_);
+            NOTIFY_WARNING(lv_tr("Could not check {} - the reprint did not start"),
+                           self->reprint_stall_file_);
+            self->abandon_pending_reprint();
+        },
+        app_constants::transfer::STALL_MS, this);
+    lv_timer_set_repeat_count(timer, 1);
+    reprint_stall_file_ = filename;
+    reprint_stall_.reset(timer);
 }
 
 void PrintStartController::start_reprint(const std::string& filename, const std::string& path,
