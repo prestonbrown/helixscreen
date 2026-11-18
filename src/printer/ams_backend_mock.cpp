@@ -1615,6 +1615,25 @@ void AmsBackendMock::force_slot_status(int slot_index, SlotStatus status) {
     }
 }
 
+void AmsBackendMock::force_slot_cleared(int slot_index) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto* entry = slots_.get_mut(slot_index);
+        if (!entry)
+            return;
+        entry->info.status = SlotStatus::EMPTY;
+        entry->info.material.clear();
+        entry->info.brand.clear();
+        entry->info.spool_name.clear();
+        entry->info.color_name.clear();
+        entry->info.color_rgb = 0;
+        entry->info.spoolman_id = 0;
+        entry->info.total_weight_g = 0.0f;
+        entry->info.remaining_weight_g = -1.0f;
+    }
+    emit_event(kEventSlotChanged, std::to_string(slot_index));
+}
+
 void AmsBackendMock::force_slot_remaining(int slot_index, float remaining_m) {
     std::lock_guard<std::mutex> lock(mutex_);
 

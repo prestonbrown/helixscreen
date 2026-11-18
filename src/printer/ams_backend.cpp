@@ -828,13 +828,18 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         spdlog::info("[AMS Backend] Mock ACE identity enabled");
     }
 
-    // HELIX_MOCK_AMS_FILL=<pct>,<pct>,...: each lane's remaining weight as a share of its spool.
+    // HELIX_MOCK_AMS_FILL=<pct>,<pct>,...: each lane's remaining weight as a share of its spool;
+    // "empty" clears that lane to a bare bay.
     if (const char* fill_env = std::getenv("HELIX_MOCK_AMS_FILL")) {
         std::string_view rest(fill_env);
         for (int slot = 0; !rest.empty(); ++slot) {
             const size_t comma = rest.find(',');
             const std::string_view item = rest.substr(0, comma);
             rest = comma == std::string_view::npos ? std::string_view{} : rest.substr(comma + 1);
+            if (item == "empty") {
+                mock->force_slot_cleared(slot);
+                continue;
+            }
             const auto pct = helix::text_io::parse_leading<float>(std::string(item));
             const float total = mock->get_slot_info(slot).total_weight_g;
             if (pct && total > 0.0f)

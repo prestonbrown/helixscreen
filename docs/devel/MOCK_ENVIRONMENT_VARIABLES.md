@@ -1135,7 +1135,7 @@ HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --tes
 
 ### `HELIX_MOCK_AMS_FILL`
 
-Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`). Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
+Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
 
 | Property | Value |
 |----------|-------|
