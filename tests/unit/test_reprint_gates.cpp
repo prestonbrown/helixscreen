@@ -190,3 +190,70 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a reprint superseded before its file chec
     CHECK(started == 1);
     CHECK(errors == 0);
 }
+
+TEST_CASE_METHOD(ReprintGatesFixture,
+                 "a Print Files start while a reprint reads its file ends the reprint",
+                 "[reprint_gates][reprint][print_start]") {
+    PlantedGcode reprinted("reprint_raced.gcode", "", kRedPla140g);
+    auto& c = controller();
+    // One gate that always asks, so Print Files' start waits on its dialog.
+    struct GateList {
+        helix::ui::PrintStartController& c;
+        ~GateList() {
+            PrintStartControllerTestAccess::set_gates(c, helix::default_print_start_gates());
+        }
+    } restore{c};
+    PrintStartControllerTestAccess::set_gates(
+        c, {{"always_asks", +[](const helix::PrintStartContext&) {
+                 helix::CheckResult r;
+                 r.verdict = helix::CheckResult::Verdict::Warn;
+                 r.title = "Always";
+                 r.body = "Always asks";
+                 r.proceed_label = "Start Anyway";
+                 return r;
+             }}});
+
+    mock_client_.defer_next("server.files.metadata");
+    c.initiate_reprint(reprinted.name(), "", {0}, [this]() { ++started; }, [this]() { ++errors; });
+    settle();
+    REQUIRE(errors == 0);
+
+    c.set_file("print_files_pick.gcode", "", {"#FF0000"}, "");
+    c.initiate();
+    settle();
+    // The reprint's caller hears at once, so its button comes back.
+    CHECK(errors == 1);
+    lv_obj_t* print_files_dialog = PrintStartControllerTestAccess::print_gate_modal(c);
+    REQUIRE(print_files_dialog != nullptr);
+
+    // The reprint's file read answers late and changes nothing.
+    mock_client_.fire_deferred("server.files.metadata");
+    settle();
+    CHECK(PrintStartControllerTestAccess::print_gate_modal(c) == print_files_dialog);
+    CHECK(start_params.empty());
+    CHECK(started == 0);
+    CHECK(errors == 1);
+    press("btn_secondary");
+}
+
+TEST_CASE_METHOD(ReprintGatesFixture,
+                 "a reprint whose printer got busy while it read starts nothing",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 500.0F);
+    PlantedGcode file("reprint_busy.gcode", "", kRedPla140g);
+
+    mock_client_.defer_next("server.files.metadata");
+    controller().initiate_reprint(
+        file.name(), "", {0}, [this]() { ++started; }, [this]() { ++errors; });
+    settle();
+    helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
+    settle();
+    mock_client_.fire_deferred("server.files.metadata");
+    settle();
+
+    CHECK(start_params.empty());
+    CHECK(started == 0);
+    CHECK(errors == 1);
+    CHECK(ModalStack::instance().top_dialog() == nullptr);
+}

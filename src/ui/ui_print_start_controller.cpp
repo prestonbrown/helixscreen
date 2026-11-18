@@ -179,18 +179,14 @@ void PrintStartController::initiate() {
         lv_subject_set_int(can_print_subject_, 0);
     }
 
-    // Check if a print is already active before allowing a new one to start
-    if (!printer_state_.print_state().can_start_new_print()) {
-        // RAW_PRINT_STATE_OK: the preparing axis is carried separately here by
-        // can_start_new_print(); this arm asks only what the printer reports.
-        PrintJobState current_state = printer_state_.print_state().get_print_job_state();
-        const char* state_str = print_job_state_to_string(current_state);
-        NOTIFY_ERROR(lv_tr("Cannot start print: printer is {}"), state_str);
-        spdlog::warn("[PrintStartController] Attempted to start print while printer is in {} state",
-                     state_str);
+    if (refuse_while_printer_busy()) {
         end_without_print();
         return;
     }
+
+    // This start supersedes a reprint still waiting on its file checks: two
+    // starts must not race to the printer from one controller.
+    abandon_pending_reprint();
 
     // Ordered pre-print gate pipeline: insufficient spool weight, bypass
     // engaged on a lane print, unaccounted toolhead filament, required
@@ -520,6 +516,20 @@ void PrintStartController::report_preprint_failure(const std::string& reason) {
                                                "The print was not started.")));
 }
 
+bool PrintStartController::refuse_while_printer_busy() {
+    if (printer_state_.print_state().can_start_new_print()) {
+        return false;
+    }
+    // RAW_PRINT_STATE_OK: the preparing axis is carried separately here by
+    // can_start_new_print(); this arm asks only what the printer reports.
+    PrintJobState current_state = printer_state_.print_state().get_print_job_state();
+    const char* state_str = print_job_state_to_string(current_state);
+    NOTIFY_ERROR(lv_tr("Cannot start print: printer is {}"), state_str);
+    spdlog::warn("[PrintStartController] Attempted to start print while printer is in {} state",
+                 state_str);
+    return true;
+}
+
 bool PrintStartController::refuse_while_filament_op_runs() {
     if (!AmsState::instance().any_operation_running_here()) {
         return false;
@@ -656,6 +666,19 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
          native_plate](helix::FileStartFacts facts) {
             pending_reprint_on_error_ = nullptr;
+            // The printer and this screen moved on while the file was read: a
+            // start already waiting on a dialog here, or one the printer took,
+            // keeps it, and this reprint ends.
+            if (print_gate_modal_ || divert_to_spool_removal() || refuse_while_filament_op_runs() ||
+                refuse_while_printer_busy()) {
+                spdlog::info("[PrintStartController] Not reprinting {}: the start it checked "
+                             "for is no longer free",
+                             filename);
+                if (on_error) {
+                    on_error();
+                }
+                return;
+            }
             // The tools the caller saw print are this job's; the file read
             // answers for a caller that has none.
             if (!tools_used.empty()) {

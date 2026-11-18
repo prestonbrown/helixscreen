@@ -245,6 +245,9 @@ class PrintStartController {
     /// With spools latched on the bed, opens the drying banner's prompt instead
     /// of a start the API layer would refuse. True when the start must stop.
     bool divert_to_spool_removal();
+    /// The printer cannot take a new print (can_start_new_print()): toasts
+    /// why. True when the start must stop.
+    bool refuse_while_printer_busy();
     /// A filament operation this screen sequences is running
     /// (AmsState::any_operation_running_here()): say so instead of starting a
     /// print it would keep sending moves into.
