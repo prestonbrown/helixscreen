@@ -767,9 +767,19 @@ void AmsOverviewPanel::update_path_canvas(const AmsSystemInfo& info) {
     const AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend)
         return;
-    // The whole path: lanes, hub, buffer, toolhead and bypass, as AmsPanel draws it.
-    ams_detail_setup_path_canvas(detail_path_canvas_, detail_widgets_.slot_grid, shown_unit_pos_,
-                                 backend, info);
+    // The whole path: lanes, hub, buffer, toolhead and bypass, as AmsPanel draws it. A unit
+    // the path set up this way shows too tall for it is laid out again at the size that fits.
+    if (ams_detail_setup_path_canvas(detail_path_canvas_, detail_widgets_.slot_grid,
+                                     shown_unit_pos_, backend, info) &&
+        relayout_passes_ < kMaxRelayoutPasses &&
+        shown_unit_pos_ < static_cast<int>(info.units.size())) {
+        ++relayout_passes_;
+        create_detail_slots(info, shown_unit_pos_);
+        helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
+        update_path_canvas(info);
+        --relayout_passes_;
+        return;
+    }
     refresh_page_bypass(helix::ui::bypass_node_visible_for(backend, info));
 }
 

@@ -1344,6 +1344,41 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     }
 }
 
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS unit art: a unit cut to fit its path keeps that size whatever was sized since",
+    "[ams][tray][ui_integration][unit-art][art-fit]") {
+    // At 480x272 the AMS 2 Pro's drawing leaves its path too little room even at half size.
+    helix::test::ScopedGeometry scoped(480, 272);
+    host_ = lv_obj_create(test_screen());
+    lv_obj_set_size(host_, 480, 220);
+    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    unit_name_ = "AMS2";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/true,
+          /*buffer=*/true);
+    namespace at = helix::ui::ams_tray;
+    REQUIRE(at::s_tray.art);
+    lv_obj_t* slot_area = lv_obj_get_parent(slot_grid_);
+    lv_obj_update_layout(slot_area);
+    const int32_t width = lv_obj_get_content_width(slot_area);
+    const auto shown = (int32_t)at::s_tray.spool_size;
+    CAPTURE(width, shown);
+    REQUIRE(helix::ui::ams_detail_spool_size(width, 4) == shown);
+    // A wider row is sized (the overview sizes its hub for its widest unit), and the path is
+    // set up again: the unit keeps its size, so its next layout starts there.
+    int wider = 5;
+    while (wider < 16 && helix::ui::ams_detail_spool_size(width, wider) / 2 >= shown)
+        ++wider;
+    CAPTURE(wider);
+    REQUIRE(helix::ui::ams_detail_spool_size(width, wider) / 2 < shown);
+    (void)helix::ui::ams_detail_slot_layout(width, wider);
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    REQUIRE(canvas != nullptr);
+    CHECK_FALSE(ams_detail_setup_path_canvas(canvas, slot_grid_, -1));
+    CHECK(helix::ui::ams_detail_spool_size(width, 4) == shown);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit art in portrait at 320x480: the hub stands clear of the lane numbers",
                  "[ams][tray][ui_integration][portrait][unit-art]") {

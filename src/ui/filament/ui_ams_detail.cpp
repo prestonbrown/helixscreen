@@ -227,18 +227,23 @@ struct SpoolHeightCap {
     int32_t spool = 0;
 };
 SpoolHeightCap s_spool_cap;
-SpoolHeightCap s_last_layout; // what the shown unit's spools were last sized for
-int s_layout_unit = -2;       // the unit ams_detail_create_slots() lays out
+int s_layout_unit = -2; // the unit ams_detail_create_slots() lays out
 
-SpoolHeightCap spool_cap_key(int32_t available_width, int slot_count) {
+/// What @p unit's spools in a row @p available_width wide of @p slot_count slots size to on
+/// this screen with no cap: the key a cap is kept under, and the size it caps.
+SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_count) {
     SpoolHeightCap k;
-    k.unit = s_layout_unit;
+    k.unit = unit;
     k.slot_count = slot_count;
     k.available_width = available_width;
-    if (lv_display_t* disp = lv_display_get_default()) {
+    lv_display_t* disp = lv_display_get_default();
+    if (disp) {
         k.screen_w = lv_display_get_horizontal_resolution(disp);
         k.screen_h = lv_display_get_vertical_resolution(disp);
     }
+    const int32_t shorter = std::min(k.screen_w, k.screen_h);
+    const int32_t cap = shorter > 0 ? shorter / 5 : helix::ui::ams_slot_spool_size();
+    k.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
     return k;
 }
 
@@ -557,7 +562,8 @@ int32_t on_screen_bottom(lv_obj_t* obj) {
 }
 
 /// The path under a drawn unit gets its full-size height; see ams_detail_sync_lane_entry().
-bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach) {
+/// @p layout is the shown unit's row at its natural size, which a cap is kept under.
+bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHeightCap& layout) {
     const int32_t need = ui_filament_path_canvas_required_height(canvas);
     if (need <= 0 || !s_tray.art || s_tray.art_drawn_h <= 0)
         return false;
@@ -590,14 +596,14 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach) {
     const int32_t art_h = s_tray.art_drawn_h;
     // A unit keeps at least half the size its width gives it, so its drawing still
     // reads; where that is not enough the head below gives up the rest.
-    const int32_t floor_spool = s_last_layout.spool / 2;
+    const int32_t floor_spool = layout.spool / 2;
     const int32_t spool =
         std::max<int32_t>(floor_spool, (int32_t)((float)s_tray.spool_size *
                                                  (float)(art_h - overflow) / (float)art_h));
-    const bool same = same_key(s_spool_cap, s_last_layout);
+    const bool same = same_key(s_spool_cap, layout);
     if (spool >= s_tray.spool_size || (same && s_spool_cap.spool > 0 && spool >= s_spool_cap.spool))
         return false;
-    s_spool_cap = s_last_layout;
+    s_spool_cap = layout;
     s_spool_cap.spool = spool;
     spdlog::debug("[AmsDetail] Unit {} overflows its path by {} px: spools capped at {}",
                   s_spool_cap.unit, overflow, spool);
@@ -713,7 +719,11 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         // DECLARATIVE_OK: measured layout; the badge's row is the canvas's band row
         lv_obj_set_y(badge, lv_obj_get_style_y(badge, LV_PART_MAIN) + band_y - (ba.y1 + ba.y2) / 2);
     }
-    return ams_detail_fit_unit_to_path(canvas, reach);
+    lv_obj_update_layout(s_tray.container);
+    return ams_detail_fit_unit_to_path(
+        canvas, reach,
+        natural_spool_layout(s_tray.unit_index, lv_obj_get_content_width(s_tray.container),
+                             s_tray.lane_count));
 }
 
 bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int unit_index) {
@@ -742,19 +752,12 @@ bool helix::ui::unit_reports_climate(int unit_index) {
 }
 
 int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count) {
-    const int32_t token = helix::ui::ams_slot_spool_size();
     if (!draws_tray() || slot_count <= 0 || available_width <= 0)
-        return token;
-    lv_display_t* disp = lv_display_get_default();
-    const int32_t shorter = disp ? std::min(lv_display_get_horizontal_resolution(disp),
-                                            lv_display_get_vertical_resolution(disp))
-                                 : 0;
-    const int32_t cap = shorter > 0 ? shorter / 5 : token;
-    s_last_layout = spool_cap_key(available_width, slot_count);
-    s_last_layout.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
-    if (s_spool_cap.spool > 0 && same_key(s_spool_cap, s_last_layout))
-        return std::min(s_last_layout.spool, s_spool_cap.spool);
-    return s_last_layout.spool;
+        return helix::ui::ams_slot_spool_size();
+    const SpoolHeightCap natural = natural_spool_layout(s_layout_unit, available_width, slot_count);
+    if (s_spool_cap.spool > 0 && same_key(s_spool_cap, natural))
+        return std::min(natural.spool, s_spool_cap.spool);
+    return natural.spool;
 }
 
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
@@ -1525,24 +1528,24 @@ void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
     spdlog::debug("[AmsDetail] Moved {} badges to overlay layer", slot_count);
 }
 
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index) {
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index) {
     if (!canvas)
-        return;
+        return false;
 
     auto* backend = helix::AmsState::instance().get_backend();
     const auto info = helix::AmsState::instance().system_info();
     if (!backend || !info)
-        return;
+        return false;
 
-    ams_detail_setup_path_canvas(canvas, slot_grid, unit_index, backend, *info);
+    return ams_detail_setup_path_canvas(canvas, slot_grid, unit_index, backend, *info);
 }
 
 // NAMESPACE_OK: an overload of the global three-argument ams_detail_setup_path_canvas
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
                                   const helix::AmsBackend* backend,
                                   const helix::AmsSystemInfo& info) {
     if (!canvas || !backend)
-        return;
+        return false;
 
     // A unit-scoped view asks its own unit; the all-units view any unit.
     if (unit_index >= 0 && unit_index < static_cast<int>(info.units.size())) {
@@ -1615,9 +1618,10 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
 
     // Pass slot_grid reference so draw callback can read actual slot positions
     // at render time — avoids setup-vs-draw timing mismatches across breakpoints.
+    bool relayout = false;
     if (slot_grid) {
         ui_filament_path_canvas_set_slot_grid(canvas, slot_grid);
-        helix::ui::ams_detail_sync_lane_entry(canvas, slot_grid);
+        relayout = helix::ui::ams_detail_sync_lane_entry(canvas, slot_grid);
 
         // Still set slot_width/overlap as fallback for get_slot_x() computed positions
         lv_obj_t* slot_area = lv_obj_get_parent(slot_grid);
@@ -1755,6 +1759,7 @@ void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
                   "toolhead y {}..{}",
                   slot_count, unit_index, canvas_area.y1, canvas_area.y2,
                   has_toolhead ? toolhead.y1 : -1, has_toolhead ? toolhead.y2 : -1);
+    return relayout;
 }
 
 void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
