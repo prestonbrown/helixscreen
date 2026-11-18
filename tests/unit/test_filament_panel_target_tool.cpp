@@ -27,6 +27,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "safety_settings_manager.h"
+#include "target_tool.h"
 #include "target_tool_selection.h"
 #include "temperature_controller.h"
 #include "tool_state.h"
@@ -86,6 +87,11 @@ struct TargetToolHarness {
     ~TargetToolHarness() {
         helix::ui::UpdateQueue::instance().drain();
         panel.reset();
+        // The panel attached the process-wide TargetTool to this harness's
+        // PrinterState. Hand it back to the app's while these subjects still
+        // live: their storage dies with the harness, never deinited, and the
+        // observers left on them would be lost.
+        helix::ui::TargetTool::instance().attach(get_printer_state());
         set_moonraker_api(previous_api);
         helix::AmsState::instance().clear_backends();
         helix::ui::UpdateQueue::instance().drain();
