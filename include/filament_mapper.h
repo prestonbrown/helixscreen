@@ -84,6 +84,11 @@ struct AvailableSlot {
     /// until its material is set. Defaulted for the aggregate initializers.
     bool material_required = false;
 
+    /// An empty slot that keeps the identity of the spool taken out of it (SlotInfo
+    /// has_filament_info()): shown as that spool, dimmed. Defaulted for the aggregate
+    /// initializers.
+    bool ghost = false;
+
     /// Unique key for this slot across all backends
     SlotKey key() const {
         return {slot_index, backend_index};
