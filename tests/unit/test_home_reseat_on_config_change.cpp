@@ -9,6 +9,7 @@
 
 #include "ui_panel_home.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/home_panel_test_access.h"
 #include "../test_helpers/scoped_widget_factory.h"
@@ -91,7 +92,8 @@ struct ScopedHomeLayout {
 TEST_CASE_METHOD(XMLTestFixture,
                  "Home config change: moved widgets keep their tiles, a new widget set rebuilds",
                  "[home][reseat]") {
-    helix::init_widget_registrations();
+    // The main page auto-places every registered widget, so their subjects must exist.
+    helix::test::init_panel_widget_subjects();
     lv_xml_register_component_from_data(
         "test_home_reseat_stub",
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
