@@ -235,6 +235,19 @@ def test_a_variable_unit_draws_each_lane_count(lanes):
     assert {i.lane for i in scene.items if i.lane is not None} == set(range(lanes))
 
 
+@pytest.mark.parametrize("unit", [box_turtle.UNIT, box_turtle.ENCLOSED], ids=lambda u: u.id)
+def test_a_box_turtle_is_drawn_with_two_to_eight_lanes(unit):
+    assert unit.lane_variants == tuple(range(2, 9))
+    c = spool.spool_constants(REPO)
+    half = c["spool_width"] * (box_turtle.SPOOL_R / c["flange_radius"]) / 2
+    for lanes in unit.lane_variants:
+        scene = kit.Scene(kit.ART_CAMERA)
+        unit.draw_art(scene, ["#ffffff"] * lanes, "full")
+        assert {i.lane for i in scene.items if i.lane is not None} == set(range(lanes))
+        centers = box_turtle.centers(lanes)
+        assert centers[0] - half > 0 and centers[-1] + half < box_turtle.width(lanes)
+
+
 def test_the_quattro_box_is_drawn_with_four_lanes_only():
     assert quattro_box.UNIT.lanes == 4
     assert quattro_box.UNIT.lane_variants == ()

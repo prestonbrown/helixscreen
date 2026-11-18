@@ -67,8 +67,8 @@ constexpr RailFaceArt k_tradrack_rail_face[] = {{4, 1.63626f, 0.47250f, 0.09083f
 
 const UnitShell kShells[] = {
     {"ace_pro", k_ace_pro_cheek, 3, k_ace_pro_dome, 17, 4, 31.42f, 44.0f, 7.0f, true, LaneJoin::Junction, 0x3a3b3f, 0x000000, k_ace_pro_front, 5, false, 0x0},
-    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 35.1f, 9.0f, false, LaneJoin::Hub, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6, false, 0x0},
-    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 35.1f, 9.0f, true, LaneJoin::Hub, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6, false, 0x0},
+    {"box_turtle", k_box_turtle_cheek, 2, nullptr, 0, 4, 0.00f, 35.1f, 9.0f, false, LaneJoin::Hub, 0x8c6f2e, 0x1f6a4a, k_box_turtle_front, 6, false, 0x1fc},
+    {"box_turtle_enclosed", k_box_turtle_enclosed_cheek, 2, k_box_turtle_enclosed_dome, 17, 4, 0.00f, 35.1f, 9.0f, true, LaneJoin::Hub, 0x8c6f2e, 0x1f6a4a, k_box_turtle_enclosed_front, 6, false, 0x1fc},
     {"ams_2_pro", k_ams_2_pro_cheek, 2, k_ams_2_pro_dome, 17, 4, 0.00f, 42.0f, 7.0f, true, LaneJoin::Inside, 0x2b2c30, 0x000000, k_ams_2_pro_front, 4, false, 0x0},
     {"cfs", k_cfs_cheek, 3, k_cfs_dome, 17, 4, 33.76f, 38.0f, 7.0f, true, LaneJoin::Inside, 0x55585e, 0x000008, k_cfs_front, 7, false, 0x0},
     {"qidi_box", k_qidi_box_cheek, 2, k_qidi_box_dome, 17, 4, 51.11f, 40.0f, 6.0f, true, LaneJoin::Junction, 0xd6d8dc, 0x000000, k_qidi_box_front, 3, false, 0x0},
