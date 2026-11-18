@@ -79,6 +79,10 @@ struct TunerFixture : LVGLTestFixture {
 
 TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a nudge",
                  "[pa_tune][pa_tuner]") {
+    // What the overlay's labels show, through the subjects they bind.
+    const auto shown = [](const char* name) {
+        return std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, name)));
+    };
     start_session();
     printing(1);
     REQUIRE(overlay.session_for_test().state() == pa::TuningSession::State::Printing);
@@ -88,22 +92,27 @@ TEST_CASE_METHOD(TunerFixture, "the tuner ramps K on its own print and takes a n
     printing(22);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0100");
     report_k(0.01);
+    CHECK(shown("pa_tune_k_big") == "0.0100");
+    CHECK(shown("pa_tune_mode_text").rfind("Ramp", 0) == 0);
 
     overlay.nudge_for_test(1); // default step 0.005
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0150");
     CHECK(overlay.session_for_test().mode() == pa::TuningSession::Mode::Manual);
     report_k(0.015);
+    CHECK(shown("pa_tune_mode_text").rfind("Manual", 0) == 0);
 
     status({{"print_stats", {{"state", "complete"}}}});
     REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
     const auto bands = overlay.session_for_test().bands();
     REQUIRE(bands.size() == 2);
     CHECK(bands[1].k == Catch::Approx(0.015f));
+    CHECK(shown("pa_tune_band_k_0") == "0.0000");
 
     overlay.select_band_for_test(0);
     overlay.apply_pick_for_test();
     CHECK(overlay.stage() == PaTuningOverlay::RESULT);
     CHECK(client.last_send_script() == "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0000");
+    CHECK(shown("pa_tune_result_k") == "0.0000");
 }
 
 TEST_CASE_METHOD(TunerFixture, "a finished state from an earlier print does not end the run",

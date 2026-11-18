@@ -10,6 +10,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "print_health_log.h"
 #include "remote_client.h"
@@ -1099,4 +1100,51 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl perf reports drawn frames and overlay ope
         return o["name"] == "CtlPerfProbe" && o["opens"].get<int>() >= 1;
     }));
     lv_obj_delete(probe);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl resize sets the display size and refuses a non-positive one",
+                 "[remote][ctl]") {
+    lv_display_t* display = lv_display_get_default();
+    const int32_t w0 = lv_display_get_horizontal_resolution(display);
+    const int32_t h0 = lv_display_get_vertical_resolution(display);
+    CtlClickRig rig;
+
+    rig.request("resize", {{"width", 0}, {"height", h0 - 10}});
+    rig.request("resize", {{"width", w0 - 10}, {"height", -1}});
+    CHECK(lv_display_get_horizontal_resolution(display) == w0);
+    CHECK(lv_display_get_vertical_resolution(display) == h0);
+
+    rig.request("resize", {{"width", w0 - 10}, {"height", h0 - 10}});
+    CHECK(lv_display_get_horizontal_resolution(display) == w0 - 10);
+    CHECK(lv_display_get_vertical_resolution(display) == h0 - 10);
+
+    lv_display_set_resolution(display, w0, h0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "ctl wait_for takes its observer off the subject when it times out",
+                 "[remote][ctl]") {
+    static helix::Subject probe;
+    probe.init_int(0);
+    lv_xml_register_subject(nullptr, "ctl_wait_for_probe", &probe);
+    CtlClickRig rig;
+
+    const nlohmann::json reply =
+        rig.request("wait_for", {{"name", "ctl_wait_for_probe"}, {"value", 1}, {"timeout", 1}});
+    CHECK(reply.contains("error"));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_ll_get_len(&(&probe)->subs_ll) == 0);
+    probe.reset();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl set writes a string subject", "[remote][ctl]") {
+    static char buf[32];
+    static helix::Subject probe;
+    probe.init_string(buf, "before");
+    lv_xml_register_subject(nullptr, "ctl_set_string_probe", &probe);
+    CtlClickRig rig;
+
+    rig.request("set", {{"name", "ctl_set_string_probe"}, {"value", "after"}});
+    CHECK(std::string(lv_subject_get_string(&probe)) == "after");
+    probe.reset();
 }

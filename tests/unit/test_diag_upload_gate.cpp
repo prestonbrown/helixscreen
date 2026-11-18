@@ -439,3 +439,12 @@ TEST_CASE_METHOD(DiagUploadGateFixture,
     close(fd);
     server.stop();
 }
+
+TEST_CASE("DebugBundleCollector: the UI perf report rides along only when it parses",
+          "[debug-bundle]") {
+    helix::BundleOptions opts;
+    opts.ui_perf_json = R"({"frames": {"drawn": 12}})";
+    CHECK(helix::DebugBundleCollector::collect(opts)["ui_perf"]["frames"]["drawn"] == 12);
+    opts.ui_perf_json = "{not json";
+    CHECK_FALSE(helix::DebugBundleCollector::collect(opts).contains("ui_perf"));
+}

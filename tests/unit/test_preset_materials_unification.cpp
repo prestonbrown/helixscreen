@@ -13,6 +13,7 @@
 #include "ui_ams_environment_overlay.h"
 
 #include "../helix_test_fixture.h"
+#include "core/observer_factory.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "material_settings_manager.h"
@@ -290,4 +291,27 @@ TEST_CASE_METHOD(HelixTestFixture,
     REQUIRE(pla.has_value());
     REQUIRE(pla->chamber_temp_c == 0);
     REQUIRE(chamber.material[0] > 0);
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "Reassigning a preset slot notifies its name and temps subjects",
+                 "[presets]") {
+    PresetSlotGuard guard;
+    presets::init_subjects();
+    int name_notes = 0;
+    int temp_notes = 0;
+    auto count = [](int* n, const char*) { ++*n; };
+    ObserverGuard name = helix::ui::observe<const char*>(
+        lv_xml_get_subject(nullptr, "preset_material_0_name"), &name_notes, count,
+        subject_never_freed(), helix::ui::Dispatch::Immediate);
+    ObserverGuard temps = helix::ui::observe<const char*>(
+        lv_xml_get_subject(nullptr, "preset_material_0_temps"), &temp_notes, count,
+        subject_never_freed(), helix::ui::Dispatch::Immediate);
+    const int names_before = name_notes;
+    const int temps_before = temp_notes;
+
+    PresetSlotGuard::assign(0, "ASA");
+    presets::refresh_subjects();
+
+    CHECK(name_notes > names_before);
+    CHECK(temp_notes > temps_before);
 }

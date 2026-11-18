@@ -27,7 +27,9 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
                   "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6], [0.2, 0.6]]},
       "bad_quad": {"size": [10, 10], "nozzle": [0.5, 0.5], "bed": [[0.1, 0.9], [0.9, 0.9], [0.8, 0.6]]},
       "no_bed":  {"size": [10, 10], "nozzle": [0.5, 0.5]},
-      "bad_pt":  {"size": [10, 10], "nozzle": "x", "bed": [[0.1, 0.9], [0.9, 0.9]]}
+      "bad_pt":  {"size": [10, 10], "nozzle": "x", "bed": [[0.1, 0.9], [0.9, 0.9]]},
+      "obj_bed": {"size": [10, 10], "nozzle": [0.5, 0.5],
+                  "bed": {"a": [0.1, 0.9], "b": [0.9, 0.9], "c": [0.8, 0.6], "d": [0.2, 0.6]}}
     })");
     REQUIRE(m.count("full") == 1);
     CHECK(m.at("full").src_w == 100);
@@ -47,6 +49,7 @@ TEST_CASE("parse_image_regions: required, optional and malformed entries",
     CHECK(est[3].x > 0.1f);
     CHECK(m.count("no_bed") == 0);
     CHECK(m.count("bad_pt") == 0);
+    CHECK(m.count("obj_bed") == 0);
 }
 
 TEST_CASE("parse_image_regions: windows are a list of quads", "[printer_image][regions]") {

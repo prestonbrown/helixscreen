@@ -15,8 +15,8 @@
 #include "core/error_reporting.h"
 #include "core/gcode_filename.h"
 #include "core/subject.h"
-#include "display_manager.h"
 #include "display_settings_manager.h"
+#include "display_wake_request.h"
 #include "format_utils.h"
 #include "heater_type.h"
 #include "moonraker_api.h"
@@ -417,9 +417,7 @@ static void on_print_state_changed_for_notification(lv_observer_t* observer,
         }
 
         if (plan.wake) {
-            if (auto* dm = DisplayManager::instance()) {
-                dm->wake_display();
-            }
+            helix::request_display_wake();
         }
         if (plan.toast) {
             ToastSeverity severity = (current == PrintJobState::COMPLETE) ? ToastSeverity::SUCCESS

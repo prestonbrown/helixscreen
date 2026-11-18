@@ -4,9 +4,10 @@
 
 Advisory by default: it reports and exits 0, so it can land before every consumer
 reads the manifest. Pass --strict to make findings fail, which is how it gets
-wired into CI once the migration is far enough along.
+wired into CI once the migration is far enough along. The checks in HARD_CHECKS
+fail without --strict.
 
-    scripts/check_platform_manifest.py            # report, always exit 0
+    scripts/check_platform_manifest.py            # report; exit 1 only on a hard finding
     scripts/check_platform_manifest.py --strict   # exit 1 on any finding
     scripts/check_platform_manifest.py --quiet    # findings only, no summary
 """
@@ -26,6 +27,11 @@ ROOT = REPO_ROOT
 REQUIRED_TOP = ["display_name", "panel", "storage", "service", "klipper", "moonraker", "package"]
 REQUIRED_PACKAGE = ["asset_name", "docker_target", "in_release_matrix", "detectable"]
 REQUIRED_SERVICE = ["init_system", "needs_procd_shim"]
+
+
+# Findings that fail the build without --strict: user config inside the payload
+# is deleted by the next update, so it is never only advisory.
+HARD_CHECKS = {"config-in-payload"}
 
 
 class Findings:
@@ -480,6 +486,26 @@ def _user_config_pairs(storage):
     return pairs
 
 
+def _user_config_declaration(storage):
+    """How storage declares the user's config dir: "dirs", "none" or None (undeclared).
+
+    "dirs" is user_config_dir (a path, or "detected" when the installer resolves
+    it on the device) or user_config_dir_by_firmware. "none" is an explicit
+    user_config_dir of null with the user_config_dir_reason that makes it safe.
+    """
+    if storage.get("user_config_dir_by_firmware"):
+        return "dirs"
+    if "user_config_dir" not in storage:
+        return None
+    value = storage["user_config_dir"]
+    if isinstance(value, str) and value:
+        return "dirs"
+    reason = storage.get("user_config_dir_reason")
+    if value is None and isinstance(reason, str) and reason.strip():
+        return "none"
+    return None
+
+
 def check_user_config_outside_payload(manifest, f):
     """The user's config files must live outside the payload, and the device must agree.
 
@@ -492,7 +518,21 @@ def check_user_config_outside_payload(manifest, f):
     """
     restore = read("config/restore-user-config.sh")
     for pid, entry in sorted(manifest["platforms"].items()):
-        for label, root, config_dir in _user_config_pairs(entry.get("storage", {})):
+        storage = entry.get("storage", {})
+        declared = _user_config_declaration(storage)
+        if declared == "none":
+            continue
+        pairs = _user_config_pairs(storage)
+        if declared is None and not pairs:
+            f.add(
+                "config-in-payload",
+                f"{pid}: storage declares no user_config_dir: name the directory, "
+                f'"detected" when the installer resolves it, or null with a user_config_dir_reason',
+            )
+            continue
+        for label, root, config_dir in pairs:
+            if config_dir == "detected":
+                continue
             if not config_dir:
                 f.add(
                     "config-in-payload",
@@ -578,16 +618,20 @@ def main():
             current = check
         print(f"  {message}")
 
+    hard = [check for check, _ in f.items if check in HARD_CHECKS]
     if not args.quiet:
         print()
         if len(f) == 0:
             print("No findings.")
         elif args.strict:
             print("%d finding(s); --strict, so this is a failure." % len(f))
+        elif hard:
+            print("%d finding(s) under %s fail the build even without --strict."
+                  % (len(hard), ", ".join(sorted(set(hard)))))
         else:
             print("%d finding(s); advisory, so this does not fail the build." % len(f))
 
-    return 1 if (args.strict and len(f)) else 0
+    return 1 if (hard or (args.strict and len(f))) else 0
 
 
 if __name__ == "__main__":

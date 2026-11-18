@@ -418,10 +418,27 @@ TEST_CASE("a Creator 5 Pro is refused a release with no mips asset on the main t
     CHECK(shown.find("no build for the FlashForge Creator 5 Pro") != std::string::npos);
     CHECK(shown.find("v1.0.5") != std::string::npos);
 
-    // An error with no release attached keeps its own text.
-    UpdateCheckerTestAccess::report_result(checker, UpdateChecker::Status::Error, std::nullopt,
-                                           "boom");
-    helix::ui::UpdateQueue::instance().drain();
+    // new_version names the release on offer and is cleared by any other result; an
+    // error with no release attached keeps its own text.
+    UpdateChecker::ReleaseInfo offered;
+    offered.version = "9.9.9";
+    struct Report {
+        UpdateChecker::Status status;
+        std::optional<UpdateChecker::ReleaseInfo> info;
+        const char* error;
+        const char* new_version;
+    };
+    const Report reports[] = {
+        {UpdateChecker::Status::UpdateAvailable, offered, "", "9.9.9"},
+        {UpdateChecker::Status::UpToDate, std::nullopt, "", ""},
+        {UpdateChecker::Status::UpdateAvailable, offered, "", "9.9.9"},
+        {UpdateChecker::Status::Error, std::nullopt, "boom", ""},
+    };
+    for (const Report& r : reports) {
+        UpdateCheckerTestAccess::report_result(checker, r.status, r.info, r.error);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(std::string(lv_subject_get_string(checker.new_version_subject())) == r.new_version);
+    }
     CHECK(std::string(lv_subject_get_string(checker.version_text_subject())).find("boom") !=
           std::string::npos);
 

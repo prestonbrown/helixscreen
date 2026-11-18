@@ -1,14 +1,19 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_fonts.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "cjk_filename_glyphs.h"
 #include "cjk_font_manager.h"
 #include "core/gcode_filename.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <filesystem>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -273,4 +278,48 @@ TEST_CASE_METHOD(CjkFilenameFixture,
     lv_obj_update_layout(lv_screen_active());
     REQUIRE(lv_obj_get_width(fresh) != placeholder_width);
     CHECK(lv_obj_get_width(early) == lv_obj_get_width(fresh));
+}
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: filename glyphs back only the faces of their own sizes",
+                 "[cjk_font][cjk_filename]") {
+    auto& mgr = CjkFontManager::instance();
+    helix::init_cjk_fonts("en");
+    helix::gcode::get_display_filename("猫.gcode");
+    const std::vector<int> sizes = mgr.filename_glyph_sizes();
+    REQUIRE_FALSE(sizes.empty());
+
+    struct Face {
+        const lv_font_t* font;
+        int px;
+    };
+#define HELIX_CJK_FACE(face, bin, px) {&face, px},
+    const Face faces[] = {
+#include "cjk_font_faces.inc"
+    };
+#undef HELIX_CJK_FACE
+    for (const Face& face : faces) {
+        CAPTURE(face.px);
+        const bool has_glyphs = std::find(sizes.begin(), sizes.end(), face.px) != sizes.end();
+        CHECK((face.font->fallback != nullptr) == has_glyphs);
+    }
+}
+
+TEST_CASE_METHOD(CjkFilenameFixture,
+                 "CjkFontManager: each CJK filename formatted off the main thread queues a load",
+                 "[cjk_font][cjk_filename]") {
+    auto& mgr = CjkFontManager::instance();
+    helix::init_cjk_fonts("en");
+    const auto format_off_main = [] {
+        std::thread([] { helix::gcode::get_display_filename("猫.gcode"); }).join();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    format_off_main();
+    REQUIRE_FALSE(mgr.filename_glyph_sizes().empty());
+
+    mgr.shutdown();
+    helix::init_cjk_fonts("en");
+    REQUIRE(mgr.filename_glyph_sizes().empty());
+    format_off_main();
+    CHECK_FALSE(mgr.filename_glyph_sizes().empty());
 }

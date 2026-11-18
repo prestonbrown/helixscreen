@@ -4,6 +4,7 @@
 #include "filament_variants.h"
 #include "moonraker_error.h"
 #include "spoolman_catalog_search.h"
+#include "spoolman_slot_saver.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -197,6 +198,8 @@ TEST_CASE("find_similar_filament offers the nearest colour of the same material"
     // A string that is not a colour normalizes to none, so it offers nothing.
     CHECK(helix::spoolman::normalize_color_hex("red").empty());
     CHECK(helix::spoolman::normalize_color_hex("12345").empty());
+    // Names compare by words: case, padding and whitespace runs do not count.
+    CHECK(helix::spoolman::normalized_name("  PLA \t  Matte\nBlack ") == "pla matte black");
 }
 
 TEST_CASE("filament_display_name names a record with no name by its material and colour",
@@ -207,4 +210,19 @@ TEST_CASE("filament_display_name names a record with no name by its material and
     CHECK(helix::spoolman::filament_display_name(f, "Gray") == "ABS Gray");
     f.filament_name = "Grey ABS+HS";
     CHECK(helix::spoolman::filament_display_name(f, "Gray") == "Grey ABS+HS");
+}
+
+TEST_CASE("SpoolmanSlotSaver::is_cancellation needs the declined-offer type and code together",
+          "[spoolman]") {
+    const auto error = [](MoonrakerErrorType type, int code) {
+        MoonrakerError e;
+        e.type = type;
+        e.code = code;
+        return e;
+    };
+    using helix::SpoolmanSlotSaver;
+    CHECK(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, -32800)));
+    CHECK_FALSE(
+        SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::VALIDATION_ERROR, 400)));
+    CHECK_FALSE(SpoolmanSlotSaver::is_cancellation(error(MoonrakerErrorType::UNKNOWN, -32800)));
 }

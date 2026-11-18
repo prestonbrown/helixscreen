@@ -17,6 +17,7 @@
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "config.h"
+#include "core/observer_factory.h"
 #include "lane_source_store.h"
 #include "load_cell_manager.h"
 #include "printer_discovery.h"
@@ -170,6 +171,18 @@ TEST_CASE_METHOD(LoadCellTestFixture, "LoadCellManager - state updates", "[load_
 
         update_sensor_state("load_cell spool_weight", 299.5);
         REQUIRE(ams_state_spool_info().remaining_weight_g == 299.5);
+    }
+
+    SECTION("A published weight notifies the external spool's observers") {
+        auto& ams = AmsState::instance();
+        ams.init_subjects(false);
+        int notifications = 0;
+        ObserverGuard guard = helix::ui::observe<int>(
+            ams.get_external_spool_color_subject(), &notifications, [](int* n, int) { ++*n; },
+            ams.get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+        const int before = notifications;
+        update_sensor_state("load_cell spool_weight", 300.0);
+        CHECK(notifications > before);
     }
 
     SECTION("Publishes update only if spool weight increased by at least 1 g") {

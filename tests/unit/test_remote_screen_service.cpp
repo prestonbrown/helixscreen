@@ -15,6 +15,7 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
+#include "display_wake_request.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_cache_registry.h"
@@ -113,6 +114,18 @@ TEST_CASE_METHOD(RemoteScreenFixture, "settings: control cannot be on while view
     m.set_enabled(false);
     CHECK_FALSE(m.get_control());
     CHECK(lv_subject_get_int(m.subject_control()) == 0);
+}
+
+TEST_CASE_METHOD(RemoteScreenFixture, "settings: a new pairing code reaches its subject",
+                 "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    lv_subject_t* code = lv_xml_get_subject(nullptr, "remote_screen_pair_code");
+    REQUIRE(code != nullptr);
+    const std::string before = m.get_pair_code();
+    m.set_pair_code("482913");
+    CHECK(std::string(lv_subject_get_string(code)) == "482913");
+    m.set_pair_code(before);
+    CHECK(std::string(lv_subject_get_string(code)) == before);
 }
 
 TEST_CASE_METHOD(RemoteScreenFixture,
@@ -462,6 +475,13 @@ struct WakeTouchFixture : TouchFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(WakeTouchFixture, "a wake request reaches the active display",
+                 "[remote_screen][wake]") {
+    go_idle(/*dimmed=*/false);
+    helix::request_display_wake();
+    CHECK_FALSE(display.is_display_sleeping());
+}
 
 TEST_CASE_METHOD(WakeTouchFixture, "remote wake gesture never reaches the button underneath",
                  "[remote_screen][control][wake]") {

@@ -23,6 +23,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "subject_initializer.h"
 #include "temperature_controller.h"
 
 #include <array>
@@ -257,6 +258,9 @@ TEST_CASE_METHOD(PAHeaterFixture, "PA calibration: SIGTERM sees the heater held 
     }
     SECTION("released by a disconnect") {
         panel().before_disconnect();
+    }
+    SECTION("released by the app's teardown") {
+        SubjectInitializer().before_disconnect();
     }
     CHECK_FALSE(panel().heater_held_for_test());
     CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());

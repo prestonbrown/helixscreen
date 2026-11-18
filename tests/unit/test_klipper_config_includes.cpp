@@ -1025,9 +1025,18 @@ class ListingSpyFiles : public MoonrakerFileAPIMock {
     int whole_root_lists = 0;
     std::vector<std::string> dirs_listed;
 
+    bool refuse_listings = false;
+
     void get_directory(const std::string& root, const std::string& path,
                        FileListCallback on_success, ErrorCallback on_error) override {
         dirs_listed.push_back(path);
+        if (refuse_listings) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::UNKNOWN;
+            err.message = "listing refused";
+            on_error(err);
+            return;
+        }
         inside_directory_ = true;
         MoonrakerFileAPIMock::get_directory(root, path, std::move(on_success), std::move(on_error));
         inside_directory_ = false;
@@ -1104,4 +1113,29 @@ TEST_CASE("download_config_include_graph lists the whole config root only for a 
         CHECK(std::set<std::string>(api.spy_.dirs_listed.begin(), api.spy_.dirs_listed.end()) ==
               std::set<std::string>{"", "conf.d"});
     }
+}
+
+TEST_CASE("download_config_include_graph reports a refused directory listing as its error",
+          "[config][includes][include_graph]") {
+    MoonrakerClientMock client;
+    helix::PrinterState state;
+    ListingSpyApi api(client, state);
+    const std::map<std::string, std::string> files = {{"printer.cfg", "[include conf.d/a.cfg]\n"},
+                                                      {"conf.d/a.cfg", "[a]\n"}};
+    api.set_config_files(files);
+    api.spy_.set_config_files(files);
+    api.spy_.refuse_listings = true;
+
+    int completions = 0;
+    std::string error;
+    download_config_include_graph(
+        api, "printer.cfg", ".cfg",
+        [&](const std::set<std::string>&, const std::map<std::string, std::string>&) {
+            ++completions;
+        },
+        [&](const std::string& err) { error = err; });
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    CHECK(completions == 0);
+    CHECK(error.find("listing refused") != std::string::npos);
 }
