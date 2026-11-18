@@ -21,7 +21,7 @@ signature, so it cannot be moved onto another channel's signature.
 | `lib/monocypher/` | Monocypher 4.0.2, vendored unmodified (CC0 / BSD-2) |
 | `scripts/sign-release-manifest.sh` | Signs and checks each channel manifest in CI |
 | `.github/workflows/release.yml` (`upload-r2`) | Generates, signs, verifies and uploads each manifest, behind the `release-signing` environment |
-| `.github/workflows/recover-r2.yml` | Republishes a tag's R2 upload, signing its regenerated manifests the same way; dispatched from the tag (`--ref vX.Y.Z`), since the environment admits only tags. A dispatch runs the tag's own copy of the workflow, so a tag cut before recover-r2 signed (v1.0.9 and earlier on 1.0) would republish an unsigned manifest beside the old signature: recover such a tag by re-running that tag's Release `upload-r2` job instead |
+| `.github/workflows/recover-r2.yml` | Republishes a tag's R2 upload, signing its regenerated manifests the same way; dispatched from the tag (`--ref vX.Y.Z`), since the environment admits only tags. A dispatch runs the tag's own copy of the workflow, so a tag whose recover-r2 predates signing would republish an unsigned manifest beside the old signature. If that tag's own `release.yml` already signs (v1.1.0-rc.3 and later on 1.1), re-run its Release `upload-r2` job instead. A tag whose `release.yml` predates signing too (v1.0.9 and earlier, 1.1 betas before rc.3) can't be republished signed by any workflow: recover by cutting a new tag |
 | helix-installer `crates/core/src/keys.rs` (`RELEASE_PUBKEY`) | The same key compiled into the easy installer |
 
 The release key is `RWRXImmr5YYfqd5aaV48WN+50k5e83NgKuEtxECC6agLUBkXG7t7AH9S` (key id
