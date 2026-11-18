@@ -4122,6 +4122,7 @@ translations:
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'
+  The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"
   This toolhead has no automatic feeder. Load the filament by hand.: "此工具头没有自动送料器。请手动装入耗材。"
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : '这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。'

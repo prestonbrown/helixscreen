@@ -4257,6 +4257,7 @@ translations:
     is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
   This firmware can only switch slots by loading them: This firmware can only switch slots by loading them
+  The filament went into the toolhead past its feeder. Load it by hand.: The filament went into the toolhead past its feeder. Load it by hand.
   This toolhead has no automatic feeder. Load the filament by hand.: This toolhead has no automatic feeder. Load the filament by hand.
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.

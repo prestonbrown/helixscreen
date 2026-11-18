@@ -3813,6 +3813,7 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" ja="フィラメントが完全に戻っていない可能性があります。再試行するか手で引き抜いてください"/>
   <translation tag="The filament system needs attention" ja="フィラメントシステムの対応が必要です"/>
   <translation tag="The filament system reported an error" ja="フィラメントシステムがエラーを報告しました"/>
+  <translation tag="The filament went into the toolhead past its feeder. Load it by hand." ja="フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ja="差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を締めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>

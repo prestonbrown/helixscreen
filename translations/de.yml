@@ -4362,6 +4362,7 @@ translations:
     aber {} ist geladen.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt.
   This firmware can only switch slots by loading them: 'Diese Firmware kann Slots nur durch Laden wechseln'
+  The filament went into the toolhead past its feeder. Load it by hand.: "Das Filament wurde an der Zuführung vorbei in den Werkzeugkopf geschoben. Lade es von Hand."
   This toolhead has no automatic feeder. Load the filament by hand.: "Dieser Werkzeugkopf hat keine automatische Zuführung. Lade das Filament von Hand."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker und fügt sie zu printer.cfg hinzu. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet.'

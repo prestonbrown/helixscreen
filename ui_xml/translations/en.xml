@@ -3813,6 +3813,7 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" en="The filament may not have fully retracted — try again or manually pull"/>
   <translation tag="The filament system needs attention" en="The filament system needs attention"/>
   <translation tag="The filament system reported an error" en="The filament system reported an error"/>
+  <translation tag="The filament went into the toolhead past its feeder. Load it by hand." en="The filament went into the toolhead past its feeder. Load it by hand."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." en="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner."/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner."/>

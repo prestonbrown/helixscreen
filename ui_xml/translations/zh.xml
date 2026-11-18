@@ -3813,6 +3813,7 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" zh="耗材可能未完全回抽。请重试或手动抽出"/>
   <translation tag="The filament system needs attention" zh="耗材系统需要处理"/>
   <translation tag="The filament system reported an error" zh="耗材系统报告错误"/>
+  <translation tag="The filament went into the toolhead past its feeder. Load it by hand." zh="耗材绕过送料器直接进入了工具头。请手动装入。"/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." zh="差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." zh="放松 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." zh="拉紧 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"/>
