@@ -895,10 +895,10 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
 
         // A notification URL (Apprise: tgram://, discord://, pover://,
         // mailto://...) carries its bot token, webhook key or login in the
-        // part after "://". Only web and websocket URLs keep a host and path
-        // worth reading; any other scheme keeps just its name.
+        // part after "://". Web, websocket, local socket and file URLs keep a
+        // host or path worth reading; any other scheme keeps just its name.
         static const helix::Regex service_url_re(
-            R"(\b(?!(?:https?|wss?)://)([A-Za-z][A-Za-z0-9+.-]*)://[^\s"'<>]+)",
+            R"(\b(?!(?:https?|wss?|unix|file)://)([A-Za-z][A-Za-z0-9+.-]*)://[^\s"'<>]+)",
             helix::Regex::ICase);
         result = helix::regex_replace(result, service_url_re, "$1://[REDACTED]");
 

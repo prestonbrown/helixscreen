@@ -534,6 +534,9 @@ TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
         "secrets_path = /home/pi/printer_data/moonraker.secrets",
         "max_token_count = 5",
         "Token expired, re-authenticating",
+        // Local socket and file URLs name a path, never a credential
+        "Klippy UDS: unix:///home/pi/printer_data/comms/klippy.sock",
+        "Loading file:///home/pi/printer_data/config/printer.cfg",
     };
     for (const char* v : keep) {
         INFO(v);
