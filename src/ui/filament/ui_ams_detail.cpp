@@ -174,16 +174,14 @@ void place_env_pill_beside_spools(lv_obj_t* pill, lv_obj_t* container,
 int view_unit(const helix::AmsSystemInfo& info, int unit_index) {
     return unit_index < 0 && info.units.size() == 1 ? 0 : unit_index;
 }
-const tray::UnitArtGeom* unit_view_art_geom(int unit_index, int lanes) {
-    const auto info = helix::AmsState::instance().system_info();
-    const int u = info ? view_unit(*info, unit_index) : -1;
-    const bool dryer = helix::ui::unit_reports_climate(unit_index);
-    const tray::UnitShell* shell =
-        info && u >= 0 && u < static_cast<int>(info->units.size()) &&
-                info->units[static_cast<size_t>(u)].slot_count == lanes &&
-                helix::ui::unit_art_available(*info, u, dryer)
-            ? tray::unit_shell_for(*info, u, dryer)
-            : nullptr;
+const tray::UnitArtGeom* unit_view_art_geom(const helix::AmsSystemInfo& info, int unit_index,
+                                            int lanes, bool dryer) {
+    const int u = view_unit(info, unit_index);
+    const tray::UnitShell* shell = u >= 0 && u < static_cast<int>(info.units.size()) &&
+                                           info.units[static_cast<size_t>(u)].slot_count == lanes &&
+                                           helix::ui::unit_art_available(info, u, dryer)
+                                       ? tray::unit_shell_for(info, u, dryer)
+                                       : nullptr;
     const tray::UnitArtGeom* found = shell ? tray::unit_art_geometry(shell->id, lanes) : nullptr;
     return found && tray::unit_view_fits(*found) ? found : nullptr;
 }
@@ -309,7 +307,13 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     helix::ui::ams_detail_sync_slot_states(slot_widgets, count);
 
     // Calculate and apply slot sizing
-    set_layout_unit(unit_index, w.slot_grid);
+    // A tray-drawn unit whose selector the path draws (either of its drawings, open or
+    // enclosed: the lid is settled with the tray) leaves the path that drawing's room.
+    const tray::UnitShell* shell = view_shell(info, unit_index, false);
+    const bool drawn = unit_view_art_geom(info, unit_index, count, false) ||
+                       unit_view_art_geom(info, unit_index, count, true);
+    set_layout_unit(unit_index, w.slot_grid,
+                    !drawn && shell && tray::unit_shell_face_art(*shell, count) != nullptr);
     lv_obj_t* slot_area = lv_obj_get_parent(w.slot_grid);
     lv_obj_update_layout(slot_area);
     int32_t available_width = lv_obj_get_content_width(slot_area);
@@ -475,7 +479,8 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     const auto info = helix::AmsState::instance().system_info();
     const int u = info ? view_unit(*info, unit_index) : -1;
     const bool dryer = helix::ui::unit_reports_climate(unit_index);
-    const tray::UnitArtGeom* geom = unit_view_art_geom(unit_index, n);
+    const tray::UnitArtGeom* geom =
+        info ? unit_view_art_geom(*info, unit_index, n, dryer) : nullptr;
     lv_obj_t* art = lv_obj_find_by_name(container, "unit_view_art");
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = slot_widgets[i];

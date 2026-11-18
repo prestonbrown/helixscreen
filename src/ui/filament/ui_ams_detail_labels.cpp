@@ -50,7 +50,8 @@ struct SpoolHeightCap {
     int32_t spool = 0;
 };
 SpoolHeightCap s_spool_cap;
-int s_layout_unit = -2; // the unit ams_detail_create_slots() lays out
+int s_layout_unit = -2;         // the unit ams_detail_create_slots() lays out
+bool s_layout_path_art = false; // that unit's selector is drawn in the path, under its tray
 // A widget of the view it lays out; it lets go when the view is deleted.
 helix::ui::WidgetRef s_layout_view;
 // Under a view scale: the size a unit settled at for its row and screen, and the smallest seen
@@ -129,12 +130,13 @@ SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_
     }
     const int32_t shorter = std::min(k.screen_w, k.screen_h);
     const helix::ui::PathViewScale& scale = refresh_view_scale(view);
-    // A unit with its own drawing grows to the view scale's spool; a tray-drawn one keeps the
-    // screen's share, which leaves its path and climate pill their room.
-    const bool has_art = unit_view_art_geom(unit, slot_count) != nullptr;
-    const int32_t cap = scale.spool_max > 0 && has_art ? scale.spool_max
-                        : shorter > 0                  ? shorter / 5
-                                                       : helix::ui::ams_slot_spool_size();
+    // Units grow to the view scale's spool, except a tray-drawn one whose selector the path
+    // draws: it keeps the screen's share as well, which leaves that drawing its room.
+    const bool path_art = unit == s_layout_unit && s_layout_path_art;
+    const int32_t share = shorter > 0 ? shorter / 5 : helix::ui::ams_slot_spool_size();
+    const int32_t cap = scale.spool_max <= 0 ? share
+                        : path_art           ? std::min(scale.spool_max, share)
+                                             : scale.spool_max;
     k.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
     // Under a view scale a unit already drawn takes the width its drawing allows: the drawing
     // scales with its spools, often narrower than the generic tray the fit above measures.
@@ -220,8 +222,9 @@ void note_drawn_spool_size(int32_t size) {
         s_spool_cap.spool = size;
 }
 
-void set_layout_unit(int unit_index, lv_obj_t* view) {
+void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art) {
     s_layout_unit = unit_index;
+    s_layout_path_art = path_art;
     if (!s_layout_view.get() || view != s_layout_view.get()) {
         s_settled = {};
         s_too_big = {};
