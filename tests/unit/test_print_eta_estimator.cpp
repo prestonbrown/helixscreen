@@ -61,6 +61,10 @@ TEST_CASE("ETA: while preparing, what is left is the prep plus the whole job", "
 
     // 120s of prep still to run, then a 600s job nobody has started.
     CHECK(est.remaining_seconds(in) == 720);
+
+    // The file's header already puts byte progress a sliver above zero.
+    in.progress_fraction = 0.003;
+    CHECK(est.remaining_seconds(in) == 720);
 }
 
 TEST_CASE("ETA: a finished print has nothing left", "[print][eta]") {
