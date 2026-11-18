@@ -512,8 +512,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a glow rings its spool, a dim
     CHECK(alpha_out(0, 0.5f) == 0);
     CHECK(alpha_out(0, 1.06f) > 0);
     CHECK(alpha_out(0, 1.35f) == 0);
-    // The dim covers its spool and nothing past it.
-    CHECK(alpha_out(3, 0.5f) > 0);
+    // The dim covers its spool, seen through the lid, and nothing past it.
+    const tray::ArtLaneGeom& last = geom->lane[3];
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround((last.far_x + last.near_x) / 2 * w),
+                               (int32_t)std::lround((last.far_y + last.near_y) / 2 * w)) > 0);
     CHECK(alpha_out(3, 1.3f) == 0);
 
     // No marks, no image.
@@ -540,4 +542,41 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(std::abs(outlet.x - (20 + (int32_t)std::lround(g.outlet_x * dw))) <= 1);
     CHECK(std::abs(outlet.y - (int32_t)std::lround(g.outlet_y * dw)) <= 1);
     CHECK_FALSE(unit_art_lane_place(art, 4, spool, outlet));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a lane's glow hides behind what stands in front",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 300;
+    const float dw = (float)w;
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
+    unit_art_set_unit(art, ace_system(), 0);
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].glow = true;
+    marks[1].color = lv_color_hex(0x2080ff);
+    unit_art_set_lane_marks(art, marks);
+
+    // Just past lane 1's rim, out each end of its axis: toward lane 2, which stands nearer
+    // the camera, and toward lane 0, which stands behind it.
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    auto past_end = [&](bool near_end, float radius, float& x, float& y) {
+        const float det = g.ey_x * g.ez_y - g.ey_y * g.ez_x;
+        const float ax = g.near_x - g.far_x, ay = g.near_y - g.far_y;
+        const float u = (ax * g.ez_y - ay * g.ez_x) / det, v = (g.ey_x * ay - g.ey_y * ax) / det;
+        const float len = std::hypot(u, v), s = near_end ? radius / len : -radius / len;
+        x = (near_end ? g.near_x : g.far_x) + s * (u * g.ey_x + v * g.ez_x);
+        y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
+    };
+    float x, y;
+    past_end(true, 1.06f, x, y);
+    // That point is on lane 2's spool, which hides the glow there.
+    REQUIRE(tray::art_lane_distance(geom->lane[2], x, y) < 0.95f);
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) ==
+          0);
+    // Lane 0 stands behind lane 1, so the rim shows over it.
+    past_end(false, 1.06f, x, y);
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround(x * dw), (int32_t)std::lround(y * dw)) >
+          0);
 }

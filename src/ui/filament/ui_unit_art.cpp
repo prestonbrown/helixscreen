@@ -662,9 +662,9 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
 }
 
 namespace {
-constexpr lv_opa_t kDimOpa = 150;     ///< how far a missing bay's spool fades into the card
-constexpr int kLaneHaloDivisor = 100; ///< rim spread: the drawing's width over this
-constexpr int kLaneHaloGain = 5;      ///< lifts the blurred outline into a visible rim
+constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
+constexpr int kLaneHaloDivisor = 80; ///< rim spread: the drawing's width over this
+constexpr int kLaneHaloGain = 6;     ///< lifts the blurred outline into a visible rim
 } // namespace
 
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
@@ -714,12 +714,12 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
         px[2] = mix(px[2], color.red);
         px[3] = static_cast<uint8_t>(oa);
     };
+    // Each lane's spool, and what stands in front of it: the drawing's front layer and every
+    // lane drawn after it, which the bake stands nearer the camera. A mark is light or shade
+    // at its spool's depth, so whatever stands in front hides it.
     const int lanes = std::min<int>(static_cast<int>(marks.size()), data->geom->lanes);
-    for (int i = 0; i < lanes; ++i) {
-        const UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
-        if (!m.glow && !m.dim)
-            continue;
-        const tray::ArtLaneGeom& g = data->geom->lane[i];
+    auto spool_of = [&](int lane) {
+        const tray::ArtLaneGeom& g = data->geom->lane[lane];
         const float k = tray::art_lane_px_per_unit(g, c.w);
         std::vector<uint8_t> spool(pixels);
         for (int32_t y = 0; y < h; ++y) {
@@ -731,12 +731,35 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
                         std::lround(255.0f * tray::art_lane_coverage(g, sx, sy, 1.0f, k)));
             }
         }
+        return spool;
+    };
+    std::vector<std::vector<uint8_t>> spools(static_cast<size_t>(data->geom->lanes));
+    for (int i = 0; i < data->geom->lanes; ++i)
+        spools[static_cast<size_t>(i)] = spool_of(i);
+    std::vector<uint8_t> front =
+        data->front ? layer_alpha(art, data, {data->front}, w, h) : std::vector<uint8_t>{};
+    if (front.size() != pixels)
+        front.assign(pixels, 0);
+    for (int i = 0; i < lanes; ++i) {
+        const UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
+        if (!m.glow && !m.dim)
+            continue;
+        const std::vector<uint8_t>& spool = spools[static_cast<size_t>(i)];
+        std::vector<uint8_t> clear(pixels); // how much of the mark shows past what is in front
+        for (size_t idx = 0; idx < pixels; ++idx) {
+            uint8_t cover = front[idx];
+            for (int j = i + 1; j < data->geom->lanes; ++j)
+                cover = std::max(cover, spools[static_cast<size_t>(j)][idx]);
+            clear[idx] = static_cast<uint8_t>(255 - cover);
+        }
         if (m.dim) {
-            for (int32_t y = 0; y < h; ++y)
-                for (int32_t x = 0; x < w; ++x)
+            for (int32_t y = 0; y < h; ++y) {
+                for (int32_t x = 0; x < w; ++x) {
+                    const size_t idx = static_cast<size_t>(y) * w + x;
                     blend(x, y, dim_color,
-                          static_cast<uint8_t>(spool[static_cast<size_t>(y) * w + x] * kDimOpa /
-                                               255));
+                          static_cast<uint8_t>(spool[idx] * clear[idx] / 255 * kDimOpa / 255));
+                }
+            }
         }
         if (m.glow) {
             // A rim just outside the spool's outline: its silhouette, spread a little and
@@ -749,7 +772,9 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
                 for (int32_t x = 0; x < w; ++x) {
                     const size_t idx = static_cast<size_t>(y) * w + x;
                     const int lifted = std::min(255, halo[idx] * kLaneHaloGain);
-                    blend(x, y, m.color, static_cast<uint8_t>(lifted * (255 - spool[idx]) / 255));
+                    blend(
+                        x, y, m.color,
+                        static_cast<uint8_t>(lifted * (255 - spool[idx]) / 255 * clear[idx] / 255));
                 }
             }
         }
