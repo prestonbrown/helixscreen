@@ -1,8 +1,8 @@
-# Installing HelixScreen on the BTT K-Touch (ESP32) - Alpha
+# Installing HelixScreen on the BTT K-Touch (ESP32) - Beta
 
 The BigTreeTech K-Touch is a small standalone touchscreen built around an ESP32-S3 chip. HelixScreen runs on it as firmware: the panel joins your WiFi and talks to your printer's Moonraker, like any other [remote screen](../INSTALL.md#remote-screen-setup-run-on-a-separate-device). Nothing is installed on the printer.
 
-> **Support status in 1.1: alpha.** The K-Touch firmware is built with every 1.1 release, beta or stable, but it is an early port: expect rough edges and missing features (see [What doesn't work yet](#what-doesnt-work-yet-on-the-k-touch)). Because it is an alpha, a release whose firmware build fails ships without it; if a release has no K-Touch zip, use the one before or after it. The 1.0 releases have no K-Touch firmware. Flashing replaces BigTreeTech's stock firmware on the panel.
+> **Support status in 1.1: beta.** The K-Touch firmware is built with every 1.1 release, beta or stable, but it is the newest port: expect rough edges and missing features (see [What doesn't work yet](#what-doesnt-work-yet-on-the-k-touch)). Because it is a beta, a release whose firmware build fails ships without it; if a release has no K-Touch zip, use the one before or after it. The 1.0 releases have no K-Touch firmware. Flashing replaces BigTreeTech's stock firmware on the panel.
 
 ## Getting started
 
@@ -126,7 +126,7 @@ Without the plugin, those files show no thumbnail and the per-tool filament chec
 - Sounds, screensavers, label printers, belt tuning, the timelapse viewer, and screen plugins (the ones listed under Settings > Plugins on other screens)
 - Updating over WiFi
 
-What does work is listed under [ESP32-S3 Firmware](beta-features.md#esp32-s3-firmware-alpha) in the beta features guide.
+What does work is listed under [ESP32-S3 Firmware](beta-features.md#esp32-s3-firmware-beta) in the beta features guide.
 
 ## Other ESP32-S3 panels
 
@@ -142,5 +142,5 @@ Bringing one up means describing its pins and screen timings in a new board file
 
 ## See also
 
-- [Beta Features: ESP32-S3 Firmware](beta-features.md#esp32-s3-firmware-alpha): what the alpha includes
+- [Beta Features: ESP32-S3 Firmware](beta-features.md#esp32-s3-firmware-beta): what the beta includes
 - [Installation overview](../INSTALL.md): all other platforms

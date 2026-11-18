@@ -49,7 +49,7 @@ HelixScreen works with any Klipper printer that runs Moonraker. This table gives
 
 HelixScreen also runs on a few things that are not printers:
 
-- **BigTreeTech K-Touch** (ESP32 screen): alpha firmware that you flash from the [easy installer](guide/install-esp32.md#with-the-easy-installer) or from your browser. See [K-Touch Install](guide/install-esp32.md).
+- **BigTreeTech K-Touch** (ESP32 screen): beta firmware that you flash from the [easy installer](guide/install-esp32.md#with-the-easy-installer) or from your browser. See [K-Touch Install](guide/install-esp32.md).
 - **Android phones and tablets**: available on [Google Play](https://play.google.com/store/apps/details?id=org.helixscreen.app). See [Can I use HelixScreen on my phone or tablet?](#can-i-use-helixscreen-on-my-phone-or-tablet).
 - **A Linux desktop**: runs in a window. See [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md).
 

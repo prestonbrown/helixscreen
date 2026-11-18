@@ -82,7 +82,7 @@ The command above works on every supported printer, but each family has its own 
 | Creality Sonic Pad | [Sonic Pad Install](guide/install-sonicpad.md): needs the SonicPad-Debian firmware |
 | QIDI Q2 / Max 4 / Plus 5 | [QIDI Install](guide/install-qidi.md): replaces QIDI's screen program. Read the QIDI Studio and cloud notice first |
 | Snapmaker U1 | [Snapmaker U1 Install](guide/install-u1.md): stock firmware 1.2 or newer with Root access, or PAXX Extended Firmware |
-| BigTreeTech K-Touch (standalone ESP32 screen) | [K-Touch Install](guide/install-esp32.md): alpha firmware, flashed from your browser or over USB |
+| BigTreeTech K-Touch (standalone ESP32 screen) | [K-Touch Install](guide/install-esp32.md): beta firmware, flashed from your browser or over USB |
 | A Linux desktop or laptop (HelixScreen in a window) | [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md) |
 | An Android phone or tablet | [Android App](#android-app-experimental) on this page |
 
@@ -94,7 +94,7 @@ The command above works on every supported printer, but each family has its own 
 - **An install log you can read from Mainsail or Fluidd.** Every run is logged in full, even without `--verbose`. See [Installer log](#installer-log).
 - **Installing from a downloaded package.** Name a release archive, or run the installer that comes inside an extracted package, and it installs exactly that release without downloading anything. See [Installing from a downloaded package](#installing-from-a-downloaded-package).
 - **A window on your Linux desktop.** A new package for x86_64 Linux PCs runs HelixScreen as an ordinary app window. See [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md).
-- **New printers:** the Flashforge Creator 5 and Creator 5 Pro, and the BigTreeTech K-Touch (alpha).
+- **New printers:** the Flashforge Creator 5 and Creator 5 Pro, and the BigTreeTech K-Touch (beta).
 - **Smaller downloads.** Packages carry only the splash screens and printer pictures your screen can show. The K1 series and the Adventurer 5X share one package, still published under each printer's name.
 - **Logs and caches survive an update** on the K1, Centauri Carbon, Snapmaker U1 and Adventurer 5X: they now live beside the install instead of inside it.
 - **Some installs move on disk, automatically**, during the update to 1.1. See [Coming from 1.0](UPGRADING.md#coming-from-10) in the upgrading guide.
@@ -153,7 +153,7 @@ Good screen devices:
 - A mini PC with an HDMI touchscreen
 - Your Linux desktop or laptop, with HelixScreen in a window: see [Run HelixScreen in a Window on a Linux Desktop](guide/install-linux-desktop.md)
 - An Android phone or tablet: see [Android App](#android-app-experimental)
-- A BigTreeTech K-Touch with the [ESP32 firmware](guide/install-esp32.md) (alpha)
+- A BigTreeTech K-Touch with the [ESP32 firmware](guide/install-esp32.md) (beta)
 
 **How it works:** HelixScreen talks to your printer through Moonraker, Klipper's web API, which listens on port `7125` by default. It only needs to reach that port over the network.
 

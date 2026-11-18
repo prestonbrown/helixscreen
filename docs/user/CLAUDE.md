@@ -27,7 +27,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/install-sonicpad.md` | Sonic Pad setup: SonicPad-Debian requirement, install, updating, uninstall |
 | `guide/install-u1.md` | Snapmaker U1 setup: SSH paths, install, firmware upgrades, blank-screen recovery, uninstall |
 | `guide/install-linux-desktop.md` | x86_64 Linux desktop package: the app in a window, per-user install with `--desktop`, connecting to a remote printer, window size, updating, uninstall, running from the tarball |
-| `guide/install-esp32.md` | BigTreeTech K-Touch (ESP32-S3) alpha firmware: browser flasher, esptool install, first-boot hotspot setup, updating, recovery, other ESP32-S3 panels |
+| `guide/install-esp32.md` | BigTreeTech K-Touch (ESP32-S3) beta firmware: browser flasher, esptool install, first-boot hotspot setup, updating, recovery, other ESP32-S3 panels |
 | `guide/home-panel.md` | Home dashboard, printer manager, custom images |
 | `guide/home-widgets.md` | Widget catalog: every Home Panel widget by group, sizes and hardware needs |
 | `guide/home-widgets-print.md` | Print widgets: Job Queue, Speed / Flow, Z-Offset, Exclude Objects, Camera |
