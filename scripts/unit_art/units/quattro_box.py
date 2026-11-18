@@ -48,9 +48,8 @@ ROLLER_REAR_Y = SPOOL_Y + 60 * MM
 FRONT_R = 30 * MM
 FRONT_Z = 118 * MM + FOOT
 FRONT_Y = SPOOL_Y - ((SPOOL_R + FRONT_R) ** 2 - (SPOOL_Z - FRONT_Z) ** 2) ** 0.5
-# The feeder's front block stands before the drum; its black cap reaches back over the drum's top.
+# The feeder's block stands before the drum, a thin black cap on its top.
 FEEDER_Y0, FEEDER_Y1 = 22 * MM, 46 * MM
-CAP_Y1 = 80 * MM
 FEEDER_Z0, FEEDER_Z1 = 92 * MM + FOOT, 152 * MM + FOOT
 # The tray's lid stands on the feeder row.
 FEED_TOP = 118 * MM + FOOT
@@ -135,32 +134,36 @@ def _rollers(sc, xc, y):
     kit.roller(sc, xc + half, xc + reach, y, ROLLER_Z, ROLLER_R, ROLLER, ACCENT, **rim)
 
 
-def _spokes(sc, x, y, z, r):
-    """The open spokes of a flange's outer face: dark windows between five arms."""
-    for k in range(5):
-        a0, a1 = 2 * math.pi * k / 5 + 0.22, 2 * math.pi * (k + 1) / 5 - 0.22
-        arc = [a0 + (a1 - a0) * i / 6 for i in range(7)]
-        pts = [(r * 0.9 * math.cos(a), r * 0.9 * math.sin(a)) for a in arc]
-        pts += [(r * 0.45 * math.cos(a), r * 0.45 * math.sin(a)) for a in reversed(arc)]
-        sc.poly([(x, y + a, z + b) for a, b in pts], "#1b0f2c")
+def _drum(sc, x0, x1):
+    """A front drum's rubber barrel, shaded strip by strip so it reads round."""
+    cam = sc.camera
+    ring = kit.circle_yz(FRONT_Y, FRONT_Z, FRONT_R, 32)
+    for a, b in zip(ring, ring[1:]):
+        n = kit.norm((0, (a[0] + b[0]) / 2 - FRONT_Y, (a[1] + b[1]) / 2 - FRONT_Z))
+        if kit.dot(n, cam.view) > 0:
+            fill = kit.shade(cam, RUBBER, n, amb=0.55, dif=0.7, spec=0.12, power=10)
+            sc.poly([(x0, a[0], a[1]), (x1, a[0], a[1]), (x1, b[0], b[1]), (x0, b[0], b[1])], fill)
 
 
 def _front_rollers(sc, xc, detail):
-    """One lane's drive drum: black rubber either side of its feeder, a purple flange at each outer end."""
+    """One lane's drive drum: black rubber either side of its feeder, a purple rim at each outer end."""
     half, reach, flange_w = 0.04, PITCH / 2 - 0.024, 0.012
-    rim = {"flange_k": 1.2, "flange_w": flange_w, "sheen": "#7a746e", "end_face": ACCENT, "end_hub": ACCENT_DARK, "solid": True}
+    rim = {"flange_k": 1.2, "flange_w": flange_w, "end_face": ACCENT, "solid": True}
     kit.roller(sc, xc - reach, xc - half, FRONT_Y, FRONT_Z, FRONT_R, RUBBER, ACCENT, right_flange=False, **rim)
+    _drum(sc, xc - reach, xc - half)
     kit.roller(sc, xc + half, xc + reach, FRONT_Y, FRONT_Z, FRONT_R, RUBBER, ACCENT, left_flange=False, **rim)
-    if detail:
-        _spokes(sc, xc + reach + flange_w + 0.001, FRONT_Y, FRONT_Z, FRONT_R * 1.2)
+    _drum(sc, xc + half, xc + reach)
+    x = xc + reach + flange_w + 0.0005
+    sc.poly([(x, a, b) for a, b in kit.circle_yz(FRONT_Y, FRONT_Z, FRONT_R * 1.2)], kit.shift(ACCENT, 12))
+    sc.poly([(x + 0.0005, a, b) for a, b in kit.circle_yz(FRONT_Y, FRONT_Z, FRONT_R * 0.85)], kit.shift(ACCENT, -22))
 
 
 def _feeder(sc, xc, detail):
     """One lane's drive in front of its rollers: a purple block, a black cap and its LED button."""
     half = 0.046
     cap = 0.008
-    feeder.box(sc, xc - half + 0.008, xc + half - 0.008, FEEDER_Y0 + 0.006, CAP_Y1, FEEDER_Z1 - cap, FEEDER_Z1, "#202020")
     feeder.box(sc, xc - half, xc + half, FEEDER_Y0, FEEDER_Y1, FEEDER_Z0, FEEDER_Z1 - cap, ACCENT)
+    feeder.box(sc, xc - half + 0.004, xc + half - 0.004, FEEDER_Y0 + 0.004, FEEDER_Y1, FEEDER_Z1 - cap, FEEDER_Z1, "#202020")
     y = FEEDER_Y0 - 0.001
     sc.poly(kit.rrect_front(xc - 0.03, xc + 0.03, FEEDER_Z0 + 0.062, FEEDER_Z1 - cap - 0.006, 0.006, y), ACCENT_DARK)
     if detail:
