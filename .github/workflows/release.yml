@@ -777,7 +777,7 @@ jobs:
         changesNotSentForReview: false
 
   # ============================================================================
-  # Build the ESP32 (BTT K-Touch) firmware zip, alpha
+  # Build the ESP32 (BTT K-Touch) firmware zip, beta
   # ============================================================================
   # The same workflow that builds the firmware on every push, asked to package
   # the result. Skipped on the 1.0 line, which does not support ESP32 (the same
@@ -1128,7 +1128,7 @@ jobs:
 
         Sideload via `adb install` or download directly on device.
 
-        ### ESP32 (BTT K-Touch) - alpha
+        ### ESP32 (BTT K-Touch) - beta
         Firmware for the BigTreeTech K-Touch, flashed over USB with esptool. Not built for 1.0.x releases.
         - `helixscreen-esp32-ktouch-${{ steps.version.outputs.version }}.zip`: unzip it and follow `README.txt` inside, or see the [install guide](https://github.com/${{ github.repository }}/blob/main/docs/user/guide/install-esp32.md)
         EOF
