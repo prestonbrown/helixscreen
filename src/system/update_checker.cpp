@@ -45,6 +45,7 @@
 #include "system/helix_paths.h"
 #include "system/log_path_probe.h"
 #include "system/moonraker_local_probe.h"
+#include "system/release_signature.h"
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
@@ -766,6 +767,34 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
         error = std::string("JSON parse error: ") + e.what();
         return false;
     }
+}
+
+bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
+                                   const std::string& sig_body, std::string_view public_key,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys) {
+    if (sig_status != 200) {
+        error = sig_status == 0
+                    ? "could not fetch the manifest signature"
+                    : "manifest is not signed (signature HTTP " + std::to_string(sig_status) + ")";
+        return false;
+    }
+    const auto verdict = release_signature::verify(json_str, sig_body, public_key);
+    if (verdict != release_signature::Verdict::Ok) {
+        error = std::string("manifest signature refused: ") + release_signature::describe(verdict);
+        return false;
+    }
+    UpdateChecker::ReleaseInfo parsed;
+    if (!parse_release_manifest(json_str, parsed, error, asset_keys)) {
+        return false;
+    }
+    parsed.signature_verified = true;
+    info = std::move(parsed);
+    return true;
+}
+
+bool release_is_verified(const UpdateChecker::ReleaseInfo& info) {
+    return info.signature_verified && !info.sha256.empty();
 }
 } // namespace helix
 
@@ -1573,6 +1602,21 @@ void UpdateChecker::start_download() {
         return;
     }
 
+    // Only a release from a manifest whose signature verified, with the hash that signature
+    // vouches for, is downloaded. A release found through the GitHub fallback carries neither:
+    // it can tell the user an update exists, never install it.
+    if (!helix::release_is_verified(*cached_info_)) {
+        const std::string version = cached_info_->version;
+        lock.unlock();
+        spdlog::error("[UpdateChecker] Download refused: v{} did not come from a signed manifest",
+                      version);
+        report_download_status(DownloadStatus::Error, 0, lv_tr("Error: Update can't be verified"),
+                               "The release list's signature could not be verified");
+        TelemetryManager::instance().record_update_failure("unsigned_manifest", version,
+                                                           helix::platform::current_key());
+        return;
+    }
+
     // Already busy AND the modal is showing it — a double tap on Install.
     // Leave the in-progress screen alone. Verifying belongs here too: the
     // worker is mid-SHA256 and equally not restartable.
@@ -1869,7 +1913,7 @@ void UpdateChecker::do_download() {
         return;
     }
 
-    // Verify SHA256 hash if available (R2 manifest provides this; GitHub fallback does not)
+    // Verify the SHA-256 the signed manifest gave for this download
     {
         std::string expected_sha256;
         {
@@ -1879,7 +1923,14 @@ void UpdateChecker::do_download() {
         }
 
         if (expected_sha256.empty()) {
-            spdlog::info("[UpdateChecker] No SHA256 hash available, skipping verification");
+            spdlog::error("[UpdateChecker] No SHA256 hash for {}, refusing to install",
+                          download_path);
+            std::remove(download_path.c_str());
+            report_download_status(DownloadStatus::Error, 0, lv_tr("Error: Verification failed"),
+                                   "No checksum to verify the download against");
+            TelemetryManager::instance().record_update_failure("sha256_missing", version,
+                                                               helix::platform::current_key());
+            return;
         } else {
             report_download_status(DownloadStatus::Verifying, 100,
                                    lv_tr("Verifying SHA256 checksum..."));
@@ -2877,7 +2928,15 @@ void UpdateChecker::check_for_updates(Callback callback) {
     cached_channel_ = get_channel();
     auto* config = Config::get_instance();
     warn_legacy_update_url_keys(config);
-    cached_dev_url_ = helix::config_trust::read_update_urls().dev_url;
+    const auto update_urls = helix::config_trust::read_update_urls();
+    cached_dev_url_ = update_urls.dev_url;
+    cached_release_pubkey_ = update_urls.release_pubkey.empty()
+                                 ? std::string(helix::release_signature::kReleasePublicKey)
+                                 : update_urls.release_pubkey;
+    if (!update_urls.release_pubkey.empty()) {
+        spdlog::warn("[UpdateChecker] release manifests are checked against the key in "
+                     "update_urls.json, not the release key");
+    }
     cached_r2_base_url_ = effective_r2_base_url();
 
     spdlog::debug("[UpdateChecker] check_for_updates: channel={} dev_url='{}' r2_base_url='{}'",
@@ -3659,44 +3718,65 @@ std::string UpdateChecker::get_r2_base_url() const {
     return cached_r2_base_url_;
 }
 
-bool UpdateChecker::fetch_r2_manifest(const std::string& channel, ReleaseInfo& info,
-                                      std::string& error) {
+UpdateChecker::ManifestFetch UpdateChecker::fetch_r2_manifest(const std::string& channel,
+                                                              ReleaseInfo& info,
+                                                              std::string& error) {
     std::string base = get_r2_base_url();
     if (base.empty()) {
         error = "R2 base URL not configured";
-        return false;
+        return ManifestFetch::Unreachable;
     }
+    const auto result =
+        fetch_verified_manifest(base + "/" + channel + "/manifest.json", info, error);
+    if (result == ManifestFetch::Ok) {
+        spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
+    } else {
+        error = "R2 " + error;
+    }
+    return result;
+}
 
-    std::string manifest_url = base + "/" + channel + "/manifest.json";
-
-    spdlog::debug("[UpdateChecker] Requesting R2 manifest: {}", manifest_url);
+UpdateChecker::ManifestFetch UpdateChecker::fetch_verified_manifest(const std::string& manifest_url,
+                                                                    ReleaseInfo& info,
+                                                                    std::string& error) {
+    spdlog::debug("[UpdateChecker] Requesting manifest: {}", manifest_url);
     auto [status, body] = do_http_get(manifest_url);
 
     if (cancelled_)
-        return false;
+        return ManifestFetch::Unreachable;
 
     if (status == 0) {
         error = "Connection failed (" + manifest_url + ")";
-        return false;
+        return ManifestFetch::Unreachable;
     }
 
     if (status != 200) {
-        error = "R2 HTTP " + std::to_string(status);
-        return false;
+        error = "HTTP " + std::to_string(status) + " (" + manifest_url + ")";
+        return ManifestFetch::Unreachable;
     }
 
-    // Same schema as the dev channel manifest (generate-manifest.sh)
-    if (!helix::parse_release_manifest(body, info, error, this_build_release_asset_keys())) {
-        error = "R2 " + error;
-        return false;
+    const std::string sig_url = manifest_url + ".minisig";
+    auto [sig_status, sig_body] = do_http_get(sig_url);
+
+    if (cancelled_)
+        return ManifestFetch::Unreachable;
+
+    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, cached_release_pubkey_,
+                                              info, error, this_build_release_asset_keys())) {
+        spdlog::error("[UpdateChecker] {} refused: {}", manifest_url, error);
+        return ManifestFetch::Refused;
     }
-    spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
-    return true;
+    spdlog::info("[UpdateChecker] {} signature verified", manifest_url);
+    return ManifestFetch::Ok;
 }
 
 bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
-    if (fetch_r2_manifest("stable", info, error)) {
+    const auto r2 = fetch_r2_manifest("stable", info, error);
+    if (r2 == ManifestFetch::Refused) {
+        return false;
+    }
+    if (r2 == ManifestFetch::Ok) {
         // Enrich with full changelog from CHANGELOG.md on GitHub
         auto changelog = fetch_changelog_for_version(info.version);
         if (!changelog.empty()) {
@@ -3729,7 +3809,11 @@ bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) 
 
 bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
-    if (fetch_r2_manifest("beta", info, error)) {
+    const auto r2 = fetch_r2_manifest("beta", info, error);
+    if (r2 == ManifestFetch::Refused) {
+        return false;
+    }
+    if (r2 == ManifestFetch::Ok) {
         // Enrich with full changelog from CHANGELOG.md on GitHub
         auto changelog = fetch_changelog_for_version(info.version);
         if (!changelog.empty()) {
@@ -3812,29 +3896,11 @@ bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {
         if (dev_url.back() != '/') {
             dev_url += '/';
         }
-        std::string manifest_url = dev_url + "manifest.json";
-
-        spdlog::debug("[UpdateChecker] Requesting (dev): {}", manifest_url);
-        auto [status, body] = do_http_get(manifest_url);
-
-        if (cancelled_)
-            return false;
-
-        if (status == 0) {
-            error = "Connection failed (" + manifest_url + ")";
-            return false;
-        }
-
-        if (status != 200) {
-            error = "HTTP " + std::to_string(status) + " (" + manifest_url + ")";
-            return false;
-        }
-
-        return helix::parse_release_manifest(body, info, error, this_build_release_asset_keys());
+        return fetch_verified_manifest(dev_url + "manifest.json", info, error) == ManifestFetch::Ok;
     }
 
     // No explicit dev_url -- use R2 default
-    return fetch_r2_manifest("dev", info, error);
+    return fetch_r2_manifest("dev", info, error) == ManifestFetch::Ok;
 }
 
 void UpdateChecker::report_fetched_release(ReleaseInfo info, const std::string& current_version) {

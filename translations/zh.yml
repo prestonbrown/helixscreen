@@ -1386,6 +1386,7 @@ translations:
   'Error: Not enough disk space': '错误: 磁盘空间不足'
   'Error: Previous download still finishing': '错误: 上一次下载尚未结束'
   "Error: This install can't update itself": '错误: 此安装无法自我更新'
+  "Error: Update can't be verified": '错误: 无法验证更新'
   'Error: Verification failed': '错误: 验证失败'
   'Error: Wrong architecture': '错误: 架构错误'
   'Error: `unzip` not installed': '错误: 未安装 `unzip`'

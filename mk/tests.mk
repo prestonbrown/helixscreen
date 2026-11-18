@@ -952,7 +952,7 @@ else
 # filtered out of the command line — the archive is already in LDFLAGS, and
 # repeating it changes link order.
 TEST_LINK_INPUTS = $(TEST_CORE_DEPS) $(TEST_LVGL_DEPS) $(TEST_APP_OBJS) $(TEST_TOOL_OBJS) \
-                   $(DNS_RESOLV_OBJ) $(MOCK_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(VTERM_OBJS) \
+                   $(DNS_RESOLV_OBJ) $(MOCK_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(MONOCYPHER_OBJS) $(VTERM_OBJS) \
                    $(LUA_OBJS) $(FONT_OBJS) $(OBJCPP_OBJS) \
                    $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(TEST_PLATFORM_DEPS)
 

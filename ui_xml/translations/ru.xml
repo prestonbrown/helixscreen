@@ -1366,6 +1366,7 @@
   <translation tag="Error: Not enough disk space" ru="Ошибка: недостаточно места на диске"/>
   <translation tag="Error: Previous download still finishing" ru="Ошибка: предыдущая загрузка ещё не завершена"/>
   <translation tag="Error: This install can&apos;t update itself" ru="Ошибка: эта установка не может обновить себя"/>
+  <translation tag="Error: Update can&apos;t be verified" ru="Ошибка: не удалось проверить обновление"/>
   <translation tag="Error: Verification failed" ru="Ошибка: проверка не удалась"/>
   <translation tag="Error: Wrong architecture" ru="Ошибка: неверная архитектура"/>
   <translation tag="Error: `unzip` not installed" ru="Ошибка: `unzip` не установлен"/>

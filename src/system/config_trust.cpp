@@ -125,6 +125,7 @@ UpdateUrls read_update_urls() {
     };
     urls.r2_url = url_field("r2_url");
     urls.dev_url = url_field("dev_url");
+    urls.release_pubkey = url_field("release_pubkey");
     return urls;
 }
 

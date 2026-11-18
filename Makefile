@@ -432,6 +432,12 @@ QUIRC_INC := -isystem $(QUIRC_DIR)/lib
 QUIRC_SRCS := $(wildcard $(QUIRC_DIR)/lib/*.c)
 QUIRC_OBJS := $(patsubst $(QUIRC_DIR)/%.c,$(OBJ_DIR)/quirc/%.o,$(QUIRC_SRCS))
 
+# Monocypher (BLAKE2b + Ed25519 for release manifest signatures)
+MONOCYPHER_DIR := lib/monocypher
+MONOCYPHER_INC := -isystem $(MONOCYPHER_DIR)
+MONOCYPHER_SRCS := $(wildcard $(MONOCYPHER_DIR)/*.c)
+MONOCYPHER_OBJS := $(patsubst $(MONOCYPHER_DIR)/%.c,$(OBJ_DIR)/monocypher/%.o,$(MONOCYPHER_SRCS))
+
 # ThorVG sources (.cpp files for SVG support)
 THORVG_SRCS := $(shell find $(LVGL_DIR)/src/libs/thorvg -name "*.cpp" 2>/dev/null)
 THORVG_OBJS := $(patsubst $(LVGL_DIR)/%.cpp,$(OBJ_DIR)/lvgl/%.o,$(THORVG_SRCS))
@@ -884,7 +890,7 @@ FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h
 # This allows `make strict` to catch issues in project code while ignoring third-party header warnings
 # stb_image headers (used for thumbnail processing)
 STB_INC := -isystem lib/stb
-INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) -isystem lib/libvterm/include $(WPA_INC) $(SDL2_INC)
+INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) $(MONOCYPHER_INC) -isystem lib/libvterm/include $(WPA_INC) $(SDL2_INC)
 
 # The folded helixctl client (src/remote/remote_client.cpp) includes linenoise.h.
 ifeq ($(ENABLE_REMOTE_CONTROL),yes)
@@ -1586,6 +1592,7 @@ PRINT_COMPILE_RULES := \
 	$(if $(SPDLOG_DIR),$(SPDLOG_DIR)/src/%.cpp=SPDLOG_COMPILE) \
 	$(LV_MARKDOWN_DIR)/%.c=LV_MARKDOWN_COMPILE \
 	$(QUIRC_DIR)/%.c=QUIRC_COMPILE \
+	$(MONOCYPHER_DIR)/%.c=MONOCYPHER_COMPILE \
 	$(VTERM_DIR)/%.c=VTERM_COMPILE \
 	$(LUA_DIR)/%.c=LUA_COMPILE \
 	assets/fonts/%.c=FONT_COMPILE

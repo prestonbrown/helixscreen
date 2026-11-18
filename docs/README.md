@@ -88,6 +88,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Print Start Profiles**](devel/PRINT_START_PROFILES.md) | Print start phase detection, developer guide: pipeline, signal sources, evidence kinds, profiles |
 | [**Print Start Integration**](devel/PRINT_START_INTEGRATION.md) | User-facing macro setup guide |
 | [**Update System**](devel/UPDATE_SYSTEM.md) | Channels, R2 CDN, downloads, Moonraker updater |
+| [**Release Signing**](devel/RELEASE_SIGNING.md) | Signed channel manifests, the release key and who verifies it |
 | [**Guided Cold Pull**](devel/COLD_PULL.md) | Nozzle cleaning walkthrough, the clog alert's Cold Pull button, heater safety |
 | [**Maintenance Reminders**](devel/MAINTENANCE.md) | Print-hour meters, per-printer defaults, due notices |
 | [**Sound System**](devel/SOUND_SYSTEM.md) | Audio architecture, JSON themes, backends |

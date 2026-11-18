@@ -244,6 +244,9 @@ file(GLOB TRANS_SOURCES "${PROJECT_ROOT}/src/generated/*.c")
 # Quirc QR decoder library (vendored)
 file(GLOB QUIRC_SOURCES "${PROJECT_ROOT}/lib/quirc/lib/*.c")
 
+# Monocypher (vendored): BLAKE2b + Ed25519 for release manifest signatures
+file(GLOB MONOCYPHER_SOURCES "${PROJECT_ROOT}/lib/monocypher/*.c")
+
 # Lua 5.4 for the plugin runtime, built as the Makefile's LUA_SRCS: compiled as
 # C++ so a Lua error unwinds as an exception and a binding's destructors run, and
 # without the io, os, package and debug libraries, which keeps them out of every
@@ -258,7 +261,7 @@ set_source_files_properties(${LUA_SOURCES} PROPERTIES LANGUAGE CXX)
 add_library(lua STATIC ${LUA_SOURCES})
 target_compile_options(lua PRIVATE -std=c++17 -w)
 
-add_library(main SHARED ${HELIX_SOURCES} ${FONT_SOURCES} ${TRANS_SOURCES} ${QUIRC_SOURCES})
+add_library(main SHARED ${HELIX_SOURCES} ${FONT_SOURCES} ${TRANS_SOURCES} ${QUIRC_SOURCES} ${MONOCYPHER_SOURCES})
 
 # Generated git-hash header, required by src/system/helix_version.cpp. Gradle
 # never runs the Makefile, so run the Makefile's own generator from here rather
@@ -298,6 +301,7 @@ target_include_directories(main PRIVATE
     "${PROJECT_ROOT}/lib/lv_markdown/deps/md4c"
     "${PROJECT_ROOT}/lib/mdns"
     "${PROJECT_ROOT}/lib/quirc/lib"
+    "${PROJECT_ROOT}/lib/monocypher"
     "${PROJECT_ROOT}/lib/cpp-terminal/include"
     "${PROJECT_ROOT}/assets/fonts"
     "${PROJECT_ROOT}/src/generated"

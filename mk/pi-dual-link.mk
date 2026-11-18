@@ -235,7 +235,7 @@ FBDEV_LDFLAGS := $(filter-out -ldrm -linput -lEGL -lGLESv2 -lgbm,$(LDFLAGS))
 # scripts/check_link_parity.py compares the two lists and fails on a gap.
 $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FBDEV_CRASH_OBJ) \
                  $(FBDEV_LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LV_MARKDOWN_OBJS) \
-                 $(QUIRC_OBJS) $(VTERM_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(REMOTE_LINENOISE_OBJ) \
+                 $(QUIRC_OBJS) $(MONOCYPHER_OBJS) $(VTERM_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(REMOTE_LINENOISE_OBJ) \
                  $(APP_DNS_RESOLV_OBJ) $(DISPLAY_LIB_FBDEV) $(WPA_DEPS) \
                  | $(TARGET)
 	$(Q)mkdir -p $(dir $@)

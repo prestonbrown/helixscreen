@@ -1265,6 +1265,12 @@ jobs:
     # — a green run with a stale manifest is the silent-failure trap from .github#952
     # / v0.99.80, where continue-on-error hid a real publish failure from alerting.
     # Runs in both modes; every R2 key below starts with R2_PREFIX.
+    #
+    # A release waits here for a reviewer to approve the release-signing environment,
+    # which alone holds the release key's secrets (HELIX_RELEASE_MINISIGN_KEY and its
+    # password) and admits only v* tags. A dry run uses no environment, never reads the
+    # key and signs with one made for the run. docs/devel/RELEASE_SIGNING.md.
+    environment: ${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}
     env:
       R2_PREFIX: ${{ needs.plan.outputs.r2_prefix }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag }}
@@ -1444,8 +1450,8 @@ jobs:
     # Each channel's manifest is generated, checked and signed here, before
     # anything is uploaded, so a bad entry or a signing failure stops the
     # release with nothing published. The release key reaches only this step,
-    # and only in a release: a dry run signs with a key generated for the run
-    # (scripts/sign-release-manifest.sh).
+    # and only in a release, from the release-signing environment's secrets: a
+    # dry run signs with a key generated for the run (scripts/sign-release-manifest.sh).
     - name: Generate and sign channel manifests
       env:
         HELIX_RELEASE_MINISIGN_KEY: ${{ env.RELEASE_MODE == 'publish' && secrets.HELIX_RELEASE_MINISIGN_KEY || '' }}

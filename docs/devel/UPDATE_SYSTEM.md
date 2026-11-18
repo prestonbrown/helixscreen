@@ -381,9 +381,13 @@ sudo install -o root -g root -m 644 update_urls.json /var/lib/helixscreen/update
 The parent must carry no group/world write bit or the file is ignored alongside
 it.
 
+### Manifest Signatures
+
+Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against the release key compiled into the app (`helix::release_signature::kReleasePublicKey`), or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key. `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+
 ### GitHub API Fallback
 
-If the R2 manifest fetch fails (network error, HTTP error, missing manifest), the checker falls back to the GitHub API:
+If the R2 manifest is unreachable (network error, HTTP error, missing manifest), the checker falls back to the GitHub API. A manifest that is served but fails its signature does **not** fall back: the check reports the refusal. A release found through GitHub carries no signature and no hash, so it announces an update but Install refuses it ("Error: Update can't be verified").
 
 - **Stable**: `GET /repos/prestonbrown/helixscreen/releases/latest` - parses single release object
 - **Beta**: `GET /repos/prestonbrown/helixscreen/releases` - scans array for first non-draft prerelease, falls back to latest stable
@@ -455,12 +459,14 @@ itself to that thread via `queue_update()`, with a 5s backstop in case no main l
 ### Download Steps
 
 1. **Safety check**: Refuses to download if a print is active or paused.
-2. **Directory selection**: Scans candidate directories (`$TMPDIR`, `/tmp`, `/data`, `$HOME`, etc.) and picks the one with the **most free space** (minimum 50 MB required).
-3. **HTTP download**: Uses `libhv requests::downloadFile()` with progress callback. UI updates throttled to every 2%.
-4. **Size validation**: Rejects files < 1 MB or > 50 MB.
-5. **Archive verification**: Validates archive integrity (`unzip -t` for zip, `gunzip -t` for legacy tar.gz) via `safe_exec()` (fork/exec, no shell).
-6. **Architecture validation**: Extracts the binary from the archive and reads the ELF header to verify it matches the runtime architecture (ARM 32-bit vs AARCH64 64-bit). This prevents installing a Pi 64-bit build on a 32-bit Pi or vice versa.
-7. **Install**: Runs `install.sh --local {archive} --update` via `safe_exec()`.
+2. **Signature gate**: Refuses a release that did not come from a manifest whose signature verified, or has no SHA-256 (`helix::release_is_verified()`).
+3. **Directory selection**: Scans candidate directories (`$TMPDIR`, `/tmp`, `/data`, `$HOME`, etc.) and picks the one with the **most free space** (minimum 50 MB required).
+4. **HTTP download**: Uses `libhv requests::downloadFile()` with progress callback. UI updates throttled to every 2%.
+5. **Size validation**: Rejects files < 1 MB or > 50 MB.
+6. **Archive verification**: Validates archive integrity (`unzip -t` for zip, `gunzip -t` for legacy tar.gz) via `safe_exec()` (fork/exec, no shell).
+7. **Architecture validation**: Extracts the binary from the archive and reads the ELF header to verify it matches the runtime architecture (ARM 32-bit vs AARCH64 64-bit). This prevents installing a Pi 64-bit build on a 32-bit Pi or vice versa.
+8. **SHA-256 check**: The download must match the manifest's hash; a missing hash is refused.
+9. **Install**: Runs `install.sh --local {archive} --update` via `safe_exec()`.
 
 ### Install Script Discovery
 
