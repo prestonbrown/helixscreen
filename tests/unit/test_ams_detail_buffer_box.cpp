@@ -10,11 +10,13 @@
 #include "ui_ams_detail.h"
 
 #include "../test_helpers/buffer_infos.h"
+#include "afc_status_parse.h"
 #include "buffer_reading.h"
 
 #include <string>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using helix::ui::ams_detail_buffer_box;
@@ -91,7 +93,7 @@ TEST_CASE("buffer box: Happy Hare sync feedback", "[ams][buffer][path]") {
     AmsSystemInfo info;
     info.type = AmsType::HAPPY_HARE;
     info.sync_feedback_state = "tension";
-    info.system_buffer_motion = BufferMotion::Trailing;
+    info.system_buffer_motion = BufferMotion::Expanded;
     info.sync_feedback_bias = -0.8f;
     const auto box = ams_detail_buffer_box(info, -1);
     CHECK(box.present);
@@ -112,7 +114,7 @@ static AmsSystemInfo sensor_on_unit_1() {
     info.type = AmsType::AFC;
     info.units[0].buffer_health.reset();
     info.units[1].buffer_health->state = "Advancing";
-    info.units[1].buffer_health->motion = BufferMotion::Advancing;
+    info.units[1].buffer_health->motion = BufferMotion::Expanded;
     return info;
 }
 
@@ -120,7 +122,25 @@ TEST_CASE("buffer box: the all-units view describes the sensor's unit", "[ams][b
     const AmsSystemInfo info = sensor_on_unit_1();
     REQUIRE(buffer_view_unit(info, -1) == 1);
     CHECK(ams_detail_buffer_box(info, -1).state == ams_detail_buffer_box(info, 1).state);
-    CHECK(ams_detail_buffer_box(info, -1).state == 1);
+    CHECK(ams_detail_buffer_box(info, -1).state == 2);
+}
+
+// AFC names its motor's response, not the buffer's shape: "Advancing" feeds faster
+// because the TurtleNeck is expanded, "Trailing" slows because it is compressed.
+TEST_CASE("buffer box: AFC's words draw the buffer's real shape", "[ams][buffer][path][afc]") {
+    auto box_for = [](const char* afc_state) {
+        AmsSystemInfo info;
+        info.type = AmsType::AFC;
+        AmsUnit unit;
+        BufferHealth health;
+        afc::apply_buffer_delta(health, afc::parse_buffer(nlohmann::json{{"state", afc_state}}));
+        unit.buffer_health = health;
+        info.units.push_back(unit);
+        return ams_detail_buffer_box(info, 0);
+    };
+    CHECK(box_for("Advancing").state == 2); // expanded
+    CHECK(box_for("Trailing").state == 1);  // compressed
+    CHECK(box_for("Neutral").state == 0);
 }
 
 TEST_CASE("buffer box: a one-sided pressure places against its set point",

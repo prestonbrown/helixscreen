@@ -1714,8 +1714,8 @@ TEST_CASE_METHOD(HhFourGates,
         std::optional<BufferMotion> motion;
     };
     const Case cases[] = {
-        {"rewind", SpoolMotorAction::Rewinding, "compressed", BufferMotion::Advancing},
-        {"assist", SpoolMotorAction::Assisting, "tension", BufferMotion::Trailing},
+        {"rewind", SpoolMotorAction::Rewinding, "compressed", BufferMotion::Compressed},
+        {"assist", SpoolMotorAction::Assisting, "tension", BufferMotion::Expanded},
         {"wiggle", SpoolMotorAction::Other, "neutral", BufferMotion::Unknown},
         {"", SpoolMotorAction::None, "disabled", std::nullopt},
     };

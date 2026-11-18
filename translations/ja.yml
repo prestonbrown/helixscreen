@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: '{} 時間前に完了'
   Completed {}m ago: '{} 分前に完了'
   Compressed: 圧縮
+  'Compressed: filament arrives faster than it is used': '圧縮: フィラメントの供給が消費より速い'
   Computing calibration...: キャリブレーション計算中...
   Config Dir: 設定ディレクトリ
   Config Edit Failed: '設定の編集に失敗しました'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': '排気: チャンバーをこの温度以下に保つ'
   Exit Code: 終了コード
   Expanded: 伸長
+  'Expanded: the toolhead pulls filament faster than it arrives': '伸長: ツールヘッドがフィラメントを供給より速く引いている'
   Expected boolean: '真偽値が必要です'
   Expected float: '小数値が必要です'
   Explore how the selected palette shapes text, controls, and status colors.: 選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "フィラメントを戻す"
   Feeder: フィーダー
   Feeders: フィーダー
-  Feeding filament forward: フィラメントを前方に送り出し中
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
@@ -3206,7 +3207,6 @@ translations:
   Pull: "引く"
   Pull now: "今すぐ引く"
   Pulled: "引き抜き完了"
-  Pulling filament back: フィラメントを引き戻し中
   Purge: パージ
   Purge & Wipe: 'パージとワイプ'
   Purge Chute Calibration: パージシュートのキャリブレーション

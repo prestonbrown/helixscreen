@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." de="Anpassungen bleiben bis zum Neustart aktiv. Nach Druckende speichern."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" de="Passt individuelle Eigenschaften Ihrer Heizungen für optimale Regelung an"/>
   <translation tag="Advanced" de="Erweitert"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" de="Vorlaufend"/>
   <translation tag="After an error" de="Nach einem Fehler"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." de="Nach dem Anschließen von {} empfehlen wir, Input Shaping neu zu kalibrieren, um die Druckqualität zu sichern."/>
   <translation tag="After running the commands, tap Check Again below." de="Tippen Sie nach Ausführung der Befehle unten auf Erneut prüfen."/>
@@ -850,7 +850,8 @@
   <translation tag="Completed {}h ago" de="Vor {} Std. abgeschlossen"/>
   <translation tag="Completed {}m ago" de="Vor {} Min. abgeschlossen"/>
   <translation tag="Completed: {}" de="Abgeschlossen: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" de="Komprimiert"/>
+  <translation tag="Compressed: filament arrives faster than it is used" de="Komprimiert: Filament kommt schneller an, als es verbraucht wird"/>
   <translation tag="Computing calibration..." de="Kalibrierung wird berechnet..."/>
   <translation tag="Config Dir" de="Konfig-Verzeichnis"/>
   <translation tag="Config Edit Failed" de="Konfigurationsänderung fehlgeschlagen"/>
@@ -1365,7 +1366,8 @@
   <translation tag="Exhaust fan speed" de="Abluftlüfter-Drehzahl"/>
   <translation tag="Exhaust: keep chamber at or below" de="Abluft: Kammer höchstens halten bei"/>
   <translation tag="Exit Code" de="Exit-Code"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" de="Ausgedehnt"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" de="Ausgedehnt: Der Druckkopf zieht Filament schneller, als es ankommt"/>
   <translation tag="Expected boolean" de="Boolescher Wert erwartet"/>
   <translation tag="Expected float" de="Gleitkommazahl erwartet"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." de="Erkunden Sie, wie die gewählte Palette Text, Steuerelemente und Statusfarben gestaltet."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" de="Filament wieder zuführen"/>
   <translation tag="Feeder" de="Zuführung"/>
   <translation tag="Feeders" de="Zuführungen"/>
-  <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
   <translation tag="Feeding filament to nozzle" de="Filament wird zur Düse geführt"/>
   <translation tag="Filament" de="Filament"/>
   <translation tag="Filament Buffer" de="Filamentpuffer"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" de="Ziehen"/>
   <translation tag="Pull now" de="Jetzt ziehen"/>
   <translation tag="Pulled" de="Gezogen"/>
-  <translation tag="Pulling filament back" de="Filament wird zurückgezogen"/>
   <translation tag="Purge" de="Entlüften"/>
   <translation tag="Purge &amp; Wipe" de="Entlüften &amp; Abwischen"/>
   <translation tag="Purge Chute Calibration" de="Entlüftungsrinnen-Kalibrierung"/>
@@ -4411,7 +4411,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" de="Ziel berühren (Punkt %1$d von 3) — Berührung %2$d von %3$d"/>
   <translation tag="TouchCalibration" de="Touch-Kalibrierung"/>
   <translation tag="Trace" de="Trace"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" de="Nachlaufend"/>
   <translation tag="Tried ports {} and {}." de="Versucht: Ports {} und {}."/>
   <translation tag="Trigger" de="Auslöser"/>
   <translation tag="Troubleshooting:" de="Fehlerbehebung:"/>

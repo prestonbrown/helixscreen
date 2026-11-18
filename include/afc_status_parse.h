@@ -252,7 +252,9 @@ struct BufferDelta {
 
 [[nodiscard]] BufferDelta parse_buffer(const nlohmann::json& data);
 
-/// AFC_buffer's `state` word as a direction.
+/// AFC_buffer's `state` word as the buffer's shape. AFC names what its motor does
+/// about the shape: "Trailing" slows the feed of a compressed buffer, "Advancing"
+/// speeds the feed of an expanded one.
 [[nodiscard]] BufferMotion buffer_motion(const std::string& state);
 
 /// Overlays the fields @p delta carries onto @p health; an omitted field keeps

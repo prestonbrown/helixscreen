@@ -526,10 +526,10 @@ BufferDelta parse_buffer(const nlohmann::json& data) {
 
 BufferMotion buffer_motion(const std::string& state) {
     if (state == "Advancing") {
-        return BufferMotion::Advancing;
+        return BufferMotion::Expanded;
     }
     if (state == "Trailing") {
-        return BufferMotion::Trailing;
+        return BufferMotion::Compressed;
     }
     return BufferMotion::Unknown;
 }

@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." zh="调整在重启前保持有效。打印完成后保存。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" zh="调整加热器的各项参数以实现最佳控制"/>
   <translation tag="Advanced" zh="高级"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" zh="前进"/>
   <translation tag="After an error" zh="发生错误后"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." zh="连接{}后，建议重新校准输入整形，以确保打印质量。"/>
   <translation tag="After running the commands, tap Check Again below." zh="执行命令后，点击下方的重新检查。"/>
@@ -850,7 +850,8 @@
   <translation tag="Completed {}h ago" zh="{} 小时前完成"/>
   <translation tag="Completed {}m ago" zh="{} 分钟前完成"/>
   <translation tag="Completed: {}" zh="已完成：{}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" zh="压缩"/>
+  <translation tag="Compressed: filament arrives faster than it is used" zh="压缩：耗材送入快于消耗"/>
   <translation tag="Computing calibration..." zh="正在计算校准..."/>
   <translation tag="Config Dir" zh="配置目录"/>
   <translation tag="Config Edit Failed" zh="配置编辑失败"/>
@@ -1365,7 +1366,8 @@
   <translation tag="Exhaust fan speed" zh="排气风扇速度"/>
   <translation tag="Exhaust: keep chamber at or below" zh="排气：将腔体保持在不高于"/>
   <translation tag="Exit Code" zh="退出代码"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" zh="伸展"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" zh="伸展：打印头拉动耗材快于送入"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
   <translation tag="Expected float" zh="需要小数值"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." zh="探索所选调色板如何影响文本、控件和状态颜色。"/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" zh="重新送入耗材"/>
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
-  <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Feeding filament to nozzle" zh="正在向喷嘴送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Buffer" zh="耗材缓冲区"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" zh="拉出"/>
   <translation tag="Pull now" zh="立即拉出"/>
   <translation tag="Pulled" zh="已拉出"/>
-  <translation tag="Pulling filament back" zh="正在回抽耗材"/>
   <translation tag="Purge" zh="排料"/>
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
   <translation tag="Purge Chute Calibration" zh="排料口校准"/>
@@ -4411,7 +4411,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" zh="滞后"/>
   <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>

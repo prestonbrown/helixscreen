@@ -338,7 +338,7 @@ parse_entry_sensor_objects(const nlohmann::json& params);
 /// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
 [[nodiscard]] SpoolMotorAction spool_motor_action(const std::string& state);
 
-/// Happy Hare's sync_feedback_state as the system buffer's motion: nullopt when
+/// Happy Hare's sync_feedback_state as the system buffer's shape: nullopt when
 /// sync feedback is absent or "disabled".
 [[nodiscard]] std::optional<BufferMotion> sync_feedback_motion(const std::string& state);
 

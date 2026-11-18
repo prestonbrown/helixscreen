@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." ja="調整は再起動まで有効です。印刷完了後に保存してください。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ja="ヒーターの個別特性を調整して最適な制御を実現します"/>
   <translation tag="Advanced" ja="詳細設定"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" ja="前進中"/>
   <translation tag="After an error" ja="エラーの後"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ja="{}を接続した後は、印刷品質のためにインプットシェーピングの再キャリブレーションをお勧めします。"/>
   <translation tag="After running the commands, tap Check Again below." ja="コマンド実行後、下の「再確認」をタップしてください。"/>
@@ -850,7 +850,8 @@
   <translation tag="Completed {}h ago" ja="{} 時間前に完了"/>
   <translation tag="Completed {}m ago" ja="{} 分前に完了"/>
   <translation tag="Completed: {}" ja="完了: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" ja="圧縮"/>
+  <translation tag="Compressed: filament arrives faster than it is used" ja="圧縮: フィラメントの供給が消費より速い"/>
   <translation tag="Computing calibration..." ja="キャリブレーション計算中..."/>
   <translation tag="Config Dir" ja="設定ディレクトリ"/>
   <translation tag="Config Edit Failed" ja="設定の編集に失敗しました"/>
@@ -1365,7 +1366,8 @@
   <translation tag="Exhaust fan speed" ja="排気ファン速度"/>
   <translation tag="Exhaust: keep chamber at or below" ja="排気: チャンバーをこの温度以下に保つ"/>
   <translation tag="Exit Code" ja="終了コード"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" ja="伸長"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" ja="伸長: ツールヘッドがフィラメントを供給より速く引いている"/>
   <translation tag="Expected boolean" ja="真偽値が必要です"/>
   <translation tag="Expected float" ja="小数値が必要です"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." ja="選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。"/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" ja="フィラメントを戻す"/>
   <translation tag="Feeder" ja="フィーダー"/>
   <translation tag="Feeders" ja="フィーダー"/>
-  <translation tag="Feeding filament forward" ja="フィラメントを前方に送り出し中"/>
   <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
@@ -3121,7 +3122,6 @@
   <translation tag="Pull" ja="引く"/>
   <translation tag="Pull now" ja="今すぐ引く"/>
   <translation tag="Pulled" ja="引き抜き完了"/>
-  <translation tag="Pulling filament back" ja="フィラメントを引き戻し中"/>
   <translation tag="Purge" ja="パージ"/>
   <translation tag="Purge &amp; Wipe" ja="パージとワイプ"/>
   <translation tag="Purge Chute Calibration" ja="パージシュートのキャリブレーション"/>
@@ -4411,7 +4411,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
   <translation tag="Trace" ja="トレース"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" ja="遅延"/>
   <translation tag="Tried ports {} and {}." ja="ポート{}と{}を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>

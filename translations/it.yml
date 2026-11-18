@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: 'Completato {} h fa'
   Completed {}m ago: 'Completato {} min fa'
   Compressed: Compresso
+  'Compressed: filament arrives faster than it is used': 'Compresso: il filamento arriva più velocemente di quanto viene usato'
   Computing calibration...: Calcolo calibrazione...
   Config Dir: Dir configurazione
   Config Edit Failed: 'Modifica della configurazione non riuscita'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Scarico: mantieni la camera al massimo a'
   Exit Code: Codice di uscita
   Expanded: Espanso
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Espanso: la testina tira il filamento più velocemente di quanto arriva'
   Expected boolean: 'Atteso un valore booleano'
   Expected float: 'Atteso un numero decimale'
   Explore how the selected palette shapes text, controls, and status colors.: Esplora come la palette selezionata definisce testo, controlli e colori di stato.
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "Reinserisci il filamento"
   Feeder: Alimentatore
   Feeders: Alimentatori
-  Feeding filament forward: Avanzamento filamento
   Feeding filament to nozzle: "Avanzamento filamento verso l'ugello"
   Filament: Filamento
   Filament Buffer: 'Buffer filamento'
@@ -3206,7 +3207,6 @@ translations:
   Pull: "Tira"
   Pull now: "Tirare ora"
   Pulled: "Tirato"
-  Pulling filament back: Retrazione filamento
   Purge: Spurga
   Purge & Wipe: 'Spurgo e pulizia'
   Purge Chute Calibration: Calibrazione condotto di spurgo
