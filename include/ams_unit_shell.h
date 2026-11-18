@@ -146,6 +146,32 @@ inline bool unit_shell_has_art_for(const UnitShell& shell, int lanes) {
 /// The generated shell named @p id, or nullptr.
 const UnitShell* unit_shell_by_id(const char* id);
 
+/// One lane of a baked unit drawing, in shares of the drawing's width from its top-left
+/// corner (scripts/unit_art/build.py#LaneGeometry). The spool is every disc of radius 1 in the
+/// basis (ey, ez) between the flange centers far and near; wound and core are the full
+/// filament's and the core's radii in that unit. box bounds the flange's cylinder, and outlet
+/// is where the lane's filament leaves the unit.
+struct ArtLaneGeom {
+    float far_x, far_y, near_x, near_y;
+    float ey_x, ey_y, ez_x, ez_y;
+    float wound, core;
+    float box_x0, box_y0, box_x1, box_y1;
+    float outlet_x, outlet_y;
+};
+
+/// A unit drawing's lanes at one lane count: its aspect (width over height), what the drawing
+/// covers, and one ArtLaneGeom per lane.
+struct UnitArtGeom {
+    const char* id;
+    int lanes;
+    float aspect;
+    float drawn[4]; // x0, y0, x1, y1
+    const ArtLaneGeom* lane;
+};
+
+/// The baked lane geometry of @p id's drawing at @p lanes lanes, or nullptr when it has none.
+const UnitArtGeom* unit_art_geometry(const char* id, int lanes);
+
 /// The shell for one unit, or nullptr to keep the generic tray. @p has_dryer joins the unit's
 /// own climate readings as evidence that an optionally enclosed unit has its enclosure.
 const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);

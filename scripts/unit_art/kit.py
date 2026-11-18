@@ -233,6 +233,12 @@ def tray_profile(profile, base_z, px_per_unit):
     return [((y - y0) / (y1 - y0), (z - base_z) * px_per_unit) for y, z in profile]
 
 
+def outlet(scene, lane, point):
+    """Where lane's filament leaves the unit, a world point; without one it leaves the front
+    bottom edge under its spool."""
+    scene.outlets[lane] = point
+
+
 class ScaledScene:
     """Draws into a scene with every length multiplied by k, so a body keeps its own units."""
 
@@ -355,6 +361,9 @@ class Scene:
         self.layer = "back"
         self.spool_radius = None
         self.margin = 0.05
+        # Per lane, the spool spool.draw_spool drew there and where its filament leaves the unit.
+        self.spools = {}
+        self.outlets = {}
 
     def _add(self, pts3, fill, opacity, stroke, sw, closed, lane, tag, blur=False):
         self.items.append(

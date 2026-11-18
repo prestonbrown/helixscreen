@@ -72,6 +72,8 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         _posts(sc, ((0.0, D - 0.05), (W - 0.05, D - 0.05)), TOP + 0.02, rear_posts_to)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(sc, (xc, SPOOL_Y, TOP + 0.18), SPOOL_R, col, c, lane, detail=detail)
+        # Each lane's filament leaves through the front face of its drive block.
+        kit.outlet(sc, lane, (xc, 0.035, TOP + 0.028))
 
     sc.layer = "front"
     sc.prism(foot, 0.018, TOP, FRAME, amb=0.8, dif=0.5, spec=0.15, power=20)

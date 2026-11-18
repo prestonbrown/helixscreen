@@ -85,6 +85,8 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
     r = R * 0.93
     x_near, x_far = xc + w, xc - w
     lift, drop = c["flange_lift"], c["flange_drop"]
+    if lane is not None:
+        scene.spools[lane] = {"far": (x_far, yc, zc), "near": (x_near, yc, zc), "radius": R, "wound": r, "core": hub}
     scene.poly(
         _circle(x_far, yc, zc, R),
         scene.grad(shift(_FLANGE_BACK, lift / 2), shift(_FLANGE_BACK, -drop), zc + R, zc - R, x_far, yc),

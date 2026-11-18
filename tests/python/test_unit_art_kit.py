@@ -358,7 +358,8 @@ def test_the_htlf_body_continues_below_its_outlets():
 @pytest.mark.parametrize("unit", FEEDERS + [htlf.UNIT, rail.ERCF, rail.TRADRACK], ids=lambda u: u.id)
 def test_a_unit_in_front_of_loose_spools_leaves_them_the_plain_tray(unit):
     table = build.generate_shell_table([unit, ace_pro.UNIT])
-    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in table.splitlines() if line.startswith("    {\"")}
+    shells = table.split("const UnitShell kShells[] = {")[1].split("};")[0]
+    rows = {line.split(",")[0].strip(" {\""): line.rstrip() for line in shells.splitlines() if line.startswith("    {\"")}
     assert unit.tray.plain_tray and rows[unit.id].endswith("true},")
     assert not ace_pro.UNIT.tray.plain_tray and not rows["ace_pro"].endswith("true},")
 
@@ -488,3 +489,53 @@ def test_a_unit_without_a_combiner_stops_the_table():
     unit = dataclasses.replace(ace_pro.UNIT, tray=dataclasses.replace(ace_pro.UNIT.tray, combiner=None))
     with pytest.raises(ValueError, match="ask Preston"):
         build.generate_shell_table([unit])
+
+
+def _art_scene(unit, lanes=None):
+    scene = kit.Scene(kit.ART_CAMERA)
+    unit.draw_art(scene, ["#ffffff"] * (lanes or unit.lanes), "full")
+    return scene
+
+
+def _inside_cylinder(g, x, y, radius):
+    """Whether (x, y), in shares of the drawing's width, lies on the lane's spool cylinder."""
+    det = g.ey[0] * g.ez[1] - g.ey[1] * g.ez[0]
+
+    def q(px, py):
+        return ((px * g.ez[1] - py * g.ez[0]) / det, (g.ey[0] * py - g.ey[1] * px) / det)
+
+    p = q(x - g.far[0], y - g.far[1])
+    d = q(g.near[0] - g.far[0], g.near[1] - g.far[1])
+    t = max(0.0, min(1.0, (p[0] * d[0] + p[1] * d[1]) / (d[0] ** 2 + d[1] ** 2)))
+    return math.hypot(p[0] - t * d[0], p[1] - t * d[1]) <= radius
+
+
+@pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u.id in ("ace_pro", "box_turtle", "ams_2_pro", "qidi_box", "cfs")], ids=lambda u: u.id)
+def test_every_lane_records_its_spool_and_outlet(unit):
+    scene = _art_scene(unit)
+    geoms = build.art_lane_geometry(scene, unit.lanes)
+    assert len(geoms) == unit.lanes
+    vx, vy, vw, vh = scene._viewbox()
+    for lane, g in enumerate(geoms):
+        # Wound filament sits between the core and the flange's rim.
+        assert 0 < g.core < g.wound < 1
+        # Every point of the lane's filament lies on its spool's cylinder.
+        for item in scene.items:
+            if item.lane != lane:
+                continue
+            for px, py in item.points:
+                assert _inside_cylinder(g, (px - vx) / vw, (py - vy) / vw, 1.0001)
+        # The outlet lies in the frame, below the spool's top.
+        assert 0 <= g.outlet[0] <= 1
+        assert g.box[1] < g.outlet[1] <= vh / vw
+        # Lanes run left to right.
+        if lane:
+            assert geoms[lane - 1].box[0] < g.box[0]
+
+
+def test_the_shell_table_carries_each_arts_lane_geometry():
+    table = build.generate_shell_table(build.UNITS)
+    assert "constexpr ArtLaneGeom k_box_turtle_4_lanes[]" in table
+    assert '{"box_turtle", 4, ' in table
+    # A rail draws no spools and records none.
+    assert "k_ercf_rail_6_lanes" not in table

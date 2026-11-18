@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Bake every unit's layers into assets/images/units and draw a contact sheet."""
 import base64
+import dataclasses
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -154,6 +156,62 @@ def face_row(scene, gates):
     return f"{{{gates}, {vw / vh:.5f}f, {inlets[0][0]:.5f}f, {step:.5f}f, {inlets[0][1]:.5f}f, {out_x:.5f}f, {out_y:.5f}f}}"
 
 
+@dataclasses.dataclass
+class LaneGeometry:
+    """One lane of a baked drawing, in shares of its width from its top-left corner.
+
+    far and near are the flange centers; ey and ez carry the flange's radius along world y and
+    z, so the spool is every disc of radius 1 in that basis between them. wound and core are the
+    full filament's and the core's radii in flange radii; box bounds the flange's cylinder.
+    """
+
+    far: tuple
+    near: tuple
+    ey: tuple
+    ez: tuple
+    wound: float
+    core: float
+    box: tuple
+    outlet: tuple
+
+
+def art_drawn_box(scene):
+    """What the drawing covers, in shares of its width from its top-left corner."""
+    vx, vy, vw, _ = scene._viewbox()
+    pts = [p for i in scene.items if not i.blur for p in i.points]
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return ((min(xs) - vx) / vw, (min(ys) - vy) / vw, (max(xs) - vx) / vw, (max(ys) - vy) / vw)
+
+
+def art_lane_geometry(scene, lane_count):
+    """Each lane's spool and outlet in scene, or [] when the drawing has no spool per lane."""
+    if any(lane not in scene.spools for lane in range(lane_count)):
+        return []
+    vx, vy, vw, _ = scene._viewbox()
+    cam = scene.camera
+
+    def share(p):
+        u, w = cam.project(p)
+        return ((u - vx) / vw, (w - vy) / vw)
+
+    def along(p, d, r):
+        a, b = cam.project(p), cam.project(tuple(c + r * k for c, k in zip(p, d)))
+        return ((b[0] - a[0]) / vw, (b[1] - a[1]) / vw)
+
+    out = []
+    for lane in range(lane_count):
+        sp = scene.spools[lane]
+        r = sp["radius"]
+        far, near = share(sp["far"]), share(sp["near"])
+        ey, ez = along(sp["far"], (0, 1, 0), r), along(sp["far"], (0, 0, 1), r)
+        hx, hy = math.hypot(ey[0], ez[0]), math.hypot(ey[1], ez[1])
+        box = (min(far[0], near[0]) - hx, min(far[1], near[1]) - hy, max(far[0], near[0]) + hx, max(far[1], near[1]) + hy)
+        xc = (sp["far"][0] + sp["near"][0]) / 2
+        point = scene.outlets.get(lane, (xc, 0.0, 0.0))
+        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point)))
+    return out
+
+
 def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
     target.mkdir(parents=True, exist_ok=True)
     manifest = {"id": unit_id, "lanes": lane_count, "tiers": {}}
@@ -171,11 +229,48 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
+        if tier == "full":
+            geometry = art_lane_geometry(scene, lane_count)
+            if geometry:
+                manifest["drawn"] = _rounded(art_drawn_box(scene))
+                manifest["geometry"] = [_rounded(dataclasses.asdict(g)) for g in geometry]
         if has_carriage:
             carriage = f"{tier}_carriage.png"
             render(scene.layer_svg("carriage", width), width, target / carriage)
             manifest["tiers"][tier]["carriage"] = carriage
     (target / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+
+def _rounded(value):
+    if isinstance(value, float):
+        return round(value, 5)
+    if isinstance(value, (list, tuple)):
+        return [_rounded(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _rounded(v) for k, v in value.items()}
+    return value
+
+
+def _geometry_rows(unit):
+    """(lanes, aspect, ArtLaneGeom initialisers) for each lane count the unit's art is baked at."""
+    rows = []
+    for _, lanes in art_dirs(unit, "."):
+        scene = kit.Scene(kit.ART_CAMERA)
+        unit.draw_art(scene, ["#ffffff"] * lanes, "full")
+        geometry = art_lane_geometry(scene, lanes)
+        if not geometry:
+            continue
+        _, _, vw, vh = scene._viewbox()
+
+        def f(v):
+            return f"{v:.5f}f"
+
+        lane_rows = [
+            "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
+            for g in geometry
+        ]
+        rows.append((lanes, vw / vh, art_drawn_box(scene), lane_rows))
+    return rows
 
 
 def _trailing_fields(fields):
@@ -250,12 +345,29 @@ def generate_shell_table(units):
             f"{t.back_extra_px:.2f}f, {t.front_wall_px:.1f}f, {t.cap_clearance_px:.1f}f, "
             f"{lid}, Combiner::{combiner_name(unit)}, {'true' if t.port_block else 'false'}, 0x{t.body:06x}, 0x{t.corner:06x}, k_{unit.id}_front, {len(parts)}, {'true' if unit.stub_art else 'false'}, 0x{variants:x}{track}}},"
         )
-    out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "} // namespace", ""]
+    geoms = []
+    for unit in units:
+        if unit.tray is None:
+            continue
+        for lanes, aspect, drawn, lane_rows in _geometry_rows(unit):
+            name = f"k_{unit.id}_{lanes}_lanes"
+            out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
+            box = ", ".join(f"{v:.5f}f" for v in drawn)
+            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {name}}},')
+    out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "", "const UnitArtGeom kArtGeoms[] = {"] + geoms + ["};", "} // namespace", ""]
     out += [
         "const UnitShell* unit_shell_by_id(const char* id) {",
         "    for (const UnitShell& shell : kShells) {",
         "        if (std::strcmp(shell.id, id) == 0)",
         "            return &shell;",
+        "    }",
+        "    return nullptr;",
+        "}",
+        "",
+        "const UnitArtGeom* unit_art_geometry(const char* id, int lanes) {",
+        "    for (const UnitArtGeom& geom : kArtGeoms) {",
+        "        if (geom.lanes == lanes && std::strcmp(geom.id, id) == 0)",
+        "            return &geom;",
         "    }",
         "    return nullptr;",
         "}",

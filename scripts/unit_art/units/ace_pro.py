@@ -43,6 +43,8 @@ def draw_art(sc, colors, tier):
 
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(sc, (xc, 0.40, 0.336), 0.25, col, c, lane, detail=detail)
+        # Each lane's filament leaves through its port in the front rail.
+        kit.outlet(sc, lane, (xc, -0.002, 0.33))
 
     sc.layer = "front"
     sc.prism(foot, 0.0, 0.016, "#141518")
