@@ -61,6 +61,7 @@ is out.
 - **Choose the lights the printer picture's light chip switches** - in home edit mode, Configure on the printer picture picks which light its light chip switches, one light or All lights, from the same list a light button uses. The chip shows lit while any of those lights is on, and holding it opens the LEDs screen on that light. Until you pick one it switches the chamber light, as before.
 - **Printer pictures glow where the heat is** - a heated bed fills its plate with a warm haze on the home printer widget and the Print Status screen, and chamber heat and the light stay inside the printer's windows. The pictures of printers with an enclosure are tagged with window regions for this.
 - **Stepper driver, MCU and host temperatures on the graph** (#2080) - the temperature graph can chart TMC driver, MCU and host temperatures, remembered per printer, and a rising driver over-temperature flag raises a warning.
+- **Readable panels on ultrawide screens** - on a screen much wider than it is tall, such as 1480x320 or 1920x440, panels and overlays stop at 2.4 times the screen height and stay next to the navigation bar, so a settings list or the jog pad is no longer stretched across the whole display. The home screen, print file list, Print Status, bed mesh and the AMS screens still use the full width. Screens such as 800x480, 1024x600 and portrait panels look the same as before.
 
 **Printing and calibration**
 

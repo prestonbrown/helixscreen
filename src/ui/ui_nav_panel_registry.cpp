@@ -5,6 +5,8 @@
 
 #include "ui_panel_base.h"
 
+#include "theme_manager.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -33,6 +35,7 @@ lv_obj_t* PanelRegistry::replace_widget(int idx, lv_obj_t* widget) {
     lv_obj_t* displaced = widgets_[idx].get();
     widgets_[idx] = widget;
     stale_[idx] = false;
+    apply_content_cap(idx);
     return displaced;
 }
 
@@ -69,6 +72,7 @@ void PanelRegistry::show_only(int idx) {
         if (widgets_[i] && !lent_to_[i]) {
             if (i == idx) {
                 lv_obj_set_hidden(widgets_[i], false);
+                apply_content_cap(i);
             } else {
                 lv_obj_set_hidden(widgets_[i], true);
             }
@@ -127,6 +131,27 @@ lv_obj_t* PanelRegistry::lent_to(int idx) const {
 void PanelRegistry::set_instance(int idx, PanelBase* panel) {
     if (in_range(idx)) {
         instances_[idx] = panel;
+        apply_content_cap(idx);
+    }
+}
+
+void PanelRegistry::apply_content_cap(int idx) {
+    lv_obj_t* panel = widget(idx);
+    const PanelBase* inst = instance(idx);
+    if (!panel || !inst || lent_to_[idx] || lv_obj_is_hidden(panel)) {
+        return;
+    }
+    lv_obj_t* container = lv_obj_get_parent(panel);
+    if (container_.get() != container) {
+        container_ = container;
+        container_base_pad_right_ = content_cap_base_pad(container);
+    }
+    helix::apply_content_cap(container, container_base_pad_right_, content_capped(inst));
+}
+
+void PanelRegistry::reapply_content_caps() {
+    for (int i = 0; i < kCount; i++) {
+        apply_content_cap(i); // acts only for the panel shown
     }
 }
 
@@ -170,6 +195,7 @@ void PanelRegistry::clear_instances() {
 }
 
 void PanelRegistry::reset() {
+    container_ = nullptr;
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = nullptr;
         lent_to_[i] = nullptr;

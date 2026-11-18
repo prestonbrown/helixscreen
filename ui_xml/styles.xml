@@ -233,6 +233,11 @@
     <style name="action_cell_stacked" pad_hor="#ams_action_pad_hor"/>
     <!-- Four to a row, for a narrow portrait screen with no height for two rows. -->
     <style name="action_cell_quarter" width="23%"/>
+    <!-- Role marker, no properties: chrome (a header or footer) that spans the
+         whole view while the content between is capped on an ultrawide
+         screen. helix::apply_content_cap() widens the root's direct children
+         that carry it; see docs/devel/LAYOUT_SYSTEM.md, "Content width cap". -->
+    <style name="cap_chrome"/>
   </styles>
   <!-- Registration requires a <view>; nothing ever instantiates this
        component, so an empty lv_obj keeps it harmless. -->

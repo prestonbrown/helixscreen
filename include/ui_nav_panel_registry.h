@@ -85,6 +85,10 @@ class PanelRegistry {
     /// against re-entrancy.
     void ensure_built(int idx);
 
+    /// Re-derive the content cap for the shown panel after the screen size
+    /// changed. See apply_content_cap().
+    void reapply_content_caps();
+
     /// Forget every instance; the widgets are left to their owners.
     void clear_instances();
 
@@ -92,7 +96,18 @@ class PanelRegistry {
     void reset();
 
   private:
+    /// Cap the panel container for slot @p idx when that panel is the one
+    /// shown, unless its instance opts out (helix::content_capped()). The panels
+    /// are 100% of the container, so the container's cap is the shown panel's.
+    /// A slot with no instance yet is left alone: whether it opts out is not
+    /// known until the instance registers, which applies it then. A lent panel
+    /// lives in another container and is left alone too.
+    void apply_content_cap(int idx);
+
     WidgetRef widgets_[kCount];
+    // The container the panels share, and the right padding it was built with.
+    WidgetRef container_;
+    int32_t container_base_pad_right_ = 0;
     WidgetRef lent_to_[kCount];
     WidgetRef lent_from_[kCount];
     std::array<int32_t, kCount> lent_index_ = {};

@@ -147,6 +147,20 @@ class IPanelLifecycle {
     }
 
     /**
+     * @brief Whether this view keeps the full width on an ultrawide screen
+     *
+     * Panels and overlays are capped at content_max_width (2.4 x screen height,
+     * include/content_width_cap.h) and kept against the nav bar, which only
+     * binds on ultrawide screens. Override to true for views whose content is
+     * built to fill the width: a widget grid, a file card grid that reflows
+     * into more columns, a canvas or 3D view. NavigationManager reads this for
+     * main panels and pushed overlays alike.
+     */
+    virtual bool uses_full_content_width() const {
+        return false;
+    }
+
+    /**
      * @brief Re-apply C++-side content to a freshly rebuilt widget tree
      *
      * rebuild() re-runs setup()/create() and nothing else, so it reproduces
@@ -174,6 +188,14 @@ class IPanelLifecycle {
      */
     virtual const char* get_name() const = 0;
 };
+
+namespace helix {
+/// Whether @p view's content is capped on an ultrawide screen. A view with no
+/// lifecycle has declared nothing, so it is capped.
+inline bool content_capped(const IPanelLifecycle* view) {
+    return !view || !view->uses_full_content_width();
+}
+} // namespace helix
 
 /**
  * @class ViewLifecycleBase

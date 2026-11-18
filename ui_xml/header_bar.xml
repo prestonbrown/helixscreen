@@ -152,6 +152,7 @@
         width="100%" height="#header_height" style_pad_left="0" style_pad_right="#space_lg" style_pad_top="0"
         style_pad_bottom="0" flex_flow="row" style_flex_main_place="space_between" style_flex_track_place="center"
         style_flex_cross_place="center" scrollable="false">
+    <style name="styles.cap_chrome"/>
     <!-- Back button: flex_grow region covers arrow + title = huge touch target -->
     <lv_obj name="back_button"
             height="100%" flex_grow="1" style_pad_right="0" style_pad_top="0" style_pad_bottom="0" scrollable="false"
