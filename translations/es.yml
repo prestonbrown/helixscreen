@@ -4369,6 +4369,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Este archivo fue laminado para {} pero se ha cargado {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada.
   This firmware can only switch slots by loading them: 'Este firmware solo puede cambiar de ranura cargándola'
+  The filament went into the toolhead past its feeder. Load it by hand.: "El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."
   This toolhead has no automatic feeder. Load the filament by hand.: "Este cabezal no tiene alimentador automático. Carga el filamento a mano."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar.'

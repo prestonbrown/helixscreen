@@ -298,8 +298,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
 
     [[nodiscard]] ChannelSnapshot channel_snapshot(int slot_index) const;
 
-    /// A head the firmware reports with no feeder, or its feeder out of automatic
-    /// mode, loads by hand: the guided manual load (#2000).
+    /// A head the firmware reports with no feeder, its feeder out of automatic
+    /// mode, or filament in it that bypassed the feeder, loads by hand: the guided
+    /// manual load (#2000).
     [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override;
 
     /// Whether @p snap says no automatic feeder can feed its head: the firmware
@@ -937,6 +938,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] bool parked_in_toolhead_locked(int i) const {
         return !loaded_at_toolhead_[i] && toolhead_switch_reported_[i] &&
                sensor_filament_present_[i];
+    }
+
+    /// Filament in tool i's toolhead that its feeder port reports absent: pushed
+    /// in by hand past the feeder, so a feed has nothing to drive. Caller holds mutex_.
+    [[nodiscard]] bool fed_past_feeder_locked(int i) const {
+        return parked_in_toolhead_locked(i) && feed_presence_seen_[i] &&
+               !port_sensor_filament_present_[i] && !head_is_upstream_fed_locked(i);
     }
 
     /// Per-slot port/buffer sensor state — the filament_feed left/right

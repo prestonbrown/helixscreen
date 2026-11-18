@@ -4120,6 +4120,7 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" ru="Возможно, филамент втянут не полностью. Повторите или вытяните вручную"/>
   <translation tag="The filament system needs attention" ru="Системе подачи филамента требуется внимание"/>
   <translation tag="The filament system reported an error" ru="Система филамента сообщила об ошибке"/>
+  <translation tag="The filament went into the toolhead past its feeder. Load it by hand." ru="Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после натяжения ({0}). Проверьте, что крутили натяжитель: {0}."/>

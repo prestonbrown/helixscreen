@@ -4457,6 +4457,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Файл нарезан для {}, но загружен {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке.
   This firmware can only switch slots by loading them: 'Эта прошивка может переключать слоты только загрузкой'
+  The filament went into the toolhead past its feeder. Load it by hand.: "Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."
   This toolhead has no automatic feeder. Load the filament by hand.: "У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения.'

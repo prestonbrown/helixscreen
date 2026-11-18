@@ -4369,6 +4369,7 @@ translations:
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
+  The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"
   This toolhead has no automatic feeder. Load the filament by hand.: "このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加します。印刷中のため、Klipper は印刷完了後に再起動されます。'

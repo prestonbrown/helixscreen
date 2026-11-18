@@ -915,15 +915,29 @@ AmsBackendSnapmaker::ChannelSnapshot AmsBackendSnapmaker::channel_snapshot(int s
 
 HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
     HeadFilamentOps ops = AmsBackend::head_filament_ops(head);
-    if (head < 0 || head >= kNumTools || !feeder_absent(channel_snapshot(head))) {
+    if (head < 0 || head >= kNumTools) {
+        return ops;
+    }
+    const ChannelSnapshot snap = channel_snapshot(head);
+    bool fed_past_feeder = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        fed_past_feeder = fed_past_feeder_locked(head);
+    }
+    if (!feeder_absent(snap) && !fed_past_feeder) {
         return ops;
     }
     ops.load = FilamentOpSupport::Manual;
-    ops.load_reason =
-        auto_load_off(channel_snapshot(head))
-            ? lv_tr("Auto loading is off for this toolhead. Turn it on under Print Behavior, or "
-                    "load the filament by hand.")
-            : lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    if (auto_load_off(snap)) {
+        ops.load_reason = lv_tr("Auto loading is off for this toolhead. Turn it on under Print "
+                                "Behavior, or load the filament by hand.");
+    } else if (feeder_absent(snap)) {
+        ops.load_reason =
+            lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
+    } else {
+        ops.load_reason = lv_tr("The filament went into the toolhead past its feeder. Load it by "
+                                "hand.");
+    }
     ops.guided_hand_load = true;
     return ops;
 }

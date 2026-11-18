@@ -412,3 +412,36 @@ TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head with no automatic feeder lo
                         {{"extruder1", {{"module_exist", true}, {"disable_auto", false}}}}}});
     CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
 }
+
+// Filament pushed straight into a head past its feeder: the toolhead switch sees
+// it, the feeder port does not, so a feed has nothing to drive and the load is by hand.
+TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head fed past its feeder loads by hand",
+                 "[ams][snapmaker][manual_load]") {
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    const auto port = [&](bool detected) {
+        backend.fire_status(nlohmann::json{{"filament_feed left",
+                                            {{"extruder1",
+                                              {{"filament_detected", detected},
+                                               {"channel_state", "wait_insert"},
+                                               {"module_exist", true},
+                                               {"disable_auto", false}}}}}});
+    };
+    const auto head_switch = [&](bool detected) {
+        backend.fire_status(nlohmann::json{
+            {"filament_motion_sensor e1_filament", {{"filament_detected", detected}}}});
+    };
+    port(false);
+    head_switch(false);
+    CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
+
+    head_switch(true);
+    const helix::HeadFilamentOps ops = backend.head_filament_ops(1);
+    CHECK(ops.load == helix::FilamentOpSupport::Manual);
+    CHECK(ops.guided_hand_load);
+    CHECK_FALSE(ops.load_reason.empty());
+
+    // A spool in the feeder port is a feed the firmware can run.
+    port(true);
+    CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
+}
