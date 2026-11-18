@@ -14,11 +14,13 @@
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "lvgl/lvgl.h"
+#include "memory_utils.h"
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"
 
 #include <array>
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -679,6 +681,10 @@ class NavigationManager {
     // Tear down what an overlay leaving the stack owns: its nested-overlay
     // backdrop is deleted and its close callback runs, both on the next tick.
     void retire_overlay(lv_obj_t* overlay);
+    /// Return a closed overlay's freed heap to the OS once closes settle:
+    /// kHeapTrimSettleMs after the last close, at most once per
+    /// kHeapTrimMinIntervalMs, on a worker. No-op without malloc_trim().
+    void request_heap_trim();
 
     // Run @p callback on the next tick, unless @p overlay's owner unregistered
     // in the meantime.
@@ -822,6 +828,8 @@ class NavigationManager {
     bool suspended_ = false; // True when screensaver has suspended lifecycle
     bool layout_rebuild_pending_ = false;
     helix::ui::CoalescedTimer layout_rebuild_retry_{250};
+    helix::ui::CoalescedTimer heap_trim_timer_{helix::kHeapTrimSettleMs};
+    std::optional<uint32_t> last_heap_trim_ms_;
     DeactivateReason suspend_reason_ = DeactivateReason::Suspended;
     IPanelLifecycle* suspended_view_ = nullptr; // what resume_active() wakes
 
