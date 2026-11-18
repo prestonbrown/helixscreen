@@ -88,9 +88,11 @@ is out.
 - **Chute calibration D-pad on the K1 CFS** (#2007) - the purge chute calibration has an XY D-pad with a step size, and the head stops short of a known wiper.
 - **Runs on Android 7** - the Android app supports Android 7.0 and Fire OS 6 tablets.
 - **K1 series SSH log** - the state of SSH is written to the install log and a launch log that Mainsail, Fluidd and debug bundles can reach.
+- **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on the print file screen and on Print Status, is now a button. Tapping it puts the model back at its starting angle and zoom.
 
 ### Fixed
 
+- **Smoother 3D preview on slower boards** - rotating the 3D G-code preview no longer freezes the rest of the screen, because the preview now draws on its own thread. A drag also draws each frame once instead of up to three times, and on faster boards the simplified model shown while rotating keeps more of its detail. On a board where rotating still cannot reach about 7 frames a second, the preview switches to the 2D view for the rest of the session instead of stalling.
 - **Saving tool offsets on Reforge** (#2030) - Save sends only `SAVE_CONFIG` on Reforge, which keeps the offsets its own calibration measured, instead of tool parameter commands Reforge rejects. Print Tune's Z control on Reforge adjusts the machine-wide offset, as Reforge's own babystep does.
 - **Toolhead pictures fit the filament path at every screen size** - the Stealthburner and other tall heads are no longer cut off at the bottom on 480x272 screens.
 - **Filament status follows the language** - AMS status text, Happy Hare action text, AD5X phase text and filament error messages change language as soon as you switch it, instead of staying in the old one until restart.
