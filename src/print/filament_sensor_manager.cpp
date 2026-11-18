@@ -551,6 +551,11 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
     // its tools. Matching either index counts as being fed, so a sensor is set
     // aside only when it can be neither.
     const int current_tool = backend ? backend->get_current_tool() : -1;
+    // A running or paused job is drawing from the lane being fed, so that
+    // lane's sensor going empty is a runout even once the backend reads the
+    // lane EMPTY: a spool that ran dry leaves nothing in its lane.
+    const bool job_running =
+        print_job_running(get_printer_state().print_state().get_print_lifecycle());
 
     for (const auto& sensor : candidates) {
         // This sensor reports no filament. Decide whether it is a real runout.
@@ -562,7 +567,9 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
             backend && sensor.lane >= 0 ? backend->get_slot_info(sensor.lane) : SlotInfo{};
         const int lane = slot.slot_index >= 0 ? sensor.lane : -1;
         if (lane >= 0) {
-            if (!slot.is_present()) {
+            const bool fed = lane == current_slot || lane == current_tool;
+            const bool feeding_the_job = job_running && current_slot >= 0 && fed;
+            if (!slot.is_present() && !feeding_the_job) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
                               sensor.sensor_name, lane);
@@ -573,7 +580,6 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
             // is idle, whatever the backend says sits in that lane: a head
             // whose filament waits in its feeder, never loaded to the nozzle,
             // reads empty at its own switch without anything running out.
-            const bool fed = lane == current_slot || lane == current_tool;
             if (current_slot >= 0 && !fed) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is not the one being fed (slot {}, tool {})",
