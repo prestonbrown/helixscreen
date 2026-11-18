@@ -211,8 +211,11 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
 static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) {
     lv_obj_t* badges[FilamentPathData::kMaxSlots] = {};
     const int n = lane_badges(*data, badges);
+    // A badge standing below the unit's foot lies wholly past its own layer, which clips it
+    // there; the canvas still draws it, so only a hidden badge or layer is skipped.
     for (int i = 0; i < n; i++) {
-        if (lv_obj_is_visible(badges[i]))
+        lv_obj_t* parent = lv_obj_get_parent(badges[i]);
+        if (!lv_obj_is_hidden(badges[i]) && (!parent || !lv_obj_is_hidden(parent)))
             lv_obj_redraw(layer, badges[i]);
     }
 }
@@ -869,6 +872,17 @@ void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool 
     }
 }
 
+void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop) {
+    auto* data = get_data(obj);
+    if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
+        return;
+    drop = std::max<int32_t>(0, drop);
+    if (data->lane_band_drop[slot] != drop) {
+        data->lane_band_drop[slot] = drop;
+        layered_mark_dirty(obj);
+    }
+}
+
 void ui_filament_path_canvas_set_slot_load_sensor(lv_obj_t* obj, int slot, bool has_sensor) {
     auto* data = get_data(obj);
     if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
@@ -1253,6 +1267,23 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
+    return true;
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+bool ui_filament_path_canvas_get_lane_band_y(lv_obj_t* obj, int slot, int32_t* y_out) {
+    auto* data = get_data(obj);
+    if (!data || !y_out || !is_linear_hub(*data))
+        return false;
+    lv_obj_update_layout(obj);
+    const BaseGeometry g = compute_base_geometry(obj, data);
+    if (g.width <= 0 || g.height <= 0)
+        return false;
+    refresh_theme_colors(data);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
+    const LinearHubFrame f =
+        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    *y_out = lane_band_y(*data, f, slot);
     return true;
 }
 

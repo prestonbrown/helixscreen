@@ -326,6 +326,16 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
 
 namespace {
 void refresh_unit_view_marks();
+
+/// How far below a drawn unit's foot lane @p lane stands its sensor band and number: just
+/// under the edge, and every other lane a number's height lower, so neighbors never sit side
+/// by side.
+int32_t art_lane_band_drop(int lane) {
+    const int32_t badge_h = theme_manager_get_spacing("ams_slot_status_badge_size");
+    const int32_t gap = theme_manager_get_spacing("space_xxs");
+    const int32_t first = badge_h / 2 + gap;
+    return lane % 2 ? first + badge_h + gap : first;
+}
 } // namespace
 
 void helix::ui::ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_count) {
@@ -415,6 +425,24 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
             offset = (int32_t)std::lround(y + tray::kSpoolFlangeRadius * size);
     }
     ui_filament_path_canvas_set_lane_entry(canvas, offset);
+    const bool art =
+        slot_grid && s_tray.valid && s_tray.art && s_tray.container == lv_obj_get_parent(slot_grid);
+    for (int i = 0; i < kAmsDetailMaxSlots; ++i)
+        ui_filament_path_canvas_set_lane_band_drop(canvas, i, art ? art_lane_band_drop(i) : 0);
+    if (!art)
+        return;
+    // Each number stands level with its lane's band, as the canvas lays the band out.
+    const int n = std::min<int>((int)lv_obj_get_child_count(slot_grid), kAmsDetailMaxSlots);
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* badge = ui_ams_slot_get_status_badge(lv_obj_get_child(slot_grid, i));
+        int32_t band_y = 0;
+        if (!badge || !ui_filament_path_canvas_get_lane_band_y(canvas, i, &band_y))
+            continue;
+        lv_area_t ba;
+        lv_obj_get_coords(badge, &ba);
+        // DECLARATIVE_OK: measured layout; the badge's row is the canvas's band row
+        lv_obj_set_y(badge, lv_obj_get_style_y(badge, LV_PART_MAIN) + band_y - (ba.y1 + ba.y2) / 2);
+    }
 }
 
 bool helix::ui::ams_detail_error_in_view(const helix::AmsSystemInfo& info, int unit_index) {
@@ -585,6 +613,8 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
         art = helix::ui::unit_art_create(container, helix::ui::UnitArtTier::Full);
         lv_obj_set_name(art, "unit_view_art");
         lv_obj_move_to_index(art, 0);
+        // Placed by the slots it stands under, it must not size the row it stands in.
+        lv_obj_set_floating(art, true);
     }
     // Sized so the first and last lanes' spools stand over the first and last slots.
     auto lane_mid_x = [&](int i) { return (geom->lane[i].box_x0 + geom->lane[i].box_x1) / 2; };
@@ -604,13 +634,19 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     helix::ui::unit_art_set_unit(art, *info, u, dryer);
     if (!helix::ui::unit_art_drawn_area(art, out.drawn))
         return false;
-    lv_area_move(&out.drawn, x, y);
+    // The drawing's foot stands on the container's bottom edge, where the path below takes
+    // the lanes on.
+    lv_obj_update_layout(container);
+    const int32_t y_on_floor = lv_obj_get_height(container) - 1 - out.drawn.y2;
+    lv_obj_set_pos(art, x, y_on_floor);
+    lv_area_move(&out.drawn, x, y_on_floor);
+    const int32_t dy = y_on_floor;
     for (int i = 0; i < n; ++i) {
         if (!helix::ui::unit_art_lane_place(art, i, out.lane[i], out.outlet[i]))
             return false;
-        lv_area_move(&out.lane[i], x, y);
+        lv_area_move(&out.lane[i], x, dy);
         out.outlet[i].x += x;
-        out.outlet[i].y += y;
+        out.outlet[i].y += dy;
     }
     s_tray.art_obj = art;
     return true;
@@ -901,15 +937,15 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             lv_obj_update_layout(badge);
             const float bw = (float)lv_obj_get_width(badge);
             const float bh = (float)lv_obj_get_height(badge);
-            // On art the number stands just right of its lane's column, resting on the
-            // drawing's bottom edge, where the lane's tube starts.
+            // On art the number stands just right of its lane's column, level with the lane's
+            // sensor band under the drawing's foot.
             const float tube_half = (float)helix::ui::fpath::tube_gauge_for_spacing(
                                         theme_manager_get_spacing("space_xs")) /
                                     2;
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x + tube_half + inset,
-                                   (float)art.drawn.y2 - bh}
+                                   (float)(art.drawn.y2 + art_lane_band_drop(i)) - bh / 2}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);

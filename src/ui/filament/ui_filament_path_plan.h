@@ -371,6 +371,10 @@ PathPlan& plan_scratch();
 /// Outer tube width, walls included, for a theme's space_xs.
 int32_t tube_gauge_for_spacing(int32_t space_xs);
 
+/// The row of @p lane's prep band in frame @p f: the box edge, lowered by the lane's band drop
+/// on a straight run, held a band's width above the lane's row.
+int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane);
+
 void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, const BaseGeometry& g,
                      PathPlan& out);
 /// One route per tool: entry → sensor band → nozzle top; the mounted tool is active.

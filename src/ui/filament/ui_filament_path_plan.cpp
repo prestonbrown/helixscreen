@@ -288,6 +288,15 @@ int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale) {
 // Layout mirrors the ratios at the top of ui_filament_path_internal.h; LINEAR
 // butts the selector against the prep sensors and slides the output exit under
 // the active slot.
+int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane) {
+    // A lane told to drop its band stands it lower on its straight run, a band's width above
+    // its row at most, so neighbors' bands alternate between two heights.
+    if (f.rail.w != 0 || f.through.w != 0 || lane < 0 || lane >= FilamentPathData::kMaxSlots)
+        return f.prep_band_y;
+    return f.prep_band_y + std::clamp(data.lane_band_drop[lane], 0,
+                                      std::max(0, f.prep_y - kBandThickness - f.prep_band_y));
+}
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top) {
     LinearHubFrame f;
@@ -1150,15 +1159,16 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float x = (float)g.slot_x[i];
         Route& r = new_route(out);
 
-        append_line(r, x, (float)f.entry_y, x, (float)f.prep_band_y,
-                    lane.style(PathSegment::SPOOL));
+        const bool straight = f.rail.w == 0 && f.through.w == 0;
+        const int32_t drop = lane_band_y(data, f, i) - f.prep_band_y;
+        const float band_y = (float)(f.prep_band_y + drop);
+        append_line(r, x, (float)f.entry_y, x, band_y, lane.style(PathSegment::SPOOL));
         if (data.slot_has_prep_sensor[i]) {
-            add_band(out, BandKind::Lane, {x, (float)f.prep_band_y}, {0, 1},
-                     lane.band(PathSegment::PREP), s.color, f.prep_on_box_edge);
+            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, lane.band(PathSegment::PREP),
+                     s.color, f.prep_on_box_edge && drop == 0);
         }
-        if (f.rail.w == 0 && f.through.w == 0)
-            append_line(r, x, (float)f.prep_band_y, x, (float)f.prep_y,
-                        lane.style(PathSegment::LANE));
+        if (straight)
+            append_line(r, x, band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));
 
         if (linear && f.rail.w > 0) {
             // Each lane bends in above the art to its gate and goes in behind the art's face.

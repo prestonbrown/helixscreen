@@ -1009,12 +1009,27 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         // The path's lane runs straight down from the lane's outlet.
         CHECK(std::abs(pc.x1 + helix::ui::fpath::get_slot_x(path, i, pc.x1) - (aa.x1 + outlet.x)) <=
               1);
-        // Its number stands right of the lane's column, resting on the drawing's bottom edge.
+        // Its number stands right of the lane's column, below the drawing's foot, level with
+        // the lane's sensor band; every other lane's stands lower, clear of its neighbors.
         lv_area_t ba, drawn_area;
         REQUIRE(helix::ui::unit_art_drawn_area(art, drawn_area));
         lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
         CHECK(ba.x1 > aa.x1 + outlet.x);
-        CHECK(std::abs(ba.y2 - (aa.y1 + drawn_area.y2)) <= 1);
+        CHECK(ba.y1 >= aa.y1 + drawn_area.y2);
+        int32_t band_y = 0;
+        REQUIRE(ui_filament_path_canvas_get_lane_band_y(
+            lv_obj_find_by_name(panel_obj_, "path_canvas"), i, &band_y));
+        CHECK(std::abs((ba.y1 + ba.y2) / 2 - band_y) <= 1);
+        if (i > 0) {
+            int32_t prev_band = 0;
+            REQUIRE(ui_filament_path_canvas_get_lane_band_y(
+                lv_obj_find_by_name(panel_obj_, "path_canvas"), i - 1, &prev_band));
+            CHECK(prev_band != band_y);
+            lv_area_t prev;
+            lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i - 1)), &prev);
+            CHECK_FALSE(
+                (prev.x1 <= ba.x2 && ba.x1 <= prev.x2 && prev.y1 <= ba.y2 && ba.y1 <= prev.y2));
+        }
     }
     // No tube is drawn over the unit: the layer in front of the spools paints nothing.
     lv_obj_t* front = lv_obj_find_by_name(panel_obj_, "slot_tray");
@@ -1029,11 +1044,35 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     }
     lv_draw_buf_destroy(snap);
     CHECK(painted == 0);
-    // The path takes the lanes on at the drawing's foot.
-    lv_area_t drawn, g;
+    // The drawing's foot stands on the unit row's bottom edge, where the path takes the
+    // lanes on.
+    lv_area_t drawn, g, cc;
     REQUIRE(helix::ui::unit_art_drawn_area(art, drawn));
     lv_obj_get_coords(slot_grid_, &g);
+    lv_obj_get_coords(container_, &cc);
+    CHECK(aa.y1 + drawn.y2 == cc.y2);
     CHECK(std::abs(path->lane_entry_offset - (aa.y1 + drawn.y2 - g.y1)) <= 1);
+    // A number standing below the foot, past its own layer, is still drawn: by the path.
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    lv_area_t low;
+    lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(1)), &low);
+    REQUIRE(low.y1 > cc.y2);
+    REQUIRE(canvas != nullptr);
+    lv_obj_t* screen = lv_obj_get_screen(canvas);
+    lv_area_t sc;
+    lv_obj_get_coords(screen, &sc);
+    auto badge_color_at = [&](bool shown) {
+        lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(1)), !shown);
+        lv_draw_buf_t* shot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
+        REQUIRE(shot != nullptr);
+        const auto* px = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(
+            shot, (low.x1 + low.x2) / 2 - sc.x1, (low.y1 + low.y2) / 2 - sc.y1));
+        const uint32_t rgb = (uint32_t)px[2] << 16 | (uint32_t)px[1] << 8 | px[0];
+        lv_draw_buf_destroy(shot);
+        return rgb;
+    };
+    CHECK(badge_color_at(true) != badge_color_at(false));
+    lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(1)), false);
     // The readout tucks low over the drawing's end, clear of the last number.
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);

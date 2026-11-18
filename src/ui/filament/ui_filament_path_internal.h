@@ -302,6 +302,8 @@ struct FilamentPathData {
 
     // Per-slot prep sensor capability (true = slot has prep/pre-gate sensor)
     bool slot_has_prep_sensor[kMaxSlots] = {};
+    // How far below the box edge a lane stands its prep band, so neighbors alternate heights.
+    int32_t lane_band_drop[kMaxSlots] = {};
     // Per-slot load sensor between prep and hub (AFC), read as LANE
     bool slot_has_load_sensor[kMaxSlots] = {};
     // Per-slot error the slot reports (SlotInfo::error at ERROR severity)

@@ -997,6 +997,33 @@ TEST_CASE("FilamentPath plan: the lanes enter at the spool box's front edge",
     }
 }
 
+TEST_CASE("FilamentPath plan: a dropped lane stands its band lower on its run",
+          "[filament-path][plan][lane_entry]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    d->lane_band_drop[1] = 12;
+    d->lane_band_drop[3] = 500; // more than the run has: held above the lane's row
+    BaseGeometry g = geometry();
+    g.lane_entry_y = -20;
+    const LinearHubFrame f = compute_linear_hub_frame(*d, g, kGlyphTop);
+    REQUIRE(f.prep_on_box_edge);
+    static PathPlan plan;
+    plan_linear_hub(f, *d, g, plan);
+    for (int i = 0; i < 4; i++) {
+        CAPTURE(i);
+        const Route& r = plan.routes[i];
+        // Every tube still starts on the box edge and runs unbroken.
+        CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, -20));
+        CHECK(contiguous(r.path));
+    }
+    CHECK(band_at(plan, 50.0f, -20) != nullptr);
+    CHECK(band_at(plan, 150.0f, -20) == nullptr);
+    const SensorBand* dropped = band_at(plan, 150.0f, -8);
+    REQUIRE(dropped != nullptr);
+    CHECK_FALSE(dropped->on_box_edge);
+    // A drop past the run stops a band's width above the lane's row.
+    CHECK(band_at(plan, 350.0f, (float)(f.prep_y - kBandThickness)) != nullptr);
+}
+
 // ============================================================================
 // PARALLEL and MIXED
 // ============================================================================
