@@ -5,6 +5,26 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - UNRELEASED
+
+### Fixed
+
+**Safety**
+
+- **E-Stop keeps working after its confirmation is dismissed** (#1795) - with E-Stop confirmation on, closing the confirmation by tapping outside it or pressing Escape left E-Stop dead until HelixScreen restarted. The E-Stop on the lock screen now stops at once, since a confirmation would open hidden behind the lock.
+
+**Filament**
+
+- **Reset and dismissing a filament error no longer cancel the print** - on a Creality CFS they sent CANCEL_PRINT, even mid-print, and on an Anycubic ACE they unloaded the lane. They now clear the error without sending a command.
+
+**Printing**
+
+- **A print that ends on Print Status wakes the display** - a sleeping screen stayed asleep, and a panel that keeps its last frame lit went on showing the print as running until touched.
+
+**Updates**
+
+- **Snapmaker U1 on stock firmware updates from the screen** (#2131) - every U1 hid in-app updates and read "Managed by your firmware". Only the HelixScreen package that PAXX Extended Firmware installs is left to the firmware now.
+
 ## [1.0.9] - 2026-11-12
 
 1.0.9 is a maintenance release of fixes ported from 1.1. The main themes:
