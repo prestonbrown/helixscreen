@@ -1578,7 +1578,13 @@ attached and remote screens.
   low-memory boards too. In
   Auto, a file whose 3D preview would cost too much CPU shows its thumbnail instead, judged
   from how fast this board read earlier files, with a lower limit while a print runs, and
-  preview work runs at the lowest priority so it yields to the screen and to Klipper.
+  preview work runs at the lowest priority so it yields to the screen and to Klipper. The
+  preview draws on its own thread, so rotating it never freezes the rest of the screen, and a
+  board that still cannot rotate it at about 7 frames a second switches to the 2D view for the
+  rest of the session instead of stalling.
+- **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on
+  the print file screen and on Print Status, is a button: tapping it puts the model back at
+  its starting angle and zoom.
 - **The 3D preview sits on the same background as the 2D one** - both use the shaded
   backdrop, so flipping between them changes only the picture.
 - **Controls fits portrait screens** - on tall screens the Position card opens Motion when
