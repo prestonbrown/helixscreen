@@ -551,11 +551,11 @@ else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/jz_pwm_sound_backend.cpp,$(APP_SRCS))
 endif
 
-# PCM piped to the rootfs player (aplay): the fallback for a board with a card
-# and alsa-utils whose ALSA open fails in-process (a static libasound that
-# cannot use the board's ALSA config). Probed at runtime, after JzPwm: the
-# player must be executable and /dev/snd must list a playback stream, so a
-# FlashForge board without a card falls through to the M300 gate as before.
+# PCM piped to the rootfs player (aplay) for boards whose binary cannot reach
+# libasound (static musl) but whose userland ships alsa-utils and a card: the
+# Creality K1 series. Probed at runtime, after JzPwm: the player must be
+# executable and /dev/snd must list a playback stream, so a FlashForge board
+# without a card falls through to the M300 gate as before.
 ifneq (,$(filter mips k1 ad5x k1-dynamic,$(PLATFORM_TARGET)))
     PCM_PIPE_CXXFLAGS := -DHELIX_HAS_PCM_PIPE
 else
@@ -1073,13 +1073,12 @@ CXXFLAGS += $(DEV_PANELS_DEFINES)
 CXXFLAGS += $(SYSTEMD_CXXFLAGS)
 
 # ALSA audio backend — real waveform synthesis on Linux targets with libasound2
-# Enabled for: Pi (all variants), x86 SBCs, and the unified MIPS build, which
-# links the static alsa-lib in its toolchain sysroot (docker/Dockerfile.mips)
-# for the K1 series' card; the AD5X has no card and falls through to JzPwm.
-# Not available on: macOS (no ALSA), AD5M (no sound card), K2 (musl, no ALSA)
+# Enabled for: Pi (all variants), x86 SBCs
+# Not available on: macOS (no ALSA), AD5M (no sound card), K1/K2/MIPS (musl, no ALSA;
+# the K1's card is reached through the PCM pipe backend above instead)
 ALSA_LIBS :=
 ALSA_CXXFLAGS :=
-ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both mips k1 ad5x,$(PLATFORM_TARGET)))
+ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
     ALSA_CXXFLAGS := -DHELIX_HAS_ALSA
     ALSA_LIBS := -lasound
 else ifeq ($(PLATFORM_TARGET),native)

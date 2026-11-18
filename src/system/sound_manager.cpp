@@ -495,9 +495,8 @@ std::shared_ptr<SoundBackend> SoundManager::create_backend() {
 
 #ifdef HELIX_HAS_PCM_PIPE
     // Last host-side resort: PCM piped to the rootfs player (aplay), for a
-    // board with a playback card the ALSA backend above could not open (a
-    // static libasound that rejects the board's ALSA config, or a k1-dynamic
-    // build without ALSA). Probed, not assumed: a board without a card or player falls
+    // board with a playback card the static binary cannot open itself (K1
+    // series). Probed, not assumed: a board without a card or player falls
     // through to the M300 gate exactly as before.
     if (PcmPipeSoundBackend::available()) {
         auto pipe_backend = std::make_shared<PcmPipeSoundBackend>();
