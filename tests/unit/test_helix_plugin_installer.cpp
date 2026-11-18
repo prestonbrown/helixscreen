@@ -231,6 +231,49 @@ TEST_CASE("decide_plugin_self_heal: what the startup check does about the plugin
         f.memory.relinked_for = "/home/pi/helixscreen/moonraker-plugin/helix_print.py";
         CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
     }
+    SECTION("a running plugin newer than the one this app ships is kept, whatever the link") {
+        f.bundled_version = "1.4.1";
+        f.reported_version = "1.5.0";
+        for (const auto link : {PluginLinkCheck::Current, PluginLinkCheck::Relinked,
+                                PluginLinkCheck::NotOurs, PluginLinkCheck::Failed}) {
+            f.link = link;
+            CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        }
+        f.job_holds = true;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        // A remote one is not reported as a mismatch to fix by downgrading.
+        f.local = false;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+    }
+    SECTION("versions compare numerically and by prerelease, not as text") {
+        f.link = PluginLinkCheck::Current;
+        f.bundled_version = "1.9.0";
+        f.reported_version = "1.10.0";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        f.reported_version = "1.5.0-dev.3";
+        f.bundled_version = "1.4.1";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        // Older is reloaded: a numeric component and a prerelease of the bundled triple.
+        f.bundled_version = "1.10.0";
+        f.reported_version = "1.9.0";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+        f.bundled_version = "1.4.1";
+        f.reported_version = "1.4.1-beta.2";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
+    SECTION("versions of equal precedence are no mismatch") {
+        f.link = PluginLinkCheck::Current;
+        f.reported_version = "v1.2.0+g0f1e2d3";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::Nothing);
+        // A re-pointed link still needs its restart.
+        f.link = PluginLinkCheck::Relinked;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
+    SECTION("an unparseable running version is reloaded, as any other mismatch") {
+        f.link = PluginLinkCheck::Current;
+        f.reported_version = "main";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
     SECTION("a remote Moonraker's mismatch is only reported, whatever the link") {
         f.local = false;
         f.link = PluginLinkCheck::Relinked;
