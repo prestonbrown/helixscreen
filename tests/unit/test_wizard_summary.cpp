@@ -128,7 +128,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         step->cleanup();
         lv_obj_delete(root);
     };
-    check_step(get_wizard_summary_step(), "summary_update_channel");
+    check_step(get_wizard_summary_step(), "telemetry_opt_in_rows");
     check_step(get_wizard_telemetry_step(), nullptr);
 
     system.set_update_channel(channel_before);
