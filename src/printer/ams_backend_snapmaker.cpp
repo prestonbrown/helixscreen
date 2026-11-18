@@ -899,7 +899,10 @@ HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
         return ops;
     }
     ops.load = FilamentOpSupport::Manual;
-    if (feeder_absent(snap)) {
+    if (auto_load_off(snap)) {
+        ops.load_reason = lv_tr("Auto loading is off for this toolhead. Turn it on under Print "
+                                "Behavior, or load the filament by hand.");
+    } else if (feeder_absent(snap)) {
         ops.load_reason =
             lv_tr("This toolhead has no automatic feeder. Load the filament by hand.");
     } else {
