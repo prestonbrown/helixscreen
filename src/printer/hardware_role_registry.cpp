@@ -287,21 +287,21 @@ bool decline_unresolved_guided_roles(Config* config, const PrinterDiscovery& hw)
 }
 
 std::vector<helix::wizard::StepId> guided_reconfig_steps(Config* config, const PrinterDiscovery& hw,
-                                                         const PreviousSessionHardware& previous) {
+                                                         const SeenHardware& seen) {
     if (config) {
         bool changed = false;
         for_each_unresolved_guided_role(
             config, hw,
             [&](const HardwareRoleDescriptor& desc, const std::string& key,
                 const std::string& saved) {
-                const std::vector<std::string>& seen =
-                    desc.category == HardwareCategory::Fan ? previous.fans : previous.heaters;
-                if (seen.empty() || std::find(seen.begin(), seen.end(), saved) != seen.end()) {
+                const std::vector<std::string>& known =
+                    desc.category == HardwareCategory::Fan ? seen.fans : seen.heaters;
+                if (known.empty() || std::find(known.begin(), known.end(), saved) != known.end()) {
                     return;
                 }
                 spdlog::info(
-                    "[HardwareRole] Role '{}' (saved '{}') was not discovered last session "
-                    "either; leaving it unconfigured",
+                    "[HardwareRole] Role '{}' (saved '{}') names hardware this printer never "
+                    "reported; leaving it unconfigured",
                     desc.config_key, saved);
                 config->set<std::string>(key, std::string(""));
                 changed = true;

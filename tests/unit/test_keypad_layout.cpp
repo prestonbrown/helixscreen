@@ -306,4 +306,10 @@ TEST_CASE_METHOD(KeypadLayoutFixture,
         press(keypad, "btn_default");
         CHECK(display() == "0.85");
     }
+    SECTION("a default the keys cannot type leaves the draft alone") {
+        REQUIRE(show(false, false, 1, 500, nullptr, 2.5f) == keypad);
+        press(keypad, "btn_4");
+        press(keypad, "btn_default");
+        CHECK(display() == "4");
+    }
 }

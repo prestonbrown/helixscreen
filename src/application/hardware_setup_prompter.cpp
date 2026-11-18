@@ -235,15 +235,13 @@ HardwarePrompt HardwareSetupPrompter::run_discovery_prompts(const PrinterDiscove
     // went away, with no confident live substitute) into the targeted reconfig
     // wizard, only the affected step(s). Skipped while the first-run wizard is
     // required/active. Unresolved steps are purely a function of (saved config,
-    // current hardware, last session's hardware), so an unchanged shape would only
-    // harass the user again.
+    // current hardware, the hardware this printer has reported before), so an
+    // unchanged shape would only harass the user again.
     std::vector<wizard::StepId> reconfig_steps;
     if (!gates.wizard_blocked) {
-        PreviousSessionHardware previous;
-        if (auto snapshot = HardwareValidator::load_session_snapshot(Config::get_instance())) {
-            previous = {std::move(snapshot->fans), std::move(snapshot->heaters)};
-        }
-        reconfig_steps = helix::guided_reconfig_steps(Config::get_instance(), hw, previous);
+        reconfig_steps = helix::guided_reconfig_steps(
+            Config::get_instance(), hw,
+            HardwareValidator::load_seen_hardware(Config::get_instance()));
     }
     gates.reconfig_steps_pending = !reconfig_steps.empty();
     gates.hardware_setup_deferred = hardware_setup_deferred;
