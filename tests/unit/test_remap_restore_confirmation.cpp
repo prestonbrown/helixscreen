@@ -770,7 +770,10 @@ TEST_CASE("a reprint on Z-Mod sends no tool map it would have to guess",
         h.controller.initiate_reprint_with_routing("pa_tower.gcode", {0}, {{0, 0}}, nullptr,
                                                    nullptr);
     }
-    helix::ui::UpdateQueue::instance().drain();
+    // The reprint reads the file for its pre-print checks first.
+    for (int i = 0; i < 8; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
     REQUIRE(h.api.job_mock().started_print_params().size() == 1);
     CHECK(h.api.job_mock().started_print_params()[0].empty());
 }
@@ -1620,8 +1623,10 @@ TEST_CASE("reprint: a Fork print-map box sends the identity map for the file's t
     const auto reprint = [](Harness& h) {
         h.client.clear_gcode_script_history();
         h.controller.initiate_reprint("part.gcode", "part.gcode", {0, 1}, [] {}, [] {});
-        helix::ui::UpdateQueue::instance().drain();
-        helix::ui::UpdateQueue::instance().drain(); // the answer queues work naming this Harness
+        // The reprint gates and the answer queue work naming this Harness.
+        for (int i = 0; i < 8; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
     };
 
     SECTION("revision 4 sends every used tool at its own slot") {

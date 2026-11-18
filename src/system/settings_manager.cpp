@@ -146,6 +146,9 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // On: a material preset heats the bed and chamber with the nozzle.
+    {"material_presets_heat_bed_and_chamber", "filament/presets_heat_bed_and_chamber",
+     Scope::PerPrinter, true, 1, 0, 1, "material_presets_heat_bed_and_chamber"},
     // Off: positions count from 1. See helix::ui::lane_number().
     {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
      "number_lanes_from_zero"},

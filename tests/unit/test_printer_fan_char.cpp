@@ -181,6 +181,98 @@ TEST_CASE("Fan characterization: a status speed becomes a percent on the fan's s
     }
 }
 
+TEST_CASE("Main fan speed returns to the bare fan when the active tool names no fan",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+    fans.init_fans({"fan", "fan_generic T1_part_fan"});
+    // Both fans steady: a differential feed reports neither again.
+    state.update_from_status(
+        {{"fan", {{"speed", 0.3}}}, {"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("extruder1", "T1_part_fan");
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 80);
+
+    // T0 names no fan of its own, so the main speed reads the bare [fan] again.
+    fans.set_active_tool_fans("extruder", "");
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
+TEST_CASE("Main fan speed ignores the bare fan while the active tool has its own part fan",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+    fans.init_fans({"fan", "fan_generic T1_part_fan"});
+    fans.set_active_tool_fans("extruder1", "T1_part_fan");
+
+    SECTION("bare fan reported after the tool fan") {
+        state.update_from_status({{"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+        state.update_from_status({{"fan", {{"speed", 0.2}}}});
+    }
+    SECTION("bare fan reported before the tool fan") {
+        state.update_from_status({{"fan", {{"speed", 0.2}}}});
+        state.update_from_status({{"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    }
+    SECTION("both in one frame") {
+        state.update_from_status(
+            {{"fan", {{"speed", 0.2}}}, {"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    }
+
+    // The bare fan's reading arrived; only the main speed leaves it out.
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject("fan")) == 20);
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 80);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
+TEST_CASE("Main fan speed follows the active tool's part fan over the configured one",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+
+    // The wizard left the part role on T0's fan; T1 is mounted. fan_generic
+    // fans report "speed", output_pin fans report "value".
+    struct Kind {
+        const char* t0;
+        const char* t1;
+        const char* field;
+    };
+    const Kind kind = GENERATE(Kind{"fan_generic T0_part_fan", "fan_generic T1_part_fan", "speed"},
+                               Kind{"output_pin fan0", "output_pin fan1", "value"});
+    CAPTURE(kind.t1);
+    FanRoleConfig roles;
+    roles.part_fan = kind.t0;
+    fans.init_fans({kind.t0, kind.t1}, roles);
+    fans.set_active_tool_fans("extruder1", kind.t1);
+
+    state.update_from_status({{kind.t1, {{kind.field, 0.6}}}});
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 60);
+
+    state.update_from_status({{kind.t0, {{kind.field, 0.3}}}});
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject(kind.t0)) == 30);
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 60);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
 TEST_CASE("Fan characterization: each fan keeps its own speed, and the part fan turns off",
           "[characterization][fan][update][per-fan]") {
     PrinterState& state = fresh_state();

@@ -67,7 +67,6 @@
       "filament_motion_sensor ifs_motion_sensor"
     ],
     "sensors": [
-      "temperature_sensor chamber",
       "temperature_sensor chamber"
     ],
     "width_sensor_objects": []

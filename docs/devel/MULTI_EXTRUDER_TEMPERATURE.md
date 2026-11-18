@@ -304,6 +304,8 @@ for (const auto& [name, info] : extruders) {
 
 Every view that shows one entry per head observes `extruder_version` and rebuilds on a bump: the controls panel (`src/ui/controls/ui_panel_controls.cpp`), the temperature graph overlay and its controller (`src/ui/controls/ui_overlay_temp_graph.cpp`, `src/ui/controls/temp_graph_controller.cpp`), the print status tiles (`src/ui/print/ui_print_status_tiles.cpp`), the filament panel and AMS sidebar, and the home widgets `nozzle_temps`, `temp_graph` and `tool_switcher` (`src/ui/panel_widgets/`).
 
+The surfaces that show and set one nozzle (Controls, Filament, the temperature graph) share `helix::ui::TargetTool` (`include/target_tool.h`), which mirrors the target tool's extruder subjects into `target_nozzle_temp` / `target_nozzle_target` and the status pair. Its chooser is a row of heads, not extruders (`ToolState::physical_heads()`), so it is hidden where lanes feed one hotend. See [TOOL_ABSTRACTION.md](TOOL_ABSTRACTION.md#the-target-tool-filament-panel-controls-temperature-card-temperature-overlay).
+
 The print status tiles also observe `ToolState`'s tools version and map each tool to its extruder name through `ToolState`, then bind that extruder's per-extruder subjects:
 
 ```

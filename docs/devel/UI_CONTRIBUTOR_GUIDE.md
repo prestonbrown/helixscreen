@@ -1120,8 +1120,11 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
-- Mostly the standard layout. `ui_xml/panel_belt_tension.xml` branches on
-  `ui_is_ultrawide`, and the home grid widens its columns itself.
+- Print Status builds its ultrawide body (`ui_xml/components/print_status_ultrawide_body.xml`)
+  under `<if cond="ui_is_ultrawide eq 1">`: one row of columns whose widths
+  `PrintStatusLayoutFitter` publishes from `decide_print_status_columns()`.
+  `ui_xml/panel_belt_tension.xml` branches on `ui_is_ultrawide`, and the home grid widens its
+  columns itself; everything else uses the standard layout.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status

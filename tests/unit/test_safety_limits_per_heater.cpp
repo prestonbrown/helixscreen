@@ -277,14 +277,16 @@ struct KeypadCeilingFixture {
         }
     }
 
+    /// The ceiling every heater keypad is handed (the temperature graph's,
+    /// the thermistor tile's), asked of the printer's controller.
     float ceiling(helix::HeaterType type, int fallback) {
-        return helix::ui::FilamentPanelTestAccess::keypad_max_for(*panel, type, fallback);
+        return helix::keypad_ceiling(controller.get(), type, static_cast<float>(fallback));
     }
 };
 
 } // namespace
 
-TEST_CASE("A configured heater max beats the panel's compiled-in fallback",
+TEST_CASE("A configured heater max beats a surface's compiled-in fallback",
           "[safety_limits][1355]") {
     KeypadCeilingFixture f;
     using helix::HeaterType;
@@ -293,7 +295,7 @@ TEST_CASE("A configured heater max beats the panel's compiled-in fallback",
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Bed, 120);
     TemperatureControllerTestAccess::set_max(*f.controller, HeaterType::Chamber, 60);
 
-    // 150 is a member value the panel must not hand the keypad unconditionally.
+    // 150 stands for a surface's compiled-in fallback.
     REQUIRE(f.ceiling(HeaterType::Bed, 150) == 120.0f);
     REQUIRE(f.ceiling(HeaterType::Chamber, 150) == 60.0f);
 }
@@ -304,7 +306,7 @@ TEST_CASE("An unknown heater max leaves the keypad on the heater default",
     using helix::HeaterType;
 
     // Nothing fetched, so keypad_range() reports the heater's own default (350
-    // for the nozzle) rather than the panel's 500 member or a zero.
+    // for the nozzle) rather than the 500 fallback or a zero.
     const float nozzle = f.ceiling(HeaterType::Nozzle, 500);
     REQUIRE(nozzle > 0.0f);
     REQUIRE(nozzle == 350.0f);

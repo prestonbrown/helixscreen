@@ -32,6 +32,11 @@ bool MoonrakerClientMock::is_mock_toolchanger() const {
     return mock_toolchanger_selected() || is_mock_reforge_afc();
 }
 
+bool MoonrakerClientMock::has_toolchanger_tool_fans() const {
+    return is_mock_toolchanger() && (helix::mock::descriptor(printer_type_).omit &
+                                     helix::mock::default_object::kToolchangerToolFans) == 0;
+}
+
 void MoonrakerClientMock::seed_tool_lane_records() {
     // klipper-toolchanger reports no material, colour, brand or weight: the
     // override store is the whole of filament identity there, and without these

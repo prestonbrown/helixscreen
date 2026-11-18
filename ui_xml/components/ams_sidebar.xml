@@ -203,7 +203,7 @@
            which confirms a paused job's move, so it carries no toolhead guard;
            Park does: a print resumed with its tool docked prints nothing. -->
       <ui_button name="btn_mount"
-                 variant="secondary" icon="swap_horizontal" text="Mount..." stacked_subject="ams_actions_stacked"
+                 variant="secondary" icon="swap_horizontal" text="Pick up..." stacked_subject="ams_actions_stacked"
                  stacked_if_eq="1" long_mode="dots" icon_hidden_subject="ams_actions_text_only" icon_hidden_if_eq="1">
         <style name="styles.action_cell"/>
         <bind_style_if name="styles.action_cell_text" cond="ams_actions_text_only eq 1"/>

@@ -1171,6 +1171,7 @@ void MoonrakerDiscoverySequence::apply_configfile_settings(const json& settings)
             spdlog::debug("[Discovery] Fan '{}' max_power: {}", section, mp);
         }
         hardware_.set_fan_tachometers(helix::fan_tach::map_from_config(settings));
+        hardware_.set_heater_fans(helix::fan_heaters::map_from_config(settings));
         for (const auto& t : hardware_.fan_tachometers()) {
             spdlog::debug("[Discovery] Tachometer {}.{} -> '{}'", t.object, t.field, t.fan);
         }

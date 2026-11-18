@@ -126,7 +126,7 @@
             <bind_flag_if cond="ams_slot_mount eq 0 and ams_slot_park eq 0" flag="hidden"/>
           </lv_obj>
           <ui_button name="btn_mount"
-                     height="#button_height_sm" icon="swap_horizontal" text="Mount" variant="ghost" clickable="true"
+                     height="#button_height_sm" icon="swap_horizontal" text="Pick up" variant="ghost" clickable="true"
                      style_flex_main_place="start">
             <bind_flag_if_eq subject="ams_slot_mount" flag="hidden" ref_value="0"/>
             <bind_state_if_eq subject="ams_slot_mount" state="disabled" ref_value="1"/>

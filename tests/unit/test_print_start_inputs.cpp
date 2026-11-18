@@ -19,6 +19,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
+#include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/scoped_mock_ams.h"
 #include "../test_helpers/snapmaker_test_access.h"
@@ -520,6 +521,9 @@ TEST_CASE_METHOD(LoaderFixture, "an unrouted U1 reprint names the file's heads a
     helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg(api.get());
     helix::PlantedGcode file("reprint_unrouted.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
+    // These cases pin the pre-print send; the unconfigured heads would stop the
+    // start at the unresolved-tools gate first.
+    PrintStartControllerTestAccess::set_gates(controller, {});
 
     SECTION("the firmware map at its default: the heads go, no map") {
         backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
@@ -554,6 +558,9 @@ TEST_CASE_METHOD(LoaderFixture,
     backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
     helix::PlantedGcode file("reprint_noreset.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
+    // This case pins the pre-print send; the unconfigured heads would stop the
+    // start at the unresolved-tools gate first.
+    PrintStartControllerTestAccess::set_gates(controller, {});
     client.clear_gcode_script_history();
 
     bool started = false;

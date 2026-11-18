@@ -117,24 +117,3 @@ TEST_CASE_METHOD(XMLTestFixture, "hide_target_when_off still builds the target l
     CHECK(lv_obj_get_child_count(hides_when_off) == 4);
     CHECK(lv_obj_get_child_count(disabled) == 2);
 }
-
-TEST_CASE_METHOD(XMLTestFixture, "target_only draws the target alone, for a target chip",
-                 "[temp_display][controls]") {
-    const char* attrs[] = {"bind_current",    "extruder_temp", "bind_target",
-                           "extruder_target", "show_target",   "true",
-                           "target_only",     "true",          nullptr};
-    auto* chip = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "temp_display", attrs));
-    REQUIRE(chip != nullptr);
-    auto hidden = [&](int i) { return lv_obj_is_hidden(lv_obj_get_child(chip, i)); };
-
-    lv_subject_set_int(state().temperature_state().get_active_extruder_target_subject(), 2100);
-    lv_subject_set_int(state().temperature_state().get_active_extruder_temp_subject(), 1342);
-    UpdateQueue::instance().drain();
-
-    // current (0), separator (1) and unit (3) stay hidden through updates; target (2) shows.
-    CHECK(hidden(0));
-    CHECK(hidden(kSeparatorChild));
-    CHECK_FALSE(hidden(kTargetChild));
-    CHECK(hidden(3));
-    CHECK(std::string(lv_label_get_text(lv_obj_get_child(chip, kTargetChild))) == "210");
-}

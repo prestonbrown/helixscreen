@@ -741,6 +741,27 @@ class SettingsManager {
     }
 
     /**
+     * @brief Whether a material preset heats the bed and chamber along with the nozzle.
+     *
+     * Default true. Per-printer setting. Off, every material preset (the
+     * Filament panel's, the Home preheat tile's, the temperature graph's)
+     * heats the nozzle alone. helix::presets::heater_targets() reads it.
+     */
+    bool get_material_presets_heat_bed_and_chamber() const {
+        return settings_.get_bool(Key::MaterialPresetsHeatBedAndChamber);
+    }
+
+    /** @brief Set whether material presets heat the bed and chamber */
+    void set_material_presets_heat_bed_and_chamber(bool enabled) {
+        settings_.set(Key::MaterialPresetsHeatBedAndChamber, enabled);
+    }
+
+    /** @brief Presets-heat-bed-and-chamber subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_material_presets_heat_bed_and_chamber() {
+        return settings_.subject(Key::MaterialPresetsHeatBedAndChamber);
+    }
+
+    /**
      * @brief Show filament positions counted from 0 rather than 1.
      *
      * Default false. Per-printer setting. Display only; helix::ui::lane_number() reads it.
@@ -1075,6 +1096,7 @@ class SettingsManager {
         AmsForceBypassControls,
         FilamentAutoCooldown,
         FilamentAutoOpenEditor,
+        MaterialPresetsHeatBedAndChamber,
         NumberLanesFromZero,
         ConsoleFilterTemps,
         ConsoleFilterFirmwareNoise,

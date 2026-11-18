@@ -18,6 +18,7 @@
 #include "helix/ui/shared_font_style.h"
 #include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_temperature_state.h" // helix::ChamberMode
 #include "theme_manager.h"
 #include "widget_data_registry.h"
@@ -85,9 +86,10 @@ struct TempDisplayData {
     // their separators at one x whatever the digits are.
     bool align_current = false;
 
-    // target_only: the target alone, for a chip that sits beside a separate
-    // reading. The current, separator and unit labels are built and kept hidden.
-    bool target_only = false;
+    // trailing_target: "205.3°C / 210°" - the reading with its unit, then the
+    // target in the small face, muted, after a slash; "/ Off" with the heater
+    // off. The form a heater row reads in.
+    bool trailing_target = false;
 
     // Child label pointers for efficient updates
     lv_obj_t* current_label = nullptr;
@@ -148,7 +150,7 @@ static void apply_target_visibility(TempDisplayData* data) {
                           data->current_bp < data->hide_target_below_bp;
     bool hide = size_hides || bp_hides || (data->hide_target_when_off && data->target_temp == 0);
     if (data->separator_label) {
-        if (hide || data->target_only)
+        if (hide)
             lv_obj_set_hidden(data->separator_label, true);
         else
             lv_obj_set_hidden(data->separator_label, false);
@@ -271,7 +273,12 @@ static void format_target_text(TempDisplayData* data) {
         return;
 
     if (data->target_temp == 0) {
-        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "—");
+        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%s",
+                 data->trailing_target ? lv_tr("Off") : "—");
+    } else if (data->trailing_target) {
+        snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d°",
+                 data->raw ? data->target_temp
+                           : helix::units::to_display_temp_whole(data->target_temp));
     } else {
         snprintf(data->target_text_buf, sizeof(data->target_text_buf), "%d",
                  data->raw ? data->target_temp
@@ -528,9 +535,9 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         data_ptr->hide_target_when_off = true;
     }
 
-    const char* target_only_str = lv_xml_get_value_of(attrs, "target_only");
-    if (target_only_str && strcmp(target_only_str, "true") == 0) {
-        data_ptr->target_only = true;
+    const char* trailing_str = lv_xml_get_value_of(attrs, "trailing_target");
+    if (trailing_str && strcmp(trailing_str, "true") == 0) {
+        data_ptr->trailing_target = true;
     }
 
     const char* align_current_str = lv_xml_get_value_of(attrs, "align_current");
@@ -555,22 +562,38 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
     helix::ui::apply_font_style(data_ptr->current_label, font);
     lv_obj_set_style_text_color(data_ptr->current_label, text_color, LV_PART_MAIN);
 
+    auto create_unit_label = [&]() {
+        data_ptr->unit_label = lv_label_create(container);
+        lv_label_set_text(data_ptr->unit_label, helix::units::display_temp_symbol());
+        helix::ui::apply_font_style(data_ptr->unit_label, font);
+        lv_obj_set_style_text_color(data_ptr->unit_label, muted_color, LV_PART_MAIN);
+    };
+    // The trailing form puts the unit beside the reading it belongs to and
+    // the target after it, in the small face.
+    if (data_ptr->trailing_target) {
+        create_unit_label();
+    }
+
     if (data_ptr->show_target) {
+        const lv_font_t* target_font = data_ptr->trailing_target ? get_font_for_size("sm") : font;
         // Create separator label. A label's trailing space adds nothing to its
         // width, so the gap after the slash is a margin of one space.
         data_ptr->separator_label = lv_label_create(container);
         lv_label_set_text(data_ptr->separator_label, " /");
-        helix::ui::apply_font_style(data_ptr->separator_label, font);
+        helix::ui::apply_font_style(data_ptr->separator_label, target_font);
         lv_obj_set_style_margin_right(data_ptr->separator_label,
-                                      lv_font_get_glyph_width(font, ' ', 0), LV_PART_MAIN);
+                                      lv_font_get_glyph_width(target_font, ' ', 0), LV_PART_MAIN);
         lv_obj_set_style_text_color(data_ptr->separator_label, muted_color, LV_PART_MAIN);
 
         data_ptr->target_label = lv_label_create(container);
-        helix::ui::apply_font_style(data_ptr->target_label, font);
-        lv_obj_set_style_text_color(data_ptr->target_label, text_color, LV_PART_MAIN);
+        helix::ui::apply_font_style(data_ptr->target_label, target_font);
+        lv_obj_set_style_text_color(data_ptr->target_label,
+                                    data_ptr->trailing_target ? muted_color : text_color,
+                                    LV_PART_MAIN);
 
         // Initialize target text subject
-        snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "—");
+        snprintf(data_ptr->target_text_buf, sizeof(data_ptr->target_text_buf), "%s",
+                 data_ptr->trailing_target ? lv_tr("Off") : "—");
         data_ptr->target_text_subject.init_string(data_ptr->target_text_buf, nullptr,
                                                   sizeof(data_ptr->target_text_buf),
                                                   data_ptr->target_text_buf);
@@ -579,10 +602,9 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
         data_ptr->target_subjects_initialized = true;
     }
 
-    data_ptr->unit_label = lv_label_create(container);
-    lv_label_set_text(data_ptr->unit_label, helix::units::display_temp_symbol());
-    helix::ui::apply_font_style(data_ptr->unit_label, font);
-    lv_obj_set_style_text_color(data_ptr->unit_label, muted_color, LV_PART_MAIN);
+    if (!data_ptr->trailing_target) {
+        create_unit_label();
+    }
 
     // Initialize current text subject
     snprintf(data_ptr->current_text_buf, sizeof(data_ptr->current_text_buf), "—");
@@ -651,11 +673,6 @@ static void* ui_temp_display_create_cb(lv_xml_parser_state_t* state, const char*
                             LV_EVENT_STYLE_CHANGED, container);
     }
 
-    if (registered->target_only) {
-        lv_obj_set_hidden(registered->current_label, true);
-        lv_obj_set_hidden(registered->unit_label, true);
-    }
-
     // Seed visibility from the initial state — with hide_target_when_off that
     // means starting hidden, since target_temp is 0 until the first update.
     apply_target_visibility(registered);
@@ -678,6 +695,10 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
     for (int i = 0; attrs[i]; i += 2) {
         const char* name = attrs[i];
         const char* value = attrs[i + 1];
+        // An optional binding left at its empty default installs nothing.
+        if (!value || value[0] == '\0') {
+            continue;
+        }
 
         if (strcmp(name, "bind_current") == 0) {
             // Bind current temperature to a subject (NULL = global scope)

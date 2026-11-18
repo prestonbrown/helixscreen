@@ -8,8 +8,9 @@
  * The job tile, the printer tile and the strip share `overlay_content`, and how
  * they share it depends on the pixels that box measures, which no style
  * attribute can express. This measures the box, asks
- * decide_print_status_tile_layout() and publishes the answer as subjects the
- * XML binds to.
+ * decide_print_status_tile_layout(), or decide_print_status_ultrawide_layout()
+ * while `ui_is_ultrawide` is 1, and publishes the answer as subjects the XML
+ * binds to.
  *
  * @threading Main thread only.
  */
@@ -30,6 +31,11 @@ class PrintStatusLayoutFitter {
         lv_subject_t* arrangement;       ///< PrintStatusArrangement int
         lv_subject_t* strip_stacked;     ///< 1 = progress above the buttons
         lv_subject_t* checklist_compact; ///< 1 = current step + dots
+        // Ultrawide column widths in px (PrintStatusColumns), bound as widths.
+        lv_subject_t* preview_w = nullptr;
+        lv_subject_t* printer_w = nullptr;
+        lv_subject_t* readouts_w = nullptr;
+        lv_subject_t* actions_w = nullptr;
     };
 
     struct Host {

@@ -55,6 +55,7 @@ tests/shell/test_device_env_set.bats	config/helixscreen.env scripts/device-env-s
 tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh assets/config/platform/
 tests/shell/test_distribution_partners.bats	.github/workflows/release.yml docs/devel/INSTALLER.md scripts/distribution_partners.json scripts/distribution_partners.py
 tests/shell/test_doc_refs_gate.bats	Makefile assets/config/printer_database.json assets/config/themes/defaults/ docs/README.md docs/audits/ docs/devel/ docs/user/ include/ams_types.h mk/patches.mk patches/ scripts/check_doc_refs.py scripts/gen_patch_markers.py android/fastlane/metadata/
+tests/shell/test_double_binds_gate.bats	scripts/scan_double_binds.py scripts/staged_content.py scripts/qc/double_binds.sh tests/unit/double_bind_widgets.inc ui_xml/
 tests/shell/test_duplicate_xml_names_gate.bats	scripts/check_duplicate_xml_names.py scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_env_file_vars_are_live.bats	scripts/code_lint.sh
 tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py scripts/qc/esp32_app_srcs.sh src/printer/ams_backend_mock.cpp

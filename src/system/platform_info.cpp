@@ -38,7 +38,7 @@ bool platform_defaults_to_external_updates() {
     if (s_external_updates_default_override >= 0) {
         return s_external_updates_default_override != 0;
     }
-    return board::current_info().firmware_manages_updates;
+    return board::firmware_manages_updates(board::current());
 }
 
 void set_external_updates_default_override(int override_value) {

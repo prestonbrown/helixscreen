@@ -171,6 +171,7 @@
   <translation tag="A lower, B upper" en="A lower, B upper"/>
   <translation tag="A macro printed stray template text &apos;{}&apos;: check its Jinja tags" en="A macro printed stray template text &apos;{}&apos;: check its Jinja tags"/>
   <translation tag="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options." en="A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options."/>
+  <translation tag="A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets" en="A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets"/>
   <translation tag="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover" en="A motor IO pin couldn&apos;t be restored. Power-cycle the printer to recover"/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" en="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
   <translation tag="A new Print Status screen" en="A new Print Status screen"/>
@@ -2340,6 +2341,7 @@
   <translation tag="Material Comfort:" en="Material Comfort:"/>
   <translation tag="Material Mismatch" en="Material Mismatch"/>
   <translation tag="Material Temperatures" en="Material Temperatures"/>
+  <translation tag="Material presets heat the bed and chamber" en="Material presets heat the bed and chamber"/>
   <translation tag="Max" en="Max"/>
   <translation tag="Max Accel" en="Max Accel"/>
   <translation tag="Max Acceleration" en="Max Acceleration"/>
@@ -2424,10 +2426,6 @@
   <translation tag="Motors disable failed: {}" en="Motors disable failed: {}"/>
   <translation tag="Motors disabled" en="Motors disabled"/>
   <translation tag="Motors stay on while a print is active" en="Motors stay on while a print is active"/>
-  <translation tag="Mount" en="Mount"/>
-  <translation tag="Mount tool" en="Mount tool"/>
-  <translation tag="Mount which tool?" en="Mount which tool?"/>
-  <translation tag="Mount..." en="Mount..."/>
   <translation tag="Mounted: {}" en="Mounted: {}"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move here" en="Move here"/>
@@ -2863,6 +2861,8 @@
   <translation tag="Pick up and park each tool in turn" en="Pick up and park each tool in turn"/>
   <translation tag="Pick up the tool, heat it, and pull the filament out" en="Pick up the tool, heat it, and pull the filament out"/>
   <translation tag="Pick up tool" en="Pick up tool"/>
+  <translation tag="Pick up which tool?" en="Pick up which tool?"/>
+  <translation tag="Pick up..." en="Pick up..."/>
   <translation tag="Pick-up step cancelled; nothing was sent" en="Pick-up step cancelled; nothing was sent"/>
   <translation tag="Picking up tool" en="Picking up tool"/>
   <translation tag="Pill" en="Pill"/>
@@ -2924,7 +2924,9 @@
   <translation tag="Preheat PLA" en="Preheat PLA"/>
   <translation tag="Preheat canceled" en="Preheat canceled"/>
   <translation tag="Preheat: all {} tools + bed set" en="Preheat: all {} tools + bed set"/>
+  <translation tag="Preheat: all {} tools set" en="Preheat: all {} tools set"/>
   <translation tag="Preheat: {} + bed set" en="Preheat: {} + bed set"/>
+  <translation tag="Preheat: {} set" en="Preheat: {} set"/>
   <translation tag="Preheating and homing..." en="Preheating and homing..."/>
   <translation tag="Preload" en="Preload"/>
   <translation tag="Preload failed" en="Preload failed"/>

@@ -22,9 +22,11 @@ struct CompletionAlertPlan {
 /**
  * @brief Decides how a print's end is announced
  *
- * An error always gets the modal; the print status panel already shows the result, so it needs
- * nothing else; otherwise `mode` decides. A running screensaver is the announcement itself: it
- * shows the end, so nothing wakes the display, and the modal is still created to wait behind it.
+ * An error always gets the modal; the print status panel already shows the result, so it gets no
+ * toast or modal, but unless `mode` is Off it still wakes the display, which would otherwise go on
+ * showing the print as running; otherwise `mode` decides. A running screensaver is the announcement
+ * itself: it shows the end, so nothing wakes the display, and the modal is still created to wait
+ * behind it.
  */
 CompletionAlertPlan plan_completion_alert(PrintEnding ending, CompletionAlertMode mode,
                                           bool on_print_status, bool saver_running);

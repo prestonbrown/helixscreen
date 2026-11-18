@@ -172,6 +172,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image |
 | `check_toolhead_census.py` | Commit-time version of the machine-moving control census tests |
 | `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale |
+| `scan_double_binds.py` | Inventory of `ui_xml/` widgets with two or more bindings on one state or flag; `--emit-cpp` writes `tests/unit/double_bind_widgets.inc`, `--check` fails when it lags |
 | `check_old_toolchain.py` | Syntax-check `src/` against the older cross toolchains' compiler (g++-10) |
 | `perf-farm-check.sh` | Pre-release CPU budget check across the physical test farm |
 | `perf-farm-scheduled.sh` | `perf-farm-check.sh` unattended: locked, logs kept, trend report |

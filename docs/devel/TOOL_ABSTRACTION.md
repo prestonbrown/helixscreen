@@ -226,9 +226,9 @@ is the exception: `AmsBackendAfc` answers true once it has an `AFC_Toolchanger` 
 a carriage has reported its mount state (`toolchanger.tool_number`, or `on_shuttle` on a
 multi-extruder machine), and an empty carriage clears its current tool, so every head
 parked reads -1 (`src/printer/ams_backend_afc.cpp#apply_mount_state`).
-The home tool switcher marks the unmounted heads faulted only when
+The tool switcher and the target-tool rows mark the unmounted heads faulted only when
 the backend says the current ERROR is the changer's
-(`src/ui/panel_widgets/tool_switcher_widget.cpp#changer_fault`): `carriage_can_be_empty()`, unless
+(`src/ui/filament/tool_heads_model.cpp#changer_fault`): `carriage_can_be_empty()`, unless
 it implements `ILaneFaults::fault_concerns_carriage()` (`include/ams_lane_faults.h`). AFC answers true only while `toolchanger.status` reads
 `error`, so a lane fault on an AFC toolchanger leaves the heads alone.
 
@@ -296,6 +296,19 @@ Each tool's status is keyed as `"tool <name>"`:
 | `fan` | string | Fan assignment |
 
 Any change bumps `tools_version` subject to trigger UI rebuilds.
+
+klipper-toolchanger reports `fan` as its config value: an object name, or a bare
+`fan_generic` name it looks up as `fan_generic <name>`. `ToolState::own_part_fan_for_extruder()`
+hands the active tool's part fan to `PrinterFanState::set_active_tool_fans()` once per status
+frame (`src/printer/status_dispatch.cpp#dispatch_status_frame`), with the active extruder the
+nozzle reading follows. The primary part fan, the main fan speed and the primary hotend fan
+(the one `[heater_fan]` whose `heater` is that extruder, `include/fan_heaters.h`) then follow the
+tool that is printing. A printer whose tools name no part fans of their own keeps the role-based
+pick.
+The same frame hands over every tool's own part fan and, with more than one extruder, every
+tool's extruder (`PrinterFanState::set_tool_fans()`), so the aux slot never shows a parked tool's
+part fan or a `[heater_fan]` on a tool's extruder. `include/tool_fan_names.h` is the one name
+lookup for a tool's `fan`, shared with the MPC `cooling_fan` the PID calibration writes.
 
 The three offsets are **not** parsed in the generic per-tool loop. Which store is
 authoritative for a tool's offset is a per-firmware question (`include/tool_offsets.h`):
@@ -405,27 +418,49 @@ filament panel's Pick up button (`src/ui/filament/ui_panel_filament.cpp#with_tar
   `settings_tool_change_confirm`). Its Settings > Printing row is hidden while
   `tool_count` is below 2.
 - **Labels.** The confirmation names the tool with `active_tool_label()`
-  (`include/display_numbering.h`), the same text the switcher and dropdown show
+  (`include/display_numbering.h`), the same text the switcher and its picker show
   ("Toolhead 2 (T1)" on a U1).
 
-### The Target Tool (Filament panel, Controls nozzle row, temperature overlay)
+### The Target Tool (Filament panel, Controls temperature card, temperature overlay)
 
 A surface that heats, loads or extrudes aims at a **target tool**, which need not be the
 mounted one: a toolchanger owner heats or loads a docked tool without picking it up.
-`TargetToolSelection` (`include/target_tool_selection.h`) is the one rule, one instance per
-surface: a tool change anywhere moves the target to the mounted tool; an empty carriage
-keeps the user's pick; reopening the surface never resets it; a pick past a shrunk tool
-list falls back to T0. The temperature overlay keeps its own `picked_extruder_` under the
-same rule (`src/ui/controls/ui_overlay_temp_graph.cpp#watch_extruder_version`).
+There is one target for every such surface: `helix::ui::TargetTool` (`include/target_tool.h`),
+a singleton the Controls temperature card, the Filament panel and the temperature graph
+all read, so a pick on any of them aims all of them. It holds one `TargetToolSelection`
+(`include/target_tool_selection.h`), the rule: until something is chosen it is the mounted
+tool; a tool change anywhere moves it to the mounted tool; an empty carriage keeps the
+user's pick; reopening a surface never resets it; a pick past a shrunk tool list falls back
+to T0. Subscribing replays the mounted tool, which is not a change, so a surface may
+`attach()` its PrinterState on every setup.
 
-- **Selecting never moves the machine.** The Filament panel's dropdown only picks. Its
-  Pick up / Park button (`decide_target_tool_action()`) does the change; Park only where
-  `supports_tool_park()`.
+`TargetTool` publishes what the surfaces bind: `target_tool`,
+`target_tool_multi_head` (`ToolState::has_multiple_toolheads()`, never `is_multi_tool()`,
+which counts lanes a hub feeds into one head), `target_tool_name` ("Tool 2" or a configured
+name), `target_tool_number` ("2", empty with one head), `target_nozzle_label` ("Nozzle 2"),
+all in the display numbering so a chip, a segment and a row never disagree, and the target
+nozzle's `target_nozzle_temp`, `target_nozzle_target`, `target_nozzle_status_state` and
+`target_nozzle_status` (`classify_heater_status()`, the classifier every heater row uses).
+
+**Choosing it.** The Filament panel's Operations card and the temperature graph's nozzle card
+show `ui_xml/components/tool_target_row.xml`: one `tool_switcher_segment` per head, the
+Home switcher's own cell, highlighting `_target_state` and calling `tool_target_segment_cb`.
+The Controls card's header chip opens the Home switcher's picker in Target mode
+(`helix::ui::open_target_tool_picker()`, `include/tool_picker.h`): the target's head is
+highlighted, Park and the feeder are hidden, no cell disables, and a pick only aims.
+The per-head data all of them draw (filament band, temperature, mounted and target looks,
+the row labels) comes from `helix::ui::ToolHeadsModel` (`include/tool_heads_model.h`),
+which exists whenever the printer has several heads, with or without a Home widget.
+
+- **Selecting never moves the machine.** Every chooser above only aims. The Filament
+  panel's Pick up / Park button in the Operations card's header (`decide_target_tool_action()`)
+  does the change; Park only where `supports_tool_park()`.
 - **Mounted means tool index**, never extruder name: after a park Klipper still names the
   last tool's extruder active. With one head the target is always mounted.
-- **Temperatures follow the target.** `TargetNozzleObservers`
-  (`include/target_nozzle_observers.h`) watches the mounted tool through the
-  active-extruder mirror and a docked one through its own extruder's subjects. Sends name a
+- **Temperatures follow the target.** `TargetTool` reads the target's nozzle through
+  `TargetNozzleObservers` (`include/target_nozzle_observers.h`), which watches the mounted
+  tool through the active-extruder mirror and a docked one through its own extruder's
+  subjects; the surfaces bind the mirrors it publishes. Sends name a
   docked tool's extruder (`set_target(name)`) and the mounted one by `HeaterType::Nozzle`;
   both reach the same nozzle guards. A preset aimed at a docked tool skips a configured
   heating macro, which heats the mounted tool. The Filament panel's mini graph charts the

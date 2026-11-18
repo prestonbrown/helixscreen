@@ -11,6 +11,7 @@
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../test_helpers/scoped_portrait_layout.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
@@ -21,6 +22,7 @@
 #include "printer_discovery.h"
 #include "printer_image_manager.h"
 #include "printer_state.h"
+#include "status_dispatch.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 
@@ -162,6 +164,28 @@ struct Portrait320 : TileFixture {
 };
 struct Portrait272 : TileFixture {
     Portrait272() : TileFixture(272, 480) {}
+};
+
+/// The panel built under the ultrawide layout at 1480x320, which picks its ultrawide body.
+class Ultrawide1480 : public PrintStatusPanelFixture {
+  public:
+    Ultrawide1480()
+        : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
+              helix::led::LedController::instance().init(nullptr, nullptr);
+              ToolState::instance().init_subjects(false);
+              helix::PrinterImageManager::instance().init_subjects();
+              return std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
+          }) {
+        lv_obj_set_hidden(root_, false);
+        lv_obj_update_layout(root_);
+        PrintStatusPanelTestAccess::relayout(panel());
+        UpdateQueue::instance().drain();
+        lv_obj_update_layout(root_);
+    }
+
+    lv_obj_t* find(const char* name) {
+        return lv_obj_find_by_name(root_, name);
+    }
 };
 
 void set_int(lv_subject_t* s, int v) {
@@ -537,6 +561,103 @@ TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger",
     lv_subject_set_string(tools.get_tool_badge_text_subject(), "");
     settle();
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1", 0) == std::string::npos);
+}
+
+namespace {
+
+/// klipper-toolchanger with a part fan and a hotend fan on every tool, and the
+/// wizard's part and hotend roles left on T0's, as a real printer had them.
+PrinterFanState& load_toolchanger_with_tool_fans(PrinterState& ps) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolhead", "extruder", "extruder1", "extruder2",
+                                            "toolchanger", "tool T0", "tool T1", "tool T2"}));
+    ToolState::instance().init_tools(hw);
+    ps.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    FanRoleConfig roles;
+    roles.part_fan = "fan_generic T0_part_fan";
+    roles.hotend_fan = "heater_fan T0_hotend_fan";
+    fans.init_fans({"fan_generic T0_part_fan", "heater_fan T0_hotend_fan",
+                    "fan_generic T1_part_fan", "heater_fan T1_hotend_fan",
+                    "fan_generic T2_part_fan", "heater_fan T2_hotend_fan",
+                    "heater_fan nevermore_fan", "temperature_fan _leviathan_mcu_fans"},
+                   roles);
+    // configfile.settings keys sections lowercased.
+    fans.set_heater_fans(fan_heaters::map_from_config(
+        nlohmann::json{{"heater_fan t0_hotend_fan", {{"heater", "extruder"}}},
+                       {"heater_fan t1_hotend_fan", {{"heater", "extruder1"}}},
+                       {"heater_fan t2_hotend_fan", {{"heater", "extruder2"}}},
+                       {"heater_fan nevermore_fan", {{"heater", "heater_bed"}}}}));
+    return fans;
+}
+
+void unload_toolchanger(PrinterState& ps) {
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    fans.set_active_tool_fans("", "");
+    fans.set_tool_fans({}, {});
+    fans.set_heater_fans({});
+    fans.init_fans({});
+    ps.temperature_state().init_extruders({"extruder"});
+    ToolState::instance().init_tools(PrinterDiscovery{});
+}
+
+/// That printer's status frame with T2 mounted.
+nlohmann::json t2_mounted_frame() {
+    return nlohmann::json{{"toolhead", {{"extruder", "extruder2"}}},
+                          {"toolchanger", {{"tool_number", 2}}},
+                          {"tool T0", {{"extruder", "extruder"}, {"fan", "T0_part_fan"}}},
+                          {"tool T1", {{"extruder", "extruder1"}, {"fan", "T1_part_fan"}}},
+                          {"tool T2", {{"extruder", "extruder2"}, {"fan", "T2_part_fan"}}},
+                          {"fan_generic T0_part_fan", {{"speed", 0.2}}},
+                          {"fan_generic T1_part_fan", {{"speed", 0.5}}},
+                          {"fan_generic T2_part_fan", {{"speed", 0.7}}},
+                          {"heater_fan T0_hotend_fan", {{"speed", 1.0}}},
+                          {"heater_fan T2_hotend_fan", {{"speed", 0.4}}}};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "fan chips follow the active tool's own fans on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    auto& fans = load_toolchanger_with_tool_fans(state());
+
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    CHECK(fans.classify_primary_fans().part == "fan_generic T2_part_fan");
+    CHECK(fans.classify_primary_fans().hotend == "heater_fan T2_hotend_fan");
+    // The home printer picture's fan chip reads the main fan speed.
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 70);
+    CHECK(subject_str("ps_chip_part_fan_text").find("70%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("40%") != std::string::npos);
+
+    // Back to T0: the chips go with it.
+    dispatch_status(nlohmann::json{{"toolhead", {{"extruder", "extruder"}}},
+                                   {"toolchanger", {{"tool_number", 0}}}});
+    settle();
+    settle();
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 20);
+    CHECK(subject_str("ps_chip_part_fan_text").find("20%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("100%") != std::string::npos);
+
+    unload_toolchanger(state());
+}
+
+TEST_CASE_METHOD(Landscape800, "the aux chip shows no tool's own fan on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    // T1's part fan has run, so it is the commandable fan the aux slot would prefer.
+    auto& fans = load_toolchanger_with_tool_fans(state());
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    const std::string aux = fans.classify_primary_fans().aux;
+    CHECK(aux.find("_part_fan") == std::string::npos);
+    CHECK(aux.find("_hotend_fan") == std::string::npos);
+    CHECK(aux == "temperature_fan _leviathan_mcu_fans");
+
+    unload_toolchanger(state());
 }
 
 namespace {
@@ -1505,4 +1626,65 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip numbers configured names to
 
     CHECK(subject_int("ps_chip_other_tools_shown") == 1);
     CHECK(subject_str("ps_chip_other_tools_text") == "2 150° · 3 off");
+}
+
+TEST_CASE_METHOD(Ultrawide1480,
+                 "ultrawide builds one row of columns at the widths the fitter decides",
+                 "[print_status][ultrawide]") {
+    // The ultrawide body, not the landscape strip.
+    REQUIRE(find("ps_uw_info") != nullptr);
+    CHECK(find("ps_strip") == nullptr);
+    CHECK(find("metadata_overlay") == nullptr);
+
+    lv_obj_t* content = find("overlay_content");
+    REQUIRE(content != nullptr);
+    const int32_t w = lv_obj_get_content_width(content);
+    const int32_t h = lv_obj_get_content_height(content);
+    const auto cols =
+        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"));
+    REQUIRE(cols.preview_w > 0);
+
+    lv_obj_t* job = find("ps_job_tile");
+    lv_obj_t* printer = find("ps_printer_tile");
+    lv_obj_t* readouts = find("ps_uw_readouts");
+    lv_obj_t* actions = find("ps_uw_actions");
+    lv_obj_t* info = find("ps_uw_info");
+    REQUIRE((job && printer && readouts && actions && info));
+    CHECK(lv_obj_get_width(job) == cols.preview_w);
+    CHECK(lv_obj_get_height(job) == h);
+    CHECK(lv_obj_get_width(printer) == cols.printer_w);
+    CHECK(lv_obj_get_width(readouts) == cols.readouts_w);
+    CHECK(lv_obj_get_width(actions) == cols.actions_w);
+    CHECK(lv_obj_get_width(info) == cols.info_w);
+
+    // The buttons stack, and a heater row and the speed row are taps.
+    lv_obj_t* pause = find("btn_pause");
+    lv_obj_t* cancel = find("btn_cancel");
+    REQUIRE((pause && cancel));
+    CHECK(lv_obj_get_y(cancel) > lv_obj_get_y(pause));
+    CHECK(lv_obj_get_x(cancel) == lv_obj_get_x(pause));
+    CHECK(lv_obj_is_clickable(find("readout_bed")));
+    CHECK(lv_obj_is_clickable(find("readout_speed")));
+}
+
+TEST_CASE_METHOD(Ultrawide1480, "ultrawide readouts drop the chamber row without a chamber",
+                 "[print_status][ultrawide]") {
+    lv_subject_t* has_chamber = lv_xml_get_subject(nullptr, "printer_has_chamber");
+    REQUIRE(has_chamber != nullptr);
+    const int original = lv_subject_get_int(has_chamber);
+    lv_obj_t* row = find("readout_chamber");
+    REQUIRE(row != nullptr);
+
+    lv_subject_set_int(has_chamber, 1);
+    CHECK_FALSE(lv_obj_is_hidden(row));
+    lv_subject_set_int(has_chamber, 0);
+    CHECK(lv_obj_is_hidden(row));
+    lv_subject_set_int(has_chamber, original);
+}
+
+TEST_CASE_METHOD(Landscape800, "a standard screen keeps the strip and builds no columns",
+                 "[print_status][ultrawide]") {
+    CHECK(lv_obj_find_by_name(root_, "ps_strip") != nullptr);
+    CHECK(lv_obj_find_by_name(root_, "ps_uw_info") == nullptr);
+    CHECK(lv_obj_find_by_name(root_, "metadata_overlay") != nullptr);
 }

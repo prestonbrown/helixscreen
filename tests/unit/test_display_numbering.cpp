@@ -218,6 +218,22 @@ TEST_CASE("a generated tool name shows its display number beside the G-code name
                              ToolLabelForm::Code) == "T11");
 }
 
+TEST_CASE("counting from zero, the full tool label does not repeat its number",
+          "[numbering][1769]") {
+    ScopedZeroLaneNumbering zero;
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", 0,
+                             ToolLabelForm::Full) == "Tool 0");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T3", 3,
+                             ToolLabelForm::Full) == "Tool 3");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
+                             ToolLabelForm::Full) == "Toolhead 2");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T3", 3,
+                             ToolLabelForm::Code) == "T3");
+    // A configured name is not a number, so the G-code name still earns its place.
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", 0,
+                             ToolLabelForm::Full) == "Left (T0)");
+}
+
 TEST_CASE("the full tool label speaks the printer's own noun", "[numbering][1769]") {
     CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
                              ToolLabelForm::Full) == "Toolhead 3 (T2)");

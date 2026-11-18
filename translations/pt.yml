@@ -185,6 +185,8 @@ translations:
   A lower, B upper: "A embaixo, B em cima"
   "A macro printed stray template text '{}': check its Jinja tags": "Uma macro imprimiu texto de modelo solto '{}': verifique as tags Jinja"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Uma macro que limpa o bico. O HelixScreen pode executá-la antes de uma impressão pelas opções de pré-impressão.'
+  ? A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets
+  : Uma predefinição de material define a mesa e a câmara junto com o bico; desligada, aquece apenas o bico. Uma macro de pré-aquecimento que controla o aquecimento define os aquecedores que ela mesma escolher
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: Não foi possível restaurar um pino de E/S do motor. Desligue e ligue a impressora para recuperar
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Não foi possível gravar os parâmetros de um motor. Desligue e ligue a impressora para tentar novamente
   "A new Print Status screen": "Uma nova tela de Status da Impressão"
@@ -2415,6 +2417,7 @@ translations:
   'Material Comfort:': 'Conforto do Material:'
   Material Mismatch: Material Incompatível
   Material Temperatures: Temperaturas de Material
+  Material presets heat the bed and chamber: Predefinições de material aquecem a mesa e a câmara
   Max: Máx
   Max Accel: Acel Máx
   Max Acceleration: Aceleração Máxima
@@ -2496,10 +2499,6 @@ translations:
   'Motors disable failed: {}': 'Falha ao desativar motores: {}'
   Motors disabled: Motores desativados
   Motors stay on while a print is active: Os motores permanecem ativos durante uma impressão
-  Mount: Montar
-  Mount tool: 'Montar ferramenta'
-  Mount which tool?: 'Montar qual ferramenta?'
-  Mount...: 'Montar...'
   'Mounted: {}': 'Montada: {}'
   Move: Mover
   Move here: Mover aqui
@@ -2947,6 +2946,8 @@ translations:
   Pick up and park each tool in turn: Pegar e estacionar cada ferramenta por vez
   Pick up the tool, heat it, and pull the filament out: "Pegue a ferramenta, aqueça-a e puxe o filamento para fora"
   Pick up tool: Pegar ferramenta
+  Pick up which tool?: 'Qual ferramenta montar?'
+  Pick up...: 'Montar...'
   Pick-up step cancelled; nothing was sent: 'Etapa de coleta cancelada; nada foi enviado'
   Picking up tool: Pegando ferramenta
   Pill: Pílula
@@ -3011,7 +3012,9 @@ translations:
   Preheat PLA: Pré-aquecer PLA
   Preheat canceled: Pré-aquecimento cancelado
   'Preheat: all {} tools + bed set': 'Pré-aquecer: todas as {} ferramentas + mesa configurada'
+  'Preheat: all {} tools set': 'Pré-aquecimento: todas as {} ferramentas definidas'
   'Preheat: {} + bed set': 'Pré-aquecer: {} + mesa configurada'
+  'Preheat: {} set': 'Pré-aquecimento: {} definido'
   Preheating and homing...: Pré-aquecendo e fazendo homing...
   Preload: 'Pré-carregar'
   Preload failed: Falha ao pré-carregar

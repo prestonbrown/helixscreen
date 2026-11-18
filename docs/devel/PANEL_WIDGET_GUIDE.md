@@ -559,11 +559,19 @@ Every cell carries its filament colour as one band (`ui_xml/components/tool_swit
 sized per surface by the pure `tool_switcher_band()`: the lower part of the cell with the
 material name on it where one small line fits, else a plain bar. Each head's look follows
 `tool_switcher_seg_<i>_state` (`tool_switcher_cell_state()`): idle, mounted, or faulted while
-the changer reports an error. The picker (`ToolSwitcherWidget::ToolPicker`,
-`ui_xml/tool_switcher_picker.xml`) is the fallback for whatever the tile does not show: a grid
-of the rail's own segments sized by `fit_tool_picker_grid()` (three columns up to six heads,
-four beyond, never scrolling up to eight), with Park and the feeder in a footer under it. It
-opens from the face or from the mounted segment. A printer with more heads than the segment
+the changer reports an error. The per-head data the cells bind (filament band, temperature,
+mounted and target looks, the picker's and the target rows' labels) is published by
+`helix::ui::ToolHeadsModel` (`include/tool_heads_model.h`) whether or not a tile is placed;
+the widget writes only its own rail labels (`_label`, `_sub`), its detail rows and its face,
+and re-publishes when the model reports a change. The picker (`helix::ui::ToolPicker`,
+`include/tool_picker.h`, `ui_xml/tool_switcher_picker.xml`) is the fallback for whatever the
+tile does not show: a grid of the rail's own segments sized by `fit_tool_picker_grid()`
+(three columns up to six heads, four beyond, never scrolling up to eight), with Park and the
+feeder in a footer under it. It opens from the face or from the mounted segment in Mount
+mode; the Controls temperature card opens the same picker in Target mode, which highlights
+the target tool, hides the footer and only aims (see TOOL_ABSTRACTION.md, "The Target
+Tool"). The same segment also draws the target rows (`ui_xml/components/tool_target_row.xml`)
+of the Filament panel and the temperature graph. A printer with more heads than the segment
 pools hold (`ToolSwitcherWidget::kPoolSize`) is decided as unrailable and gets the face and
 the picker.
 

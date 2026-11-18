@@ -442,7 +442,7 @@ TEST_CASE("MedusaHC shows the mount-to-feed steps for a load and an unload",
     const auto load = tc.get_operation_step_model(StepOperationType::LOAD_FRESH);
     REQUIRE(load.steps.size() == 5);
     CHECK(load.steps[0].label == "Insert filament");
-    CHECK(load.steps[1].label == "Mount tool");
+    CHECK(load.steps[1].label == "Pick up tool");
     CHECK(load.steps[2].label == "Heat nozzle");
     CHECK(load.steps[3].label == "Purge");
     const auto unload = tc.get_operation_step_model(StepOperationType::UNLOAD);
@@ -759,9 +759,9 @@ TEST_CASE("MedusaHC's step model spans every tool of a multi-tool run",
     // first tool has an insert row and only the last has a restore row.
     REQUIRE(model.steps.size() == 8);
     CHECK(model.steps[0].label == "Tool 2 (1/2): Insert filament");
-    CHECK(model.steps[1].label == "Tool 2 (1/2): Mount tool");
+    CHECK(model.steps[1].label == "Tool 2 (1/2): Pick up tool");
     CHECK(model.steps[3].label == "Tool 2 (1/2): Purge");
-    CHECK(model.steps[4].label == "Tool 4 (2/2): Mount tool");
+    CHECK(model.steps[4].label == "Tool 4 (2/2): Pick up tool");
     CHECK(model.steps[7].label == "Tool 4 (2/2): Restore tool");
     for (const auto& step : model.steps) {
         CHECK(step.label.find("Tool 4 (2/2): Insert") == std::string::npos);

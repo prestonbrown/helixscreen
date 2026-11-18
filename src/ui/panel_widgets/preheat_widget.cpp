@@ -176,7 +176,7 @@ PreheatWidget::PreheatTargets PreheatWidget::targets_for_slot(int slot) {
     if (!mat) {
         return {};
     }
-    return {mat->nozzle_recommended(), mat->bed_temp};
+    return {mat->nozzle_recommended(), mat->bed_temp, mat->chamber_temp_c};
 }
 
 std::string PreheatWidget::label_for_slot(int slot, bool heaters_active, int32_t width_px) {
@@ -267,7 +267,7 @@ void PreheatWidget::handle_selection_changed() {
     }
 }
 
-void PreheatWidget::set_temperatures(int nozzle, int bed) {
+void PreheatWidget::set_temperatures(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
@@ -276,11 +276,33 @@ void PreheatWidget::set_temperatures(int nozzle, int bed) {
                        NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
                                       helix::units::format_display_temp(nozzle));
                    }});
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
-                                      helix::units::format_display_temp(bed));
-                   }});
+    send_bed_and_chamber(bed, chamber);
+}
+
+bool PreheatWidget::send_bed_and_chamber(int bed, int chamber) {
+    auto* c = get_temperature_controller();
+    if (!c) {
+        return false;
+    }
+    // With "Material presets heat the bed and chamber" off, a preset heats the
+    // nozzle alone.
+    const auto targets = presets::heater_targets(
+        bed, presets::chamber_request(chamber, printer_state_.temperature_state()));
+    if (targets.bed) {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                      {.toast = true, .on_success = [t = *targets.bed]() {
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                          helix::units::format_display_temp(t));
+                       }});
+    }
+    if (targets.chamber) {
+        c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
+                      {.toast = true, .on_success = [t = *targets.chamber]() {
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}"),
+                                          helix::units::format_display_temp(t));
+                       }});
+    }
+    return targets.bed.has_value();
 }
 
 void PreheatWidget::handle_apply() {
@@ -312,13 +334,13 @@ void PreheatWidget::handle_apply() {
             const PreheatTargets t = targets_for_slot(selected_material_);
             // Multiple lanes sharing one hotend still use the active nozzle.
             if (ToolState::instance().has_multiple_extruders()) {
-                set_temperatures_multi(t.nozzle, t.bed);
+                set_temperatures_multi(t.nozzle, t.bed, t.chamber);
             } else {
-                set_temperatures(t.nozzle, t.bed);
+                set_temperatures(t.nozzle, t.bed, t.chamber);
             }
-            spdlog::info(
-                "[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, tool_target={})",
-                material_name, t.nozzle, t.bed, tool_target_);
+            spdlog::info("[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, "
+                         "chamber={}°C, tool_target={})",
+                         material_name, t.nozzle, t.bed, t.chamber, tool_target_);
         },
         "[PreheatWidget]", hw);
 }
@@ -384,7 +406,7 @@ std::vector<std::string> PreheatWidget::collect_preheat_heaters(const std::vecto
     return heaters;
 }
 
-void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
+void PreheatWidget::set_temperatures_multi(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
@@ -412,22 +434,26 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
                  }});
     }
 
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
-                                      helix::units::format_display_temp(bed));
-                   }});
+    const bool bed_sent = send_bed_and_chamber(bed, chamber);
 
     if (*refused) {
         return;
     }
     int tool_count = static_cast<int>(heaters.size());
-    if (tool_target_ == -1) {
+    // One literal per message: the extractor cannot see keys chosen inside a
+    // ternary.
+    if (tool_target_ == -1 && bed_sent) {
         NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools + bed set",
                                                          static_cast<uint64_t>(tool_count))),
                        tool_count);
-    } else if (target_tool >= 0) {
+    } else if (tool_target_ == -1) {
+        NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools set",
+                                                         static_cast<uint64_t>(tool_count))),
+                       tool_count);
+    } else if (target_tool >= 0 && bed_sent) {
         NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), tools[target_tool].display_label);
+    } else if (target_tool >= 0) {
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} set"), tools[target_tool].display_label);
     }
 }
 

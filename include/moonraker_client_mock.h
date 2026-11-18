@@ -1557,6 +1557,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// the rest cold) so each heating state shows, and follow their targets
     /// like the primary: SET_HEATER_TEMPERATURE HEATER=extruder<n> sets one.
     [[nodiscard]] double secondary_extruder_temp(int index) const;
+    /// Toolchanger mock: every tool's own part fan and hotend fan, keyed by object
+    /// name. The mounted tool's part fan runs at @p part_speed (0-1), as
+    /// klipper-toolchanger routes M106 to it; each hotend fan runs at its own
+    /// fan_speed once its own extruder passes 50C. Empty when not a toolchanger mock.
+    [[nodiscard]] nlohmann::json toolchanger_fan_status(double part_speed) const;
     [[nodiscard]] double secondary_extruder_target(int index) const;
 
     /**
@@ -1643,6 +1648,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     void populate_capabilities();
 
+  public:
     /**
      * @brief Detect toolchanger mock mode
      *
@@ -1655,7 +1661,11 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
      */
     bool is_mock_toolchanger() const;
 
-  public:
+    /// The toolchanger mock with its per-tool fans (`fan_generic T<n>_part_fan`,
+    /// `heater_fan T<n>_hotend_fan`): is_mock_toolchanger() on a persona that does
+    /// not omit kToolchangerToolFans. Otherwise the persona's own fans stand.
+    bool has_toolchanger_tool_fans() const;
+
     /**
      * @brief Which MedusaHC shipping configuration the mock emulates.
      *
@@ -2400,7 +2410,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return active_gcode_tool_.load();
     }
 
-    /// klipper-toolchanger's tool_number as the mock last set it (-1 = none mounted).
+    /// klipper-toolchanger's tool_number as the mock last set it (-1 = none mounted);
+    /// T0 at start unless HELIX_MOCK_TOOLCHANGER_TOOL names another.
     [[nodiscard]] int toolchanger_tool() const {
         return toolchanger_tool_.load();
     }

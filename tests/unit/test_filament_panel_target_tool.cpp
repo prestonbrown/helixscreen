@@ -80,7 +80,6 @@ struct TargetToolHarness {
         REQUIRE(root != nullptr);
         panel->setup(root, fx.test_screen());
         fx.process_lvgl(30);
-        TA::populate_extruder_dropdown(*panel);
         client.clear_gcode_script_history();
     }
 
@@ -104,11 +103,7 @@ struct TargetToolHarness {
     }
 
     void choose(int tool) {
-        lv_obj_t* dd = TA::extruder_dropdown(*panel);
-        REQUIRE(dd != nullptr);
-        lv_dropdown_set_selected(dd, static_cast<uint32_t>(tool));
-        TA::handle_extruder_changed(*panel);
-        helix::ui::UpdateQueue::instance().drain();
+        TA::choose_target(tool);
     }
 
     [[nodiscard]] bool sent_line(const std::string& line) const {
@@ -120,13 +115,6 @@ struct TargetToolHarness {
         lv_subject_t* subject = lv_xml_get_subject(nullptr, "filament_target_tool_action");
         REQUIRE(subject != nullptr);
         return lv_subject_get_int(subject);
-    }
-
-    /// The temperature card's nozzle target, as it reads.
-    [[nodiscard]] std::string shown_target() const {
-        lv_subject_t* subject = lv_xml_get_subject(nullptr, "filament_nozzle_target");
-        REQUIRE(subject != nullptr);
-        return lv_subject_get_string(subject);
     }
 
     [[nodiscard]] bool sent(const std::string& needle) const {
@@ -157,20 +145,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the temperature card shows 
     h.state.update_from_status(
         {{"extruder1", {{"target", 180.0}}}, {"extruder2", {{"target", 230.0}}}});
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(h.shown_target() == "180°C");
+    CHECK(TA::nozzle_target(*h.panel) == 180);
     h.choose(2);
     h.fx.process_lvgl(20);
-    CHECK(h.shown_target() == "230°C");
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: the keypad heats the chosen tool",
-                 "[filament][target_tool]") {
-    TargetToolHarness h(*this);
-    h.choose(2);
-    TA::confirm_custom_nozzle(*h.panel, 215.0f);
-    helix::ui::UpdateQueue::instance().drain();
-    CHECK(h.sent("SET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=215"));
-    CHECK_FALSE(h.sent("HEATER=extruder1 "));
+    CHECK(TA::nozzle_target(*h.panel) == 230);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: a material preset heats the chosen tool",
@@ -190,22 +168,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel: a tool change moves the sel
     h.choose(2);
     h.mount(0);
     CHECK(TA::target_tool(*h.panel) == 0);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-    CHECK(lv_dropdown_get_selected(dd) == 0);
 }
 
-TEST_CASE_METHOD(
-    LVGLUITestFixture,
-    "Filament panel: the closed tool chooser names the toolhead as the screen numbers it",
-    "[filament][target_tool][numbering]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel: the nozzle row names the target as the screen numbers it",
+                 "[filament][target_tool][numbering]") {
     TargetToolHarness h(*this);
+    auto text = [](const char* subject) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, subject);
+        REQUIRE(s != nullptr);
+        return std::string(lv_subject_get_string(s));
+    };
     h.choose(1);
-    lv_obj_t* dd = TA::extruder_dropdown(*h.panel);
-    CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 2");
+    CHECK(text("target_nozzle_label") == "Nozzle 2");
+    CHECK(text("target_tool_number") == "2");
     {
         ScopedZeroLaneNumbering zero;
         h.choose(1);
-        CHECK(std::string(lv_dropdown_get_text(dd)) == "Tool 1");
+        CHECK(text("target_nozzle_label") == "Nozzle 1");
+        CHECK(text("target_tool_number") == "1");
     }
 }
 

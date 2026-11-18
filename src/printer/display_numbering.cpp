@@ -85,6 +85,9 @@ std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string
     const std::string label = tool_name_label(noun, style, name, index);
     if (label == code)
         return code;
+    // Counting from zero, "Tool 0" already says T0; the pair would repeat it.
+    if (is_generated_tool_name(name) && code == tool_label(lane_number(index)))
+        return label;
     return fmt::format(lv_tr("{} ({})"), label, code);
 }
 

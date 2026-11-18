@@ -22,7 +22,7 @@ Every panel is a single file. Pick the lightest mechanism that expresses the dif
 
 | Mechanism | Use when | Examples in the tree |
 |-----------|----------|----------------------|
-| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `ui_xml/print_tune_panel.xml#print_tune_panel` (z-offset controls, Reset label), `temp_graph_overlay.xml` (3 sites) |
+| `<if cond="ui_is_portrait eq 1">…<else/>…</if>` | An entire subtree differs, and building both would be wasteful | `ui_xml/motion_panel.xml#motion_panel`, `ui_xml/bed_mesh_panel.xml#bed_mesh_panel`, `ui_xml/print_tune_panel.xml#print_tune_panel` (z-offset controls, Reset label), `temp_graph_overlay.xml` (3 sites), `ui_xml/print_status_panel.xml#print_status_panel` (`ui_is_ultrawide`: the ultrawide columns) |
 | `<bind_style_if cond="ui_is_portrait"/>` | Only the styling differs - flex direction, padding, button shape | `ui_xml/app_layout.xml` and `ui_xml/navigation_bar.xml` (the app shell and nav bar switch axis and position), `ui_xml/advanced_panel.xml#advanced_panel` (the E-stop bar goes column instead of row), `ui_xml/print_tune_panel.xml#print_tune_panel` (speed over flow) |
 | `<bind_flag_if_eq subject="ui_is_portrait"/>` | Both variants are cheap to build and you want to show one | `ui_xml/components/bed_mesh_current_mesh_card.xml#mesh_max_coord_inline` |
 | A state-selected style | A local attribute has to change, which a bound style cannot outrank | `ui_xml/controls_panel.xml#controls_panel` at 480x272 (below) |
@@ -87,6 +87,67 @@ Every panel reads those from its one file. A change of layout class or tier at r
 rebuilds the views, so a branch decided at creation stays correct. The ordered layout chain
 (`variant_chain()`, under the Developer Reference below) still picks which per-layout table
 of `default_layout.json` the home grid uses.
+
+### Content width cap on ultrawide screens
+
+Panels and overlays fill the space beside the navigation bar, which on an ultrawide panel is
+three or four screen-heights across. A settings list or the jog pad stretched that far is
+hard to read and costs reach, so their content stops at **2.4 x the screen height**, kept
+against the navigation bar, while an overlay's header still spans the screen. The space to its right stays empty.
+
+| Screen | Cap | Binds? |
+|--------|-----|--------|
+| 1480x320 | 768 | yes |
+| 1920x440 | 1056 | yes |
+| 1920x480 | 1152 | yes |
+| 800x480, 1024x600 | 1152, 1440 | never: wider than the screen |
+| Any portrait screen | above its width | never |
+
+The ratio lives in `include/content_width_cap.h`. `theme_manager_register_responsive_spacing()`
+registers the result as the `content_max_width` const next to `overlay_width_*`, and the
+resize path refreshes it.
+
+One function writes the cap, `helix::apply_content_cap(root, base_pad_right, capped)`. The
+root keeps its full width and takes the overflow as extra right padding on top of the padding
+it was built with (`helix::content_cap_base_pad()`, recorded by the caller so a resize can
+shrink or remove the overflow). Its callers:
+
+- **Overlays:** each overlay root, on every push and resize. `NavigationManager` records the
+  built padding per overlay. The root keeps the opaque width its class gives it, so the
+  backdrop stays covered.
+- **Main panels:** the container the panels share, when a panel is shown, when its instance
+  registers, when a rebuilt widget replaces it and on every resize, capped or not by the
+  shown panel's declaration (`PanelRegistry`).
+- **The wizard:** `wizard_container`, when it is created and from a layout refresh hook on
+  every resize.
+
+**Chrome spans, content caps.** A header or footer declares the chrome role with
+`<style name="styles.cap_chrome"/>` (a property-less marker in `ui_xml/styles.xml`).
+`header_bar`, `wizard_header_bar` and the wizard footer carry it. A direct child of a capped
+root that carries the role keeps the root's full width: a back button and title stay at the
+left, while right-side items (Motion's position readout, the gear, the wizard's Next button)
+sit at the screen's right edge. It gets a pixel width reaching into the cap's padding and a
+matching negative right margin, so the root gains no horizontal scroll. Chrome nested inside
+the content caps with it: the print file detail's header sits in its left column, so it stays
+there.
+
+- **Modals** are untouched and stay centered on the full screen.
+
+A view opts out by overriding `IPanelLifecycle::uses_full_content_width()` to return true.
+These do, because their content is built to fill the width:
+
+| View | Why it keeps the full width |
+|------|-----------------------------|
+| `home_panel` | The widget grid turns more width into more columns |
+| `print_select_panel` | The file card grid reflows into more columns |
+| `print_status_panel` | The G-code and thumbnail viewer and the printer image use the width |
+| `bed_mesh_panel` | The 3D mesh viewer uses all the room it is given |
+| `ams_panel` | The unit canvas and filament path drawing scale to the width |
+| `ams_overview_panel` | The overview lays units out across the width |
+
+Overlays already exempt from width management through
+`NavigationManager::set_overlay_width_unmanaged()` (camera fullscreen, keypad, widget
+catalog, image tagger) are never capped either.
 
 ### Content width cap on ultrawide screens
 

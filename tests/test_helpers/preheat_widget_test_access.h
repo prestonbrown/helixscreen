@@ -41,8 +41,9 @@ class PreheatWidgetTestAccess {
         widget.tool_target_ = target;
     }
 
-    static void set_temperatures_multi(PreheatWidget& widget, int nozzle, int bed) {
-        widget.set_temperatures_multi(nozzle, bed);
+    static void set_temperatures_multi(PreheatWidget& widget, int nozzle, int bed,
+                                       int chamber = 0) {
+        widget.set_temperatures_multi(nozzle, bed, chamber);
     }
 
     static void handle_cooldown(PreheatWidget& widget) {

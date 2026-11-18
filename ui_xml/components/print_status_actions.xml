@@ -1,0 +1,64 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Print status actions: Pause, Tune, More, Cancel / Reprint. One definition
+     for the strip, where they run in a row (flow="row"), and the ultrawide
+     body, where they stack (flow="column", btn_w="100%"). Each button grows
+     along the row or column. Beside the strip's progress block a button is at
+     most #ps_strip_button wide. -->
+<component>
+  <api>
+    <prop name="flow" type="string" default="row"/>
+    <prop name="btn_w" type="string" default="content"/>
+    <prop name="btn_h" type="string" default="100%"/>
+  </api>
+  <styles>
+    <style name="button_square" max_width="#ps_strip_button"/>
+  </styles>
+  <view extends="lv_obj"
+        style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="$flow" style_flex_main_place="end"
+        style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+    <ui_button name="btn_pause"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               icon="pause" bind_icon="print_control_primary_icon" text="Pause" bind_text="print_control_primary_label"
+               icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <event_cb trigger="clicked" callback="on_print_control_primary"/>
+      <bind_state_if_eq subject="print_control_primary_enabled" state="disabled" ref_value="0"/>
+    </ui_button>
+    <ui_button name="btn_tune"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               icon="tune" text="Tune" icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <event_cb trigger="clicked" callback="on_print_status_tune"/>
+      <bind_state_if_eq subject="print_controls_enabled" state="disabled" ref_value="0"/>
+    </ui_button>
+    <!-- Filled gray: the actions behind it are secondary. Hidden when every
+         entry of the menu is. -->
+    <ui_button name="btn_more"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" icon="dots_vertical" text="More"
+               icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if cond="print_status_camera_available or timelapse_owner eq 1 or led_controllable"
+                    flag="hidden" invert="true"/>
+      <event_cb trigger="clicked" callback="on_print_status_more"/>
+    </ui_button>
+    <!-- Cancel while a print runs (outcome NONE), Reprint once it has an outcome. -->
+    <ui_button name="btn_cancel"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               variant="danger" icon="stop" text="Cancel" icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if_not_eq subject="print_outcome" flag="hidden" ref_value="0"/>
+      <bind_state_if_eq subject="print_control_stop_enabled" state="disabled" ref_value="0"/>
+      <event_cb trigger="clicked" callback="on_print_control_stop"/>
+    </ui_button>
+    <ui_button name="btn_reprint"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               icon="refresh" text="Reprint" icon_position="top" hidden="true">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if_eq subject="print_outcome" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="on_print_status_reprint"/>
+    </ui_button>
+  </view>
+</component>

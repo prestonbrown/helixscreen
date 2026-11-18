@@ -7,7 +7,6 @@
       "output_pin fan0",
       "output_pin fan1",
       "output_pin fan2",
-      "temperature_fan chamber_fan",
       "output_pin extruder_fan",
       "heater_fan chamber_heater_fan"
     ],
@@ -82,7 +81,6 @@
     "sensors": [
       "temperature_fan chamber_fan",
       "temperature_sensor chamber_temp",
-      "temperature_fan chamber_fan",
       "temperature_sensor mcu_temp"
     ],
     "width_sensor_objects": []

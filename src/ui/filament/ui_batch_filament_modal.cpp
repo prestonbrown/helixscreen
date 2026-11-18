@@ -85,8 +85,8 @@ bool BatchFilamentModal::show_owned(HeadPickOp op, Confirm on_confirm) {
         action = lv_tr("Unload");
         break;
     case HeadPickOp::Mount:
-        title = lv_tr("Mount which tool?");
-        action = lv_tr("Mount");
+        title = lv_tr("Pick up which tool?");
+        action = lv_tr("Pick up");
         break;
     case HeadPickOp::SeatByHand:
         title = lv_tr("Seat which tool by hand?");

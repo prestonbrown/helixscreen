@@ -112,6 +112,21 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
 // NAMESPACE_OK: mock_internal constant, alongside its sibling mock constants
 constexpr double kMockPartFanMaxRpm = 6800.0;
 
+/// Toolchanger mock: tool @p t's part fan, as its [tool] `fan:` names it (a
+/// fan_generic name), and its hotend [heater_fan] name.
+[[nodiscard]] inline std::string toolchanger_part_fan(int t) {
+    return "T" + std::to_string(t) + "_part_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
+}
+[[nodiscard]] inline std::string toolchanger_hotend_fan(int t) {
+    return "T" + std::to_string(t) + "_hotend_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
+}
+
+/// Toolchanger mock: tool @p t's hotend fan `fan_speed`, a step lower per tool so
+/// the hotend fan chips of different tools read apart.
+[[nodiscard]] inline double toolchanger_hotend_fan_speed(int t) {
+    return 1.0 - 0.1 * t;
+}
+
 /// The part fan's status block, as every frame the mock serves carries it.
 [[nodiscard]] inline nlohmann::json part_fan_status(double speed) {
     return {{"speed", speed}, {"rpm", speed > 0.0 ? std::round(kMockPartFanMaxRpm * speed) : 0.0}};

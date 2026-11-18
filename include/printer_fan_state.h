@@ -3,6 +3,7 @@
 
 #include "core/observer_guard.h" // SubjectLifetime
 #include "core/subject.h"
+#include "fan_heaters.h"
 #include "fan_tachometers.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
@@ -196,6 +197,21 @@ class PrinterFanState {
         tachometers_ = std::move(map);
     }
 
+    /// Which heaters drive each [heater_fan] (PrinterDiscovery::heater_fans()).
+    void set_heater_fans(fan_heaters::HeaterFanMap map);
+
+    /// The tool printing now. @p heater is the heater the nozzle reading follows
+    /// (the active extruder); @p part_fan is the part fan that tool names itself,
+    /// empty where the tools carry no part fan of their own. While each names a
+    /// fan here, the primary part and hotend slots show that tool's fans and the
+    /// main fan speed reads its part fan.
+    void set_active_tool_fans(const std::string& heater, const std::string& part_fan);
+
+    /// Every tool's own fans: the part fans the tools name (as they name them)
+    /// and the heaters the tools print through. These fans belong to a tool, so
+    /// the aux slot never shows one, nor a [heater_fan] one of those heaters drives.
+    void set_tool_fans(std::vector<std::string> part_fans, std::vector<std::string> heaters);
+
     /// Rename a fan: saves custom name to Config, updates display_name, bumps fans_version
     void rename_fan(const std::string& object_name, const std::string& new_name);
 
@@ -360,6 +376,25 @@ class PrinterFanState {
 
     // Tachometer readings published outside the fan objects, by field.
     fan_tach::TachMap tachometers_;
+
+    // Each [heater_fan] and the heaters that switch it on.
+    fan_heaters::HeaterFanMap heater_fans_;
+
+    // The active tool's heater and its own part fan, as set_active_tool_fans() got them.
+    std::string active_heater_;
+    std::string active_tool_part_fan_;
+    // Every tool's own part fans and heaters, as set_tool_fans() got them.
+    std::vector<std::string> tool_part_fans_;
+    std::vector<std::string> tool_heaters_;
+
+    /// The fan object the active tool names as its part fan, or empty.
+    std::string active_tool_part_fan_object() const;
+    /// The one heater_fan the active tool's heater drives, as a fan object here, or empty.
+    std::string active_tool_hotend_fan_object() const;
+    /// The named fan whose speed the main fan_speed_ subject reads: the active
+    /// tool's own part fan, else the configured part fan. The bare [fan] feeds it
+    /// whenever the active tool names no fan of its own.
+    std::string main_speed_fan() const;
 
     // Configured fan roles from wizard config
     FanRoleConfig roles_;

@@ -81,10 +81,15 @@
 #if HELIX_HAS_CAMERA
 #include "camera_frame.h"
 #endif
+#include "ui_overlay_temp_graph.h"
+
 #include "system/telemetry_manager.h"
+#include "target_tool.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
 #include "timelapse_state.h"
+#include "tool_heads_model.h"
+#include "tool_picker.h"
 #include "tool_state.h"
 #include "usb_manager.h"
 #include "xml_registration.h"
@@ -245,6 +250,14 @@ void SubjectInitializer::init_ams_subjects() {
     // Note: In mock mode, init_subjects() also creates the mock backend internally
     helix::AmsState::instance().init_subjects(true);
 
+    // The target tool every temperature and filament surface aims at, and the
+    // per-head data its tool choosers draw, exist with or without a Home
+    // widget or a panel.
+    helix::ui::TargetTool::instance().attach(get_printer_state());
+    helix::ui::ToolHeadsModel::instance().attach(get_printer_state());
+    helix::ui::ToolPicker::init_subjects();
+    helix::ui::register_heater_row_callbacks();
+
     // Initialize SpoolmanManager AFTER AmsState (it reads slot data from AmsState)
     SpoolmanManager::instance().init_subjects();
 
@@ -386,7 +399,6 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
 
     // Inject TemperatureService into dependent panels
     // (HomePanel widgets get it via PanelWidgetManager::shared_resource<TemperatureService>())
-    get_global_controls_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_print_status_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_filament_panel().set_temp_control_panel(m_temp_control_panel.get());
     get_global_pid_cal_panel().set_temp_control_panel(m_temp_control_panel.get());

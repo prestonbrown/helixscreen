@@ -105,6 +105,12 @@ void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts);
 /// alone lists the slicer's filaments, not the tools that print.
 [[nodiscard]] std::set<int> file_tools_used(const FileStartFacts& facts);
 
+/// How long gathering a file's start facts may go unanswered before a start
+/// gives up: the app's transfer stall window, plus @p metadata's file size at
+/// the slowest rate a whole-file read is allowed (100 kB/s), since a footer
+/// that cannot answer falls back to reading the whole file.
+[[nodiscard]] uint32_t file_facts_stall_ms(const FileMetadata& metadata);
+
 /// The empty-slot pre-flight for @p facts, computed with the same inputs.
 [[nodiscard]] PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed);
 

@@ -14,13 +14,10 @@
  * shared helper reddens every consumer's suite at once.
  */
 
-#include "ui_panel_controls.h"
-
 #include "../test_fixtures.h"
 #include "core/update_queue.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
-#include "test_helpers/controls_panel_test_access.h"
 #include "test_helpers/temperature_controller_test_access.h"
 
 #include <memory>
@@ -40,15 +37,12 @@ void set_typical_caps(helix::TemperatureController& c) {
     TemperatureControllerTestAccess::set_max(c, HeaterType::Chamber, 60);
 }
 
-/// ControlsPanel plus the TemperatureService it reads its controller through,
-/// wired the way SubjectInitializer wires them at app boot. Destruction runs
-/// in reverse declaration order, so the panel dies while the service and the
-/// controller it points at are still alive.
+/// The TemperatureService the temperature graph's keypad reads its controller
+/// through, wired the way SubjectInitializer wires it at app boot.
 class TargetEditFixture : public XMLTestFixture {
   public:
     TargetEditFixture() {
         service_.set_controller(controller_.get());
-        panel_.set_temp_control_panel(&service_);
     }
 
     ~TargetEditFixture() override {
@@ -59,24 +53,9 @@ class TargetEditFixture : public XMLTestFixture {
     TemperatureService service_{state(), &api()};
     std::shared_ptr<helix::TemperatureController> controller_{
         std::make_shared<helix::TemperatureController>(state(), &api())};
-    ControlsPanel panel_{state(), &api()};
 };
 
 } // namespace
-
-TEST_CASE("ControlsPanel target-edit keypads answer the shared ceiling", "[1619][keypad_ceiling]") {
-    TargetEditFixture f;
-    set_typical_caps(*f.controller_);
-
-    // 500/150/150 are the panel's own members; the configured max must beat
-    // every one of them, or the keypad offers a target the printer rejects.
-    CHECK(helix::ui::ControlsPanelTestAccess::target_edit_max(f.panel_, HeaterType::Nozzle, 500) ==
-          290);
-    CHECK(helix::ui::ControlsPanelTestAccess::target_edit_max(f.panel_, HeaterType::Bed, 150) ==
-          120);
-    CHECK(helix::ui::ControlsPanelTestAccess::target_edit_max(f.panel_, HeaterType::Chamber, 150) ==
-          60);
-}
 
 TEST_CASE("TemperatureService custom keypad answers the shared ceiling", "[1619][keypad_ceiling]") {
     TargetEditFixture f;

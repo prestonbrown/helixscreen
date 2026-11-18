@@ -72,7 +72,7 @@ If you switched to a channel whose latest release is older than the version you 
 
 Some installs can't update themselves. The page tells you so instead of showing buttons that wouldn't work.
 
-- **Software Updates: Managed by your firmware.** Your printer's firmware includes HelixScreen and updates it along with everything else. The Snapmaker U1 with the PAXX Extended Firmware works this way, and so does any install whose launcher sets `HELIX_DISABLE_AUTO_UPDATES=1`. Nothing checks for updates by itself in this case. The channel, check and install rows are hidden. Update the printer's firmware to get a newer HelixScreen.
+- **Software Updates: Managed by your firmware.** Your printer's firmware includes HelixScreen and updates it along with everything else. A Snapmaker U1 running the HelixScreen that PAXX Extended Firmware installs as a firmware component works this way (a stock-firmware U1 updates from the screen like any other printer), and so does any install whose launcher sets `HELIX_DISABLE_AUTO_UPDATES=1`. Nothing checks for updates by itself in this case. The channel, check and install rows are hidden. Update the printer's firmware to get a newer HelixScreen.
 - **Software Updates: Not available here. Update from a terminal.** HelixScreen can see new versions but can't write to its own install folder. Tap the row for a QR code that links to instructions: you run the HelixScreen installer with `--update` from a terminal on the printer. [Upgrading](../../UPGRADING.md) lists the other ways to update.
 
 ---

@@ -30,6 +30,7 @@
 #include "standing_print_options.h"
 #include "test_helpers/backend_harness.h"
 
+#include <functional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -60,6 +61,15 @@ struct U1StartFx : LVGLTestFixture {
         SettingsManager::instance().set_end_of_print_unload_tools(0);
         client.stop_temperature_simulation();
         client.disconnect();
+    }
+
+    /// One queue batch at a time until @p reached: a reprint reads its file
+    /// for the pre-print checks before any of its start steps run.
+    static bool drain_until(const std::function<bool()>& reached) {
+        for (int i = 0; i < 16 && !reached(); ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        return reached();
     }
 
     /// Every script sent, joined: the unload line may ride in any of them.
@@ -133,8 +143,10 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint with no recorded routing still sends t
     report_heads(*backend);
     REQUIRE(backend->requires_preprint_send());
 
-    controller.initiate_reprint("cal.gcode", "cal.gcode", {0}, []() {}, []() {});
-    helix::ui::UpdateQueue::instance().drain();
+    bool done = false;
+    controller.initiate_reprint(
+        "cal.gcode", "cal.gcode", {0}, [&done]() { done = true; }, [&done]() { done = true; });
+    REQUIRE(drain_until([&done]() { return done; }));
     const std::string sent = all_scripts();
     CHECK(sent.find(kUnload) != std::string::npos);
     // No routing was recorded, so no map is invented.
@@ -196,7 +208,7 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint withdrawn during the pre-print send ne
     bool errored = false;
     controller.initiate_reprint(
         "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
-    REQUIRE(ps.print_state().has_preparing_job());
+    REQUIRE(drain_until([this]() { return ps.print_state().has_preparing_job(); }));
     if (withdraw) {
         // Stop while the pre-print config is still on its way.
         ps.print_state().retire_preparing(PreparingExit::Cancelled);
@@ -238,6 +250,8 @@ TEST_CASE_METHOD(U1StartFx, "a U1 reprint whose start loses its answer stays pre
     bool errored = false;
     controller.initiate_reprint(
         "cal.gcode", "cal.gcode", {0}, []() {}, [&errored]() { errored = true; });
+    REQUIRE(drain_until(
+        [this]() { return ps.print_state().preparing_start() != PreparingStart::None; }));
     if (kind == 1) {
         ps.print_state().note_preparing_cancel_requested();
     }

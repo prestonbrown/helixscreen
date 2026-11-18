@@ -94,6 +94,8 @@ echo -n "📛 Checking namespace compliance (declarations outside helix::)..."
 # 1876 -> 1873 is the 1.1 ports moving three declarations under helix::.
 # 1880 -> 1876 is the shared Ethernet classifiers moving from a top-level
 # ethernet:: into helix::ethernet.
+# 1876 -> 1875 is the Controls panel dropping its unused global
+# TemperatureService forward declaration.
 #
 # tests/shell/test_namespace_gate.bats carries this same number and fails if
 # the two disagree or if the tree drifts under it.

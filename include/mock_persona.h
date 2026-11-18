@@ -50,6 +50,10 @@ inline constexpr DefaultObjects kWidthSensor = 1u << 6; // "hall_filament_width_
 inline constexpr DefaultObjects kRunoutSensor = 1u << 7;
 /// led_effect objects + LIGHTS_* / LED_* macros.
 inline constexpr DefaultObjects kLedEffects = 1u << 8;
+/// The toolchanger mock's klipper-toolchanger fans: a `fan_generic T<n>_part_fan`
+/// and a `heater_fan T<n>_hotend_fan` per tool, in place of `fan`. A persona whose
+/// machine names its own fans omits them and keeps its own.
+inline constexpr DefaultObjects kToolchangerToolFans = 1u << 9;
 } // namespace default_object
 
 struct AxisMax {
@@ -109,8 +113,10 @@ inline constexpr PersonaHardware kCreator5Hardware = {
      "heater_generic chamber_heater"},
     {"heater_bed", "extruder", "extruder1", "extruder2", "extruder3",
      "heater_generic chamber_heater", "temperature_sensor mcu_temp"},
+    // One part fan, the one M106 drives, and a heater_fan per head.
     {"heater_fan heat_fan", "fan_generic fanM106", "fan_generic chamber_fan",
-     "fan_generic chamber_loop_fan"},
+     "fan_generic chamber_loop_fan", "heater_fan heat_fan1", "heater_fan heat_fan2",
+     "heater_fan heat_fan3"},
     {"led chamber_led"}};
 
 inline constexpr PersonaHardware kGenericCorexyHardware = {
@@ -206,7 +212,8 @@ struct PersonaDescriptor {
         return {"ad5m-mock", {220.0, 220.0, 220.0},   "corexy", NONE, "",
                 false,       &kFlashforgeAd5mHardware};
     case PrinterType::FLASHFORGE_CREATOR5:
-        return {"mock-printer", standard, "corexy", NONE, "toolchanger", false, &kCreator5Hardware};
+        return {"mock-printer", standard, "corexy",          kToolchangerToolFans,
+                "toolchanger",  false,    &kCreator5Hardware};
     case PrinterType::ELEGOO_CC1:
         return {"cosmos",
                 {256.0, 265.0, 258.0},
@@ -249,12 +256,21 @@ struct PersonaDescriptor {
     case PrinterType::FLASHFORGE_CREATOR5_AFC:
         // Reforge as its master ships it: AFC over ff_toolchange, driven by the
         // production AFC backend.
-        return {"mock-printer", standard, "corexy", kHappyHareMmu, "", true, &kCreator5Hardware};
+        return {
+            "mock-printer", standard,          "corexy", kHappyHareMmu | kToolchangerToolFans, "",
+            true,           &kCreator5Hardware};
     case PrinterType::FLASHFORGE_CREATOR5_ZMOD:
         // Travel as a Z-Mod Creator 5 Pro reports it: the purge chute sits
         // beyond the bed at X275 Y254.
-        return {"mock-printer", {310.0, 260.0, 270.0}, "corexy", kHappyHareMmu,      "",
-                true,           &kCreator5Hardware,    {},       {-5.0, -5.0, -10.0}};
+        return {"mock-printer",
+                {310.0, 260.0, 270.0},
+                "corexy",
+                kHappyHareMmu | kToolchangerToolFans,
+                "",
+                true,
+                &kCreator5Hardware,
+                {},
+                {-5.0, -5.0, -10.0}};
     case PrinterType::VORON_24:
         return {"mock-printer",
                 {175.0, 175.0, 300.0},
@@ -372,6 +388,14 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
         }
     }
     return {};
+}
+
+/// The tool a toolchanger mock starts with mounted: HELIX_MOCK_TOOLCHANGER_TOOL,
+/// 0 when unset or outside 0..@p tool_count-1. The printer mock and the mock
+/// tool changer backend both read it, so they agree on the mounted tool.
+[[nodiscard]] inline int toolchanger_start_tool(const char* env, int tool_count) {
+    const int tool = env ? helix::text_io::parse_leading<int>(env).value_or(0) : 0;
+    return tool >= 0 && tool < tool_count ? tool : 0;
 }
 
 /// Which MedusaHC shipping configuration a mock AMS mode emulates. Every

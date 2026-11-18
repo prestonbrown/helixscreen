@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Ultrawide print status readouts, one compact card of label / value rows:
+     nozzle, bed and chamber as current / target, then the speed and flow
+     factors, the toolhead's live speed and the fans. The readings repeat the
+     printer picture's callouts on purpose, at a size that reads from across
+     the room. A heater row opens the temperature overlay, the speed row Print
+     Tune, a fan row the fan controls. -->
+<component>
+  <styles>
+    <style name="readout_row"
+           width="100%" height="content" pad_all="0" bg_opa="0" border_width="0" radius="#border_radius" layout="flex"
+           flex_flow="row" flex_cross_place="center" pad_column="#space_xs"/>
+  </styles>
+  <view extends="lv_obj"
+        style_pad_hor="#space_md" style_pad_ver="#space_sm" style_bg_color="#card_bg" style_bg_opa="255"
+        style_border_width="0" style_radius="#border_radius" flex_flow="column" style_flex_main_place="space_evenly"
+        style_pad_row="#space_xxs" style_min_width="0" scrollable="false">
+    <lv_obj name="readout_nozzle" scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
+      <nozzle_icon size="xs" badge_subject="" clickable="false" event_bubble="true"/>
+      <text_body text="Nozzle" style_text_color="#text_muted" flex_grow="1" event_bubble="true"/>
+      <temp_display size="lg"
+                    show_target="true" bind_current="extruder_temp" bind_target="extruder_target" clickable="false"
+                    event_bubble="true"/>
+    </lv_obj>
+    <lv_obj name="readout_bed" scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
+      <heater_icon src="radiator" size="xs"/>
+      <text_body text="Bed" style_text_color="#text_muted" flex_grow="1" event_bubble="true"/>
+      <temp_display size="lg"
+                    show_target="true" bind_current="bed_temp" bind_target="bed_target" clickable="false"
+                    event_bubble="true"/>
+    </lv_obj>
+    <lv_obj name="readout_chamber" scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
+      <heater_icon src="fridge_industrial" size="xs"/>
+      <text_body text="Chamber" style_text_color="#text_muted" flex_grow="1" event_bubble="true"/>
+      <temp_display size="lg"
+                    show_target="false" bind_current="chamber_temp" bind_target="chamber_effective_target"
+                    bind_mode="chamber_mode" clickable="false" event_bubble="true"/>
+    </lv_obj>
+    <lv_obj width="100%"
+            height="1" style_bg_color="#text_muted" style_bg_opa="60" style_border_width="0" scrollable="false"/>
+    <!-- Speed and flow factors on one line. -->
+    <lv_obj name="readout_speed" scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <event_cb trigger="clicked" callback="on_print_status_tune"/>
+      <icon src="speed" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+      <text_heading bind_text="speed_factor" bind_text-fmt="%d%%" flex_grow="1" event_bubble="true"/>
+      <icon src="filament" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
+      <text_heading bind_text="flow_factor" bind_text-fmt="%d%%" event_bubble="true"/>
+    </lv_obj>
+    <lv_obj scrollable="false">
+      <style name="readout_row"/>
+      <icon src="speed_up" size="xs" variant="warning" clickable="false"/>
+      <text_body text="Toolhead" style_text_color="#text_muted" flex_grow="1"/>
+      <text_heading bind_text="live_velocity" bind_text-fmt="%d mm/s"/>
+    </lv_obj>
+    <lv_obj name="readout_fans" scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <event_cb trigger="clicked" callback="on_print_status_fans_clicked"/>
+      <icon src="fan" size="xs" variant="info" clickable="false" event_bubble="true"/>
+      <text_body bind_text="ps_chip_part_fan_text" flex_grow="1" event_bubble="true"/>
+      <text_body bind_text="ps_chip_hotend_fan_text" event_bubble="true"/>
+    </lv_obj>
+    <lv_obj scrollable="false" clickable="true">
+      <style name="readout_row"/>
+      <style name="styles.press_wash" selector="pressed"/>
+      <bind_flag_if_eq subject="ps_chip_aux_fan_shown" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="on_print_status_fans_clicked"/>
+      <icon src="fan" size="xs" variant="muted" clickable="false" event_bubble="true"/>
+      <text_body bind_text="ps_chip_aux_fan_text" flex_grow="1" event_bubble="true"/>
+    </lv_obj>
+  </view>
+</component>

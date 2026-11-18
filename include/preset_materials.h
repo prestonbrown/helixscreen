@@ -10,6 +10,10 @@
 #include <optional>
 #include <string>
 
+namespace helix {
+class PrinterTemperatureState;
+}
+
 /**
  * @file preset_materials.h
  * @brief Single source of truth for "which materials are on the quick-preset slots".
@@ -52,16 +56,37 @@ std::array<std::string, kPresetCount> all();
 /// the slot, otherwise just the material name. Never use this as a material key.
 std::string display_label(int slot);
 
-/// Nozzle and bed temperature a slot prints at, whole °C.
+/// Nozzle, bed and chamber temperature a slot prints at, whole °C. chamber
+/// is the material's chamber temperature, 0 for a material that needs none.
 struct SlotTemps {
     int nozzle = 0;
     int bed = 0;
+    int chamber = 0;
 };
 
 /// The slot's temperatures: the attached branded product's when there is one,
 /// otherwise the filament database recommendation. nullopt when the slot is
 /// out of range or its material is unknown.
 std::optional<SlotTemps> slot_temps(int slot);
+
+/// The bed and chamber targets a material preset sends with its nozzle
+/// target, whole °C. nullopt means the preset leaves that heater alone.
+struct HeaterTargets {
+    std::optional<int> bed;
+    std::optional<int> chamber;
+};
+
+/// What a material preset sends besides the nozzle. While "Material presets
+/// heat the bed and chamber" is on (per printer, the default), @p bed, and
+/// @p chamber when it is above 0 (a material with a chamber temperature).
+/// Off, neither: the preset heats the nozzle alone. Every material preset
+/// asks this: the Filament panel's, the Home preheat tile's and the
+/// temperature graph's.
+HeaterTargets heater_targets(int bed, int chamber = 0);
+
+/// The chamber temperature a material preset asks for on this printer:
+/// @p material_chamber_c when the printer has a chamber heater, otherwise 0.
+int chamber_request(int material_chamber_c, const PrinterTemperatureState& temps);
 
 /// "220°C / 60°C" style summary for a slot (branded product temps when attached,
 /// otherwise the filament database recommendation). "---" if the material is unknown.

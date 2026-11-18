@@ -30,14 +30,15 @@ TEST_CASE("a running saver takes the place of the completion wake", "[print_comp
     constexpr auto kNote = CompletionAlertMode::NOTIFICATION;
     constexpr auto kAlert = CompletionAlertMode::ALERT;
 
-    // Without a saver: an error always wakes with a modal; the print status panel needs nothing;
-    // otherwise the mode decides.
+    // Without a saver: an error always wakes with a modal; the print status panel gets no toast or
+    // modal but still wakes unless alerts are off; otherwise the mode decides.
     const Row awake[] = {
-        {E, kOff, false, true, true, false},    {E, kNote, true, true, true, false},
-        {E, kAlert, false, true, true, false},  {C, kOff, false, false, false, false},
-        {C, kNote, false, true, false, true},   {C, kAlert, false, true, true, false},
-        {X, kNote, false, true, false, true},   {X, kAlert, false, true, true, false},
-        {C, kAlert, true, false, false, false}, {X, kNote, true, false, false, false},
+        {E, kOff, false, true, true, false},   {E, kNote, true, true, true, false},
+        {E, kAlert, false, true, true, false}, {C, kOff, false, false, false, false},
+        {C, kNote, false, true, false, true},  {C, kAlert, false, true, true, false},
+        {X, kNote, false, true, false, true},  {X, kAlert, false, true, true, false},
+        {C, kAlert, true, true, false, false}, {X, kNote, true, true, false, false},
+        {C, kOff, true, false, false, false},
     };
     for (const Row& r : awake) {
         CAPTURE(static_cast<int>(r.ending), static_cast<int>(r.mode), r.on_print_status);

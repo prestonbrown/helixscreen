@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One tool_switcher_segment per head, sharing the row's width, that aims the
+     shared target tool (TargetTool): the target's head is highlighted, and a
+     tap only picks the target, never changes tools. The Filament panel's tool
+     card and the temperature graph's nozzle card use it; the Home tool
+     switcher and its picker draw the same cells. Each cell is one touch
+     target tall with its filament band as a plain strip, and ToolHeadsModel
+     labels the cells for the width they get as the row resizes. -->
+<component>
+  <api>
+    <!-- The row label pool: "_row" (Filament panel) or "_row_graph"
+         (temperature graph), so each fits its own width. -->
+    <prop name="labels" type="string" default="_row"/>
+    <!-- The cells' size subjects: tool_row_cell (one touch target tall), or
+         tool_row_compact_cell (40 px) where a portrait column is short. -->
+    <prop name="size" type="string" default="tool_row_cell"/>
+  </api>
+  <!-- SIZE_OK: the 2 px gap is kToolRailGap, the rail's and the picker's -->
+  <view extends="lv_obj"
+        width="100%" height="content" flex_flow="row" style_pad_all="0" style_pad_gap="2" style_radius="#border_radius"
+        style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
+    <event_cb trigger="size_changed" callback="tool_target_row_resized" user_data="$labels"/>
+    <repeat count="tool_switcher_heads">
+      <tool_switcher_segment name="tool_target_cell_${i}"
+                             width="0" index="${i}" flex_grow="1" size="$size" band_h="tool_row_band_h"
+                             band_labelled="tool_row_off" two_line="tool_row_off" label_key="$labels"
+                             state_key="_target_state" blocked="tool_row_off" callback="tool_target_segment_cb"/>
+    </repeat>
+  </view>
+</component>

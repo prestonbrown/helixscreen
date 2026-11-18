@@ -299,3 +299,73 @@ TEST_CASE_METHOD(UltrawideFixture, "Views that opt out keep the full width",
 
     nav.register_panel_instance(shown, nullptr);
 }
+
+namespace {
+
+/// A full-screen panel container built with @p base_pad_right, laid out.
+lv_obj_t* make_panel_container(int32_t base_pad_right) {
+    lv_obj_t* c = lv_obj_create(lv_screen_active());
+    lv_obj_set_size(c, lv_pct(100), lv_pct(100));
+    lv_obj_set_style_pad_all(c, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(c, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(c, base_pad_right, LV_PART_MAIN);
+    lv_obj_update_layout(c);
+    return c;
+}
+
+/// A shown panel widget filling @p container.
+lv_obj_t* make_panel_widget(lv_obj_t* container) {
+    lv_obj_t* w = lv_obj_create(container);
+    lv_obj_set_width(w, lv_pct(100));
+    return w;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(UltrawideFixture, "A panel widget swapped into a shown slot carries the cap",
+                 "[content-cap][panel]") {
+    helix::ui::PanelRegistry registry;
+    const int slot = static_cast<int>(PanelId::Controls);
+    const bool opts_out = GENERATE(false, true);
+    CAPTURE(opts_out);
+    FakePanel panel(/*full_width=*/opts_out);
+    registry.set_instance(slot, &panel);
+
+    lv_obj_t* first_container = make_panel_container(kBasePadRight);
+    registry.replace_widget(slot, make_panel_widget(first_container));
+
+    // The panel rebuilds its widget into a fresh layout.
+    constexpr int32_t kFreshPad = 10;
+    lv_obj_t* fresh_container = make_panel_container(kFreshPad);
+    const int32_t overflow = lv_obj_get_width(fresh_container) - read_const("content_max_width");
+    REQUIRE(overflow > 0);
+    registry.replace_widget(slot, make_panel_widget(fresh_container));
+
+    CHECK(lv_obj_get_style_pad_right(fresh_container, LV_PART_MAIN) ==
+          kFreshPad + (opts_out ? 0 : overflow));
+}
+
+TEST_CASE_METHOD(UltrawideFixture, "A reset registry reads the container's padding afresh",
+                 "[content-cap][panel]") {
+    helix::ui::PanelRegistry registry;
+    const int slot = static_cast<int>(PanelId::Controls);
+    FakePanel panel(/*full_width=*/false);
+    lv_obj_t* container = make_panel_container(kBasePadRight);
+    const int32_t overflow = lv_obj_get_width(container) - read_const("content_max_width");
+    REQUIRE(overflow > 0);
+
+    registry.set_instance(slot, &panel);
+    registry.replace_widget(slot, make_panel_widget(container));
+    REQUIRE(lv_obj_get_style_pad_right(container, LV_PART_MAIN) == kBasePadRight + overflow);
+
+    // Rebuilt from scratch: the container's layout is written anew with another
+    // padding, and the panels register again.
+    registry.reset();
+    constexpr int32_t kRebuiltPad = 10;
+    lv_obj_clean(container);
+    lv_obj_set_style_pad_right(container, kRebuiltPad, LV_PART_MAIN);
+    registry.set_instance(slot, &panel);
+    registry.replace_widget(slot, make_panel_widget(container));
+
+    CHECK(lv_obj_get_style_pad_right(container, LV_PART_MAIN) == kRebuiltPad + overflow);
+}

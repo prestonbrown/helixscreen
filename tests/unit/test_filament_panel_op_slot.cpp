@@ -15,7 +15,7 @@
  *
  * execute_load/execute_unload must not act on backend->get_system_info()
  * .current_slot: on a BoxTurtle where lane 4 (slot 3) is loaded to the
- * toolhead but the dropdown defaults to T0, Load would act on the
+ * toolhead but the chosen tool is T0, Load would act on the
  * already-loaded lane 3 instead of the selected lane 0. Both executors call the
  * private selected_op_slot(), the same resolution the button gating uses, so
  * the op can never diverge.
@@ -174,9 +174,11 @@ struct OpSlotHarness {
     bool saved_confirm =
         helix::SafetySettingsManager::instance().get_tool_change_require_confirmation();
 
+    ToolTopology topology;
+
     OpSlotHarness(LVGLUITestFixture& f, const AmsSystemInfo& sys, int loaded_slot,
                   const ToolTopology& topo)
-        : fx(f) {
+        : fx(f), topology(topo) {
         // The panel wires observers on ToolState + AmsState in its ctor, so their
         // subjects must exist first.
         ToolState::instance().init_subjects(true);
@@ -200,17 +202,19 @@ struct OpSlotHarness {
 
         // Flush deferred observer callbacks (active-tool sync, gating recompute).
         fx.process_lvgl(30);
-
-        // Ensure the dropdown carries every tool so a T3 selection is reachable
-        // (setup() already calls this, but the topology publish may have raced).
-        TA::populate_extruder_dropdown(*panel);
     }
 
+    /// The tool the panel works on. Several heads: aim the panel at it, as a
+    /// tap on its Operations card cell does. One head behind a hub: the panel has no
+    /// chooser and follows the lane the hub has in the head, so mount it.
     void select_tool(int idx) {
-        lv_obj_t* dd = TA::extruder_dropdown(*panel);
-        REQUIRE(dd != nullptr);
-        REQUIRE(lv_dropdown_get_option_count(dd) >= static_cast<uint32_t>(idx + 1));
-        lv_dropdown_set_selected(dd, static_cast<uint32_t>(idx));
+        if (ToolState::instance().has_multiple_toolheads()) {
+            TA::choose_target(idx);
+            return;
+        }
+        topology.active_tool = idx;
+        ToolState::instance().set_ams_topology(topology);
+        fx.process_lvgl(10);
     }
 
     ~OpSlotHarness() {
@@ -262,6 +266,14 @@ ToolTopology identity_topo() {
     return topo;
 }
 
+/// identity_topo() with a head per tool: the panel aims at a tool there, where
+/// one head behind a hub has no tool choice.
+ToolTopology head_per_tool_topo() {
+    ToolTopology topo = identity_topo();
+    topo.tool_extruder = {"extruder", "extruder1", "extruder2", "extruder3"};
+    return topo;
+}
+
 } // namespace
 
 // Drive print state through the REAL input. These panels and managers gate on
@@ -278,7 +290,7 @@ static void set_wire_state(helix::PrinterState& st, const char* wire) {
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "BoxTurtle: execute_load targets the SELECTED tool, not current_slot",
                  "[filament][op_slot][panel]") {
-    // Dropdown = T0 while lane 4 (slot 3) is loaded. Filament is seated, so this
+    // Chosen tool = T0 while lane 4 (slot 3) is loaded. Filament is seated, so this
     // is a swap, not a fresh load (plan_load's load-vs-swap rule) — but the
     // argument must still come from the SELECTED lane: change_tool(0), never a
     // dispatch derived from current_slot 3. That is the single-source-of-truth
@@ -298,7 +310,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(LVGLUITestFixture, "BoxTurtle: execute_unload targets the selected loaded slot",
                  "[filament][op_slot][panel]") {
-    // Dropdown = T3 and slot 3 is loaded -> unload_filament(3).
+    // Chosen tool = T3 and slot 3 is loaded -> unload_filament(3).
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.select_tool(3);
 
@@ -313,7 +325,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "BoxTurtle: execute_unload targets the selec
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "BoxTurtle: execute_unload on an unloaded selected slot makes NO backend call",
                  "[filament][op_slot][panel]") {
-    // Dropdown = T0, slot 0 is NOT loaded (only slot 3 is). The "nothing loaded"
+    // Chosen tool = T0, slot 0 is NOT loaded (only slot 3 is). The "nothing loaded"
     // guard must refuse the unload — the backend is never asked to unload.
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.select_tool(0);
@@ -329,7 +341,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "Snapmaker U1 shape: selected tool survives a stuck current_slot",
                  "[filament][op_slot][panel]") {
     // Identity tool->slot map, current_slot stuck at -1 (the original U1 root
-    // cause), dropdown = T3. selected_op_slot() must yield 3 via the identity map,
+    // cause), chosen tool = T3. selected_op_slot() must yield 3 via the identity map,
     // and execute_load() must dispatch load_filament(3) — never a bare-default 0.
     AmsSystemInfo u1;
     u1.type = AmsType::SNAPMAKER;
@@ -350,7 +362,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 // ============================================================================
-// Bug A guard: the dropdown must NOT issue a physical tool change on a
+// Bug A guard: choosing a tool must NOT issue a physical tool change on a
 // shared-extruder AMS (HUB / LINEAR). Selecting a tool is selection-only there;
 // the explicit Load button performs the swap. Only a true PARALLEL toolchanger
 // (each tool = its own toolhead) changes tool on select. active_tool = T0 in
@@ -359,38 +371,32 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AFC/BoxTurtle (HUB): dropdown selection issues NO physical tool change",
+                 "AFC/BoxTurtle (HUB): a tool choice issues NO physical tool change",
                  "[filament][op_slot][panel]") {
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.mock->topology_ = PathTopology::HUB;
     h.select_tool(1); // != active T0
 
-    TA::handle_extruder_changed(*h.panel);
-
     CHECK(h.mock->change_tool_calls == 0); // no cut/unload/load swap
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "AD5X IFS (LINEAR): dropdown selection issues NO physical tool change",
+                 "AD5X IFS (LINEAR): a tool choice issues NO physical tool change",
                  "[filament][op_slot][panel]") {
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.mock->topology_ = PathTopology::LINEAR;
     h.select_tool(2); // != active T0
 
-    TA::handle_extruder_changed(*h.panel);
-
     CHECK(h.mock->change_tool_calls == 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Toolchanger (PARALLEL): dropdown selection issues NO physical tool change",
+                 "Toolchanger (PARALLEL): a tool choice issues NO physical tool change",
                  "[filament][op_slot][panel]") {
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.mock->topology_ = PathTopology::PARALLEL;
     helix::SafetySettingsManager::instance().set_tool_change_require_confirmation(false);
     h.select_tool(1); // != active T0
-
-    TA::handle_extruder_changed(*h.panel);
 
     // Choosing aims the panel; Pick up is the deliberate change.
     CHECK(h.mock->change_tool_calls == 0);
@@ -690,7 +696,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "AD5X: an unaccounted toolhead enables Unload and unloads the active head",
                  "[filament][op_slot][panel][1324]") {
     // The live AD5X IFS module shape: four virtual tools with an identity map,
-    // filament at the toolhead, no lane claiming it. Whatever tool the dropdown
+    // filament at the toolhead, no lane claiming it. Whatever tool the panel
     // names, the button must act on the active head, not that tool's lane.
     AmsSystemInfo sys = boxturtle_sys();
     sys.type = AmsType::AD5X_IFS;
@@ -701,7 +707,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     OpSlotHarness h(*this, sys, /*loaded_slot=*/-1, topo);
     h.mock->unaccounted_ = true;
     h.select_tool(1);
-    TA::handle_extruder_changed(*h.panel);
     process_lvgl(10);
 
     CHECK(TA::selected_op_slot(*h.panel) == helix::ui::kActiveHeadSlot);
@@ -725,7 +730,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     OpSlotHarness h(*this, sys, /*loaded_slot=*/-1, topo);
     h.select_tool(1);
-    TA::handle_extruder_changed(*h.panel);
     process_lvgl(10);
 
     SECTION("dispatched unchanged while the toolhead is unaccounted") {
@@ -775,7 +779,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.select_tool(3); // T3 == the loaded lane
-    TA::handle_extruder_changed(*h.panel);
     process_lvgl(10);
 
     // Baseline, no print: slot 3 is loaded, so Load is greyed and Unload is live.
@@ -831,15 +834,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return lv_subject_get_int(s);
     };
 
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/-1, identity_topo());
+    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/-1, head_per_tool_topo());
     h.select_tool(2);
-    TA::handle_extruder_changed(*h.panel);
     process_lvgl(10);
     REQUIRE(read("filament_load_disabled") == 0);
     REQUIRE(read("filament_unload_disabled") == 1);
 
+    // Re-aimed, the panel reads the lane afresh.
     h.mock->parked_slot_ = 2;
-    TA::handle_extruder_changed(*h.panel);
+    h.select_tool(2);
     process_lvgl(10);
     CHECK(read("filament_load_disabled") == 0);
     CHECK(read("filament_unload_disabled") == 0);
@@ -865,20 +868,19 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return lv_subject_get_int(s);
     };
 
-    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
+    OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, head_per_tool_topo());
 
     SECTION("a lane the backend reports EMPTY cannot be loaded from") {
         h.mock->slot_status_ = SlotStatus::EMPTY;
         h.select_tool(0); // an unloaded lane
-        TA::handle_extruder_changed(*h.panel);
         process_lvgl(10);
+
         CHECK(read("filament_load_disabled") == 1);
     }
 
     SECTION("a lane with filament stays loadable") {
         h.mock->slot_status_ = SlotStatus::AVAILABLE;
         h.select_tool(0);
-        TA::handle_extruder_changed(*h.panel);
         process_lvgl(10);
         CHECK(read("filament_load_disabled") == 0);
     }
@@ -886,7 +888,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     SECTION("UNKNOWN presence does not grey Load") {
         h.mock->slot_status_ = SlotStatus::UNKNOWN;
         h.select_tool(0);
-        TA::handle_extruder_changed(*h.panel);
         process_lvgl(10);
         CHECK(read("filament_load_disabled") == 0);
     }
@@ -908,7 +909,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel greys Load/Unload while the 
 
     OpSlotHarness h(*this, boxturtle_sys(), /*loaded_slot=*/3, identity_topo());
     h.select_tool(3);
-    TA::handle_extruder_changed(*h.panel);
     process_lvgl(10);
     REQUIRE(read("filament_unload_disabled") == 0);
 
@@ -930,7 +930,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel greys Load/Unload while the 
 }
 
 // The cold-nozzle "heat first" warning is hidden when the op preheats for a
-// known material, and Load/Unload preheat for the dropdown-selected slot. So the
+// known material, and Load/Unload preheat for the chosen slot. So the
 // material that hides the warning has to be the selected slot's, not the loaded
 // lane's.
 //
@@ -946,7 +946,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return lv_subject_get_int(s);
     };
 
-    // Lane 4 (slot 3) is loaded and active; the dropdown selects T0.
+    // Lane 4 (slot 3) is loaded and active; T0 is the chosen tool.
     auto with_materials = [](std::string active_mat, std::string selected_mat) {
         AmsSystemInfo sys = boxturtle_sys();
         sys.units[0].slots[3].material = active_mat;
@@ -954,22 +954,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         return sys;
     };
 
-    SECTION("nothing loaded: the warning follows the dropdown") {
+    SECTION("nothing loaded: the warning follows the chosen tool") {
         AmsSystemInfo sys = with_materials("", "PETG");
         sys.current_slot = -1;
         sys.filament_loaded = false;
         OpSlotHarness h(*this, sys, /*loaded_slot=*/-1, identity_topo());
         h.mock->material_ = {{0, "PETG"}};
         REQUIRE_FALSE(helix::AmsState::instance().get_external_spool_info().has_value());
-        // Cold nozzle with T3 (no material) selected, then only the dropdown moves:
+        // Cold nozzle with T3 (no material) selected, then only the chosen tool moves:
         // the selection change alone has to re-evaluate the warning.
         h.select_tool(3);
-        TA::handle_extruder_changed(*h.panel);
         h.panel->set_temp(20, 0);
         process_lvgl(10);
         REQUIRE(warning() == 1);
         h.select_tool(0);
-        TA::handle_extruder_changed(*h.panel);
         process_lvgl(10);
         CHECK(warning() == 0);
     }
@@ -979,7 +977,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         h.mock->material_ = {{3, "PETG"}};
         REQUIRE_FALSE(helix::AmsState::instance().get_external_spool_info().has_value());
         h.select_tool(0);
-        TA::handle_extruder_changed(*h.panel);
         h.panel->set_temp(20, 0);
         process_lvgl(10);
         CHECK(warning() == 1);
@@ -1010,7 +1007,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     auto cold_on_t0 = [this](OpSlotHarness& h) {
         REQUIRE_FALSE(helix::AmsState::instance().get_external_spool_info().has_value());
         h.select_tool(0);
-        TA::handle_extruder_changed(*h.panel);
         h.panel->set_temp(20, 0);
         process_lvgl(10);
         REQUIRE(TA::selected_op_slot(*h.panel) == 0);

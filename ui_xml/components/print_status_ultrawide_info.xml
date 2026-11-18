@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Ultrawide print status info column: the file name and the M117 line, the
+     percent and time left in hero type over the bar, elapsed and the clock
+     time of the finish, the job stats, the filament line and up next. The
+     rows spread down the column's height. -->
+<component>
+  <view extends="lv_obj"
+        style_pad_all="#space_md" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="0"
+        style_radius="#border_radius" flex_flow="column" style_flex_main_place="space_evenly" style_pad_gap="#space_xs"
+        style_min_width="0" scrollable="false">
+    <text_body width="100%"
+               bind_text="print_display_filename" style_text_font="#font_body_bold" long_mode="scroll_circular"/>
+    <text_small width="100%"
+                bind_text="display_message" long_mode="scroll_circular" style_text_color="#text_muted" hidden="true">
+      <bind_flag_if_eq subject="display_message_visible" flag="hidden" ref_value="0"/>
+    </text_small>
+    <!-- Printing: the percent, time left beside it. -->
+    <lv_obj name="ps_uw_print_line"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
+      <text_heading name="print_percent" bind_text="print_progress_text" style_text_font="#font_ps_hero"/>
+      <lv_obj height="content"
+              flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+              style_flex_cross_place="center" style_flex_main_place="end" style_pad_gap="#space_xs" scrollable="false">
+        <icon src="clock" size="sm" variant="secondary" clickable="false"/>
+        <text_heading name="print_remaining" bind_text="print_remaining" style_text_font="#font_ps_hero_regular"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- Pre-print: what the start sequence has left. -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" hidden="true">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="0"/>
+      <text_heading text="Preparing" style_text_font="#font_ps_hero"/>
+      <text_body bind_text="print_start_time_left"
+                 style_text_color="#text_muted" flex_grow="1" long_mode="dots" style_text_align="right"/>
+    </lv_obj>
+    <progress_bar name="print_progress" bind_value="print_progress_display">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
+    </progress_bar>
+    <!-- Its sweep runs at every value, 0 included, because the value is an
+         estimate that can stall through a long phase. -->
+    <progress_bar_estimate name="preparing_progress_bar" bind_value="preparing_progress">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="0"/>
+    </progress_bar_estimate>
+    <!-- Elapsed, and the clock time of the finish. -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
+      <icon src="hourglass" size="xs" variant="secondary" clickable="false"/>
+      <text_body name="print_elapsed" bind_text="print_elapsed"/>
+      <text_body name="print_eta"
+                 bind_text="print_eta" style_text_color="#text_muted" flex_grow="1" long_mode="dots"
+                 style_text_align="right"/>
+    </lv_obj>
+    <print_status_job_stats width="100%">
+      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
+    </print_status_job_stats>
+    <print_status_filament_row width="100%"/>
+    <print_status_up_next name="up_next_row" width="100%"/>
+  </view>
+</component>

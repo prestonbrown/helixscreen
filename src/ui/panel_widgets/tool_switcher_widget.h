@@ -43,53 +43,18 @@ class ToolSwitcherWidget : public PanelWidget {
     /// Whether the content box (the tile less space_md each side) holds one
     /// touch target on both axes: the face every smaller box would fall to.
     bool fits_at(int width_px, int height_px) const override;
-    bool has_overlay_open() const override {
-        return picker_.is_visible();
-    }
+    /// Whether the picker this tile raised is open.
+    bool has_overlay_open() const override;
 
   private:
     friend class ToolSwitcherTestAccess;
 
-    /// Every head as a grid of the rail's own cells (fit_tool_picker_grid()),
-    /// with Park and the feeder under it, raised by a tap on the face or the
-    /// mounted segment. Picking a head issues the change; a tap outside it
-    /// chooses nothing.
-    class ToolPicker : public helix::ui::ContextMenu {
-        HELIX_CONTEXT_MENU_KIND(ToolPicker)
-
-      public:
-        explicit ToolPicker(ToolSwitcherWidget& owner) : owner_(owner) {}
-        ToolSwitcherWidget& owner() {
-            return owner_;
-        }
-
-      protected:
-        const char* xml_component_name() const override {
-            return "tool_switcher_picker";
-        }
-        void on_created(lv_obj_t* backdrop) override;
-
-      private:
-        ToolSwitcherWidget& owner_;
-    };
-
-    /// One head's extruder temperature, observed for the segment and detail text.
-    struct HeadTemp {
-        // The lifetime is declared before the observer so the observer is
-        // destroyed first, while the subject it removes itself from still lives.
-        SubjectLifetime lifetime;
-        ObserverGuard observer;
-        int deci = 0;
-        bool known = false;
-    };
-
     PrinterState& printer_state_;
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
-    ToolPicker picker_{*this};
 
     // Physical size the widget was last granted, cached for observer paths
-    // (tools_observer_, on_active_tool_changed()) that fire later and
+    // (the heads listener, on_active_tool_changed()) that fire later and
     // need to re-decide without a size to read.
     int current_width_px_ = 0;
     int current_height_px_ = 0;
@@ -97,24 +62,12 @@ class ToolSwitcherWidget : public PanelWidget {
     /// The verdict last published, and the label form the segments read in.
     ToolSwitcherLayout layout_{};
     ui::ToolLabelForm label_form_ = ui::ToolLabelForm::Full;
-    /// The form the open picker's cells read in.
-    ui::ToolLabelForm picker_form_ = ui::ToolLabelForm::Full;
-
-    /// Indexed by head (ToolState::physical_heads()), sized to the head
-    /// count; rebuilt when the tool list changes.
-    std::vector<HeadTemp> head_temps_;
-    /// Each head's material as publish_heads() last read it from its slot, so
-    /// a temperature change rewrites a detail line without reading the slots.
-    std::vector<std::string> head_materials_;
-
-    ObserverGuard active_tool_observer_;
-    ObserverGuard tools_observer_;
+    /// This tile's listener on ui::ToolHeadsModel, 0 while detached.
+    int heads_listener_ = 0;
+    /// Re-publishes the head readings on a °C/°F switch.
     ObserverGuard temp_unit_observer_;
     ObserverGuard print_state_observer_;
     ObserverGuard spool_latch_observer_;
-    ObserverGuard slots_observer_;
-    ObserverGuard extruders_observer_;
-    ObserverGuard ams_action_observer_;
 
     // MUST stay declared LAST: reverse-declaration destruction makes this the
     // first member torn down, invalidating every captured token before any
@@ -128,6 +81,9 @@ class ToolSwitcherWidget : public PanelWidget {
     static ToolSwitcherWidget* from_event(lv_event_t* e);
 
     void show_tool_picker();
+    /// Close the picker when this tile raised it.
+    void hide_mount_picker();
+    void forget_heads_listener();
     /// Mount head @p head_index (an index into ToolState::physical_heads())
     /// by its own tool. Every segment and picker index is a head index: the
     /// switcher draws physical heads, and the filament panel chooses lanes.
@@ -156,14 +112,8 @@ class ToolSwitcherWidget : public PanelWidget {
     /// it is mounted, and whether the second lines still fit. Labels, colours
     /// and materials keep what publish_heads() last published.
     void publish_head_temp(int i);
-    /// Head @p i's two lines in a picker cell: in the Full form its name over
-    /// its G-code name and temperature, in the Code form its G-code name over
-    /// its temperature.
-    std::pair<std::string, std::string> picker_lines(int i, ui::ToolLabelForm form) const;
     /// Whether every cell shown holds its second line.
     void publish_two_line();
-    /// Observe each head's extruder temperature; the set follows the tools.
-    void rebuild_head_temps();
     /// Head @p i's temperature, empty while unknown.
     std::string head_temp_text(int i) const;
     /// Whether head @p i reads hot.
@@ -215,9 +165,6 @@ class ToolSwitcherWidget : public PanelWidget {
     /// Publish actions_offered() for the rail's action cells and the picker's
     /// footer.
     void refresh_action_support();
-    /// Whether a changer whose heads dock reports a fault, which marks every
-    /// head but the mounted one.
-    static bool changer_fault();
     /// Whether a job holding the machine or spools on the bed refuse an action
     /// that moves it, telling the user so when they do. @p technical is the
     /// log text, @p while_printing the user's copy for the print case.

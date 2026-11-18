@@ -496,6 +496,25 @@ int ToolState::index_for_tool_number(int number) const {
     return it == tool_numbers_.end() ? -1 : static_cast<int>(it - tool_numbers_.begin());
 }
 
+std::string ToolState::own_part_fan_for_extruder(const std::string& extruder) const {
+    std::string first, found;
+    bool distinct = false;
+    for (const auto& tool : tools_) {
+        if (!tool.fan_name || tool.fan_name->empty()) {
+            continue;
+        }
+        if (first.empty()) {
+            first = *tool.fan_name;
+        } else if (*tool.fan_name != first) {
+            distinct = true;
+        }
+        if (found.empty() && tool.extruder_name && *tool.extruder_name == extruder) {
+            found = *tool.fan_name;
+        }
+    }
+    return distinct ? found : std::string();
+}
+
 void ToolState::update_from_status(const nlohmann::json& status) {
     if (tools_.empty()) {
         return;

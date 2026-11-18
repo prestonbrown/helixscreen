@@ -30,6 +30,11 @@
 #include "setting_group.h"
 
 // XML registration
+#include "ui_overlay_temp_graph.h"
+
+#include "target_tool.h"
+#include "tool_heads_model.h"
+#include "tool_picker.h"
 #include "xml_registration.h"
 
 // Subject initialization
@@ -187,6 +192,14 @@ void LVGLUITestFixture::init_subjects() {
     // Emergency stop overlay subjects (recovery dialog bindings)
     EmergencyStopOverlay::instance().init_subjects();
 
+    // The target tool, the per-head data and the tool picker the temperature
+    // and filament surfaces bind, as SubjectInitializer starts them. A fresh
+    // selection per case: none survives from an earlier one.
+    helix::ui::TargetTool::instance().deinit_subjects();
+    helix::ui::TargetTool::instance().attach(get_printer_state());
+    helix::ui::ToolHeadsModel::instance().attach(get_printer_state());
+    helix::ui::ToolPicker::init_subjects();
+
     // Create disconnected client and API for tests that need them
     m_client = std::make_unique<MoonrakerClient>();
     m_api = std::make_unique<MoonrakerAPI>(*m_client, get_printer_state());
@@ -204,6 +217,9 @@ void LVGLUITestFixture::register_event_callbacks() {
 
     // Notification callbacks (for status icons)
     helix::ui::notification_register_callbacks();
+
+    // Heater rows open the temperature graph
+    helix::ui::register_heater_row_callbacks();
 
     // Calibration panel callbacks
     ui_panel_screws_tilt_register_callbacks();
@@ -249,6 +265,8 @@ void LVGLUITestFixture::cleanup() {
         // HelixTestFixture::reset_all() can no longer clear the fan list or end
         // a print this case started, and the next case inherits both.
         reset_printer_state();
+        helix::ui::ToolHeadsModel::instance().deinit_subjects();
+        helix::ui::TargetTool::instance().deinit_subjects();
         get_printer_state().deinit_subjects();
 
         // Core singleton subjects - must be deinitialized to clear observers

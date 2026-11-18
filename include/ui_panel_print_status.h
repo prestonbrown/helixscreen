@@ -397,6 +397,11 @@ class PrintStatusPanel : public OverlayBase {
     helix::Subject arrangement_subject_{};
     helix::Subject strip_stacked_subject_{};
     helix::Subject checklist_compact_subject_{};
+    // Ultrawide column widths (PrintStatusLayoutFitter).
+    helix::Subject uw_preview_w_subject_{};
+    helix::Subject uw_printer_w_subject_{};
+    helix::Subject uw_readouts_w_subject_{};
+    helix::Subject uw_actions_w_subject_{};
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;

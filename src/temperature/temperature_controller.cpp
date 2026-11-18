@@ -312,16 +312,6 @@ void TemperatureController::send_gcode_target(const std::string& klipper_name, d
                           /*caller_surfaces_errors=*/opts.toast);
 }
 
-void TemperatureController::apply_material(double nozzle, double bed, double chamber,
-                                           SendOptions opts) {
-    set_target(HeaterType::Nozzle, nozzle, opts);
-    set_target(HeaterType::Bed, bed, opts);
-    const std::string chamber_name = resolved_name(HeaterType::Chamber);
-    if (chamber > 0 && !chamber_name.empty()) {
-        set_target(chamber_name, chamber, opts);
-    }
-}
-
 void TemperatureController::set_chamber_actions(std::string reset_gcode, std::string filter_fan_pin,
                                                 double conservative_max,
                                                 std::string set_target_method) {

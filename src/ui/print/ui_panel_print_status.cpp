@@ -247,7 +247,9 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 [this]() { return is_active_; }}),
       progress_text_(printer_state, lifecycle_),
       layout_fitter_(get_name(),
-                     {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_},
+                     {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
+                      &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
+                      &uw_actions_w_subject_},
                      {[this]() -> lv_obj_t* { return overlay_root_; },
                       [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() -> lv_obj_t* { return overlay_root_; },
@@ -627,6 +629,10 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(arrangement_subject_, 0, "ps_arrangement", subjects_);
     UI_MANAGED_SUBJECT_INT(strip_stacked_subject_, 0, "ps_strip_stacked", subjects_);
     UI_MANAGED_SUBJECT_INT(checklist_compact_subject_, 0, "ps_checklist_compact", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_preview_w_subject_, 0, "ps_uw_preview_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_printer_w_subject_, 0, "ps_uw_printer_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_readouts_w_subject_, 0, "ps_uw_readouts_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_actions_w_subject_, 0, "ps_uw_actions_w", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.

@@ -28,6 +28,7 @@
 #include "printer_discovery.h"
 #include "temperature_service.h"
 #include "thermal_rate_model.h"
+#include "tool_fan_names.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -599,8 +600,7 @@ std::string PIDCalibrationPanel::mpc_cooling_fan() const {
     if (fan.empty() || !api_) {
         return "";
     }
-    const auto& fans = api_->hardware().fans();
-    return std::find(fans.begin(), fans.end(), fan) != fans.end() ? fan : "";
+    return helix::tool_fans::object_for(fan, api_->hardware().fans());
 }
 
 void PIDCalibrationPanel::update_fan_section_visibility() {

@@ -11,6 +11,8 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
+#include "printer_temperature_state.h"
+#include "settings_manager.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
 
@@ -93,16 +95,33 @@ std::optional<SlotTemps> slot_temps(int slot) {
     if (!slot_valid(slot)) {
         return std::nullopt;
     }
+    // The chamber always follows the slot's material: a branded product
+    // carries no chamber temperature of its own.
+    auto mat = filament::find_material(name(slot));
+    const int chamber = mat ? mat->chamber_temp_c : 0;
     auto branded = MaterialSettingsManager::instance().get_preset_filament(slot);
     if (branded && branded->is_branded()) {
         // Exact branded product temps (whole °C ints, same unit as MaterialInfo).
-        return SlotTemps{branded->nozzle, branded->bed};
+        return SlotTemps{branded->nozzle, branded->bed, chamber};
     }
-    auto mat = filament::find_material(name(slot));
     if (!mat) {
         return std::nullopt;
     }
-    return SlotTemps{mat->nozzle_recommended(), mat->bed_temp};
+    return SlotTemps{mat->nozzle_recommended(), mat->bed_temp, chamber};
+}
+
+HeaterTargets heater_targets(int bed, int chamber) {
+    if (!SettingsManager::instance().get_material_presets_heat_bed_and_chamber()) {
+        return {};
+    }
+    return {bed, chamber > 0 ? std::optional<int>{chamber} : std::nullopt};
+}
+
+int chamber_request(int material_chamber_c, const PrinterTemperatureState& temps) {
+    if (temps.chamber_heater_name().empty() || material_chamber_c <= 0) {
+        return 0;
+    }
+    return material_chamber_c;
 }
 
 std::string temp_label(int slot) {

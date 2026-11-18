@@ -51,6 +51,7 @@
 #include "standing_print_options.h"
 #include "system/crash_error_log_sink.h"
 #include "system_settings_manager.h"
+#include "target_tool.h"
 #include "temperature_sensor_manager.h"
 #include "test_helpers/ams_state_test_access.h"
 #include "test_helpers/config_test_access.h"
@@ -61,6 +62,7 @@
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
 #include "thermal_rate_model.h"
+#include "tool_heads_model.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -370,6 +372,10 @@ void HelixTestFixture::reset_all() {
     // Nulled, its `if (printer_state_ && ...)` guard makes that callback a no-op.
     EmergencyStopOverlay& estop = EmergencyStopOverlay::instance();
     EmergencyStopOverlayTestAccess::reset_dependencies(estop);
+    // The target tool and the per-head model hold the PrinterState a surface
+    // attached them to, and the target's pick: neither may reach the next case.
+    helix::ui::ToolHeadsModel::instance().deinit_subjects();
+    helix::ui::TargetTool::instance().deinit_subjects();
 
     // The same singleton also carries two wall-clock deadlines — the suppression
     // window and the user-restart window — and the reason a window is holding

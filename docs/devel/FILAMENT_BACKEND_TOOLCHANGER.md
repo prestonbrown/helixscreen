@@ -36,7 +36,8 @@ Swap commands follow from the same fact. `SELECT_TOOL`/`UNSELECT_TOOL` exist onl
 klipper-toolchanger does; without it the swap is plain `T<n>`, which Klipper maps to
 `ACTIVATE_EXTRUDER` and a changer extra overrides with its own. `toolchanger_addon::
 resolve_tool_commands()` answers this, and the provider table only has to name what
-differs - the unmount, which a machine whose tools are plain extruders does not have.
+differs - the unmount, which a machine whose tools are plain extruders does not have, or a
+`SELECT_TOOL` that takes other arguments than klipper-toolchanger's (Reforge, below).
 
 ### Key Differences from Filament Systems
 
@@ -164,38 +165,13 @@ is what supplies everything below.
 (`src/printer/toolchanger_addon.cpp#zmod_c5_detect`, exported as `zmod_c5_present`). Both
 halves are required: the AD5X Z-Mod also publishes `zmod_color` but has no carriage grab
 buttons, so it cannot match, and `zmod_color` alone would not say which machine this is.
-Reforge, the other C5 Pro firmware, needs none of this and matches no row there: its
-`ff_toolchange` extra publishes klipper-toolchanger's `toolchanger` and `tool T<n>` objects.
-Reforge's master runs AFC over that changer (`ff-afc.cfg`: one `AFC_Toolchanger Tools` unit,
-a standalone lane `e<n>` per head), so there the AFC backend takes the heads instead, as an MMU
-wins over the tool changer ([Detection](#detection) above); its tagged releases run no AFC and
-stay on this backend. The `creator5_afc` mock persona models the first, `creator5` the second. Its tool offsets have their own row in `helix::tool_offsets`;
-see [Reforge](#reforge) under automatic tool offset calibration.
-
-Z-Mod 1.7.4 additionally publishes an **AFC shim** (`zmod_afclite` registering `AFC`,
-`AFC_lane E0..E3`, `AFC_unit C5`) so Fluidd and Mainsail draw their AFC panel for the C5's
-heads. Discovery keys on the bare `AFC` object, so `PrinterDiscovery::parse_objects`
-yields that claim to this row whenever the shim's own object and the changer fingerprint
-coexist — the same carve-out shape as the PAXX AFC-Lite rule, and for the same reason:
-the shim reports no extruders and no hubs, so an AFC backend would infer a hub topology
-for heads that are each their own path, and its op macros (`AFC_RESET`,
-`AFC_LANE_RESET`, `SET_SPOOL_ID`, ...) do not exist on this firmware.
-
-Current Z-Mod replaces the shim with a **built-in AFC emulation**, switched on by the mod
-setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head N-1, and
-no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
-`zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
-
-Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`),
-`print_start_params()` answers the print's map as `printer.print.start`'s `tools`, each head
-as its 1-based slot (`helix::print_start`), so Z-Mod's colour prompt does not open for a
-print HelixScreen starts. Z-Mod passes `tools` on to `SET_ZCOLOR` as `T<i>=<slot>` whatever
-its `AFC` setting, so this holds with the built-in AFC on or off. The remap strategy is then
-Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and Print
-carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>` itself
-and a rewrite would map every tool twice. A Creator 5 with the afclite plugin
-(`toolchanger_addon::firmware_picks_lanes_at_print()`) opens that plugin's own lane picker at
-print start, so it keeps the GcodeRewrite remap and is sent no map.
+Reforge, the other C5 Pro firmware, has its own provider row, described in
+[Reforge on the Creator 5 Pro](#reforge-on-the-creator-5-pro) below. Reforge's master runs AFC
+over that changer (`ff-afc.cfg`: one `AFC_Toolchanger Tools` unit, a standalone lane `e<n>` per
+head), so there the AFC backend takes the heads instead, as an MMU wins over the tool changer
+([Detection](#detection) above); its tagged releases run no AFC and stay on this backend. The
+`creator5_afc` mock persona models the first, `creator5` the second. Its tool offsets have their
+own row in `helix::tool_offsets`; see [Reforge](#reforge) under automatic tool offset calibration.
 
 ### Tool reading
 
@@ -376,6 +352,53 @@ FirmwareManaged / ReadOnly, provider `"zmod"` (`get_endless_spool_capabilities`,
 this provider row). Every other tool changer keeps the base default (Unsupported).
 
 Part of the filament system - see [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md) for the shared architecture, slot metadata, and endless spool model.
+
+## Reforge on the Creator 5 Pro
+
+Reforge ([Klipper4FlashForge/firmware](https://github.com/Klipper4FlashForge/firmware))
+swaps heads with its own `[ff_toolchange]` extra, which publishes `toolchanger` and
+`tool T<n>` as read-only views shaped like klipper-toolchanger's, so discovery sees a plain
+tool changer. Its `SELECT_TOOL` and `UNSELECT_TOOL` are not klipper-toolchanger's, though:
+Reforge's argument parser takes a tool number only (`T=<n>` or `TOOL=T<n>`) and rejects
+the quoted object name the table above sends with "TOOL must be T0..T3"
+(prestonbrown/helixscreen#2027). The Reforge row in
+`src/printer/toolchanger_addon.cpp#providers`, keyed on the `ff_toolchange` object, sends:
+
+| Action | Command |
+|--------|---------|
+| Mount | `SELECT_TOOL T=<n>` (the physical head number; Reforge has no `ASSIGN_TOOL`, so there is no remap for `T=` to follow) |
+| Unmount | `UNSELECT_TOOL` (bare: docks whatever is mounted) |
+
+The row reads no sensor object of its own: `toolchanger.tool_number` is already derived
+from Reforge's dock and grab sensors. Reforge has no `INITIALIZE_TOOLCHANGER`, so the
+backend offers no reset (`initialize_available` is false), and a tool remap is refused as
+on Z-Mod. A Reforge build that runs AFC over its changer publishes AFC objects and is
+driven by the AFC backend, which this row does not touch.
+
+Z-Mod 1.7.4 additionally publishes an **AFC shim** (`zmod_afclite` registering `AFC`,
+`AFC_lane E0..E3`, `AFC_unit C5`) so Fluidd and Mainsail draw their AFC panel for the C5's
+heads. Discovery keys on the bare `AFC` object, so `PrinterDiscovery::parse_objects`
+yields that claim to this row whenever the shim's own object and the changer fingerprint
+coexist — the same carve-out shape as the PAXX AFC-Lite rule, and for the same reason:
+the shim reports no extruders and no hubs, so an AFC backend would infer a hub topology
+for heads that are each their own path, and its op macros (`AFC_RESET`,
+`AFC_LANE_RESET`, `SET_SPOOL_ID`, ...) do not exist on this firmware.
+
+Current Z-Mod replaces the shim with a **built-in AFC emulation**, switched on by the mod
+setting `AFC=1`: `AFC`, `AFC_IFS <unit>` and `AFC_lane lane1..4`, lane N on head N-1, and
+no `zmod_afclite` object. `PrinterDiscovery::has_zmod_afc()` names it (`AFC` beside
+`zmod_color`, no afclite object), and the same carve-out yields its claim to this row.
+
+Where Z-Mod's Moonraker reads `tools` (`helix::print_start::takes_tool_slots()`),
+`print_start_params()` answers the print's map as `printer.print.start`'s `tools`, each head
+as its 1-based slot (`helix::print_start`), so Z-Mod's colour prompt does not open for a
+print HelixScreen starts. Z-Mod passes `tools` on to `SET_ZCOLOR` as `T<i>=<slot>` whatever
+its `AFC` setting, so this holds with the built-in AFC on or off. The remap strategy is then
+Native, not GcodeRewrite: a pick is stored locally (Z-Mod has no `ASSIGN_TOOL`) and Print
+carries it in `tools`, and the job is never rewritten, since Z-Mod routes each `T<n>` itself
+and a rewrite would map every tool twice. A Creator 5 with the afclite plugin
+(`toolchanger_addon::firmware_picks_lanes_at_print()`) opens that plugin's own lane picker at
+print start, so it keeps the GcodeRewrite remap and is sent no map.
 
 ## Automatic tool offset calibration
 

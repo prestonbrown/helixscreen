@@ -180,6 +180,22 @@ double MoonrakerClientMock::secondary_extruder_temp(int index) const {
     return secondary_extruders_[static_cast<size_t>(index)].temperature;
 }
 
+json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
+    json out = json::object();
+    if (!has_toolchanger_tool_fans()) {
+        return out;
+    }
+    const int mounted = toolchanger_tool_.load();
+    for (int t = 0; t < 4; ++t) {
+        const double temp = t == 0 ? extruder_temp_.load() : secondary_extruder_temp(t);
+        out["fan_generic " + mock_internal::toolchanger_part_fan(t)] = {
+            {"speed", t == mounted ? part_speed : 0.0}};
+        out["heater_fan " + mock_internal::toolchanger_hotend_fan(t)] = {
+            {"speed", temp > 50.0 ? mock_internal::toolchanger_hotend_fan_speed(t) : 0.0}};
+    }
+    return out;
+}
+
 double MoonrakerClientMock::secondary_extruder_target(int index) const {
     std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
     if (index < 1 || index >= static_cast<int>(secondary_extruders_.size())) {
@@ -822,12 +838,15 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 status_obj[fan_name] = {{"speed", hotend_fan_speed}};
             }
         }
+        status_obj.merge_patch(toolchanger_fan_status(fan / 255.0));
 
         // Override fan speeds with explicitly-set values from fan_speeds_ map
         {
             std::lock_guard<std::mutex> lock(fan_mutex_);
             for (const auto& [name, spd] : fan_speeds_) {
-                if (name == "fan") {
+                if (name == "fan" && has_toolchanger_tool_fans()) {
+                    status_obj.merge_patch(toolchanger_fan_status(spd));
+                } else if (name == "fan") {
                     status_obj["fan"] = mock_internal::part_fan_status(spd);
                 } else {
                     status_obj[name] = {{"speed", spd}};

@@ -44,6 +44,7 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/nozzle_layout.h"
 #include "src/ui/panel_widgets/nozzle_temps_widget.h"
+#include "target_tool.h"
 #include "tool_state.h"
 
 #include <array>
@@ -421,13 +422,15 @@ TEST_CASE_METHOD(NozzleTempsFixture,
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE(ToolState::instance().active_tool_index() == 0); // T0 (extruder) mounted
 
-        auto& overlay = get_global_temp_graph_overlay();
+        // The row's tool becomes the shared target the graph's card shows.
+        auto& target = helix::ui::TargetTool::instance();
+        target.attach(state());
         lv_obj_send_event(lv_obj_get_child(container, 1), LV_EVENT_CLICKED, nullptr);
-        CHECK(overlay.picked_extruder() == "extruder1");
+        CHECK(target.tool() == 1);
 
-        // The mounted tool's row opens the graph following the mounted tool.
         lv_obj_send_event(lv_obj_get_child(container, 0), LV_EVENT_CLICKED, nullptr);
-        CHECK(overlay.picked_extruder().empty());
+        CHECK(target.tool() == 0);
+        CHECK(target.mounted());
     }
     helix::ui::UpdateQueue::instance().drain();
     NavigationManager::instance().shutdown();

@@ -22,28 +22,30 @@ Temperatures appear in three places:
 
 ## The Temperature Card
 
-The **Temperature** card on the Controls panel has a row for the **Nozzle**, the **Bed** and, when your printer has a chamber heater or a chamber sensor, the **Chamber**. Each row shows the current and target temperature.
+The **Temperature** card on the Controls panel has a row for the **Nozzle**, the **Bed** and, when your printer has a chamber heater or a chamber sensor, the **Chamber**. Each row reads like **Nozzle  205°C / 210°**: the current temperature in large text, colored red while the heater climbs, green at its target and blue while it cools, followed by the target in smaller text. A heater with no target reads **/ Off**.
 
-- **Tap a row** to open the [temperature graph screen](#temperature-graph-screen) for that heater.
-- **Tap the pencil icon** on a row to type a new target on a keypad. The keypad stops at your printer's maximum for that heater and tells you what the limit is when you reach it.
-- **The status line** under a row (hidden on the smallest screens and in portrait) shows how hard the heater is working as a percentage of its power, followed by an icon: a flame while it heats, a check mark when it is at its target, a snowflake while it cools, and nothing while it is off. On the chamber, a circled **A** means the printer is holding its own standing temperature (see [Heating, Maintaining and Auto](#heating-maintaining-and-auto)). A chamber with only a sensor says **Monitoring**.
+- **Tap a row** to open the [temperature graph screen](#temperature-graph-screen) for that heater, where you set its target with the presets or **Custom...**. On a multi-head printer the nozzle row opens the graph on the tool the card shows.
+- **The status line** under a row (hidden on the smallest screens and in portrait) names what the heater is doing (**Heating**, **At target** or **Cooling**), then how hard it is working as a percentage of its power, then an icon: a flame while it heats, a check mark at its target, a snowflake while it cools. On the chamber, a circled **A** means the printer is holding its own standing temperature (see [Heating, Maintaining and Auto](#heating-maintaining-and-auto)). A chamber with only a sensor says **Monitoring**.
 - **"N more sensors"** appears under the rows when your printer has other temperature sensors. Tap it to open the sensor list.
+
+The Filament panel's Temperature card, on a printer with one toolhead, uses the same rows.
 
 ### Choosing the Nozzle on a Multi-Head Printer
 
-On a tool changer, an IDEX printer or any printer with more than one hotend, the word "Nozzle" in the card's first row becomes a drop-down list of your tools (**T0**, **T1** and so on).
+On a tool changer, an IDEX printer or any printer with more than one hotend, the card's header has a small tool button at the right, where the Position card has Motors Off. It shows the tool the card is aimed at (**Tool 2**, or the nozzle icon and **2** on smaller screens), and the nozzle row reads **Nozzle 2** for that tool.
 
-- Pick a tool to make the row show **that tool's** nozzle, current and target, and to make the pencil icon set **that tool's** target. A tool that is not mounted can be pre-heated this way without changing tools.
-- The tool you pick stays selected when you leave Controls and come back.
-- A tool change from anywhere (the Tool Switcher, a macro, a print) moves the row to the tool that is now mounted. An empty carriage keeps your pick.
-- Several filament slots feeding one hotend, as on an AMS, do not count as several heads. The drop-down appears only when there are physically several toolheads.
+- Tap the tool button to open the tool picker, the same grid of heads the Home screen's tool switcher opens. The tool the card is aimed at is highlighted. Tap a head to aim the card at it: the nozzle row shows that tool's temperature and target, and tapping the row opens the graph on it. Picking a head here never changes tools, so a docked tool can be pre-heated where it sits. The picker has no **Park** or **Open feeder** button here, because it only aims the card.
+- The Controls card, the Filament panel and the temperature graph screen share one aimed tool. Picking a tool on any of them aims the other two at it as well.
+- A tool change from anywhere (the tool switcher, a macro, a print) moves the aim to the tool that is now mounted. An empty carriage keeps your pick.
+- Several filament slots feeding one hotend, as on an AMS, do not count as several heads. The tool button appears only when there are physically several toolheads.
+- In portrait the card's header has no room for the **TEMPERATURE** title beside the tool button, so it shows only the thermometer icon and the button.
 
-On a single-nozzle printer the row simply says **Nozzle** and there is no drop-down.
+On a single-nozzle printer the row simply says **Nozzle** and the header has no tool button.
 
 ![The Temperature card on a multi-head printer](../../images/user/controls-nozzle-chooser.png)
 
-1. The tool drop-down.
-2. The pencil icon, which sets that tool's target temperature.
+1. The tool button, which opens the tool picker.
+2. The nozzle row for the tool the card is aimed at.
 
 ---
 
@@ -89,20 +91,21 @@ If a chamber has a sensor but no heater, the column shows the current temperatur
 
 ### Picking a Nozzle on the Graph Screen
 
-When the printer has more than one extruder, the nozzle controls start with a row of small numbered buttons, one per nozzle. Tap one to aim the presets and **Custom...** at that nozzle. The nozzle card above them shows that nozzle's temperature and status.
+When the printer has more than one toolhead, the nozzle controls start with a row of heads, one cell per head with its filament color along the bottom, the same cells as the Home screen's tool switcher. The highlighted cell is the tool the screen is aimed at. Tap another to aim the presets and **Custom...** at that nozzle. The nozzle card above them shows that nozzle's temperature and status.
 
 - Picking a nozzle here does not change which tool is mounted. It only chooses which heater you are setting.
-- The pick is remembered when you close the screen and open it again, so a pre-heat on a docked tool is where you left it. It is dropped when a tool change happens, even one that happened while the screen was closed, and the card then follows the mounted tool.
+- The screen shares its aimed tool with the Controls Temperature card and the Filament panel, so a pick here shows there too, and the other way round. A tool change moves the aim to the mounted tool.
 - A preset or custom value you apply goes to the nozzle you picked, even if you opened the keypad from this screen and it stacks on top of it.
+- The cells name each head the way the rest of the screen does: **Tool 2** where they have room, else **2**.
 
 ![The nozzle selector row on the temperature graph screen](../../images/user/temp-nozzle-picker.png)
 
-1. The row of nozzle buttons.
+1. The row of heads.
 2. The readout card for the selected nozzle.
 
 ### The Mini Graph on the Filament Screen
 
-The Filament screen has its own small graph. It plots the nozzle that the Filament screen is aimed at, the one chosen with the tool chooser there. When that is the mounted tool, the graph follows the mounted tool through every tool change.
+The Filament screen has its own small graph. It plots the nozzle that the Filament screen is aimed at, the one chosen in its Operations card. When that is the mounted tool, the graph follows the mounted tool through every tool change.
 
 ---
 
@@ -120,6 +123,7 @@ A preset sets a heater's target in one tap. There are four preset slots, and eac
 | TPU | 225°C | 50°C |
 
   If you change a material's temperatures in **Settings > Printing > Material Temperatures** (see [Material Temperatures](settings/printing.md#material-temperatures)), its presets change with it. A preset above the heater's configured maximum is hidden on the graph screen, so a printer limited to 250°C shows no ABS/ASA preset. A target above the maximum that does reach the printer is refused with "Temperature N°C is out of range", never lowered to the limit.
+- **A material preset heats the bed too.** On the Filament panel, the Home screen's Preheat widget and the nozzle presets of the graph screen, a material preset sets the bed to the material's bed temperature along with the nozzle, on every printer. On a printer with a chamber heater, a preset also sets the chamber when the material has a chamber temperature. To have presets heat only the nozzle, turn off **Settings > Printing > Material presets heat the bed and chamber** (see [Printing settings](settings/printing.md)). With it off the bed and the chamber keep whatever targets they had. The graph screen's bed presets always set the bed.
 - **Chamber** presets do not depend on the material. They are fixed steps by position: **40°C**, **50°C** and **60°C**. A step above the chamber heater's configured maximum is hidden.
 
 The graph screen has room for **Off** and the first three slots. The Filament screen shows all four.

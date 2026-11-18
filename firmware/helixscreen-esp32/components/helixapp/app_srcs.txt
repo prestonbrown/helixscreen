@@ -158,6 +158,7 @@ src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
 src/printer/belt_cutter_calibration.cpp
 src/printer/fault_path_position.cpp
+src/printer/fan_heaters.cpp
 src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ace_status_parse.cpp
@@ -533,6 +534,7 @@ src/ui/settings/settings_root_status.cpp
 src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
+src/ui/filament/target_tool.cpp
 src/ui/filament/target_tool_selection.cpp
 src/ui/filament/ui_toolhead_view.cpp
 src/ui/controls/temp_graph_controller.cpp
@@ -545,6 +547,8 @@ src/ui/controls/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
 src/ui/theme/theme_manager_new.cpp
 src/ui/filament/tool_change_request.cpp
+src/ui/filament/tool_heads_model.cpp
+src/ui/filament/tool_picker.cpp
 src/platform/input/touch_calibration.cpp
 src/ui/calibration/touch_calibration_layout.cpp
 src/ui/calibration/touch_calibration_controller.cpp

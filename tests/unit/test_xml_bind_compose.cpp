@@ -17,7 +17,8 @@
 //
 //     python3 scripts/scan_double_binds.py --emit-cpp
 //
-// The count assertion at the bottom is what notices that you did not.
+// qc_double_binds (scripts/scan_double_binds.py --check) fails a commit that
+// leaves the table behind ui_xml/.
 
 #include "ui_obj_flags.h"
 
@@ -31,6 +32,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -48,6 +50,12 @@ struct GroupSubject {
     int quiet;
 };
 
+/// A subject value one of the widget's <if> branches is built under.
+struct BranchValue {
+    const char* name;
+    int value;
+};
+
 /// One binding's demand: which of the group's subjects it reads, and a value of
 /// that subject which makes this binding ask for the property.
 struct GroupHold {
@@ -57,7 +65,16 @@ struct GroupHold {
 
 struct BindGroup {
     const char* component;
+    /// The widget's name, or "<view>" for bindings on the component's own root.
     const char* widget;
+    /// Which of the component's widgets named `widget` this is, from 0 in
+    /// document order among those built with it: a layout per breakpoint can
+    /// repeat a name.
+    int nth;
+    /// Subject values that select the widget's <if> branches; they have to hold
+    /// when the component is created, since the engine builds one branch only.
+    BranchValue build[4];
+    int build_count;
     BindKind kind;
     const char* bits;
     GroupSubject subjects[4];
@@ -157,6 +174,10 @@ struct InventoryFixture : public XMLTestFixture {
             lv_obj_delete(root);
             root = nullptr;
         }
+        // The branch subjects can be app-wide ones (ui_is_portrait); put them back
+        // for whatever builds next.
+        for (const auto& [subject, value] : restore_)
+            lv_subject_set_int(subject, value);
     }
 
     void set_and_settle(lv_subject_t* subject, int value) {
@@ -199,6 +220,13 @@ struct InventoryFixture : public XMLTestFixture {
         for (int i = 0; i < g.subject_count; ++i)
             resolve(g.subjects[i].name);
 
+        // Choose the widget's branch: <if> reads its condition once, at create.
+        for (int i = 0; i < g.build_count; ++i) {
+            lv_subject_t* subject = resolve(g.build[i].name);
+            restore_.emplace_back(subject, lv_subject_get_int(subject));
+            set_and_settle(subject, g.build[i].value);
+        }
+
         register_base_components();
         const std::string path = std::string("A:ui_xml/") + g.component + ".xml";
         if (lv_xml_register_component_from_file(path.c_str()) != LV_RESULT_OK)
@@ -210,15 +238,35 @@ struct InventoryFixture : public XMLTestFixture {
         if (root == nullptr)
             return nullptr;
 
-        // lv_obj_find_by_name searches descendants only, and a component whose
-        // bindings sit on its own <view> puts them on the root we just built.
-        const char* root_name = lv_obj_get_name(root);
-        if (root_name != nullptr && std::string(root_name) == g.widget)
+        if (std::string(g.widget) == "<view>")
             return root;
-        return lv_obj_find_by_name(root, g.widget);
+        int remaining = g.nth;
+        return find_nth_by_name(root, g.widget, remaining);
+    }
+
+    /// Depth-first in creation order, which is document order, so the count
+    /// matches the scanner's. The root is included: a component whose bindings
+    /// sit on its own named <view> puts them on it.
+    static lv_obj_t* find_nth_by_name(lv_obj_t* obj, const char* name, int& remaining) {
+        const char* own = lv_obj_get_name(obj);
+        if (own != nullptr && std::string(own) == name) {
+            if (remaining == 0)
+                return obj;
+            --remaining;
+        }
+        const uint32_t count = lv_obj_get_child_count(obj);
+        for (uint32_t i = 0; i < count; ++i) {
+            if (lv_obj_t* found = find_nth_by_name(lv_obj_get_child(obj, static_cast<int32_t>(i)),
+                                                   name, remaining))
+                return found;
+        }
+        return nullptr;
     }
 
     lv_obj_t* root = nullptr;
+
+  private:
+    std::vector<std::pair<lv_subject_t*, int>> restore_;
 };
 
 /// Every subject of the group at a value that releases all of its bindings.
@@ -241,7 +289,8 @@ TEST_CASE("every ui_xml widget with two bindings on one property composes them",
 
     for (const BindGroup& g : kDoubleBindWidgets) {
         InventoryFixture fx;
-        INFO("component " << g.component << ", widget " << g.widget << ", " << g.bits);
+        INFO("component " << g.component << ", widget " << g.widget << " #" << g.nth << ", "
+                          << g.bits);
 
         lv_obj_t* obj = fx.build(g);
         if (obj == nullptr) {
@@ -300,15 +349,6 @@ TEST_CASE("every ui_xml widget with two bindings on one property composes them",
                  << std::size(kDoubleBindWidgets) << ";" << unreachable_names);
     REQUIRE(unreachable == 0);
     REQUIRE(checked == static_cast<int>(std::size(kDoubleBindWidgets)));
-}
-
-TEST_CASE("the double-bind inventory is regenerated when ui_xml changes",
-          "[ui][xml][bind_compose][inventory]") {
-    // The table is generated, so it can only go stale silently. Pin the totals it
-    // was generated from: adding a widget with two bindings on one property, or
-    // removing one, moves these and forces a regeneration and a re-run.
-    REQUIRE(std::size(kDoubleBindWidgets) + kUndrivableGroups == static_cast<size_t>(kTotalGroups));
-    REQUIRE(kTotalGroups == 67);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads without reading it",

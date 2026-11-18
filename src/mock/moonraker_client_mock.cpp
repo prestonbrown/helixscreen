@@ -2355,6 +2355,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
                 initial_status[fan_name] = {{"speed", hotend_fan_speed}};
             }
         }
+        initial_status.merge_patch(toolchanger_fan_status(fan / 255.0));
     }
 
     // Override fan speeds with explicitly-set values from fan_speeds_ map

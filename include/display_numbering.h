@@ -104,7 +104,9 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
  * Full is tool_name_label() beside the G-code name: "Tool 1 (T0)" for a
  * generated name, "Left (T0)" for a configured one. Where the two halves are
  * the same text (a generated name in Gcode style) Full is the G-code name once,
- * "T0". Code is the G-code name alone ("T0"), configured name or not.
+ * "T0", and when positions count from zero a generated name's two numbers
+ * agree, so Full is "Tool 0" alone. Code is the G-code name alone ("T0"),
+ * configured name or not.
  *
  * @param noun what the printer calls a tool (active_tool_noun()): "Toolhead 1 (T0)" on a U1
  * @return empty when @p index is negative
