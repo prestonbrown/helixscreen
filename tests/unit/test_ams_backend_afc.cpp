@@ -3251,6 +3251,25 @@ TEST_CASE("AFC still marks a lane that failed outside an error state",
     REQUIRE(helper.has_clearable_fault(1));
 }
 
+TEST_CASE("AFC places a lane's fault at the sensor its later sentence names",
+          "[ams][afc][fault][sensor]") {
+    // The lane's Error status can land a frame before handle_lane_failure's sentence.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::NONE);
+
+    helper.feed_afc_state(
+        {{"message",
+          {{"message", "lane2 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+           {"type", "error"}}}});
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::LOAD);
+    // Another lane's sentence places nothing on this one.
+    CHECK_FALSE(helper.get_slot_info(2).error.has_value());
+}
+
 TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
           "[ams][afc][recovery][stale_fault]") {
     StaleFaultRig rig;
@@ -3284,6 +3303,7 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
                    {"type", "error"}}}});
             REQUIRE(h.get_slot_info(2).error.has_value());
             REQUIRE(h.has_clearable_fault(2));
+            CHECK(h.get_slot_info(2).error->sensor == LaneSensor::LOAD);
         }
         SECTION("a new error naming no lane brings every acknowledged lane back") {
             h.feed_afc_state(
