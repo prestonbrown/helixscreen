@@ -492,7 +492,10 @@ On a verified mod host a bare install is the payload contract, no flags:
   host-side iterates an `/etc/init.d`. An update that replaced a running UI (`mod_payload_restarts_ui`)
   restarts it through that same script, run with `chroot`, since the display is already ours. A fresh
   install leaves the first start to the reboot: the display mode and the disabled stock UI only settle
-  at boot. A chroot start that fails is a warning, and the summary asks for a reboot.
+  at boot. So does an adopted legacy root, which boots from the host's S90, and a root whose binary the
+  chroot cannot reach. Only a `helix-screen` process confirms the start (the init script exits 0 with
+  nothing running when its `DAEMON_DIR` does not resolve); an unconfirmed start is a warning, and the
+  summary asks for a reboot.
 - **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
   git-tracked - dirtying it breaks their OTA. The sanctioned include point is
   `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`
