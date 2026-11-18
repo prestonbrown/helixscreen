@@ -15,7 +15,6 @@
 #include "../../test_helpers/install_tree_fixture.h"
 #include "../../test_helpers/scoped_board.h"
 #include "../../test_helpers/scoped_env.h"
-#include "board_identity.h"
 #include "core/data_root_resolver.h"
 
 #include <cstdlib>
