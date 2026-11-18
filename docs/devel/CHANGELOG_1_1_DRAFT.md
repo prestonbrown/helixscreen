@@ -17,12 +17,15 @@ running log of the betas.
 in 0.99.112 and earlier belongs to the release it shipped in and is deliberately
 absent.
 
-**Keeping it current:** the trunk moves. Last reviewed end to end against `main` at
-`2ad32dc6e`, with the `1.1.0-beta.1` and `1.1.0-beta.2` entries of `CHANGELOG.md` folded in.
-To see what has landed since:
+**Keeping it current:** 1.1.0 ships from `release/1.1`, so that branch is what this file
+tracks now. Reviewed end to end against `main` at `2ad32dc6e`, with the `1.1.0-beta.1` and
+`1.1.0-beta.2` entries of `CHANGELOG.md` folded in, and later the `1.1.0-rc.2`, `rc.3` and
+`rc.4` entries. The `1.1.0-rc.1` entry and the beta entries after `beta.2` are not folded in
+yet. An rc entry that also shipped in a 1.0.x release is left out, since it is not new
+against 1.0. To see what has landed on the release branch since that review:
 
 ```bash
-git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
+git log --no-merges --oneline 2ad32dc6e..origin/release/1.1 --not origin/release/1.0
 ```
 
 ---
@@ -186,7 +189,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Jacobean's K2 Plus firmware is recognised (#2087)** - a K2 Plus running Jacobean's
   Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
   print-start progress that follows its own START_PRINT. A printer type mismatch warning
-  also leaves the screen as soon as the type is changed in Settings.
+  also leaves the screen as soon as the type is changed in Settings. Its CFS works with the
+  commands that firmware has: the spool editor opens on the product the box reports and
+  saves its name, Recover and Clean Nozzle send that firmware's commands, Reset only re-reads
+  the box, and Refresh RFID is not offered. When the firmware is set not to unload after a print, the warning
+  about an empty toolhead before a print stays.
 - **A K2 without a CFS is a single-spool printer (#1904)** - with no CFS attached, the
   multi-filament panels, slot widgets and bypass controls stay out of the way, and the
   Filament panel's Load and Unload run the K2's own external-spool load and its cut and
@@ -292,7 +299,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   The position readout that used to sit in a card beside the jog pad moved into the header,
   so it stays visible on both tabs and the jog pad takes the width the card used (the
   separate "Act:" line is gone; see the swap icon below). An axis that is not homed shows its
-  position greyed out.
+  position grayed out. The Z keys show what they move: a drawing of your printer's toolhead,
+  or of the bed on printers where the bed moves, in place of the words Print Head or Bed.
 - **The Move tab sends the toolhead to named bed positions** - a 3x3 grid laid out like the
   bed seen from above (Rear at the top, Front at the bottom), placed on the print plate
   from the `[bed_mesh]` probing area rather than the full axis travel, so no preset aims
@@ -350,6 +358,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   arrangement) and Axis Rows (a row of minus and plus keys per axis at the jog mode's two
   distances). The arrow layouts' step selector offers every distance you set, so changing
   Turbo to 25 and 100 puts 25 and 100 on it. Home keys stay solid until their axis is homed.
+- **Home bar on the Motion screen** - the Jog tab has a home bar under the jog pad. Where five
+  buttons fit at a comfortable size it shows All, X, Y, XY and Z; on a narrower bar, such as
+  800x480, it shows X, Y, XY and Z, because the jog pad's center button homes all axes.
 
 **Tool changers and multi-toolhead printers**
 
@@ -376,7 +387,26 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Snapmaker U1: load or unload several toolheads at once** - a picker lists every head
   with what it holds, pre-ticks loaded heads for an unload, and says which heads cannot take
   the operation and why. The printer's own batch command does the work, preheating the next
-  head while the current one finishes, and the header names the head being worked on.
+  head while the current one finishes, and the header names the head being worked on. An All
+  row ticks every head, and is hidden when the filament system cannot run that many at once.
+  A row says a head is ready to load only when its sensor sees filament, and empty only when
+  the sensor sees none; a head with no sensor shows just its material.
+- **Snapmaker U1: Auto loading per toolhead** (#1982) - each toolhead's feeder has its own
+  Auto loading switch under Print Behavior in the filament system's settings, so a head fed
+  by a BMCU or by hand can have it off. A head with Auto loading off is left out of the
+  printer's Auto-Replenish, and Load on it opens the hand-load dialog.
+- **One target tool on multi-head printers** - the Controls temperature card, the Filament
+  panel and the temperature graph aim at the same tool, chosen from the Home tool switcher's
+  cells, and picking one never changes tools. A tool change moves them to the mounted tool,
+  and tapping a Nozzle Temps row on the home screen opens the graph on that row's tool. The
+  Filament panel's temperatures, material presets, Cool Down and the preheat before Load,
+  Unload, Extrude and Purge all follow the chosen tool, and a Pick up or Park button beside
+  the heads mounts or parks it. Extrude, Retract and Purge pick up the chosen tool first when
+  it is not on the carriage, with the usual tool change confirmation, and send nothing if the
+  pickup fails. On Controls, the nozzle row heats whichever tool it shows. Every chooser
+  numbers tools the way the rest of the screen does, so a cell and "Nozzle 2" always agree.
+  A printer with one hotend fed by several lanes, such as AFC, Happy Hare or a CFS, gets no
+  tool chooser, since those lanes all feed one nozzle.
 
 **Filament systems**
 
@@ -444,7 +474,7 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Happy Hare: tell the MMU what is really loaded** - Recover in the AMS Management overlay
   opens Recover State: pick the gate that is really selected (or Bypass) and whether filament is
   loaded, or let Happy Hare detect it. Nothing moves; Happy Hare only corrects its tracking, and
-  no tool is remapped. The slot menu gains **Preload** (spool to gate, greyed out during a print
+  no tool is remapped. The slot menu gains **Preload** (spool to gate, grayed out during a print
   or while filament is loaded), the Maintenance section gains **Load Extruder** and **Unload
   Extruder** for filament already at the toolhead (refused during a print), and Accessories
   gains **Refresh Spoolman**.
@@ -505,7 +535,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   price, location, lot and notes sit under More. A save still talking to Spoolman finishes
   even if you leave the screen, and a save that only partly succeeds says which part did
   not: with Spoolman offline, the slot saves and price, location, lot and notes wait in the
-  editor. Which tool a slot feeds is picked from Assigned Tool in the slot's menu.
+  editor. Which tool a slot feeds is picked from Assigned Tool in the slot's menu. With AFC's
+  multiple tool mapping turned on, Assigned Tool is disabled and says that tools are assigned
+  in AFC.
 - **Creality CFS on the K2 Plus community firmware** - on the Kalico-based K2 Plus port and
   its own CFS module, loads use the module's slot selection, and each CFS unit shows its own
   temperature and humidity. With API revision 4 or later of the CFS module, the Filament
@@ -525,6 +557,19 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   the colour grid sits beside or below them depending on the screen. Tap the weight to type
   the grams left. Price, location, lot and notes sit under More. Save is in the header, and
   Back with unsaved changes asks whether to save or discard them.
+- **Material presets heat the bed and chamber** - a material preset sets the bed, and the
+  chamber on a printer with a chamber heater, along with the nozzle, on the Filament panel,
+  the Preheat widget and the temperature graph's nozzle presets. Turn off Settings >
+  Printing > Material presets heat the bed and chamber to heat the nozzle only.
+- **Load filament by hand in one dialog** (#2000) - on a printer with no filament system and
+  no load macro, and on a Snapmaker U1 toolhead with no feeder attached, with Auto loading
+  off, or with filament pushed in past its feeder, Load opens one Load Filament dialog. It
+  heats the nozzle, waits while you push the filament into the extruder (a filament sensor
+  starts the extruder for you, or tap Extrude), extrudes a short length and asks whether new
+  filament is coming out. Tap Extrude more until it does, then Done. Cancel, or closing the
+  dialog any other way, turns the heater off at once. The dialog does not open during a
+  print; during a print, paused or not, a U1 head that loads by hand says why, and you push
+  the filament in yourself.
 
 **Drying filament**
 
@@ -630,6 +675,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   (`switch` / `pausePrint`) and are HelixScreen's from then on. Printers whose firmware
   pauses by itself, like the U1, are never double-paused and always get the response dialog
   (their Pause on Detection row hides; the firmware's pause is not HelixScreen's to govern).
+  On the U1, the Spaghetti Detection switch and the alert's Turn off detection button turn
+  the printer's own detection off and on; the first connect keeps what the printer is set
+  to, and after that HelixScreen sends the setting only when it differs from the printer's.
   The rows appear only on printers with detection hardware. Uninstalling restores the stock
   service.
 - **K2 with the k2-improvements mod** - its print start sequence is recognised, so the
@@ -701,7 +749,7 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   always inside your printer's sweep range. It checks that readings repeat before it advises
   anything, and flags a path that resonates far harder than the other as a mechanical problem
   rather than tension. On Voron 2.4 and Trident it suggests how far to turn, in quarter turns;
-  other printers get direction-only advice. Tune Belts stays greyed out until the printer has
+  other printers get direction-only advice. Tune Belts stays grayed out until the printer has
   reported its sweep range, so it never sends a sweep your machine cannot take. The screen fits
   small, portrait and very wide displays, with the chart beside the controls on a wide one, and
   the chart's axis labels no longer clip. The thresholds are provisional until it has run on
@@ -748,7 +796,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   filament reads Empty, and a read-only tool-state query replaces the stale boot state on
   older Z-Mod builds. All of this is verified against a simulated printer and a field
   debug bundle; the swap-step wording on a live print is the one piece still pending
-  hardware verification.
+  hardware verification. On Reforge without AFC, picking up a head sends the tool number in
+  the form Reforge accepts (#2027), so the Filament panel's Pick up, Load and Unload work.
 - **Snapmaker U1 firmware settings** - the pre-print toggles (bed mesh, input shaper,
   pressure advance, timelapse) read and set the firmware's stored values instead of always
   reading off. Tangle sensitivity, end-of-print unload per toolhead, and manual bed levelling
@@ -859,6 +908,17 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   and the 3D bed mesh in on the spot between your fingers, and a two-finger drag moves the zoomed
   view. Rotate, tap and the exclude-object long-press stay off until every finger has lifted.
   Resistive screens detect one finger and keep one-finger rotate only.
+- **Readable panels on ultrawide screens** - on a screen much wider than it is tall, such as
+  1480x320 or 1920x440, panels and overlays stop at 2.4 times the screen height and stay next
+  to the navigation bar, so a settings list or the jog pad is not stretched across the whole
+  display. Overlay headers still span the screen, with their buttons at the right edge. The
+  home screen, print file list, Print Status, bed mesh and the filament system screens use
+  the full width.
+- **Print Status in columns on ultrawide screens** - at 1480x320 and 1920x440 the model
+  preview is a square at full height, progress, times, layer, filament and the next job sit
+  in a column in larger type, the printer picture keeps its shape with its callouts, a card
+  lists the nozzle, bed and chamber with their targets beside speed, flow and the fans, and
+  Pause, Tune, More and Cancel stack on the right.
 
 **Setup and settings**
 
@@ -869,6 +929,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   Centauri Carbon a browser pairs once with a six-digit code shown on the screen. A small icon on the
   printer shows while someone is driving it remotely. Off by default, and it costs nothing
   while nobody watches. Printers whose firmware already shares the screen keep theirs.
+  The webcam takes the screen's own shape, such as 5:3 on 800x480. Taps work behind a reverse
+  proxy that sends `X-Forwarded-Host` or `Forwarded`, and the shared picture shows a
+  placeholder while the pairing code is on the screen.
 - **Screen Sharing is per printer** (#1825) - each printer you control keeps its own Share
   Screen, Allow Remote Control and the new Add to Mainsail/Fluidd Webcams setting, so sharing
   one printer's screen never lists it among another printer's webcams. With Add to
@@ -927,7 +990,7 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   the print details screen's menu (the dots button), in a column of their own in a filament
   slot's menu, in the Spoolman spool menu, and behind the gear on its own home tile in edit
   mode. Each item gets the file, slot or spool the menu was opened on, and can hide itself or
-  show greyed out with a reason when it does not apply. A plugin can only add rows: the app's
+  show grayed out with a reason when it does not apply. A plugin can only add rows: the app's
   own items stay as they are, and a menu never grows long enough to scroll. Settings >
   Plugins lists which menus a plugin adds to, before you enable it and on its row. A plugin
   can also build up to 32 widgets.
@@ -1032,7 +1095,7 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The temperature screen's control strip fills its column on small panels** - on
   480x320 and 480x272 screens the strip of heater controls is wider, the tool buttons
   get real gaps between them, and the preset buttons fill the strip instead of leaving
-  empty space under the tool picker.
+  empty space under the row of tools.
 - **Advanced hides empty sections** - a section whose rows all hide on your printer takes its
   heading with it.
 - **Filament operations on an unhomed printer home without asking** - the "Home printer
@@ -1075,19 +1138,27 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   automatically on the first start. **Downgrading to an earlier version loses your Material
   Temperatures changes**, because the older version only reads them from `settings.json`; note them
   down first if you might go back.
-- **The filament panel fits small and portrait screens** - the Load/Unload/Purge and
-  Extrude/Retract buttons grow into the space the right column used to leave empty, and a divider
-  separates the material presets from the operations. Cool Down is now a fixed cell in the preset
-  grid, dimmed while nothing is heating, so no button moves when a heater starts or stops; the
-  cold-extrusion warning takes the Operations heading's line for the same reason. The tool
-  picker's caption uses the printer's own word ("Toolhead" on the U1) and the closed dropdown shows
-  just the number, or the tool's own name if it has one. In portrait the panel is a single column:
-  temperatures, presets, the temperature graph when there is room for it, operations, then the
-  lane strip and tool picker.
+- **The Filament panel is laid out in cards** - like the Controls panel. The Temperature card
+  at the top left shows the same heater rows as Controls, with the nozzle row for the tool the
+  panel acts on, above the temperature graph and the lane bars; tapping the row of lane bars
+  opens the filament system screen. On the right, the Material card holds the presets, and
+  the Operations card holds compact Load, Unload, Purge, Extrude and Retract buttons, with
+  the row of heads and Pick up or Park on a multi-head printer. Cool Down is a fixed cell,
+  dimmed while nothing is heating, so no button moves when a heater starts or stops; the
+  cold-extrusion warning takes the Operations heading's line for the same reason. In portrait
+  the cards stack in one column, the presets share one row with Cool Down in the Material
+  card's header, and on a multi-head printer the lane bars move into the Operations header.
+- **Heater rows read the target after the reading** - on the Controls temperature card and
+  the Filament panel, each heater row reads like "Nozzle 205°C / 210°", the reading colored
+  by its heating state and the target in smaller text, or "/ Off" when no target is set.
+  Tap a row to open the temperature graph on that heater and set its target there. Where the
+  card has room, the line under each row says Heating, At target or Cooling.
+- **Filament system settings in the header** - the Settings button on the filament system
+  screen is a gear in its header, so the action buttons below fill their rows evenly. On multi-head printers the Currently Loaded card also shows which tool is mounted.
 
 - **Emptying a page in edit mode removes it from your saved layout** (#1638) - moving a page's
   last widget to another page, or removing it, deletes the empty page. The main page stays, and
-  so does a page still holding widgets that are greyed out because their hardware is not detected.
+  so does a page still holding widgets that are grayed out because their hardware is not detected.
 - **Adding a page: a visible + past your last page, or a drag past either edge** (#1638) - the
   page past your last one carries a + you can tap to add a page, editing or not, and it stays
   reachable even when you have a single page. To grow a page out of a widget instead, long-press
@@ -1143,6 +1214,13 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The 3D preview sits on the same background as the 2D one** - the 3D view used to
   trade the shaded backdrop for a plain black one; both now share it, so flipping
   between them changes only the picture.
+- **Controls fits portrait screens** - on tall screens the Position card opens Motion when
+  tapped and keeps Motors Off as an icon in its header, and the Cooling card shows Part Fan
+  with its speed beside the other fans.
+- **Tool lists say each number once** - counted from zero a tool reads "Tool 0", not
+  "Tool 0 (T0)"; counted from one it still reads "Tool 1 (T0)".
+- **Pick up and Park everywhere** - putting a tool on the carriage is called Pick up on every
+  screen: the slot menu, the filament system's sidebar, the load picker and its steps.
 
 **Printer-specific**
 
@@ -1162,6 +1240,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   (either of its clean actions deleted the install), and an install that replaces an older
   one removes it, which could hold 81MB and put two screens on the display at boot. A
   Forge-X install refuses `--auto-update`, which would have wiped your preserved settings.
+  An update with the installer restarts HelixScreen the way the printer does at boot,
+  instead of leaving the screen dark until a reboot.
 - **QIDI: the stock screen stays off** (#1533) - it is disabled before it is stopped and kept
   off at every boot, so it no longer comes back after a restart. Installing sets aside only
   the screen software that is actually present, and restores only that.
@@ -1173,6 +1253,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Self-built and forked builds do not send diagnostics** (#1410) - debug bundles and crash
   reports upload only from official release builds by default. `HELIX_DIAGNOSTIC_UPLOADS=1`
   turns them on.
+- **Debug bundles explain a Klipper that stopped** - a bundle includes the kernel's
+  out-of-memory and crash records and the launcher log with each exit code, says when the
+  Klipper log predates the running Klipper and reads the live one, names any log read from
+  the printer's disk with its age, and reports a Klipper that never reported a state as
+  such rather than as a shutdown.
 
 ### Fixed
 
@@ -1272,6 +1357,14 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **A read-only install could abort at exit, or at startup after a crash** - failing to
   remove the app's crash-restart counter is now logged and passed over instead of stopping
   the app.
+- **Recovery when Klipper never starts** - when HelixScreen connects while Klipper is not
+  running at all, the recovery dialog opens instead of leaving the screen half loaded, and
+  its Restart Klipper and Firmware Restart buttons restart the Klipper service. Restart
+  Klipper on the Advanced screen does the same.
+- **Clear message when Klipper cannot be restarted** - where Moonraker cannot restart
+  services and HelixScreen has no recovery script, such as a Snapmaker U1 on the extended
+  firmware, the restart buttons say to turn the printer off and on again instead of showing
+  Moonraker's "not allowed" error.
 
 **Network**
 
@@ -1417,7 +1510,7 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   extruder were listed in sensor settings and the setup wizard as standalone runout sensors.
   On AFC builds where the toolhead sensor is a virtual switch, turning it off there would
   have told AFC the tool was unloaded. They are now left to AFC, like its other sensors.
-- **Filament systems with more than 16 lanes greyed out the extra lanes** - a large AFC or
+- **Filament systems with more than 16 lanes grayed out the extra lanes** - a large AFC or
   Happy Hare setup now shows every lane up to 64, and a lane past that still counts for the
   loaded spool and tool tracking.
 - **The load step list skipped its first steps after an outside operation** - when a tool
@@ -1431,6 +1524,46 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   in a grid of two or three columns instead of one long wrapped list. The AFC fault diagram
   in a prompt no longer showed every stop point at once after switching printers, and names
   the fault in one line (Stopped, or Jammed at the toolhead).
+- **Unit cards on the Multi-Filament overview show every lane** - the filament color bars span
+  the whole card instead of sharing it with the temperature and humidity box, which cut them
+  down to one or two bars and a "..." in place of the lane count. When the card has room, the
+  temperature and humidity sit on one line under the bars; when it does not, the unit's own
+  screen still shows them. A unit with one lane reads "1 lane".
+- **Hubs on the overview only where lines meet** - the Multi-Filament overview draws a hub
+  only where two or more units feed the same toolhead, as one box where their lines join, and
+  a hub with a buffer as one Hub+BUF box. A unit that feeds a toolhead on its own goes
+  straight to it with its hub sensor on that line, as does an AFC unit whose lane runs
+  directly to its own toolhead, such as a toolchanger's one-lane Tools unit. Each line runs
+  at its own height, and lines cross or touch only where units feed toolheads in the opposite
+  order. Hub boxes fit their labels, every bend is rounded, and the bypass spool is drawn the
+  same size as the spools in each unit.
+- **The AFC overview follows routing changes** - when an AFC lane moved between a hub and a
+  direct route, or the printer reported its extruder count late, the overview kept drawing the
+  old route. A lane that runs direct on a single-extruder printer is not treated as its own
+  toolhead, so loading it unloads the current lane first.
+- **Parked heads on an AFC toolchanger** - with every head parked, the screen showed the first
+  tool, or the tool whose lane AFC last loaded, as mounted; it shows no tool on the carriage.
+  A lane jam or timeout no longer marks every parked head as faulted in the tool switcher.
+  AFC printers with a single toolhead are unchanged.
+- **AFC lanes keep their temperatures when you unlink a spool** - unlinking a Spoolman spool
+  made AFC forget the lane's nozzle and bed temperatures, so the next load heated to AFC's
+  default for the material. On AFC v1.2.0 and newer, HelixScreen sends the lane's
+  temperatures back to AFC after the unlink.
+- **One dialog on a Happy Hare 4.2 pause** - HelixScreen closes Happy Hare's own Pause Notice
+  when its recovery dialog opens, as it does with the Error Notice of earlier versions, so the
+  two dialogs no longer stack.
+- **Clear Spool resets the gate temperature on Happy Hare** - a cleared gate goes back to the
+  printer's default extruder temperature on every Happy Hare version. Newer Happy Hare builds
+  keep a gate's temperature unless it is named, so a cleared gate kept the old spool's.
+- **Creality CFS loads and run-out spools** - a CFS load cannot be stopped once it starts, so
+  no Cancel button is offered during one. When the CFS has reported a spool ran out and an
+  unload leaves filament in the toolhead, the error says the CFS cannot pull the leftover
+  back and asks you to remove it by hand, instead of suggesting the cut or retract may not
+  have finished.
+- **Picking up a tool onto an empty carriage shows the pickup steps** - on a Medusa HC,
+  picking up a tool with no tool mounted listed the steps of a filament load, including Heat
+  nozzle and Purge. It shows the steps of the tool change. Only the list was wrong: the
+  pickup never heated or purged.
 
 - **AD5M: the Spoolman spool editor showed a Print Label button that did nothing** - the
   AD5M build has no label printing, and the button is hidden there now.
@@ -1501,6 +1634,32 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Sliced for a Different Setup named a toolhead the print never uses** - a multi-tool
   file lists a nozzle for every toolhead, so a different nozzle on an unused one raised the
   warning. The fit check now judges only the toolheads the file prints with.
+- **Reprint on Print Status runs the pre-print checks** - Reprint checks the file it
+  reprints the way Print does from the file list: whether it fits the printer, enough
+  filament, an empty slot, a material mismatch, an unassigned tool and an open door. A check
+  that warns asks first, and Cancel starts nothing. A file the printer cannot read in time
+  ends with a Failed to reprint message instead of a button that never comes back.
+- **No second heater shutdown after a print error on Jacobean's K2 Plus firmware** - that
+  firmware turns the heaters off itself on an error, so HelixScreen leaves it to the
+  firmware there. (thanks @Jacob10383)
+- **Bed mesh shows in the pre-print checklist during an adaptive mesh** - on printers
+  without a dedicated start profile, the checklist marks Bed mesh active when Klipper starts
+  an adaptive mesh inside the start macro.
+- **Part Fan slider sets the part fan** - on printers whose part cooling fan is a named fan
+  rather than the plain fan, the Controls slider changes that fan instead of a different one.
+  On small screens its knob is no longer cut off at the ends or along its top and bottom.
+- **Timelapse works after setup** - when Klipper has not loaded the timelapse macros,
+  HelixScreen adds them to its own helix_macros.cfg and offers Restart Klipper, on the setup
+  screen and on Timelapse Settings, or shows the line to add to printer.cfg when it can't.
+  Before, a new install captured no frames until printer.cfg was edited by hand. Timelapse
+  Settings shows the plugin's real values instead of the defaults, Timelapse Videos shows
+  the preview image saved with each video, and when HelixScreen runs on the printer it puts
+  an older moonraker-timelapse checkout back on its main branch when that is safe, so
+  Moonraker can update it again.
+- **Fan readouts follow the active tool on tool changers** - where each tool has its own part
+  and hotend fan, the Part and HE readouts on Print Status, the fan on the home printer
+  picture, the Fan Speeds widget and the Part Fan slider follow the tool that is printing,
+  and the Aux readout never shows a tool's own fans.
 
 **Calibration**
 
@@ -1527,6 +1686,13 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Z-offset kept showing a pending delta after a successful save**, could not tell a
   clamped-to-limit adjustment from a failed one, and would clear a valid stored step size on
   an out-of-range write.
+- **Z offset saves on printers that home Z on a switch** - on a printer whose Z homes on an
+  endstop switch, such as a stock Voron 2.4 or an Ender with a BLTouch used only for the bed
+  mesh, Z offset calibration and Save set the Z endstop position, so the change survives a
+  restart. A delta without a probe adjusts the offset for the session only.
+- **MPC calibration names a tool's part fan on tool changers** - switching a tool to MPC
+  writes its part fan as the cooling fan when the tool names that fan without the
+  `fan_generic` prefix.
 
 **Home screen**
 
@@ -1627,6 +1793,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   told apart reliably.
 - **Delta printers** (#1607) no longer save the wrong vendor on a shared hostname, and the
   Kobra 2 and Qidi Max 4 identify exactly.
+- **Klipper version on printers without a git install** - such as FlashForge printers on
+  Z-Mod: the Printer Manager and About show the version Moonraker's update manager knows
+  instead of Unknown.
 
 **Snapmaker U1**
 
@@ -1649,6 +1818,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   and a 0.4 mm job sent to a 0.2 mm head passed. It now reads the size and type the U1
   reports for each head. A file sliced for the other nozzle type (High Flow or standard)
   gets a warning with **Start Anyway**.
+- **Filament pushed straight into a toolhead** (#2000) - a head loaded past its feeder, such
+  as one fed by a BMCU, showed as empty, so the pre-print check called it an empty slot and
+  Load tried to feed from the empty feeder. Such a head counts as holding filament, and Load
+  opens the hand-load dialog.
 
 **Setup and installing**
 
@@ -1677,6 +1850,17 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **`HELIX_SCREEN_SIZE` left no trace in the log** - the line saying which size was applied,
   and the warning for a value it could not read, were written before logging started, so the
   `journalctl` check in Troubleshooting found nothing. Both are logged now.
+- **Restart HelixScreen from Mainsail and Fluidd after installing** - when the installer
+  adds HelixScreen to Moonraker's list of services it may manage, it restarts Moonraker so
+  the list takes effect.
+- **The installer no longer edits Z-Mod's own moonraker.conf on the AD5X** - it writes
+  HelixScreen's update entry to the user moonraker.conf Z-Mod's file includes, so Moonraker
+  keeps updating Z-Mod. When an earlier install already edited Z-Mod's file, the installer
+  says which updates are blocked and prints the command that restores it. (thanks @catduckgnaf)
+- **No HelixPrint plugin downgrade at startup** - when Moonraker already runs a newer
+  HelixPrint plugin than this HelixScreen ships, HelixScreen leaves it in place instead of
+  restarting Moonraker onto its own older plugin. Versions compare by number, so 1.10.0 is
+  newer than 1.9.0.
 
 **Translations**
 

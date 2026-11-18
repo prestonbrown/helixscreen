@@ -70,6 +70,8 @@ For example, on a K2: `sh /mnt/UDISK/helixscreen/install.sh --update`. When the 
 
 1.1 installs over 1.0 as a normal update, from the app, from Mainsail or Fluidd, or from a terminal. It reaches the Stable channel once 1.1.0 is released. To try it earlier, switch to the Beta channel first: **Settings > Updates > Update Channel > Beta**, then **Check for Updates**. On printers whose firmware ships HelixScreen, the Updates screen says **Managed by your firmware** instead; update the firmware to get the new version.
 
+**Snapmaker U1 on stock firmware:** HelixScreen 1.0.9 and earlier show **Managed by your firmware** on every U1, and Mainsail and Fluidd do not list HelixScreen there, so update to 1.1 once over SSH with the installer's `--update` option, as in [Installing on the Snapmaker U1](guide/install-u1.md#updating). From 1.0.10 on, **Settings > Updates** updates it like any other printer.
+
 What to expect after the update:
 
 - **Your 1.0 settings are kept.** On its first start, 1.1 saves a copy of your old `settings.json` beside the new one, as `settings.json.pre-migration`, before converting it. HelixScreen never reads that copy back; it is there in case you want it.

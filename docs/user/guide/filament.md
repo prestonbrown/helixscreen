@@ -8,7 +8,7 @@ If you're not using an AMS or multi-material system, you can tell HelixScreen wh
 
 Once configured, the external spool information is used throughout the UI:
 
-- **Spool preset button**: A dynamic preset button appears in the Filament panel's preset grid, between TPU and Cool Down, with your spool's material name and recommended temperatures. Tap it to pre-heat both the nozzle and bed to the correct temperatures for your loaded filament.
+- **Spool preset button**: A dynamic preset button appears in the Filament panel's preset grid, between TPU and Cool Down, with your spool's material name and recommended temperatures. Tap it to heat the nozzle and the bed to the right temperatures for your loaded filament. With **Settings > Printing > Material presets heat the bed and chamber** off, it heats only the nozzle.
 - **Temperature panel presets**: The Nozzle and Bed temperature panels also show a spool preset button for quick one-tap heating.
 - **Purge temperature**: When you tap **Purge**, HelixScreen passes a nozzle temperature to the purge macro (as the `PURGE_TEMP` parameter): the nozzle's current target or the spool's recommended temperature, whichever is hotter. A temperature at or below your printer's minimum extrusion temperature, or above your hotend's maximum temperature, is never passed; the parameter dialog asks instead.
 
@@ -40,6 +40,8 @@ Pick the **Length** to move first: 5mm, 10mm or 25mm.
 ## Load / Unload / Purge
 
 The Filament panel has dedicated **Load**, **Unload**, and **Purge** buttons. These run Klipper macros: HelixScreen auto-detects common names like `LOAD_FILAMENT`, `UNLOAD_FILAMENT`, and `PURGE` from your printer config.
+
+**Loading by hand.** On a printer with no filament system and no load macro, **Load** opens one **Load Filament** dialog that does the whole job. The same dialog opens for a Snapmaker U1 toolhead that its feeder cannot load: one with no feeder attached, one with **Auto loading** turned off, or one whose filament was pushed into the toolhead past its feeder (see [Snapmaker U1: Auto Loading](filament-tool-changers.md#auto-loading)). The dialog first heats the nozzle to the temperature for the loaded material (or a default load temperature), saying "Heating the nozzle. Have the filament ready to push in." When the nozzle is hot, push the filament into the extruder until it stops. If your printer has a filament sensor, the extruder grips the filament as soon as the sensor sees it; otherwise, or at any time, tap **Extrude**. HelixScreen then extrudes a short length and asks "Is new filament coming out of the nozzle?". Tap **Extrude more** until it does, then tap **Done**. The heater stays on while you push. **Done** lets it cool down after the usual delay. **Cancel**, any other way of closing the dialog, switching to another printer and closing HelixScreen all turn it off at once. If the active tool changes while the dialog is open, the load stops with "Load canceled: the active tool changed" and the heater goes off. The dialog does not open while a print is starting, running or paused, while another filament operation is heating, while HelixScreen cannot reach the printer, for a slot that feeds no tool, or when the toolhead you picked is not the active one; select that tool first. During a print, paused or not, a U1 head that loads by hand shows a message saying why instead, and you push the filament in yourself.
 
 If a load, unload or tool change needs the printer homed and it isn't, HelixScreen homes it first and then carries on, without asking. Make sure the bed is clear before you start one on a printer that has been sitting idle with its motors off. When HelixScreen can see that your multi-material system homes on its own (AFC's `auto_home` setting in `AFC.cfg`), it leaves the homing to it.
 
@@ -181,7 +183,7 @@ How slot edits reach OrcaSlicer: see [Syncing with OrcaSlicer](filament-mapping.
 
 #### Toolhead Offset Calibration
 
-The Snapmaker U1's offset calibration: see [Toolhead Offset Calibration](filament-tool-changers.md#toolhead-offset-calibration). Other tool changers use [Tool Offsets](calibration.md#tool-offsets).
+Every tool changer, the Snapmaker U1 included, calibrates its offsets from [Tool Offsets](calibration.md#tool-offsets). On the U1 that entry runs the printer's own calibration: see [Toolhead Offset Calibration](filament-tool-changers.md#toolhead-offset-calibration).
 
 #### Creality Filament System (CFS)
 

@@ -8,7 +8,7 @@ HelixScreen automatically discovers every fan your printer reports to Klipper an
 
 | Screen | Where | What it does |
 |--------|-------|--------------|
-| **Cooling** card | **Controls** panel | A **Part Fan** slider for quick changes, plus a short list of your other fans. Tap the card to open **All Fans**. |
+| **Cooling** card | **Controls** panel | A **Part Fan** slider for quick changes, plus a short list of your other fans. The slider sets your printer's part cooling fan, even when that fan is a named fan rather than the plain `[fan]`. Tap the card to open **All Fans**. |
 | **All Fans** | Tap the **Cooling** card on Controls, or the fan widget on the Home screen, or the fans on the print status screen | Live speed control with a dial for each controllable fan. |
 | **Fans** | **Settings > Devices > Fans** | A list of every fan, mainly for renaming. On some printers it also holds chamber air settings. |
 
@@ -30,6 +30,14 @@ HelixScreen identifies each fan by its Klipper configuration and shows a short t
 **HE** (hotend) is the same short name the hotend fan's chip uses on the print screen.
 
 **Controllable fans** are ones you can set a speed on directly. **Automatic fans** are managed by Klipper based on temperature or printer activity, so HelixScreen shows their current speed but does not let you change it.
+
+---
+
+## Fans on Tool Changers
+
+On a tool changer where each tool has its own part cooling fan and hotend fan, the fan readouts follow the tool that is printing, the same way the nozzle temperature does. That covers the **Part** and **HE** readouts beside the printer picture on the print status screen, the fan readout on the Home screen's printer picture, the **Fan Speeds** widget and the **Part Fan** slider on Controls. When the next tool has no part fan of its own, they go back to the printer's main part fan.
+
+The **Aux** readout never shows a tool's own fans, so a parked tool's part fan or hotend fan does not turn up there. When the printer has no other fan to show, the Aux readout is hidden. Every tool's fans are still listed on the **All Fans** screen.
 
 ---
 

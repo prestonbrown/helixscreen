@@ -48,6 +48,16 @@ curl -fsSL https://releases.helixscreen.org/install.sh | sh -s -- --update
 
 The `chroot` step is required; see [Upgrading](../UPGRADING.md) for why.
 
+### AD5X: Mainsail says Z-Mod is modified and will not update it
+
+**Symptoms:**
+- Mainsail or Fluidd lists Z-Mod as modified (dirty) and refuses to update it
+- The HelixScreen installer warned that an earlier install added `[update_manager helixscreen]` to a file that belongs to the firmware mod
+
+**What happened:** an older HelixScreen installer wrote its update entry into the `moonraker.conf` that Z-Mod keeps in its own folder. Moonraker then sees Z-Mod's files as changed and will not update Z-Mod. Current installers never edit that file: they put the entry in the user `moonraker.conf` that Z-Mod's file includes.
+
+**Fix:** run the HelixScreen installer once more (as in the section above). It prints a `git ... checkout -- moonraker.conf` command that puts Z-Mod's file back. Run that command over SSH, then restart Moonraker. HelixScreen's own update entry stays in the user file, so updates keep working.
+
 ### The service never starts (GLIBC version not found)
 
 **Symptoms:**

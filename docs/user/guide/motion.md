@@ -9,7 +9,7 @@
 
 ---
 
-Open the Motion screen by tapping **Motion** on the Controls panel. It has three tabs, **Jog**, **Move** and **Bed**, and it always opens on Jog. In landscape the tabs sit in a rail on the left edge of the screen. In portrait they become icon pills in the header.
+Open the Motion screen by tapping **Motion**, or anywhere on the **Position** card, on the Controls panel. On a portrait screen the card has no Motion button, so tap the card. The screen has three tabs, **Jog**, **Move** and **Bed**, and it always opens on Jog. In landscape the tabs sit in a rail on the left edge of the screen. In portrait they become icon pills in the header.
 
 - **Jog** has the circular jog pad, a home bar, the Fine / Coarse / Turbo buttons and a column of Z buttons on the right. See [Jog Tab](#jog-tab).
 - **Move** has a grid of named bed positions. See [Move Tab](#move-tab).
@@ -57,18 +57,21 @@ Under the jog pad (beside the Fine / Coarse / Turbo buttons in landscape) is a r
 | **All** | Homes X, Y and Z. |
 | **X** | Homes X only. |
 | **Y** | Homes Y only. |
+| **XY** | Homes X and Y. |
 | **Z** | Homes Z only. |
 
-Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed. The buttons are disabled while a homing, leveling or other action started from the Controls panel is running. A home started from this bar or from the jog pad's center does not lock them, so wait for the "homed" message before tapping again, or a second home is sent. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
+Which buttons appear depends on how wide the bar is. Where it has room for five buttons at a comfortable touch size, such as on a 1024x600 screen, a wide strip screen or a portrait screen, it shows All, X, Y, XY and Z. On a narrower bar, such as on an 800x480 screen, it leaves out **All** and shows X, Y, XY and Z, because the home button in the middle of the jog pad already homes all axes.
 
-On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar that adds an **XY** button (see [Homing](#homing)).
+Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed, and **XY** when X and Y are. The buttons are disabled while a homing, leveling or other action started from the Controls panel is running. A home started from this bar or from the jog pad's center does not lock them, so wait for the "homed" message before tapping again, or a second home is sent. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
+
+On a printer that can only home its axes together, such as a **delta**, the bar shows **All** alone. The Controls panel has a similar bar (see [Homing](#homing)).
 
 The home bar belongs to the Jog Pad layout. The other [Jog layouts](#jog-layouts) have their own home keys.
 
 ![The home bar under the jog pad](../../images/user/motion-home-bar.png)
 
-1. Home all axes.
-2. Home X (Y sits between X and Z).
+1. Home X and Y.
+2. Home X (Y sits beside it).
 3. Home Z.
 
 ### Z Column
@@ -247,7 +250,7 @@ The Motion screen has its own home buttons: the [Home Bar](#home-bar) and the jo
 
 ## Calibration Buttons on the Controls Panel
 
-The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, as on a 480x800 portrait screen, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them.
+The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, as on a 480x800 portrait screen, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them. The Position card drops its Motion and Motors Off row (tap the card to open Motion), and the Cooling card puts **Part Fan**, with its speed in large type over the slider, on the left and the other fans on the right.
 
 - **Bed Mesh** and **Z Calibration**
 - **QGL** (Quad Gantry Level, shown only when `quad_gantry_level` is configured)
@@ -256,13 +259,13 @@ The Controls panel's **Calibration & Tools** card holds the calibration actions 
 - **Pressure Adv.** (printers that can measure pressure advance; see [Pressure Advance](calibration.md#pressure-advance))
 - **Bed Screws** (shown only when `screws_tilt_adjust` is configured)
 
-QGL and Z-Tilt are disabled during an active print and while another operation is running. **Motors Off** sits beside **Motion** on the Position card, and the light switch is one of the Quick Actions choices (see [Quick Buttons](settings/printing.md#quick-buttons)).
+QGL and Z-Tilt are disabled during an active print and while another operation is running. **Motors Off** sits beside **Motion** on the Position card (in its header on a portrait screen), and the light switch is one of the Quick Actions choices (see [Quick Buttons](settings/printing.md#quick-buttons)).
 
 ---
 
 ## Motors Off
 
-The **Motors Off** button appears both on the Move tab and beside **Motion** on the Controls panel's **Position** card. It releases all stepper motors, letting you move the gantry and bed by hand. On the Controls panel the button shows a lit motor icon when the steppers are energized and a dimmed one when they are already off. When the motors are already off, the button is grayed out and does nothing.
+The **Motors Off** button appears both on the Move tab and on the Controls panel's **Position** card: beside **Motion** in landscape, and as a motor icon in the card's header on a portrait screen. It releases all stepper motors, letting you move the gantry and bed by hand. On the Controls panel the button shows a lit motor icon when the steppers are energized and a dimmed one when they are already off. When the motors are already off, the button is grayed out and does nothing.
 
 Tapping it asks for confirmation ("Release all stepper motors. Position will be lost.") before disabling the steppers. The button is disabled while a print is running or paused. If a print starts while the confirmation is open, confirming only tells you "Motors stay on while a print is active" and leaves the motors alone.
 

@@ -1898,7 +1898,7 @@ panel is open or not. The panel's own dialog still stands aside for a backend wi
 |---------|----------------|----------------|-----------------------------------------------|
 | **AFC** | `is_bang_line()`, then a `tool_end` jam/break/runout signature, else any pausing `!!` while `error_state_` | `error_state_` set (the stuck-action latch returns `nullopt` — that fault is ours, not AFC's) | Resume (primary, hot) · Unload (hot) *or* Eject lane (cold) depending on `tool_start_sensor_` · AFC_RESET (danger) |
 | **Happy Hare** | `is_bang_line()`, then an HH-authored `MMU issue` line (in a print `MMU issue detected. ...\nReason: <reason>`; outside one, where HH never pauses, `MMU issue: <reason>`), or any line while paused with a non-empty `reason_for_pause_`. The detail is the line's own reason (HH keeps only the first in `reason_for_pause`), newlines shown as ". " | — (HH publishes no Error `action`; a fault is `print_state: pause_locked` plus `reason_for_pause`, which the backend turns into the slot error and path highlight, cleared when the reason goes empty on resume or cancel) | Backend-derived; title is "Filament runout" when the detail says runout. `duplicates_firmware_prompt()` claims HH's own pause prompt (`Happy Hare Error Notice` through v4.1, `Happy Hare Pause Notice` from v4.2), which the presenter closes when the popup shows |
-| **AD5X IFS** | — | `AmsAction::ERROR`, raised by `evaluate_runout_locked()` or by an operation timeout | Runout: Resume (primary, hot) · Purge (hot): `_GOTO_TRASH`+`PURGE_FILAMENT` on zMod, else `M83`+`G1 E` · `IFS_UNLOCK` (danger, cold). Timeout: `IFS_UNLOCK` alone. **No "Load slot N"** — every IFS load path self-homes and trash-moves into the part |
+| **AD5X IFS** | — | `AmsAction::ERROR`, raised by `evaluate_runout_locked()` or by an operation timeout | Runout: Resume (primary, hot) · Purge (hot): `_GOTO_TRASH`+`PURGE_FILAMENT` on zMod, else `M83`+`G1 E` · Recover: `IFS_UNLOCK` (cold, plain style; on the module `IFS_RESET_DRIVER`, styled danger). Timeout: Recover alone. **No "Load slot N"** — every IFS load path self-homes and trash-moves into the part |
 | **CFS** | **inverted** — `is_bang_line()` returns `nullopt`, so `!!` `key8xx` codes stay with the generic classifier. Claims only paused `respond_info` lines matching the auto-refill give-up wording | — (never assigns `AmsAction::ERROR`) | Resume (primary, hot) · Reset CFS = `BOX_ERROR_CLEAR` (danger, cold) |
 | **QIDI Box** | — | `AmsAction::ERROR`, raised by a negative `slot<N>` state word (blocked lane) | Lone dismiss — recovery gcode unknown, clearance is manual (#1041) |
 | **Snapmaker** | `is_bang_line()`, while paused or printing, then the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | — | Lone OK dismiss: no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below |
@@ -2128,15 +2128,20 @@ A Load the user does by hand runs the same modal with a Heating step in front
 
 | Where | Asked how |
 |---|---|
-| A head whose backend answers `HeadFilamentOps::load == Manual` with `guided_hand_load` | `notify_if_filament_op_unavailable()` opens it in place of the reason toast, so every Load surface gets it. `filament_action_set` enables that Load. Today only `AmsBackendSnapmaker` answers it, for a head the firmware reports with no feeder module or its feeder out of automatic mode (`feeder_absent()`); `AmsBackendMultiAce` keeps the generic answer |
+| A head whose backend answers `HeadFilamentOps::load == Manual` with `guided_hand_load` | `notify_if_filament_op_unavailable()` opens it in place of the reason toast, so every Load surface gets it. `filament_action_set` enables that Load. Today only `AmsBackendSnapmaker` answers it, for a head the firmware reports with no feeder module or its feeder out of automatic mode (`feeder_absent()`), and for a head fed past its feeder (toolhead switch reads filament, feeder port empty; `FILAMENT_BACKEND_SNAPMAKER_U1.md` § Status the Backend Reads); `AmsBackendMultiAce` keeps the generic answer for every head, since an ACE feeds a head the U1 frame reports with no feeder module. While a job holds the machine the guided load is refused, so the backend's `load_reason` toast shows instead, which tells the user to load by hand |
 | The Filament panel's Load with no filament system and no load macro (`load_is_by_hand()`: the plan falls to the raw tier) and no job | `FilamentPanel::execute_load()`. During a job the raw tier stays: a paused reload runs at the print's heat |
 
 The steps: heat through `FilamentOpHeater` (the lane's or external spool's material, else the
 default load temperature; the user's "allow cold" skips it), then Push, then the feed
 (`M83` + `G1 E60 F300`), then the question with Extrude more (`G1 E20 F300`) or Done.
 `manual_load_refusal()` refuses, in order: a job holds the machine, the printer is not
-reachable, another filament op is heating, the slot's nozzle is not
-the active extruder (`G1 E` moves the active one). The refusal is a toast and nothing opens.
+reachable, another filament op is heating, the slot's tool resolves to no extruder ("This slot
+feeds no tool"; `manual_load_extruder()` reads the slot's `mapped_tool` through `ToolState` and
+never falls back to the active nozzle), the slot's extruder is not the active one (`G1 E` moves
+the active one). The refusal is a toast and nothing opens. The session pins the extruder it
+resolved: it observes the active extruder, and `send()` re-checks before every extrusion, so a
+tool change ends the load with a "Load canceled: the active tool changed" warning and the heater
+off (`GuidedLoadSession::on_heated_extruder()`).
 
 The heater is `FilamentOpHeater`'s throughout. While the user pushes, the session holds the heat
 (`FilamentOpHeater::hold_heat()`), so the ticket is never dropped as stale however long the
@@ -2145,7 +2150,10 @@ push takes. Done reports
 ending reports `op_cancelled()`, which turns the heater off at once: Cancel, Escape, a dismissal
 or the app closing the dialog, and a failed extrusion. With the printer unreachable it schedules the
 cooldown instead. A job taking the machine ends the session with nothing sent and the heater
-left to the job. Tests: `[manual_load]` (`tests/unit/test_manual_load.cpp`).
+left to the job. A printer switch or app exit runs `FilamentOpHeater::before_disconnect()` from
+printer teardown while the client can still send (`src/application/printer_session.cpp`): every
+held heater goes to 0 unless a job holds the machine, and a preheat still waiting backs its
+heater off to the prior target. Tests: `[manual_load]` (`tests/unit/test_manual_load.cpp`).
 
 A second firmware with a wizard of the same shape is one more row in that file. One whose
 steps differ grows `GuidedLoad` and the flow, never the callers.
@@ -3605,7 +3613,8 @@ static constexpr BackendTraits kTraits = [] {
 
 **Optional overrides (with default implementations):**
 
-- `clear_fault()` -- Clear a latched fault, bookkeeping only (default: forwards to `cancel()`)
+- `clear_fault()` -- Clear a latched fault without moving filament or canceling anything (default: succeeds and sends nothing). `AmsSubscriptionBackend::clear_fault()` retires only an ERROR the backend raised itself (`fault_is_own_locked()`, e.g. the CFS phase verdict) and answers NOT_SUPPORTED for an ERROR that mirrors a fault the firmware still reports, since clearing the mirror would only hide it until the next frame. AD5X IFS has its own (see `FILAMENT_BACKEND_AD5X_IFS.md`)
+- `reset_retires_fault()` -- True when `reset()` retires a latched fault itself and sends what `clear_fault()` would, so the sidebar's Reset skips `clear_fault()` instead of sending the same release twice (default false; AD5X IFS answers true). A NOT_SUPPORTED from that pre-reset `clear_fault()` is expected and logged at debug
 - `recover_lane_position()` -- Physical retract of a stranded lane (default: NOT_SUPPORTED)
 - `get_dryer_info()`, `start_drying()`, `stop_drying()`, `update_drying()` -- Dryer control
 - `get_endless_spool_capabilities()`, `get_endless_spool_config()` -- Endless spool state. `set_endless_spool_backup()` is **not** an override point: it is non-virtual and owns every rejection. Supply `apply_endless_spool_backup()` (protected, transport only), `endless_spool_slot_count()` (protected, only if `total_slots` is wrong for you), and `endless_spool_backup_eligibility()` (only to tighten the default polymer-plus-grade rule; return `Eligible`/`Incompatible` only, unless your firmware genuinely has a soft case). `reset_endless_spool()` already works for any editable backend by looping the setter with -1 - override it only if your firmware has a real reset primitive. See § [Endless Spool](#endless-spool-shared-model).

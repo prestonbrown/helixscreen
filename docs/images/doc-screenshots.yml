@@ -617,7 +617,7 @@ images:
     crop: motion_home_bar
     margin: 12
     markers:
-      - {n: 1, widget: btn_home_all, at: top_right}
+      - {n: 1, widget: btn_home_xy, at: top_right}
       - {n: 2, widget: btn_home_x, at: top_right}
       - {n: 3, widget: btn_home_z, at: top_right}
   - path: docs/images/user/motion-z-column.png

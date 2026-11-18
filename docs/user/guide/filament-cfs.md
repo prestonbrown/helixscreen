@@ -59,13 +59,15 @@ Tap the gear in the Filament System panel's header to open the Multi-Filament Sy
 
 | Action | What It Does |
 |--------|--------------|
-| **Refresh RFID** | Re-read the spool tags and remaining length in every unit, which is useful after swapping spools while the printer was off |
+| **Refresh RFID** | Re-read the spool tags and remaining length in every unit, which is useful after swapping spools while the printer was off. Not shown on the community K2 Plus firmware, which reads tags when a spool goes in and at startup |
 | **Clean Nozzle** | Wipe the nozzle on the CFS's silicone cleaning strip |
 | **Communication Test** | Test the link between the printer and the CFS units |
 
 On a K1 with the CFS upgrade, a **Calibration** section adds **Calibrate Cutter** and **Calibrate Purge Chute**.
 
 **Auto-Refill** is the **Endless Spool** switch on the same screen. A runout pauses the print either way; with it on, the box then swaps in another slot **only** if one holds the exact same material and color, and resumes. With it off, or with no match, the print stays paused.
+
+**Unloading after a spool runs out.** When a spool runs out, its tail can stay in the toolhead after it has left the CFS. Unload still runs the usual cut and retract, but the CFS can only pull back filament it still holds. If filament is still at the toolhead afterward, the message reads "This spool ran out, so the CFS cannot pull the leftover filament back. Remove the leftover filament from the toolhead by hand before loading another spool." Pull it out by hand, then load the next spool.
 
 ## CFS and the External Spool
 

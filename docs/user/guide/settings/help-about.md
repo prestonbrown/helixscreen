@@ -68,6 +68,8 @@ Sends the HelixScreen team what they need to look into a problem you're having.
 - **Your note**: the text you typed in the note box, if any.
 - **Crash data**: the crash report, if HelixScreen crashed.
 - **Crash history**: earlier crash reports and their GitHub issue numbers, so support can spot repeat problems.
+- **Startup log**: the launcher's record of each time HelixScreen exited, and why.
+- **System records**: any program on the computer running HelixScreen that the system stopped for running out of memory, or that crashed. If the Klipper log is older than the Klipper that is running, the bundle says so.
 - **Printer events**: the same list as **Printer Events** in the notification history (shutdowns and their reasons, printer errors, pauses, how prints ended), so support sees what led up to the problem.
 - **Device ID**: a doubly scrambled ID used only to match up telemetry. It doesn't identify you.
 

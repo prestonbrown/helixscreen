@@ -60,6 +60,19 @@ normal idle state, not a firmware that forgot its lane (#1897).
 | Material/colour edit | `IFS_SET_MATERIAL SLOT={n} TYPE=… COLOR=7EC8E3` (bare hex — klipper's parser eats `#`; the module re-prefixes) |
 | Fault recovery / abort | `IFS_RESET_DRIVER` / `IFS_STOP` |
 
+**Clearing a fault** (`src/printer/ams_backend_ad5x_ifs.cpp#clear_fault`). Outside ERROR it
+succeeds and sends nothing. On the stock IFS it retires the ERROR (action back to IDLE, the
+runout latch and any phase tracking cleared) and sends `IFS_UNLOCK`, which moves no filament:
+an operation that timed out or failed leaves the IFS locked, and the next load would hang on
+it. On the module it retires an ERROR HelixScreen raised itself and sends nothing, since the
+module has no operation lock and no `IFS_UNLOCK`. A module driver fault is left standing and
+answered NOT_SUPPORTED: the module reports `driver_error` once, on the change into it, so a
+retired mirror would never come back while the board stayed faulted, and only `recover()`
+(`IFS_RESET_DRIVER`) clears it. `reset()` retires the fault itself and sends `IFS_UNLOCK`
+(stock) or `IFS_RESET_DRIVER` (module), so it answers `reset_retires_fault()` and the sidebar's
+Reset sends one release, not two. The recovery dialog's **Recover** button sends the same
+command and is styled as danger only for `IFS_RESET_DRIVER`, which resets the stepper driver.
+
 **Both ZMOD polls stand down** on the module (this is the #1344 stand-down,
 shipped here because `ifs_loaded` carries what `FFMInfo.channel` was missing on
 the zmod object path): no `Adventurer5M.json` HTTP poll, no `GET_ZCOLOR` /

@@ -121,7 +121,9 @@ How HelixScreen tells you a print has finished, been canceled or failed, when yo
 | **Notification** | A short message at the top of the screen |
 | **Alert** (default) | A full-screen summary of the print (time, layers, filament used), with confetti when it succeeded |
 
-A failed print always gets the full alert, whatever you choose, because errors need your attention. If the print status screen is already open when the print ends, there's no extra alert: that screen shows the result.
+A failed print always gets the full alert, whatever you choose and whatever screen is open, because errors need your attention. If the print status screen is already open when a print finishes or is canceled, there's no extra alert: that screen shows the result.
+
+With **Notification** or **Alert**, the end of a print also wakes a dimmed or sleeping screen, including when the print status screen is the one open, so the screen never goes on showing a finished print as running. A failed print wakes it with every choice. With **Off**, a finished or canceled print leaves the screen as it is.
 
 The end-of-print sound plays for every finished, canceled or failed print as long as the master Sounds switch is on.
 

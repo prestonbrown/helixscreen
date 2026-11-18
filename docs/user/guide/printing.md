@@ -282,6 +282,18 @@ The Print Status panel shows:
 3. More, which holds Camera, Timelapse and Light.
 4. Cancel.
 
+### On Ultrawide Screens
+
+On a screen much wider than it is tall (more than 2.5 times as wide, such as 1480x320 or 1920x440), the Print Status screen lays its content out in one row of columns instead of stretching the usual layout. From left to right:
+
+- **The preview**, as a square at the full height. Before the print starts, the pre-print checklist takes its place.
+- **An info column**: the file name and the printer's status message, the percentage and time left in large type over the progress bar, the elapsed time and the clock time the print should finish, the job details, the filament line and what is up next.
+- **The printer picture** with its readings.
+- **A readouts card**, in type large enough to read from across the room: nozzle, bed and chamber, each as the current temperature and its target, then the speed and flow factors, the toolhead's speed and the fans. Tap a temperature to open the temperature graph, the speed row to open Print Tune, or a fan row to open the fan controls.
+- **The print buttons**, stacked on the right.
+
+The general layout of the screen is described under [Printing](#during-a-print).
+
 ### Pausing at a Layer
 
 You can tell a running print to pause at a layer you pick - to drop in a magnet or nut, or swap filament for a color band - even when the file has no pause in it.
@@ -475,6 +487,8 @@ When a print completes, a **completion modal** appears showing:
 - Print is logged to history
 
 Once a print has finished, whether it completed, was canceled or failed, a **Reprint** button replaces the Cancel button in the print controls. Tap it to start the same file again without browsing back to it.
+
+**Reprint** runs the checks that **Print** in the file list runs, on the file being reprinted, except the scan of the whole file for commands that would stop the printer. It checks that the file fits the printer and that there is enough filament, and warns about a needed slot that is empty, a material that does not match, a tool with no slot assigned and an open door. Where the reprint reuses the last print's slot mapping, the checks look at the slots that mapping uses. A check that warns asks first, and canceling it starts nothing. If the printer cannot read the file in time, a **Failed to reprint** message names it and nothing starts. Starting a different file from **Print Files** while a reprint is still being checked ends the reprint.
 
 ---
 

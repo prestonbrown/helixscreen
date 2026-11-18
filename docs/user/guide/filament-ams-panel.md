@@ -49,6 +49,12 @@ When a slot runs into trouble, HelixScreen shows it visually so you don't have t
 - **Unload** - when filament is at the toolhead. Heats the nozzle first.
 - **Unlock** - a last resort that clears Happy Hare's pause lock without moving anything.
 
+### Systems with several units
+
+When your filament system has more than one unit (two Box Turtles, an AFC setup with several boxes, and so on), the panel opens on an overview with one card per unit. Each card's lane bars use its full width. When every card has room, the unit's temperature and humidity sit on one line under the bars; otherwise they are left to the unit's own page. A unit with more lanes than fit on its card shows the lanes that do and keeps its lane count. Tap a card to open that unit's page, then swipe to page through the others; **Back** returns to the cards.
+
+Under the cards, the filament path draws a line from each unit to the toolhead it feeds. A **Hub** box appears only where two or more lines join on their way into one toolhead; it reads **Hub+BUF** when that hub also carries the buffer. A line that is the only one into its toolhead runs straight down with no box. Lines keep apart and cross only where two units feed toolheads in the opposite order to the cards.
+
 ## Sidebar
 
 The sidebar shows the status of the currently loaded filament and provides quick-access controls. On a printer with more than one toolhead, a **Mounted:** line naming the tool on the carriage (for example **Mounted: Tool 2**, or **No tool mounted** when none is) tops the sidebar. On a portrait screen the loaded-filament strip and status line sit above the slot view, and the buttons sit below it.
@@ -262,6 +268,8 @@ Every piece of information on a lane - color, material, brand, spool name, remai
 ## Assigned Tool
 
 Separately from Filament Mapping, some filament systems keep their own table of which slot each tool prints from, and it stays in place from one print to the next. Where HelixScreen can write that table (such as AFC, Happy Hare and the QIDI Box), the spool editor shows an **Assigned Tool** dropdown: tap a slot, choose **Edit Spool**, pick the tool that slot should feed, and **Save**. The dropdown is left out where the system keeps no table HelixScreen can write, such as the Snapmaker U1 and the ACE. The tool badges in the slot view show the result.
+
+On AFC with multiple tool mapping turned on (`enable_multiple_mapping`), a lane can feed several tools and AFC adds a tool to a lane rather than moving it, so HelixScreen does not change the assignment: the **Assigned Tool** row is grayed out with "Multiple tool mapping is on in AFC, so tools are assigned there". Use AFC's own mapping commands to add or move a tool.
 
 Filament Mapping is chosen per print, from the file you are about to print. Assigned Tool is the printer's standing table, which a print uses when nothing maps it otherwise.
 

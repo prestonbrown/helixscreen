@@ -63,9 +63,31 @@ Each unit-type object provides lane/extruder/hub/buffer membership. This data co
 
 ### Topology Determination
 
-AFC topology is inferred from the extruder count per unit:
-- **1 extruder** → `PathTopology::HUB` (all lanes merge to one toolhead)
-- **N extruders (N == lane count)** → `PathTopology::PARALLEL` (1:1 lane-to-tool mapping)
+Each unit's topology comes from one rule, `helix::printer::afc_unit_topology()`
+(`include/afc_defaults.h`), which `AmsBackendAfc::derive_unit_topology()` feeds and the AFC
+mocks share. Per-lane routing decides first: a lane whose `hub` starts with `direct` runs
+straight to its extruder, any other value is a hub, and a lane not yet parsed counts as
+neither.
+
+| Lanes | Unit extruders | Topology |
+|-------|----------------|----------|
+| Some direct, some through a hub | any | `MIXED` |
+| All through a hub | more than 1, one per lane (an ACE Pro behind AFC) | `PARALLEL` |
+| All through a hub | otherwise | `HUB` |
+| All direct | more than 1, or one per lane while the printer (`system.num_extruders`) has more than 1 | `PARALLEL` |
+| All direct | otherwise (single-extruder printer, or the count not yet arrived) | `HUB` |
+
+With no lane routing known, the extruder and hub counts decide: hubs and at most one extruder is
+`HUB`, several extruders `PARALLEL`. So a toolchanger's one-lane `Tools` unit, whose lane is
+direct, is `PARALLEL` and draws no hub; on a single-extruder printer a direct lane shares the
+nozzle with every hub unit, stays `HUB`, and a load of it unloads first.
+
+A lane's routing and AFC's extruder count can change in a frame that carries no unit object
+(Moonraker sends deltas). Either change marks the units stale (`unit_topology_stale_`), and
+`handle_status` calls `refresh_all_unit_topologies()` once the frame's unit objects are
+applied. It re-derives every unit with lanes and rebuilds the unit map through
+`rebuild_unit_map_when_complete()` when a unit's topology or any lane's hub routing changed,
+so a `MIXED` unit whose lane moves between a hub and a direct route redraws that lane.
 
 This is stored per-unit in `unit_topologies_[]` and queried via `get_unit_topology(unit_index)`.
 

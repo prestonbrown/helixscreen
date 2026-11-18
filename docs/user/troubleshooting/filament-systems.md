@@ -93,6 +93,9 @@ Run home operation first - many load/unload macros require homing.
 **Check temperatures:**
 Some backends require extruder at temperature before operations.
 
+**Snapmaker U1:**
+A toolhead whose feeder cannot load it (no feeder attached, **Auto loading** turned off, or filament fed into the toolhead past its feeder) loads by hand: **Load** opens the **Load Filament** dialog instead of running the feeder. To have the feeder load it again, turn **Auto loading** back on. See [Snapmaker U1: Auto Loading](../guide/filament-tool-changers.md#auto-loading).
+
 ---
 
 ## Spoolman Issues

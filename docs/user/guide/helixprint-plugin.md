@@ -22,7 +22,9 @@ On the screen, open **Advanced** and tap **Install HelixPrint Plugin**. The row 
 when HelixScreen has checked your printer and found no plugin.
 
 - **On a screen attached to the printer**, HelixScreen installs the plugin directly. It
-  installs the plugin version that matches your HelixScreen release.
+  installs the plugin version that matches your HelixScreen release. Each time it starts, it
+  updates an older plugin to that version. A plugin newer than the one HelixScreen ships, such
+  as one a development build installed, is left in place.
 - **On a screen that is not attached** (K-Touch, tablet, desktop), the screen cannot reach the
   printer's files, so it shows a one-line command instead. Run that command on the printer over
   SSH. It looks like this, with your HelixScreen version in both places:
