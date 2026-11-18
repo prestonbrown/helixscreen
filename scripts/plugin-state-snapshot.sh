@@ -93,7 +93,7 @@ conf_sh() {
 # fails the snapshot instead of recording a wrong path.
 REQUIRED_FUNCS="components_under running_moonraker_proc running_moonraker_args
 install_sh_moonraker_root running_moonraker_arg find_moonraker_components
-find_config_dir helix_conf_file moonraker_conf_files"
+find_config_dir helix_conf_file moonraker_conf_files moonraker_conf_includes"
 
 emit_remote() {
     printf '%s\n' "SNAP_ROOT=$(shquote "$ROOT")"

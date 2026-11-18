@@ -1500,6 +1500,30 @@ setup_forgex_bind_mounted_app() {
     [ "$(printf '%s\n' "$output" | wc -l)" -eq 2 ] || fail "files: $(printf '%s\n' "$output" | head -n 4)"
 }
 
+@test "moonraker_conf_includes resolves relative and rooted includes, leaves globs, strips CR" {
+    local c="$BATS_TEST_TMPDIR/cfg"
+    mkdir -p "$c"
+    printf '[server]\n[include user.moonraker.conf]  \r\n[include /etc/mr/extra.conf]\n[include conf.d/*.conf]\n#[include skipped.conf]\n' \
+        > "$c/moonraker.conf"
+
+    run sh -c '. "$1"; moonraker_conf_includes "$2" "$3"' sh \
+        "$REPO_ROOT/moonraker-plugin/helix_print_conf.sh" "$c/moonraker.conf" "/chroot"
+    [ "$status" -eq 0 ] || fail "$output"
+    [ "$output" = "$c/user.moonraker.conf
+/chroot/etc/mr/extra.conf
+$c/conf.d/*.conf" ] || fail "includes: $output"
+}
+
+@test "moonraker_conf_includes prints nothing for a file with no includes or no file" {
+    local c="$BATS_TEST_TMPDIR/cfg"
+    mkdir -p "$c"
+    printf '[server]\nport: 7125\n' > "$c/moonraker.conf"
+    run sh -c '. "$1"; moonraker_conf_includes "$2"; moonraker_conf_includes "$3"' sh \
+        "$REPO_ROOT/moonraker-plugin/helix_print_conf.sh" "$c/moonraker.conf" "$c/missing.conf"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ] || fail "unexpected: $output"
+}
+
 @test "an auto install Moonraker refuses to restart for says Moonraker needs one, never complete" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_plain_home "$home"
