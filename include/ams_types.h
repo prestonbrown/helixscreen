@@ -892,9 +892,7 @@ struct AmsAlert {
 };
 
 /// The physical shape of a filament buffer, translated by the backend from its
-/// firmware's own vocabulary. Firmwares name it differently: Happy Hare names the
-/// shape ("compressed", "tension"), AFC names the motor's response to it
-/// ("Trailing" when compressed, "Advancing" when expanded).
+/// firmware's own words (AFC's name its motor's response: afc::buffer_motion()).
 enum class BufferMotion : int {
     Unknown = 0,    ///< Not reported, or a state with no direction (idle, neutral)
     Compressed = 1, ///< Filament arrives faster than the toolhead uses it

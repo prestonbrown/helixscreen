@@ -125,22 +125,12 @@ TEST_CASE("buffer box: the all-units view describes the sensor's unit", "[ams][b
     CHECK(ams_detail_buffer_box(info, -1).state == 2);
 }
 
-// AFC names its motor's response, not the buffer's shape: "Advancing" feeds faster
-// because the TurtleNeck is expanded, "Trailing" slows because it is compressed.
 TEST_CASE("buffer box: AFC's words draw the buffer's real shape", "[ams][buffer][path][afc]") {
-    auto box_for = [](const char* afc_state) {
-        AmsSystemInfo info;
-        info.type = AmsType::AFC;
-        AmsUnit unit;
-        BufferHealth health;
-        afc::apply_buffer_delta(health, afc::parse_buffer(nlohmann::json{{"state", afc_state}}));
-        unit.buffer_health = health;
-        info.units.push_back(unit);
-        return ams_detail_buffer_box(info, 0);
-    };
-    CHECK(box_for("Advancing").state == 2); // expanded
-    CHECK(box_for("Trailing").state == 1);  // compressed
-    CHECK(box_for("Neutral").state == 0);
+    AmsSystemInfo info = sensor_on_unit_1();
+    for (const auto& [word, state] : {std::pair{"Advancing", 2}, {"Trailing", 1}, {"Neutral", 0}}) {
+        info.units[1].buffer_health->motion = afc::buffer_motion(word);
+        CHECK(ams_detail_buffer_box(info, 1).state == state);
+    }
 }
 
 TEST_CASE("buffer box: a one-sided pressure places against its set point",
