@@ -203,6 +203,7 @@ tests/shell/test_toolhead_census_gate.bats	scripts/check_toolhead_census.py scri
 tests/shell/test_touch_rotation_source_gate.bats	scripts/check_source_rules.py scripts/source_strip.py src/platform/display/display_backend_drm.cpp src/platform/display/display_backend_fbdev.cpp
 tests/shell/test_translation_duplicate_keys.bats	scripts/code_lint.sh scripts/translations/
 tests/shell/test_translation_format_specifiers_gate.bats	scripts/check_translation_format_specifiers.py
+tests/shell/test_translation_files_gate.bats	scripts/check_translation_files.py scripts/qc/translation_files.sh scripts/quality-checks.sh scripts/translations/yaml_manager.py
 tests/shell/test_translation_identity_gate.bats	scripts/check_translation_identity.py translations/en.yml
 tests/shell/test_translations_mk.bats	Makefile mk/translations.mk
 tests/shell/test_tree_stamp.bats	docs/README.md scripts/tree_stamp.sh tests/test_helpers/stale_binary_check.h

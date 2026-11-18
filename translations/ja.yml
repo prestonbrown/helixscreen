@@ -60,8 +60,10 @@ translations:
   "Cutter Calibration": "カッターのキャリブレーション"
   "Find the filament cutter's position": "フィラメントカッターの位置を検出します"
   "Let the printer's tensioners set the belts": "プリンターのテンショナーでベルトを調整します"
-  "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.": "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
-  "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.": "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
+  ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
+  : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
+  ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
+  : "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
   "X belt": "Xベルト"
   "Y belt": "Yベルト"
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
@@ -82,8 +84,7 @@ translations:
   +{} more: '他{}件'
   +{} tools: '+{} ツール'
   ', also {}': '、{}も'
-  '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester]
-    を確認してください'
+  '- Check [resonance_tester] in printer.cfg': '- printer.cfg の [resonance_tester] を確認してください'
   '- Ensure ADXL345 is connected': '- ADXL345 が接続されていることを確認してください'
   '- Try Measure Noise first': '- まず「ノイズ測定」をお試しください'
   -- A: -- A
@@ -375,8 +376,7 @@ translations:
   Ask before turning off the stepper motors: 'ステッピングモーターをオフにする前に確認する'
   Ask every time: '常に確認する'
   Ask for parameters: 'パラメータを確認する'
-  Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで
-    LED を制御
+  Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Assign a slot first: '先にスロットを割り当ててください'
   Assigned Tool: 割り当てツール
@@ -530,8 +530,7 @@ translations:
   Brother QL (Bluetooth): Brother QL (Bluetooth)
   Browse and play recorded timelapses: 録画済みタイムラプスを閲覧・再生
   Browse and run your Klipper macros: Klipper マクロを表示して実行
-  Browse guides, configuration references, and troubleshooting resources for HelixScreen.: HelixScreen
-    のガイド、設定リファレンス、トラブルシューティング資料を参照します。
+  Browse guides, configuration references, and troubleshooting resources for HelixScreen.: HelixScreen のガイド、設定リファレンス、トラブルシューティング資料を参照します。
   Brush filament dust out of the extruder gears: "エクストルーダーのギアからフィラメント粉を払う"
   Brush nozzle: 'ノズルをブラシ清掃'
   Brush the gear teeth clean.: "ギアの歯をブラシで清掃します。"
@@ -685,8 +684,7 @@ translations:
   'Capabilities: ': '機能: '
   Carriage empty: キャリッジが空
   Carriage empty · tap a head: 'キャリッジが空 · ヘッドをタップ'
-  Cartographer scan calibrate sent — use Z-Offset panel to adjust: Cartographerスキャンキャリブレーション送信済み
-    — Z-Offsetパネルで調整してください
+  Cartographer scan calibrate sent — use Z-Offset panel to adjust: Cartographerスキャンキャリブレーション送信済み — Z-Offsetパネルで調整してください
   Cartographer touch calibrate sent: Cartographerタッチキャリブレーション送信済み
   Category: カテゴリー
   Celsius (°C): °C
@@ -822,8 +820,7 @@ translations:
   Clear the extruder?: 'エクストルーダーを空にしますか？'
   Clear the plate and load {}. The tower prints in the middle of the bed.: ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。
   Cleared: クリア済み
-  Cleared from settings — system unpair failed, may need OS Bluetooth: 設定から削除しました。システムのペアリング解除に失敗、OS
-    の Bluetooth 設定が必要な場合があります
+  Cleared from settings — system unpair failed, may need OS Bluetooth: 設定から削除しました。システムのペアリング解除に失敗、OS の Bluetooth 設定が必要な場合があります
   Clipboard unavailable - use SSH: クリップボード利用不可 - SSHを使用してください
   Clog: 詰まり
   Clog Auto: '詰まり: 自動'
@@ -992,12 +989,12 @@ translations:
   Correction (Ki): 補正 (Ki)
   Could not add the timelapse plugin to Moonraker.: 'タイムラプスプラグインをMoonrakerに追加できませんでした。'
   Could not add to queue: キューに追加できませんでした
-  Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START
-    マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
+  Could not analyze PRINT_START macro. Some print options may be unavailable.: PRINT_START マクロを分析できませんでした。一部の印刷オプションが利用できない場合があります。
   Could not answer the connection request: '接続リクエストに応答できませんでした'
   'Could not check {} - it stays in the queue': '{} を確認できませんでした – キューに残ります'
   Cut: "切り取り"
-  "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip.": "印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"
+  ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
+  : "印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"
   "Every screen and setting explained": "すべての画面と設定の説明"
   "Getting Started": "はじめに"
   "Here's a quick look at what changed since your last version.": "前回のバージョンからの変更点を簡単に説明します。"
@@ -1010,7 +1007,8 @@ translations:
   "Load, unload, purge, and extrude filament": "フィラメントのロード、アンロード、パージ、押し出し"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "ここで装填、排出、パージを行います。先に材料を選ぶと温度が設定されます。"
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "スプールの装填、排出、交換、温度の設定、フィラメントセンサーの監視ができます。"
-  "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages.": "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
+  ? "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
+  : "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
   'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
   "New in 1.1": "1.1 の新機能"
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
@@ -1065,8 +1063,7 @@ translations:
   Could not skip {}: '{} をスキップできませんでした'
   Could not start Bluetooth discovery: Bluetooth の検出を開始できませんでした
   Could not update filaments: フィラメントを更新できませんでした
-  Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman のステータスを確認できませんでした。Moonraker
-    がまだ再起動中の可能性があります。
+  Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman のステータスを確認できませんでした。Moonraker がまだ再起動中の可能性があります。
   Couldn't assign the tool: ツールを割り当てられませんでした
   Couldn't clear the printer's gate map: プリンターのゲートマップをクリアできませんでした
   "Couldn't map filament: internal error": 'フィラメントをマッピングできません: 内部エラー'
@@ -1213,10 +1210,8 @@ translations:
   Display: ディスプレイ
   Display Mode: 表示モード
   Display Sleep: ディスプレイスリープ
-  ? Display resolution is very high (%dx%d). Text may appear small. Reduce framebuffer
-    resolution in /boot/firmware/config.txt for best results.
-  : ディスプレイ解像度が非常に高くなっています (%dx%d)。テキストが小さく表示される場合があります。最良の結果を得るには、/boot/firmware/config.txt
-    でフレームバッファ解像度を下げてください。
+  ? Display resolution is very high (%dx%d). Text may appear small. Reduce framebuffer resolution in /boot/firmware/config.txt for best results.
+  : ディスプレイ解像度が非常に高くなっています (%dx%d)。テキストが小さく表示される場合があります。最良の結果を得るには、/boot/firmware/config.txt でフレームバッファ解像度を下げてください。
   'Display: ': 'ディスプレイ: '
   Distance for hub cutter operation: 'ハブカッター動作の距離'
   Distance from hub to toolhead: 'ハブからツールヘッドまでの距離'
@@ -1297,8 +1292,7 @@ translations:
   Eject Speed: "取り出し速度"
   Eject Velocity: 取り出し速度
   Eject failed: イジェクトに失敗しました
-  Eject needs [force_move] enabled in printer config: 取り出しにはプリンター設定で [force_move]
-    を有効にする必要があります
+  Eject needs [force_move] enabled in printer config: 取り出しにはプリンター設定で [force_move] を有効にする必要があります
   Ejecting: 排出中
   Electronics fans: "電装ファン"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
@@ -1828,9 +1822,7 @@ translations:
   Hardware saved to config: ハードウェアを設定に保存しました
   Hardware was present in previous session but is now missing: '前回のセッションにあったハードウェアが見つかりません'
   Have a piece of paper ready.: 紙を1枚用意してください。
-  ? Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't
-    adjusted with thumb wheels or some other built-in
-    mechanism.
+  ? Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't adjusted with thumb wheels or some other built-in mechanism.
   : ベッドがサムホイールなどの内蔵機構で調整できない場合は、ベッド調整ツール（ドライバー、六角レンチなど）を用意してください。
   Heading: 見出し
   Healthy: '正常'
@@ -1907,8 +1899,7 @@ translations:
   HelixScreen is detecting your display orientation: HelixScreenがディスプレイの向きを検出しています
   ? HelixScreen removes its [include helix-plr/*.cfg] lines from printer.cfg. A backup is kept beside printer.cfg, and Klipper must restart for it to take effect. A resume then uses the printer's default mesh profile.
   : HelixScreen は printer.cfg から [include helix-plr/*.cfg] の行を削除します。printer.cfg の横にバックアップが保存され、反映には Klipper の再起動が必要です。再開時にはプリンターのデフォルトのメッシュプロファイルが使われます。
-  HelixScreen will integrate with your filament changer for multi-spool/color print operations.: HelixScreen
-    はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。
+  HelixScreen will integrate with your filament changer for multi-spool/color print operations.: HelixScreen はマルチスプール/カラー印刷操作のためにフィラメントチェンジャーと連携します。
   HelixScreen writes this to printer.cfg and restarts Klipper. The printer will briefly disconnect.: HelixScreenがこれをprinter.cfgに書き込み、Klipperを再起動します。プリンターは一時的に切断されます。
   HelixScreen {} is available — tap Update: HelixScreen {} が利用可能です — 「更新」をタップ
   HelixScreen's Moonraker plugin is installed, which it uses to run pre-print options. Manage it on the Advanced screen.: 'HelixScreenのMoonrakerプラグインがインストールされており、印刷前オプションの実行に使われます。詳細設定画面で管理できます。'
@@ -1975,8 +1966,7 @@ translations:
   How Z-axis movement is displayed: Z軸の移動表示方法
   How far and how fast a lane ejects: "レーンの取り出し距離と速度"
   How far filament is pushed back into the box on eject: "取り出し時にフィラメントをボックスへ押し戻す距離"
-  How far filament is pushed back into the box on eject (mm): 取り出し時にフィラメントをボックスへ押し戻す距離
-    (mm)
+  How far filament is pushed back into the box on eject (mm): 取り出し時にフィラメントをボックスへ押し戻す距離 (mm)
   How fast filament is pushed back on eject: "取り出し時にフィラメントを押し戻す速度"
   How fast the head moves while changing tools: ツール交換中のヘッドの移動速度
   ? How long to hold before a press counts as a long-press, in ms (raise if edit mode or other long-press actions trigger by accident)
@@ -2018,8 +2008,7 @@ translations:
   Identify: "識別"
   'Identify failed: {}': "識別に失敗しました: {}"
   Idle: アイドル
-  If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Moonraker
-    がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します
+  If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Moonraker がローカルまたは画面がプリンターに直接接続されている場合、自動的に接続します
   If the extruder has no tension lever, see your printer's manual.: "エクストルーダーにテンションレバーがない場合は、プリンターのマニュアルを参照してください。"
   Ignore: 無視
   Ignore the click that fires when you lift after scrolling: スクロール後に指を離したときに発生するクリックを無視
@@ -2063,8 +2052,7 @@ translations:
   Install Update: 更新をインストール
   Install plugin: プラグインをインストール
   Install script not found. Use the remote install command instead.: インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。
-  'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速
-    G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'
+  'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "SSHでタイムラプスプラグインをインストールし、\n「再確認」をタップしてください。"
   Install timelapse plugin: タイムラプスプラグインをインストール
@@ -2125,8 +2113,7 @@ translations:
   'Jog failed: {}': 'ジョグに失敗しました: {}'
   Jog layout, speeds and step distances: 'ジョグのレイアウト、速度とステップ距離'
   Jog speeds and step distances: ジョグ速度とステップ距離
-  Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Discord
-    で HelixScreen コミュニティに参加して、ディスカッション、ヒント、トラブルシューティング支援、機能リクエストを共有しましょう。
+  Join the HelixScreen community on Discord for discussion, tips, troubleshooting help, and feature requests.: Discord で HelixScreen コミュニティに参加して、ディスカッション、ヒント、トラブルシューティング支援、機能リクエストを共有しましょう。
   Joining Wi-Fi disconnects the wired network.: WiFi に接続すると、有線ネットワークが切断されます。
   Just now: たった今
   Just queued: 'たった今キューへ追加'
@@ -2165,16 +2152,13 @@ translations:
   Klipper disconnected: Klipper切断
   Klipper failed to start with the skip macros, so they were removed: 'スキップ用マクロでは Klipper が起動しなかったため、削除しました'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper を起動できませんでした。printer.cfg から helix_skips.cfg の include を削除してください。'
-  Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper
-    ファームウェアがホストから切断されました。Klipper を再起動するか、ファームウェア再起動を実行してみてください。
+  Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper ファームウェアがホストから切断されました。Klipper を再起動するか、ファームウェア再起動を実行してみてください。
   Klipper handles retraction itself (G10/G11). Adjust the lengths and speeds in the retraction settings.: 'Klipperがリトラクションを自分で処理します(G10/G11)。長さと速度はリトラクション設定で調整できます。'
   Klipper has disconnected from Moonraker. Check for errors in your printer interface.: Klipper が Moonraker から切断されました。プリンターのインターフェースでエラーを確認してください。
-  ? Klipper has entered an error state. This is typically caused by an MCU connection
-    failure or configuration error. Try a firmware restart.
+  ? Klipper has entered an error state. This is typically caused by an MCU connection failure or configuration error. Try a firmware restart.
   : Klipper がエラー状態になりました。これは通常、MCU 接続の失敗または設定エラーが原因です。ファームウェア再起動を試してください。
   Klipper has entered shutdown state.: Klipper がシャットダウン状態になりました。
-  Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper
-    がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。
+  Klipper has entered shutdown state. This may be due to an emergency stop, thermal runaway, or configuration error.: Klipper がシャットダウン状態になりました。緊急停止、熱暴走、または設定エラーが原因の可能性があります。
   Klipper has no [virtual_sdcard] section.: "Klipperに[virtual_sdcard]セクションがありません。"
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:'
   Klipper is halted — restart firmware to continue: Klipper が停止しています — 続行するにはファームウェアを再起動してください
@@ -2230,8 +2214,7 @@ translations:
   Layer: レイヤー
   Layer 2: 'レイヤー2'
   Layer Height: レイヤー高さ
-  Layer Macro captures one frame per layer change. Best for most prints.: レイヤーマクロはレイヤーが変わるごとに
-    1 フレームを撮影します。ほとんどの印刷に最適です。
+  Layer Macro captures one frame per layer change. Best for most prints.: レイヤーマクロはレイヤーが変わるごとに 1 フレームを撮影します。ほとんどの印刷に最適です。
   Layer Pause: 'レイヤー一時停止'
   Layer mode captures one frame per layer change. Best for most prints.: レイヤーモードはレイヤー変更ごとに1フレームをキャプチャします。ほとんどの印刷に最適です。
   Layer {} of {} · {:.2f} mm: レイヤー {} / {} · {:.2f} mm
@@ -2493,8 +2476,7 @@ translations:
   Moonraker is not responding at {}. It runs on this printer, so check that the Klipper and Moonraker services started.: '{} の Moonraker が応答しません。Moonraker はこのプリンター上で動作しているため、Klipper と Moonraker のサービスが起動しているか確認してください。'
   Moonraker keeps a queue of prints to run one after another. View it in the job queue.: 'Moonrakerは印刷を順番に実行するキューを保持します。ジョブキューで確認できます。'
   Moonraker refused the login: 'Moonrakerがログインを拒否しました'
-  Moonraker restarted but Spoolman not connected. Check server.: Moonraker は再起動しましたが
-    Spoolman に未接続です。サーバーを確認してください。
+  Moonraker restarted but Spoolman not connected. Check server.: Moonraker は再起動しましたが Spoolman に未接続です。サーバーを確認してください。
   ? "Moonraker restarting...\nWaiting for reconnection..."
   : "Moonraker再起動中...\n再接続を待機中..."
   Moonraker's Python is too old for this feature.: "MoonrakerのPythonがこの機能には古すぎます。"
@@ -2527,8 +2509,7 @@ translations:
   Move speed multipliers: '移動速度の倍率'
   Move the toolhead end to end by hand to spread it.: "ツールヘッドを手で端から端まで動かしてなじませます。"
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': ツールヘッドを動かし、軸をホーミングし、ベッドをレベリングし、温度、ファン、その他のモーション設定を微調整します。
-  ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3
-    minutes. The printer will make noise — this is normal.
+  ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
   : プリントヘッドを移動させて各軸の振動周波数を測定します。2〜3分かかります。プリンターから音がしますが、これは正常です。
   Moves to {} {:g} mm, below this printer's {:g} mm.: '{} {:g} mmへ移動します。このプリンターの下限は{:g} mmです。'
   Moves to {} {:g} mm, past this printer's {:g} mm.: '{} {:g} mmへ移動します。このプリンターの上限は{:g} mmです。'
@@ -2599,16 +2580,14 @@ translations:
   No ACE unit was found.: "ACEユニットが見つかりません。"
   No AMS Detected: 'AMS が検出されません'
   No API connection: API 接続なし
-  No Bluetooth printer selected — pick one in settings: Bluetooth プリンターが選択されていません
-    — 設定で選択してください
+  No Bluetooth printer selected — pick one in settings: Bluetooth プリンターが選択されていません — 設定で選択してください
   No Bluetooth printers found: Bluetooth プリンターが見つかりません
   No Camera: カメラなし
   No Endless Spool package is installed: エンドレススプール用プラグインが未インストールです
   No Filament Detected: フィラメント未検出
   No Hardware Issues: 'ハードウェアの問題なし'
   No History: 履歴なし
-  No LED macros detected on your printer. Add Klipper macros for LED control first.: プリンターで
-    LED マクロが検出されませんでした。先に LED 制御用の Klipper マクロを追加してください。
+  No LED macros detected on your printer. Add Klipper macros for LED control first.: プリンターで LED マクロが検出されませんでした。先に LED 制御用の Klipper マクロを追加してください。
   No LED macros detected. Type a macro name below.: LED マクロが検出されませんでした。下にマクロ名を入力してください。
   No LED strips detected: 'LEDストリップが検出されません'
   No LEDs found: LEDが見つかりません
@@ -2867,8 +2846,7 @@ translations:
   Operations: 操作
   Optimize Your Printing: 印刷を最適化
   Optimizes temperature control for stable, consistent heating.: 安定した一貫性のある加熱のために温度制御を最適化します。
-  Optional - select your main lighting source, or skip if your printer doesn't have one: 任意
-    - メイン照明を選択するか、照明がない場合はスキップしてください
+  Optional - select your main lighting source, or skip if your printer doesn't have one: 任意 - メイン照明を選択するか、照明がない場合はスキップしてください
   Options: オプション
   Or Enter Manually: または手動で入力
   Or instead of turning the others: 他のネジを回す代わりに
@@ -2883,8 +2861,7 @@ translations:
   Overheating: 過熱
   'Overlay Visits: ': 'オーバーレイ表示回数: '
   Overlays Opened: 開いたオーバーレイ数
-  Override auto-detection if your chamber sensor or heater isn't named 'chamber'.: チャンバーセンサーやヒーターの名前が
-    'chamber' でない場合、自動検出を上書きできます。
+  Override auto-detection if your chamber sensor or heater isn't named 'chamber'.: チャンバーセンサーやヒーターの名前が 'chamber' でない場合、自動検出を上書きできます。
   P: P
   PA: PA
   PA Calibration: 'PAキャリブレーション'
@@ -2912,8 +2889,7 @@ translations:
   Paired: ペアリング済み
   Paired successfully: ペアリング成功
   Pairing Code: 'ペアリングコード'
-  Pairing did not complete — the scanner did not bond. Try turning it off and on, then tap Pair again.: ペアリングが完了しませんでした
-    — スキャナーがボンディングされませんでした。スキャナーの電源を入れ直してから、もう一度 Pair をタップしてください。
+  Pairing did not complete — the scanner did not bond. Try turning it off and on, then tap Pair again.: ペアリングが完了しませんでした — スキャナーがボンディングされませんでした。スキャナーの電源を入れ直してから、もう一度 Pair をタップしてください。
   Pairing failed: ペアリング失敗
   Pairing...: ペアリング中...
   Panel Usage: パネル使用状況
@@ -2974,10 +2950,8 @@ translations:
   Pick-up step cancelled; nothing was sent: '装着後の操作を取り消しました。何も送信していません'
   Picking up tool: ツールを取得中
   Pill: ピル
-  Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数
-    (低いほどスクロールが早く開始)
-  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル
-    (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
+  Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数 (低いほどスクロールが早く開始)
+  'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
   Place the PEI sheet back onto the heated bed.: PEIシートを加熱ベッドに戻してください。
   Place the spools: スプールを置く
 
@@ -2999,8 +2973,7 @@ translations:
   Plugin disabled: プラグインが無効になりました
   Plugin installed successfully: プラグインが正常にインストールされました
   Plugin installed successfully.: プラグインが正常にインストールされました。
-  Plugin installed successfully. Moonraker is restarting...: プラグインが正常にインストールされました。Moonraker
-    を再起動中...
+  Plugin installed successfully. Moonraker is restarting...: プラグインが正常にインストールされました。Moonraker を再起動中...
   ? "Plugin not responding after restart.\nIt may need more time to load."
   : "再起動後にプラグインが応答しません。\n読み込みに時間がかかる場合があります。"
   Plugin removed. A config file needs attention - check the HelixScreen log for details.: プラグインを削除しました。設定ファイルに対応が必要です。詳細は HelixScreen のログを確認してください。
@@ -3108,8 +3081,7 @@ translations:
   Print did not start: 印刷は開始されませんでした
   Print canceled: 印刷がキャンセルされました
   Print complete: 印刷完了
-  Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 印刷が開始されませんでした
-    — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})
+  Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 印刷が開始されませんでした — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})
   Print ending...: 印刷終了中...
   Print error: 印刷エラー
   Print failed: 印刷失敗
@@ -3150,16 +3122,14 @@ translations:
   'Printer Setup: Touch Calibration': 'プリンター設定: タッチキャリブレーション'
   Printer Shutdown: プリンターシャットダウン
   Printer Type: プリンタータイプ
-  Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません
-    — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
+  Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
   'Printer command ''{}'' failed: {}': 'プリンターコマンド ''{}'' が失敗しました: {}'
   Printer command '{}' timed out after {}ms: プリンターコマンド '{}' が {} ms でタイムアウトしました
   Printer connection unavailable: プリンターとの接続が利用できません
   Printer database format error: プリンターデータベースの形式エラー
   Printer default: プリンター既定
   Printer didn't respond — make sure it's on and in range: プリンターが応答しません — 電源が入っており通信範囲内にあることを確認してください
-  Printer doesn't expose the expected service — wrong device?: プリンターが想定されるサービスを公開していません
-    — デバイスが違う可能性があります
+  Printer doesn't expose the expected service — wrong device?: プリンターが想定されるサービスを公開していません — デバイスが違う可能性があります
   Printer error: プリンターエラー
   Printer event: プリンターイベント
   Printer events: 'プリンターのイベント'
@@ -3529,8 +3499,7 @@ translations:
   Rotate: 回転
   Rotating tips for using your printer: プリンターの使い方のヒントを順に表示
   Rotation: 回転
-  'Rotation: %d° - %ds remaining (or wait to retry)': '回転: %d° - %ds残り
-    (待つと再試行)'
+  'Rotation: %d° - %ds remaining (or wait to retry)': '回転: %d° - %ds残り (待つと再試行)'
   Round {}: "ラウンド {}"
   Rounded: ラウンド
   Run: 実行
@@ -3571,8 +3540,7 @@ translations:
   STOP: 停止
   STYLE PROPERTIES: スタイルプロパティ
   SWITCH SENSORS: スイッチセンサー
-  ? Safe Mode active. The printer connection is disabled because the app kept crashing
-    on startup. Open Settings to fix the issue, then reboot.
+  ? Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot.
   : セーフモードが有効です。起動時にアプリがクラッシュし続けたため、プリンター接続は無効になっています。設定を開いて問題を解決してから再起動してください。
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'セーフモード: 起動時にアプリがクラッシュし続けたため、プラグインは無効になり、ウィジェットのレイアウトはデフォルトで表示されています。再起動すると通常に戻ります。'
@@ -3634,10 +3602,8 @@ translations:
   Scan the spool label with your barcode scanner: 'バーコードスキャナーでスプールのラベルをスキャンしてください'
   Scan with your phone to save these values: スマートフォンでスキャンして値を保存
   Scanner: スキャナー
-  ? Scanner bonded but didn't attach as a keyboard. Try turning the scanner off and
-    on, then tap Pair again. If that fails, add ClassicBondedOnly=false to /etc/bluetooth/input.conf.
-  : スキャナーはボンディングされましたが、キーボードとして接続されませんでした。スキャナーの電源を入れ直してから、もう一度 Pair をタップしてください。それでも失敗する場合は、/etc/bluetooth/input.conf
-    に ClassicBondedOnly=false を追加してください。
+  ? Scanner bonded but didn't attach as a keyboard. Try turning the scanner off and on, then tap Pair again. If that fails, add ClassicBondedOnly=false to /etc/bluetooth/input.conf.
+  : スキャナーはボンディングされましたが、キーボードとして接続されませんでした。スキャナーの電源を入れ直してから、もう一度 Pair をタップしてください。それでも失敗する場合は、/etc/bluetooth/input.conf に ClassicBondedOnly=false を追加してください。
   Scanning for networks...: ネットワークをスキャン中...
   Scanning...: スキャン中...
   'Score: 0': 'スコア: 0'
@@ -3860,8 +3826,7 @@ translations:
   Sound Theme: サウンドテーマ
   Sounds: サウンド
   Source: ソース
-  Space Debris mod by Markus 'Captain' Kaarlonen: Space Debris mod by Markus 'Captain'
-    Kaarlonen
+  Space Debris mod by Markus 'Captain' Kaarlonen: Space Debris mod by Markus 'Captain' Kaarlonen
   Spaghetti Detection: スパゲッティ検出
   Spaghetti detected: スパゲッティを検出しました
   Spaghetti detected (%d%%): スパゲッティを検出しました（%d%%）
@@ -4079,8 +4044,7 @@ translations:
   Tap the bed's back-right corner: ベッドの奥右の角をタップ
   Tap the bed's front-left corner: ベッドの手前左の角をタップ
   Tap the bed's front-right corner: ベッドの手前右の角をタップ
-  Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: 十字をタップ（ポイント
-    %1$d / 3）— タッチ %2$d / %3$d
+  Tap the crosshair (point %1$d of 3) — touch %2$d of %3$d: 十字をタップ（ポイント %1$d / 3）— タッチ %2$d / %3$d
   Tap the light: ライトをタップ
   Tap the nozzle tip: ノズルの先端をタップ
   Tap the part cooling fan: パーツ冷却ファンをタップ
@@ -4133,11 +4097,9 @@ translations:
   Test Both: 両方テスト
   Test label printed: テストラベル印刷完了
   'Test tower {:.0f} mm wide and {:.0f} mm tall, about {} min plus heating: {} bands of {:.0f} mm at {}.': 'テストタワー 幅{:.0f} mm・高さ{:.0f} mm、約{}分+加熱: {}区間(各{:.0f} mm)、{}。'
-  'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d)
-    - %ds残り'
+  'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d) - %ds残り'
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
-  Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが
-    HelixScreen の改善に役立ちます。
+  Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'
   That reading jumped too far to trust. Re-measure without turning.: "この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"
   'That setting cannot be changed while a print is running': '印刷中はこの設定を変更できません'
@@ -4153,8 +4115,7 @@ translations:
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'CFSの{}でフィラメントが切れました。チューブに残っている分で印刷を続けます。'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'CFSでフィラメントが切れました。チューブに残っている分で印刷を続けます。'
   The DNS server is not a valid address.: 'DNSサーバーが有効なアドレスではありません。'
-  ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
-    skipping bed mesh for quick reprints.
+  ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'HelixPrint プラグインが PRINT_START の古いコマンドを非表示の名前に変更します。'
   The IFS state file can't be read.: "IFSの状態ファイルを読み取れません。"
@@ -4164,8 +4125,7 @@ translations:
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEIシートがまだベッド上にあります。外してから「次へ」をタップしてください。
   The Spoolman spool currently loaded: 現在装填中の Spoolman スプール
   The active tool has no nozzle heater.: "アクティブなツールにノズルヒーターがありません。"
-  ? The animated screensaver has been turned off on this device to prevent it from
-    interfering with prints. You can re-enable it in Settings > Display.
+  ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "何かが動く前にベッドとノズルを同時に加熱し、印刷物を再び密着させてノズルを印刷物から離します。"
   The bed has cooled. Take the spools off the plate, then confirm.: ベッドが冷えました。スプールをベッドから取り出してから確認してください。
@@ -4335,8 +4295,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   Timelapse frames start after Klipper restarts.: 'タイムラプスのフレームは Klipper の再起動後に撮影されます。'
   Timelapse or logs folder overlaps a protected one.: "タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"
-  ? The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.
-  : 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'
+  The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
   The tool change under way finished, and {} was not put back on the carriage: '実行中のツール変更は完了し、{}はキャリッジに戻されていません'
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？
@@ -4382,8 +4341,7 @@ translations:
   This Happy Hare system does not support bypass mode: 'この Happy Hare システムはバイパスモードに対応していません'
   Needs a newer Moonraker to hold uploads.: "アップロードを保留するには新しいMoonrakerが必要です。"
   This button controls: このボタンの制御対象
-  This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して
-    Z-offset を設定します。
+  This calibration uses the paper friction method to set your Z-offset.: このキャリブレーションは紙の摩擦方式を使用して Z-offset を設定します。
   This cannot be undone.: この操作は元に戻せません。
   This channel offers v{}, older than the installed v{}. Anything added since then will be removed.: 'このチャンネルが提供するのは v{} で、インストール済みの v{} より古いバージョンです。それ以降に追加されたものは削除されます。'
   This check reads the accelerometer directly, so HelixScreen must run on the printer's own computer.: 'このチェックは加速度センサーを直接読み取るため、HelixScreen はプリンター本体のコンピューターで動作している必要があります。'
@@ -4429,8 +4387,7 @@ translations:
   This print called {}, which the printer no longer has. Tap Update Helper Macros in Advanced to bring them back.: 'この印刷は {} を使用しましたが、プリンターにはもうありません。詳細設定の「ヘルパーマクロを更新」をタップすると使えるようになります。'
   This print can't be resumed. Restart it, or turn off the bed check if it keeps happening.: 'この印刷は再開できません。印刷をやり直すか、繰り返し起きる場合はベッドチェックをオフにしてください。'
   This print does not report layers, so no layer pause can be scheduled.: 'この印刷はレイヤーを報告しないため、レイヤーでの一時停止は予約できません。'
-  This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: この印刷には約
-    %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？
+  This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: この印刷には約 %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？
   This print never reports layer {}.: 'この印刷はレイヤー {} を報告しません。'
   This printer cannot calibrate tool offsets automatically: このプリンターはツールオフセットを自動でキャリブレートできません
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。
@@ -4471,20 +4428,16 @@ translations:
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。'
-  ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
+  ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。
-  ? This will apply the Z-offset to your probe and restart Klipper to save the configuration.
-    The printer will briefly disconnect.
+  ? This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset をプローブに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。
-  ? This will collect system info, logs, settings, and printer data to help diagnose
-    issues. No passwords or sensitive data will be included.
+  ? This will collect system info, logs, settings, and printer data to help diagnose issues. No passwords or sensitive data will be included.
   : システム情報、ログ、設定、プリンターデータを収集して問題の診断に役立てます。パスワードや個人情報は含まれません。
   This will immediately halt all printer operations. The printer will require a restart to resume.: これはすべてのプリンター操作を直ちに停止します。再開するにはプリンターの再起動が必要です。
   This will remove all custom pages and restore the default widget layout.: すべてのカスタムページが削除され、デフォルトのウィジェットレイアウトに復元されます。
   This will remove all entries from the display.: 表示からすべてのエントリが削除されます。
-  This will remove the Spoolman configuration from Moonraker and restart the service.: Moonraker
-    から Spoolman の設定を削除し、サービスを再起動します。
+  This will remove the Spoolman configuration from Moonraker and restart the service.: Moonraker から Spoolman の設定を削除し、サービスを再起動します。
   This will reset all settings to defaults. This action cannot be undone.: これはすべての設定をデフォルトにリセットします。この操作は元に戻せません。
   This will restart Klipper firmware. Any active operations will be interrupted.: Klipperファームウェアを再起動します。実行中の操作は中断されます。
   This will restart Klipper.: これにより Klipper が再起動します。
@@ -4593,8 +4546,7 @@ translations:
   Touch anywhere to verify accuracy: どこかをタッチして精度を確認
   Touch input did not track the new calibration. Your previous settings were kept.: タッチ入力が新しいキャリブレーションに追従しませんでした。以前の設定を維持しました。
   Touch screen to wake from sleep: 画面をタッチしてスリープ解除
-  Touch the target (point %1$d of 3) — touch %2$d of %3$d: ターゲットをタッチ（ポイント
-    %1$d / 3）— タッチ %2$d / %3$d
+  Touch the target (point %1$d of 3) — touch %2$d of %3$d: ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
@@ -4823,8 +4775,7 @@ translations:
   Webcam: ウェブカメラ
   Website (optional): ウェブサイト（オプション）
   Week: 週
-  ? Weight data is synced from Spoolman to display remaining filament. Changes are
-    also synced when prints start, pause, or complete.
+  ? Weight data is synced from Spoolman to display remaining filament. Changes are also synced when prints start, pause, or complete.
   : 残りのフィラメントを表示するために、重量データが Spoolman から同期されます。印刷の開始、一時停止、完了時にも変更が同期されます。
   Welcome to HelixScreen: HelixScreen へようこそ
   Went past {} by {:.1f} Hz. Back it off a little.: "{}を{:.1f} Hz超えました。少し戻してください。"
@@ -4865,8 +4816,7 @@ translations:
   WiFi unavailable. Cannot connect to network.: WiFi を利用できません。ネットワークに接続できません。
   WiFi unavailable. Cannot forget network.: WiFi を利用できません。ネットワークを削除できません。
   WiFi unavailable. Cannot scan for networks.: WiFi を利用できません。ネットワークをスキャンできません。
-  WiFi was configured but hardware is not available. Check system configuration.: WiFi
-    は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。
+  WiFi was configured but hardware is not available. Check system configuration.: WiFi は設定されていますが、ハードウェアが利用できません。システム設定を確認してください。
   Widget Labels: ウィジェットラベル
   Widget removed: 'ウィジェットを削除しました'
   Width: 幅
@@ -4961,8 +4911,7 @@ translations:
   'Z-offset failed: {}': 'Zオフセットに失敗しました: {}'
   Z-offset is auto-saved by firmware: Z-offset はファームウェアにより自動保存されます
   Z-offset saved: Z-offset を保存しました
-  Z-offset saved ({:+.3f}mm). Klipper restarting...: Zオフセットを保存しました ({:+.3f}mm)。Klipper
-    を再起動中...
+  Z-offset saved ({:+.3f}mm). Klipper restarting...: Zオフセットを保存しました ({:+.3f}mm)。Klipper を再起動中...
   Z-offset saved - Klipper restarting...: Z-offset を保存しました - Klipper を再起動中...
   'Z-offset saving is off, so HelixScreen did not save this. Klipper holds it until the next config save.': 'Z-Offset の保存がオフのため、HelixScreen は保存していません。次に設定が保存されるまで Klipper が保持します。'
   'Z:': 'Z:'

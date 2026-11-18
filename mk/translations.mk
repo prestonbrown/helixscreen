@@ -119,6 +119,19 @@ translation-coverage:
 		exit 1; \
 	fi
 
+# Rewrite translations/*.yml into the shape Weblate writes them in, so its next
+# commit touches only the strings a translator changed (TRANSLATION_SYSTEM.md,
+# "Weblate"). qc_translation_files fails a file in any other shape.
+.PHONY: translation-normalize
+translation-normalize:
+	$(ECHO) "$(CYAN)Normalizing locale files to Weblate's YAML shape...$(RESET)"
+	$(Q)if [ -x "$(VENV_PYTHON_TRANS)" ]; then \
+		$(VENV_PYTHON_TRANS) scripts/check_translation_files.py --fix --base none; \
+	else \
+		echo "$(RED)✗ Python venv not available - run 'make venv-setup'$(RESET)"; \
+		exit 1; \
+	fi
+
 # Regenerate the terminology glossary (translations/GLOSSARY.md) from the YAML.
 # The glossary pins canonical per-language renderings of recurring terms so
 # translators (human or agent) stay consistent. Run after adding/translating

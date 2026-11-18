@@ -80,6 +80,8 @@ translations:
 - **Singular translations** - Direct string-to-string mapping
 - **Plural translations** - A locale whose count words inflect beyond one/other turns the
   plural key's value into a dictionary of CLDR categories (see [Plural Rules](#plural-rules))
+- **One line per entry** - `key: value` on one line, never folded, in the shape Weblate
+  writes (see [Weblate](#weblate)); `make translation-normalize` fixes a file that drifted
 
 ### Example: Russian with Complex Plurals
 
@@ -154,6 +156,123 @@ region writes dates or reads the clock differently from the base, give it a row 
 whose `user_data` is the Settings index, plus a flag image registered in
 `src/application/asset_manager.cpp`. Packaging needs nothing: every packager ships every
 `<lang>.xml` but the merged catalogue and `en.xml`.
+
+## Weblate
+
+Translators can edit the locale files on a hosted Weblate project instead of in git
+(prestonbrown/helixscreen#1909). Weblate never touches the build: it commits to its own
+copy of the repository and opens a pull request, and that pull request runs the same Code
+Quality checks as any other, so the format-specifier, coverage, CJK font and locale-file
+gates still decide what lands.
+
+### Component settings
+
+One component covers every language. These are the settings the repository is prepared
+for; anything not listed keeps Weblate's default.
+
+| Setting | Value | Why |
+|---|---|---|
+| Version control system | GitHub pull request | Weblate pushes to its fork and opens a PR against `main` |
+| Repository branch | `main` | |
+| File format | **YAML file** (`yaml`), not Ruby YAML | Ruby YAML expects the language code as the single root key; ours has `locale:` and `translations:` |
+| File mask | `translations/*.yml` | |
+| Monolingual base language file | `translations/en.yml` | English keys are the source strings |
+| Edit base file | Off | `en.yml` is written by `make translation-sync` from the code |
+| Template for new translations | Empty | |
+| Adding new translation | Contact maintainers | A language needs code and font work first, see below |
+| Language filter | `^(?!en-GB$).*$` | Regional variants stay in git, see below |
+| File format parameters | YAML indentation `2`, Long lines wrapping **No line wrapping**, Line breaks UNIX | The shape the committed files are in |
+| Translation flags | the `placeholders:` flag below | Weblate highlights printf and `{}` fields and warns when a translation drops one |
+| Add-ons | Neither "Cleanup translation files" nor "Remove blank strings" | Cleanup deletes every plural form (below); blank values are meaningful here |
+
+The component's translation flag, so Weblate marks the format fields a translation must keep:
+
+```text
+placeholders:r"%(\d+\$)?[-+#0]*\d*(\.\d+)?(hh|h|ll|l|z|j|t)?[diouxXeEfFgGcsp]|%%|\{\}"
+```
+
+Its warning is advisory. `scripts/check_translation_format_specifiers.py` in the pull
+request's checks is the one that fails a broken format string.
+
+Weblate maps `zh.yml` to Chinese (Simplified) through its own alias, and every other file
+name is already a code it knows.
+
+### Unit IDs and read-only strings
+
+translate-toolkit flattens nested keys with `->`, so the string for `Cancel` has the ID
+`translations->Cancel`, and the top-level `locale` field shows up as a string of its own.
+Two kinds of string need the `read-only` flag, set on the source string (Weblate's
+"Edit string flags" on the English string, or Bulk edit with a `key:` search):
+
+- **`locale`.** Weblate would offer it for translation. A changed value would make
+  `make translation-sync` treat that file as the wrong language; `scripts/check_translation_files.py`
+  fails one that no longer matches its file name.
+- **Plural keys.** Weblate's YAML format has no plural support. A locale that writes a
+  key as a mapping of CLDR categories (`one:`/`few:`/`many:`/`other:`, see
+  [Plural Rules](#plural-rules)) has no unit matching the flat English source, so Weblate
+  lists the string as untranslated, and translating it there replaces the whole mapping with
+  one flat string. `scripts/check_translation_files.py --list-plural-keys` prints the current
+  set; mark those read-only and edit their plural forms in git. The gate also compares each
+  locale with the branch's fork point and fails a pull request in which a plural mapping
+  became a flat string.
+
+### The file shape Weblate writes
+
+Weblate re-serializes a whole locale file on every commit through translate-toolkit, which
+dumps with ruamel's round-trip mode: quotes preserved, block style, 2-space indent, and the
+component's wrap width. With "No line wrapping" that width is 65535, so no value is folded
+across lines, and a key longer than 128 characters is written in YAML's explicit form:
+
+```yaml
+  ? "The printer homes X and Y if needed, then drives the toolhead into the cutter ..."
+  : "Der Drucker referenziert X und Y bei Bedarf ..."
+```
+
+The committed files are kept in exactly that shape, so a Weblate commit changes only the
+lines a translator edited. `canonical_text()` (`scripts/translations/yaml_manager.py`) is
+that serialization, and `_render_entry_lines()` renders each entry `make translation-sync`
+splices in through the same settings, so the splicer and Weblate never reflow each other's
+lines. `qc_translation_files` (`scripts/check_translation_files.py`) fails a file in any other
+shape, naming the first line that differs; `make translation-normalize` rewrites it. A
+hand edit in a text editor is fine as long as each entry stays on one line, as
+`key: value`.
+
+New keys reach Weblate the usual way: `make translation-sync` adds each one to every
+locale file, English with its own text and the rest blank, and Weblate picks up the blank
+entries as untranslated strings on its next update from `main`. Every locale file keeps
+every key, so Weblate never has to add an entry itself.
+
+### Regional variants
+
+Weblate has no notion of a value that inherits from another language. In `en-GB.yml` a
+blank means "use the `en` text", which Weblate would show as 5,000 untranslated strings,
+and copying the English text into them would freeze each one against later fixes to `en`.
+So the language filter leaves variants out and they are edited in git, where the blank
+keeps its meaning. A future variant of a translated language (`pt-BR`) gets the same
+treatment unless it is a full translation in its own right, in which case it is a plain
+language and drops the region from its file name.
+
+### New languages
+
+A new language is added in git before anyone translates it on Weblate: it needs a
+rule in `helix::ui::plural_category()` (`src/core/i18n_plural.cpp`), a Settings entry, a flag and, outside Latin and CJK scripts, font
+coverage (`check_font_tier_coverage.py`); right-to-left and complex-shaping scripts are
+out of scope for now. The steps are in
+[TRANSLATION_CONTRIBUTOR_GUIDE.md](TRANSLATION_CONTRIBUTOR_GUIDE.md#adding-a-new-language).
+Once the file exists on `main`, Weblate finds it through the file mask.
+
+### Glossary
+
+`translations/GLOSSARY.md` pins the canonical rendering of recurring terms. The same
+selection exports as one multilingual TBX file for Weblate's glossary:
+
+```bash
+.venv/bin/python scripts/translation_sync.py glossary --tbx /tmp/helixscreen-glossary.tbx
+```
+
+Upload it to each language of the project's glossary component. The prose in
+`GLOSSARY.md` (the position-noun rules, the loanword policy) does not travel with the TBX
+file; the glossary component's description links to it.
 
 ## Build Pipeline
 
@@ -468,6 +587,7 @@ This shows what keys would be added without modifying files.
 | `make translation-sync-dry-run` | Preview sync without modifying files |
 | `make translation-coverage` | Show translation coverage statistics |
 | `make translation-glossary` | Regenerate `translations/GLOSSARY.md` from the YAML |
+| `make translation-normalize` | Rewrite `translations/*.yml` into the shape Weblate writes (see [Weblate](#weblate)) |
 | `make translation-obsolete` | Find translation keys not referenced anywhere |
 
 ### How `obsolete` decides a key is unused
@@ -542,6 +662,7 @@ The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance
 | `translations/*.yml` | Source translation files (one per language or regional variant) |
 | `scripts/translations/locale_variants.py`, `include/core/locale_code.h` | Regional variants: base language, pack merge, coverage inheritance |
 | `translations/GLOSSARY.md` | Canonical per-language renderings of recurring terms (generated) |
+| `scripts/check_translation_files.py` | Locale files in Weblate's shape, `locale:` matching the file name, no collapsed plural entry |
 | `scripts/generate_translations.py` | Main pack generator |
 | `scripts/translation_sync.py` | String extraction, sync, and glossary tool |
 | `scripts/translations/` | Support modules for sync tool |

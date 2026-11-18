@@ -72,7 +72,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 |--------|---------|
 | `generate_translations.py` | Main translation generator: YAML to runtime XML packs |
 | `translation_packs.py` | The `ui_xml/translations/` files no locale loads (merged file, identity pack) |
-| `translation_sync.py` | Sync keys (XML/C++ → YAML); also `coverage`, `obsolete`, `glossary` subcommands |
+| `translation_sync.py` | Sync keys (XML/C++ → YAML); also `coverage`, `obsolete`, `glossary` (`--tbx` for Weblate) subcommands |
 | `translations/cjk_filename_fonts.py` | CJK glyphs and pixel sizes a print filename can need, for the filename font bins |
 | `translations/locale_variants.py` | Regional variants (`en-GB`): base language, the merged pack, inherited coverage |
 | `translations/yaml_manager.py` | Edits locale YAMLs by line splice, never a re-dump; refuses duplicate keys |
@@ -114,6 +114,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `gen_gallery.py` | Regenerates `docs/devel/GALLERY.md` from the doc-image manifest; `--check` exits 1 when stale |
 | `doc_anchors.py` | Resolves `path#scope` doc citations to today's line; `--check` itself always exits 0. Gated as `qc_doc_anchors`: strict, over the docs a change touches (staged at commit, changed since the fork point otherwise); `make check-doc-anchors` sweeps the whole tree |
 | `check_translation_format_specifiers.py` | Fail on translated format strings whose placeholders differ from English |
+| `check_translation_files.py` | Locale files in Weblate's shape (`--fix`), `locale:` matching the file name, no plural mapping collapsed. Also `tests/python/test_check_translation_files.py` |
 | `check_cjk_font_staleness.sh` + `check_cjk_font_coverage.py` | Fail if the runtime CJK fonts miss a codepoint translations or filenames need |
 | `check_update_queue_leaks.py` | Ratchet on cross-test UpdateQueue leaks vs a baseline |
 | `check_asan_leaks.py` | Ratchet on LeakSanitizer at-exit leaks vs a baseline |
