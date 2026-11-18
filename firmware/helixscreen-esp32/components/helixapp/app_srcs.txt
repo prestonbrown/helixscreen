@@ -409,6 +409,7 @@ src/core/text_io.cpp
 src/core/contract_breach.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
+src/system/featured_tip.cpp
 src/system/tips_manager.cpp
 src/system/tools_used_cache.cpp
 src/system/translation_loader.cpp

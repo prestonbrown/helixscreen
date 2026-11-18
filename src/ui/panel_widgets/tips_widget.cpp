@@ -8,13 +8,16 @@
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
 
+#include "app_globals.h"
 #include "core/subject.h"
 #include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
+#include "featured_tip.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix_psram_attr.h"
+#include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -27,13 +30,33 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
+
+#include "hv/json.hpp"
 
 // Tip rotation interval (60 seconds)
 static constexpr uint32_t kTipRotationIntervalMs = 60000;
 
 // Fade animation duration
 static constexpr uint32_t kTipFadeDurationMs = 300;
+
+// How often an active widget checks Moonraker for a featured line
+static constexpr uint32_t kFeaturedPollIntervalMs = 15000;
+
+// The featured line last shown or passed over, shared by every instance so a
+// recycled widget does not show it again.
+static std::string s_last_featured_id;
+
+// The featured line on screen and when it went up. It holds the tile for one
+// rotation interval, across a grid rebuild that recycles the widget.
+static helix::PrintingTip s_featured_tip;
+static uint32_t s_featured_shown_at = 0;
+
+static bool featured_tip_on_screen() {
+    return !s_featured_tip.title.empty() &&
+           lv_tick_elaps(s_featured_shown_at) < kTipRotationIntervalMs;
+}
 
 // Subject owned by TipsWidget module — created before XML bindings resolve
 static helix::Subject s_status_subject;
@@ -128,12 +151,9 @@ void TipsWidget::detach() {
             tip_animating_ = false;
             lv_anim_delete(this, nullptr);
         }
-
-        if (tip_rotation_timer_) {
-            helix::ui::lv_timer_cancel_safe(tip_rotation_timer_);
-            tip_rotation_timer_ = nullptr;
-        }
     }
+    stop_timers();
+    lifetime_.invalidate();
 
     tip_label_ = nullptr;
 
@@ -161,6 +181,11 @@ void TipsWidget::on_activate() {
         spdlog::debug("[TipsWidget] Started tip rotation timer ({}ms interval)",
                       kTipRotationIntervalMs);
     }
+    if (!featured_poll_timer_) {
+        featured_poll_timer_ =
+            lv_timer_create(featured_poll_timer_cb, kFeaturedPollIntervalMs, this);
+    }
+    poll_featured_tip();
 }
 
 void TipsWidget::on_deactivate() {
@@ -170,10 +195,20 @@ void TipsWidget::on_deactivate() {
         lv_anim_delete(this, nullptr);
     }
 
+    stop_timers();
+    // A featured-line reply that lands after this is dropped.
+    lifetime_.invalidate();
+    spdlog::debug("[TipsWidget] Stopped tip timers");
+}
+
+void TipsWidget::stop_timers() {
     if (tip_rotation_timer_) {
         helix::ui::lv_timer_cancel_safe(tip_rotation_timer_);
         tip_rotation_timer_ = nullptr;
-        spdlog::debug("[TipsWidget] Stopped tip rotation timer");
+    }
+    if (featured_poll_timer_) {
+        helix::ui::lv_timer_cancel_safe(featured_poll_timer_);
+        featured_poll_timer_ = nullptr;
     }
 }
 
@@ -240,6 +275,10 @@ bool TipsWidget::fits_at(int width_px, int /*height_px*/) const {
 }
 
 void TipsWidget::update_tip_of_day() {
+    if (featured_tip_on_screen()) {
+        show_tip(s_featured_tip);
+        return;
+    }
     // Tip selection allocates on the heap; on memory-constrained ARM devices
     // (ad5x, k1) a std::bad_alloc here would otherwise unwind out of a
     // 60-second LVGL timer callback and terminate the process (#771).
@@ -251,18 +290,66 @@ void TipsWidget::update_tip_of_day() {
     }
 
     if (!tip.title.empty()) {
-        // Use animated transition if label is available and not already animating
-        if (tip_label_ && !tip_animating_) {
-            start_tip_fade_transition(tip);
-        } else {
-            // Fallback: instant update (initial load or animation in progress)
-            current_tip_ = tip;
-            std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
-            lv_subject_set_string(&s_status_subject, s_status_buffer);
-            spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
-        }
+        show_tip(tip);
     } else {
         spdlog::warn("[TipsWidget] Failed to get tip, keeping current");
+    }
+}
+
+void TipsWidget::show_tip(const PrintingTip& tip) {
+    if (tip_animating_) {
+        // The fade in flight applies pending_tip_ when it reaches zero.
+        pending_tip_ = tip;
+        return;
+    }
+    if (tip_label_) {
+        start_tip_fade_transition(tip);
+        return;
+    }
+    // No label to animate (initial load): instant update
+    current_tip_ = tip;
+    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
+    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
+}
+
+void TipsWidget::poll_featured_tip() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        return;
+    }
+    api->database_get_item(featured_tip::kNamespace, featured_tip::kKey,
+                           lifetime_.bg_cb("TipsWidget::featured_tip",
+                                           [this](const nlohmann::json& value) {
+                                               apply_featured_tip(value);
+                                           }),
+                           // No featured line yet: Moonraker answers a missing key
+                           // with an error, which is the normal state.
+                           [](const MoonrakerError& err) {
+                               spdlog::trace("[TipsWidget] No featured tip: {}", err.message);
+                           });
+}
+
+void TipsWidget::apply_featured_tip(const nlohmann::json& value) {
+    const auto featured = featured_tip::parse(value);
+    if (!featured || featured->id == s_last_featured_id) {
+        return;
+    }
+    s_last_featured_id = featured->id;
+    const double now_s = std::chrono::duration<double>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+    if (!featured_tip::is_fresh(*featured, now_s)) {
+        spdlog::debug("[TipsWidget] Skipping stale featured tip {}", featured->id);
+        return;
+    }
+    spdlog::info("[TipsWidget] Showing featured tip from {}", featured->source);
+    s_featured_tip = featured_tip::to_printing_tip(*featured);
+    s_featured_shown_at = lv_tick_get();
+    show_tip(s_featured_tip);
+    // The featured line gets a full rotation interval before the next tip.
+    if (tip_rotation_timer_) {
+        lv_timer_reset(tip_rotation_timer_);
     }
 }
 
@@ -368,8 +455,9 @@ void TipsWidget::handle_tip_text_clicked() {
     spdlog::info("[TipsWidget] Tip text clicked - showing detail dialog");
 
     // Use alert helper which auto-handles OK button to close
-    helix::ui::modal_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
-                           ModalSeverity::Info);
+    const std::string& heading =
+        current_tip_.heading.empty() ? current_tip_.title : current_tip_.heading;
+    helix::ui::modal_alert(heading.c_str(), current_tip_.content.c_str(), ModalSeverity::Info);
 }
 
 void TipsWidget::handle_tip_rotation_timer() {
@@ -393,5 +481,12 @@ void TipsWidget::tip_rotation_timer_cb(lv_timer_t* timer) {
     auto* self = static_cast<TipsWidget*>(lv_timer_get_user_data(timer));
     if (self) {
         self->handle_tip_rotation_timer();
+    }
+}
+
+void TipsWidget::featured_poll_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<TipsWidget*>(lv_timer_get_user_data(timer));
+    if (self) {
+        self->poll_featured_tip();
     }
 }

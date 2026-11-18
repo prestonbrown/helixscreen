@@ -5,6 +5,8 @@
 
 #include "ui_widget_ref.h"
 
+#include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "panel_widget.h"
 #include "tips_manager.h"
 
@@ -44,14 +46,23 @@ class TipsWidget : public PanelWidget {
     // Timer for rotating tips every 60 seconds
     lv_timer_t* tip_rotation_timer_ = nullptr;
 
+    // Timer that checks Moonraker for a featured line (featured_tip.h) while active
+    lv_timer_t* featured_poll_timer_ = nullptr;
+    helix::AsyncLifetimeGuard lifetime_;
+
     // Tip logic
     void update_tip_of_day();
+    void show_tip(const PrintingTip& tip);
+    void poll_featured_tip();
+    void apply_featured_tip(const nlohmann::json& value);
+    void stop_timers();
     void start_tip_fade_transition(const PrintingTip& new_tip);
     void apply_pending_tip();
     void handle_tip_text_clicked();
     void handle_tip_rotation_timer();
 
     static void tip_rotation_timer_cb(lv_timer_t* timer);
+    static void featured_poll_timer_cb(lv_timer_t* timer);
 };
 
 } // namespace helix
