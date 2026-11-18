@@ -313,7 +313,7 @@ void fill_head(AmsBackendMock& backend, int head, uint32_t rgb, float grams, Slo
 
 TEST_CASE_METHOD(ReprintGatesFixture, "a reprint's gates judge the head its routing sends it to",
                  "[reprint_gates][reprint][print_start][preprint]") {
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     helix::test::RegisteredBackend<RoutedToHead3> backend;
     backend->set_operation_delay(0);
     backend->start();
@@ -416,7 +416,7 @@ class UnroutedResetsToIdentity : public AmsBackendMock {
 TEST_CASE_METHOD(ReprintGatesFixture,
                  "an unrouted reprint's gates judge head n for tool n where the firmware resets",
                  "[reprint_gates][reprint][print_start][preprint]") {
-    AmsState::instance().init_subjects(false);
+    AmsState::instance().init_subjects(true);
     helix::test::RegisteredBackend<UnroutedResetsToIdentity> backend;
     backend->set_operation_delay(0);
     backend->start();
