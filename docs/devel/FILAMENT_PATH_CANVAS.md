@@ -345,15 +345,17 @@ the hub and buffer stack above the toolhead glyph (`glyph_top` is
 
 **The buffer on the trunk.** A unit with a buffer carries its tension control on the
 trunk's final vertical drop, never on a sideways run. `place_under_unit()` in
-`compute_linear_hub_frame()` is the one rule for a hub and a selector (bar or rail art):
-under the unit's outlet the buffer stands centered with a band's room (2r) above and below
-it, then the bypass merges and the toolhead band sits in the clear room above the head. A
-selector's exit stands under the active lane, so its filament jogs to the center first: the
-selector keeps two radii more for the jog and the buffer stands below it. Where that room is
-short, the hub or selector rises toward the lanes (the bar's prep sensors toward the box
-edge, the rail art toward the lanes' fan room); only a canvas too short for that draws a
-smaller head. The control is `buffer_control_height(hub_h)` tall: the capsule
-(`buffer_capsule_height()`) and its thumb.
+`compute_linear_hub_frame()` is the one rule for a hub and a selector (bar or rail art): the
+buffer stands with equal gaps to the unit's outlet above and the head below, and the lower gap
+holds the bypass merge and the toolhead band in the clear room over the head. A selector's
+exit stands under the active lane, so its filament jogs to the center first and the buffer
+stands below the jog. Where the room is short, the hub or selector rises toward the lanes
+(never over the lanes' numbers; the bar's prep sensors toward the box edge, the rail art toward
+the lanes' fan room); only a canvas too short for that draws a smaller head. Under a drawn
+unit the canvas reaches up into the unit and still ends at its container's bottom
+(`ams_detail_sync_lane_entry`), so the head stands near the bottom at every size. The control
+is `buffer_control_height(hub_h)` tall: the capsule (`buffer_capsule_height()`); its thumb
+stands into the gaps.
 
 `src/ui/filament/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
 `draw_sensor_band`, so `[filament-path][plan]` tests it without a display.
