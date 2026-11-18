@@ -211,8 +211,9 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         }
         if (!lanes[i].fault)
             continue;
+        // handle_lane_failure's form: the lane goes to Error and its name leads the sentence.
         fault_message += (fault_message.empty() ? "" : "\n") + lane_name(static_cast<int>(i)) +
-                         " FAILED TO LOAD, CHECK FILAMENT AT TRIGGER";
+                         " Current lane not loaded, LOAD TRIGGER NOT TRIGGERED";
     }
 
     nlohmann::json out;
