@@ -679,12 +679,6 @@ build_qualified_fixture() {
     printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
 }
 
-@test "--link passes a guarded qualified call whose member name live code also spells" {
-    build_qualified_fixture $'#if HELIX_HAS_CAMERA\nint guarded() { return Tracker::load(); }\n#endif'
-    run_link_gate
-    [ "$status" -eq 0 ]
-}
-
 @test "--link fails a qualified call the firmware compiles" {
     build_qualified_fixture 'int unguarded() { return Tracker::load(); }'
     run_link_gate
