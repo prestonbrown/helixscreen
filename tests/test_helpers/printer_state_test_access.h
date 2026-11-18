@@ -45,6 +45,7 @@ class PrinterPrintStateTestAccess {
         pps.print_exception_id_ = -1;
         pps.print_exception_code_ = -1;
         pps.print_exception_message_.clear();
+        pps.print_exception_runout_lane_ = -1;
         // The job being prepared is session-scoped: it outlives
         // reset_for_new_print() by design, since it exists precisely for the
         // window before the printer reports the job. Leaving it set leaks a

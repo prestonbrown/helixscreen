@@ -470,6 +470,7 @@ void PrinterPrintState::clear_print_exception() {
     print_exception_id_ = -1;
     print_exception_code_ = -1;
     print_exception_message_.clear();
+    print_exception_runout_lane_ = -1;
     if (lv_subject_get_int(&print_exception_) != -1) {
         lv_subject_set_int(&print_exception_, -1);
     }

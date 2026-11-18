@@ -596,8 +596,14 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
     // A running or paused job is drawing from the lane being fed, so that
     // lane's sensor going empty is a runout even once the backend reads the
     // lane EMPTY: a spool that ran dry leaves nothing in its lane.
-    const bool job_running =
-        print_job_running(get_printer_state().print_state().get_print_lifecycle());
+    const auto& print_state = get_printer_state().print_state();
+    const PrintState lifecycle = print_state.get_print_lifecycle();
+    const bool job_running = print_job_running(lifecycle);
+    // The lane the firmware's own pause cause names as run out. That head need
+    // be neither the current one nor still hold filament: the job is waiting on
+    // it, so its empty sensor is the runout whatever the lane reads.
+    const int paused_runout_lane =
+        lifecycle == PrintState::Paused ? print_state.get_pause_runout_lane() : -1;
 
     for (const auto& sensor : candidates) {
         // This sensor reports no filament. Decide whether it is a real runout.
@@ -608,6 +614,12 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
         const SlotInfo slot =
             backend && sensor.lane >= 0 ? backend->get_slot_info(sensor.lane) : SlotInfo{};
         const int lane = slot.slot_index >= 0 ? sensor.lane : -1;
+        if (lane >= 0 && lane == paused_runout_lane) {
+            spdlog::debug("[FilamentSensorManager] has_real_runout: TRUE - {} - the pause "
+                          "cause names lane {}",
+                          sensor.sensor_name, lane);
+            return lane;
+        }
         if (lane >= 0) {
             const bool fed = lane == current_slot || lane == current_tool;
             const bool feeding_the_job = job_running && current_slot >= 0 && fed;

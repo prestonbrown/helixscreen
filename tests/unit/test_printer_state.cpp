@@ -380,6 +380,21 @@ TEST_CASE("pause_descriptor::read: silence, an empty descriptor and a populated 
     REQUIRE(partial.has_value());
     CHECK(partial->id == -1);
     CHECK(partial->message.empty());
+    CHECK(cause->runout_lane == -1);
+}
+
+TEST_CASE("pause_descriptor::read: a runout cause names its lane", "[state][pause]") {
+    using helix::pause_descriptor::read;
+    auto runout =
+        read(json{{"exception",
+                   {{"id", 523}, {"index", 2}, {"code", 0}, {"message", "e2_filament runout"}}}});
+    REQUIRE(runout.has_value());
+    CHECK(runout->runout_lane == 2);
+
+    // Another fault carries an index too, and names no runout.
+    auto defect = read(json{{"exception", {{"id", 532}, {"index", 2}, {"code", 1}}}});
+    REQUIRE(defect.has_value());
+    CHECK(defect->runout_lane == -1);
 }
 
 TEST_CASE("PrinterState: parses print_stats.exception structured object",

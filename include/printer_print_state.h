@@ -788,7 +788,13 @@ class PrinterPrintState {
         return print_exception_code_;
     }
 
-    /// Drop the latched pause cause (id, code, message, subject).
+    /// The lane the latched pause cause names as run out of filament
+    /// (pause_descriptor::PauseDescriptor::runout_lane), or -1. Main-thread only.
+    [[nodiscard]] int get_pause_runout_lane() const {
+        return print_exception_runout_lane_;
+    }
+
+    /// Drop the latched pause cause (id, code, message, runout lane, subject).
     /// Main-thread only.
     void clear_print_exception();
 
@@ -1568,6 +1574,7 @@ class PrinterPrintState {
     int print_exception_id_ = -1;
     int print_exception_code_ = -1;
     std::string print_exception_message_;
+    int print_exception_runout_lane_ = -1;
     /// print_stats frames parsed, and the one the latched exception arrived
     /// in: a pause takes an exception from its own frame, a later one, or the
     /// frame just before it (the firmware can publish the two across a status
