@@ -663,8 +663,10 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
 
 namespace {
 constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
-constexpr int kLaneHaloDivisor = 80; ///< rim spread: the drawing's width over this
-constexpr int kLaneHaloGain = 6;     ///< lifts the blurred outline into a visible rim
+constexpr int kLaneHaloDivisor = 40; ///< glow spread per pass: the drawing's width over this
+constexpr int kLaneHaloPasses = 3;   ///< box blurs that soften the spread toward a Gaussian
+constexpr int kLaneHaloGain = 2;     ///< lifts the falloff so the glow reads at the outline
+constexpr int kLaneHaloPeak = 210;   ///< the glow's strongest alpha
 } // namespace
 
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
@@ -762,16 +764,19 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             }
         }
         if (m.glow) {
-            // A rim just outside the spool's outline: its silhouette, spread a little and
-            // lifted, less itself.
+            // Light around the spool: its silhouette, blurred into a soft falloff and lifted,
+            // less the spool itself.
             std::vector<uint8_t> halo = spool;
-            const int radius = std::max(2, (int)c.w / kLaneHaloDivisor);
-            box_blur(halo, w, h, 1, w, radius);
-            box_blur(halo, h, w, w, 1, radius);
+            const int radius = std::max(1, (int)c.w / kLaneHaloDivisor);
+            for (int pass = 0; pass < kLaneHaloPasses; ++pass) {
+                box_blur(halo, w, h, 1, w, radius);
+                box_blur(halo, h, w, w, 1, radius);
+            }
             for (int32_t y = 0; y < h; ++y) {
                 for (int32_t x = 0; x < w; ++x) {
                     const size_t idx = static_cast<size_t>(y) * w + x;
-                    const int lifted = std::min(255, halo[idx] * kLaneHaloGain);
+                    const int lifted =
+                        std::min(255, halo[idx] * kLaneHaloGain) * kLaneHaloPeak / 255;
                     blend(
                         x, y, m.color,
                         static_cast<uint8_t>(lifted * (255 - spool[idx]) / 255 * clear[idx] / 255));

@@ -507,11 +507,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a glow rings its spool, a dim
         const float y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
         return unit_art_marks_alpha(art, (int32_t)std::lround(x * w), (int32_t)std::lround(y * w));
     };
-    // The glow is a rim just outside the spool's outline, not over the spool itself and not
-    // spreading far past it.
+    // The glow is light falling off softly around the spool: none over the spool itself,
+    // strongest at its outline, fading out within about half a flange radius.
     CHECK(alpha_out(0, 0.5f) == 0);
-    CHECK(alpha_out(0, 1.06f) > 0);
-    CHECK(alpha_out(0, 1.35f) == 0);
+    CHECK(alpha_out(0, 1.06f) > alpha_out(0, 1.3f));
+    CHECK(alpha_out(0, 1.3f) > 0);
+    CHECK(alpha_out(0, 2.2f) == 0);
+    // Nor over the unit's body in front of the spool.
+    const tray::ArtLaneGeom& first = geom->lane[0];
+    CHECK(unit_art_marks_alpha(art, (int32_t)std::lround((first.box_x0 + first.box_x1) / 2 * w),
+                               (int32_t)std::lround((geom->drawn[3] - 0.03f) * w)) == 0);
     // The dim covers its spool, seen through the lid, and nothing past it.
     const tray::ArtLaneGeom& last = geom->lane[3];
     CHECK(unit_art_marks_alpha(art, (int32_t)std::lround((last.far_x + last.near_x) / 2 * w),
