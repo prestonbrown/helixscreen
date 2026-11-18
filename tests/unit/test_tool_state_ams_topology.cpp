@@ -1087,8 +1087,8 @@ TEST_CASE("build_ams_topology carries each lane's extruder",
     mock.set_stealth_mode(true);
     auto topo = helix::build_ams_topology(&mock, 0);
     REQUIRE(topo.has_value());
-    REQUIRE(topo->tool_count == 18);
-    REQUIRE(topo->tool_extruder.size() == 18);
+    REQUIRE(topo->tool_count == 20);
+    REQUIRE(topo->tool_extruder.size() == 20);
     CHECK(topo->tool_extruder[0] == "extruder");
     CHECK(topo->tool_extruder[7] == "extruder4");
     CHECK(topo->tool_extruder[12] == "extruder6");
