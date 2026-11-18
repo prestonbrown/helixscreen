@@ -971,7 +971,7 @@ If R2 is unavailable or returns a corrupt file:
 
 ### HTTPS Capability Check
 
-On embedded platforms (AD5M), BusyBox wget does not support HTTPS. `check_https_capability` tests python's `ssl`, then curl, then wget. Without HTTPS, `download_release` skips the CDN and GitHub candidates and goes straight to the mirror's tarball; when even that fails, `get_latest_version` prints step-by-step manual install instructions with `scp` commands.
+On embedded platforms (AD5M), BusyBox wget does not support HTTPS. `check_https_capability` tests python's `ssl`, then curl, then wget. Without HTTPS, `download_release` asks the mirror's tarball first and tries the CDN and GitHub candidates only after it, since the probe tests github.com and a host that cannot reach GitHub may still reach the CDN; when even that fails, `get_latest_version` prints step-by-step manual install instructions with `scp` commands.
 
 ### Architecture Validation
 

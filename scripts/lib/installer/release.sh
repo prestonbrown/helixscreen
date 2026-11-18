@@ -1175,7 +1175,9 @@ download_release() {
 
     local size https_ok=false
     check_https_capability && https_ok=true
-    if [ "$https_ok" = true ]; then
+
+    # The HTTPS candidates: R2 CDN, then GitHub Releases, zip before tar at each.
+    _download_release_https() {
         # --- Attempt 1: R2 CDN, zip preferred ---
         log_info "URL: $zip_r2"
         if _try_download_candidate "$zip_r2" "$zip_dest" https "$zip_sha"; then
@@ -1212,28 +1214,39 @@ download_release() {
             return 0
         fi
         rm -f "$tar_dest"
-    else
-        log_warn "HTTPS not available, downloading from the plain-HTTP mirror..."
-    fi
+        return 1
+    }
+    # The plain-HTTP mirror (server/dl-worker) serves tarballs only.
+    _download_release_http() {
+        log_info "Trying HTTP fallback..."
+        log_info "URL: $tar_http"
+        if _try_download_candidate "$tar_http" "$tar_dest" http "$tar_sha"; then
+            _ARCHIVE_FORMAT="tar.gz"
+            size=$(ls -lh "$tar_dest" | awk '{print $5}')
+            log_success "Downloaded ${tar_filename} (${size}) via HTTP"
+            return 0
+        fi
+        rm -f "$tar_dest"
+        return 1
+    }
 
-    # --- Attempt 3: plain-HTTP mirror (BusyBox wget fallback), tarball only ---
-    log_info "Trying HTTP fallback..."
-    log_info "URL: $tar_http"
-    if _try_download_candidate "$tar_http" "$tar_dest" http "$tar_sha"; then
-        _ARCHIVE_FORMAT="tar.gz"
-        size=$(ls -lh "$tar_dest" | awk '{print $5}')
-        log_success "Downloaded ${tar_filename} (${size}) via HTTP"
-        return 0
+    # A host whose HTTPS probe fails (BusyBox wget on the AD5M) asks the mirror
+    # first. The probe tests github.com, so the HTTPS candidates still follow:
+    # a host that cannot reach GitHub may still reach the CDN.
+    if [ "$https_ok" = true ]; then
+        _download_release_https && return 0
+        _download_release_http && return 0
+    else
+        log_warn "HTTPS not available, trying the plain-HTTP mirror first..."
+        _download_release_http && return 0
+        _download_release_https && return 0
     fi
-    rm -f "$tar_dest"
 
     log_error "Failed to download release."
-    if [ "$https_ok" = true ]; then
-        log_error "Tried zip: $zip_r2"
-        log_error "Tried zip: $zip_gh"
-        log_error "Tried tar: $tar_r2"
-        log_error "Tried tar: $tar_gh"
-    fi
+    log_error "Tried zip: $zip_r2"
+    log_error "Tried zip: $zip_gh"
+    log_error "Tried tar: $tar_r2"
+    log_error "Tried tar: $tar_gh"
     log_error "Tried tar: $tar_http"
     if [ -n "$_DOWNLOAD_HTTP_CODE" ] && [ "$_DOWNLOAD_HTTP_CODE" != "200" ]; then
         log_error "HTTP status: $_DOWNLOAD_HTTP_CODE"

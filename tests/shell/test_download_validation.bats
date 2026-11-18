@@ -1403,7 +1403,7 @@ _record_candidates() {
     lacks "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip" "$output"
 }
 
-@test "download_release: a host without HTTPS goes straight to the plain-HTTP tarball" {
+@test "download_release: a host without HTTPS asks the plain-HTTP tarball first" {
     # BusyBox wget on the AD5M fails every https:// URL ("not an http or ftp
     # url"), so the CDN and GitHub candidates only cost time and log noise.
     _record_candidates
@@ -1414,4 +1414,24 @@ _record_candidates() {
     [ "$(echo "$output" | grep '^CANDIDATE ')" = \
       "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
     lacks "trying GitHub" "$output"
+}
+
+@test "download_release: a failed HTTPS probe still tries the CDN after the mirror" {
+    # The probe tests github.com; a host that cannot reach GitHub may still
+    # reach the CDN, and a version with no published hash needs HTTPS.
+    _record_candidates
+    check_https_capability() { return 1; }
+    _try_download_candidate() {
+        echo "CANDIDATE $1"
+        case "$1" in
+            "${R2_BASE_URL}"/*.zip) : > "$2"; return 0 ;;
+        esac
+        return 1
+    }
+
+    run download_release "v1.1.0-rc.3" "ad5m"
+    [ "$status" -eq 0 ]
+    [ "$(echo "$output" | grep '^CANDIDATE ' | head -1)" = \
+      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
+    contains "from CDN" "$output"
 }
