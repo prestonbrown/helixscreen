@@ -232,7 +232,9 @@ class PrintStartController {
     std::unique_ptr<helix::FileStartFactsLoader> reprint_facts_;
     /// Reads a reprinted file's facts for the gates; created on that use.
     std::unique_ptr<helix::FileStartFactsLoader> reprint_gate_facts_;
-    /// The on_error of a reprint whose facts load has not answered; empty otherwise.
+    /// A reprint's facts load has not answered yet.
+    bool reprint_pending_ = false;
+    /// That reprint's on_error, which may itself be empty.
     std::function<void()> pending_reprint_on_error_;
 
     /// The tool-to-head map a reprint's pre-print send writes on @p backend:

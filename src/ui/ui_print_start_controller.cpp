@@ -660,12 +660,14 @@ void PrintStartController::reprint_impl(const std::string& filename, const std::
         reprint_gate_facts_ = std::make_unique<helix::FileStartFactsLoader>(api_);
     }
     reprint_gate_facts_->set_api(api_);
+    reprint_pending_ = true;
     pending_reprint_on_error_ = on_error;
     arm_reprint_stall_watchdog(filename);
     reprint_gate_facts_->load(
         filename,
         [this, filename, path, tools_used, routing, on_started, on_error, archive_plate,
          native_plate](helix::FileStartFacts facts) {
+            reprint_pending_ = false;
             pending_reprint_on_error_ = nullptr;
             reprint_stall_.reset();
             // The printer and this screen moved on while the file was read: a
@@ -726,7 +728,7 @@ PrintStartController::reprint_routing(const AmsBackend& backend,
 }
 
 void PrintStartController::abandon_pending_reprint() {
-    if (!pending_reprint_on_error_) {
+    if (!reprint_pending_) {
         return;
     }
     spdlog::info("[PrintStartController] Dropping a reprint whose file checks had not answered");
@@ -734,9 +736,12 @@ void PrintStartController::abandon_pending_reprint() {
         reprint_gate_facts_->cancel();
     }
     reprint_stall_.reset();
+    reprint_pending_ = false;
     auto on_error = std::move(pending_reprint_on_error_);
     pending_reprint_on_error_ = nullptr;
-    on_error();
+    if (on_error) {
+        on_error();
+    }
 }
 
 helix::FileRead PrintStartController::reprint_file_read(const std::set<int>& tools_used,
@@ -755,7 +760,7 @@ void PrintStartController::arm_reprint_stall_watchdog(const std::string& filenam
             auto* self = static_cast<PrintStartController*>(lv_timer_get_user_data(t));
             // LVGL deletes a finished one-shot itself.
             self->reprint_stall_.release();
-            if (!self->pending_reprint_on_error_) {
+            if (!self->reprint_pending_) {
                 return;
             }
             spdlog::warn("[PrintStartController] Not reprinting {}: its file checks did not "

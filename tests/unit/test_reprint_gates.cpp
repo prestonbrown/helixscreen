@@ -339,3 +339,22 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a reprint's gates judge the head its rout
     CHECK(started == 1);
     CHECK(errors == 0);
 }
+
+TEST_CASE_METHOD(ReprintGatesFixture, "a reprint with no callbacks still gives up a stalled read",
+                 "[reprint_gates][reprint][print_start]") {
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    weigh_lane(ams, 500.0F);
+    PlantedGcode file("reprint_stalled_bare.gcode", "", kRedPla140g);
+
+    mock_client_.defer_next("server.files.metadata");
+    controller().initiate_reprint(file.name(), "", {0}, nullptr, nullptr);
+    settle();
+    lv_tick_inc(app_constants::transfer::STALL_MS + 1);
+    lv_timer_handler();
+    settle();
+
+    // The read answering after the give-up starts nothing.
+    mock_client_.fire_deferred("server.files.metadata");
+    settle();
+    CHECK(start_params.empty());
+}
