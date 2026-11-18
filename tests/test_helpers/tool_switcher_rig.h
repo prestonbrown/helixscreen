@@ -6,6 +6,7 @@
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_feeder_control.h"
+#include "ams_lane_faults.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
@@ -53,13 +54,17 @@ template <typename W> void resize_content(PanelWidgetHarness<W>& h, int content_
 /// writes can outlive this fixture's teardown and land in a LATER test's
 /// async-lifetime skip window (test_filament_dispatch_surfaces.cpp counts those
 /// exactly). Nothing here asserts simulated motion, only the dispatch result.
-class GateBackend : public AmsBackendMock, public IFeederControl {
+class GateBackend : public AmsBackendMock, public IFeederControl, public ILaneFaults {
   public:
     explicit GateBackend(int slots) : AmsBackendMock(slots) {}
 
     void* capability(TypeTag tag) override {
-        return tag == type_tag<IFeederControl>() ? static_cast<IFeederControl*>(this)
-                                                 : AmsBackendMock::capability(tag);
+        if (tag == type_tag<IFeederControl>())
+            return static_cast<IFeederControl*>(this);
+        // Lane fault answers only while a case sets carriage_fault, as AFC gives them.
+        if (tag == type_tag<ILaneFaults>() && carriage_fault.has_value())
+            return static_cast<ILaneFaults*>(this);
+        return AmsBackendMock::capability(tag);
     }
 
     bool self_homes = false;
@@ -103,10 +108,16 @@ class GateBackend : public AmsBackendMock, public IFeederControl {
         return AmsErrorHelper::success();
     }
 
-    /// What fault_concerns_carriage() answers, when set.
+    /// What fault_concerns_carriage() answers; unset publishes no ILaneFaults.
     std::optional<bool> carriage_fault;
     bool fault_concerns_carriage() const override {
-        return carriage_fault.value_or(AmsBackendMock::fault_concerns_carriage());
+        return carriage_fault.value_or(true);
+    }
+    std::optional<ErrorEvent> current_error_with_cause(const std::string&) const override {
+        return std::nullopt;
+    }
+    bool has_clearable_fault(int) const override {
+        return false;
     }
 
     bool has_feeder = false;
