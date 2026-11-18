@@ -701,9 +701,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     paint_tubes(layer, plan, pal);
     if (f.through.w > 0)
         draw_through_art(ctx, f.through);
-    draw_offpage_stubs(ctx, f);
-
     draw_hub_section(ctx, f);
+    draw_offpage_chips(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f);
     else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer

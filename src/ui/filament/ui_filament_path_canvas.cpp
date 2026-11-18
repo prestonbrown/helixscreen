@@ -299,6 +299,16 @@ static void filament_path_click_cb(lv_event_t* e) {
         }
     }
 
+    // An off-page chip pages to the units it stands for.
+    for (int side = 0; side < 2 && data->offpage_callback; ++side) {
+        if (data->hits.offpage_valid[side] &&
+            helix::ui::recorded_box_hit(point, data->hits.offpage[side], data->hits.origin,
+                                        {x_off, y_off}, 4)) {
+            data->offpage_callback(side, data->offpage_user_data);
+            return;
+        }
+    }
+
     // Check if the selector/hub box was clicked. The renderer records the exact
     // drawn box in data->hits.hub — the single source of
     // truth — so we never re-derive geometry that could drift from what's on
@@ -784,6 +794,16 @@ void ui_filament_path_canvas_set_hub_actions(lv_obj_t* obj, bool has_actions) {
     if (data && data->hub_has_actions != has_actions) {
         data->hub_has_actions = has_actions;
         layered_mark_dirty(obj);
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_offpage_callback(lv_obj_t* obj, offpage_callback_t cb,
+                                                  void* user_data) {
+    auto* data = get_data(obj);
+    if (data) {
+        data->offpage_callback = cb;
+        data->offpage_user_data = user_data;
     }
 }
 

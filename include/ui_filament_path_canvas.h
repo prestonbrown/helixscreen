@@ -393,13 +393,13 @@ void ui_filament_path_canvas_set_buffer_callback(lv_obj_t* obj, filament_path_bu
 /**
  * @brief Set the units of this unit's hub that sit on other pages of a paging screen
  *
- * On a HUB layout each non-zero side draws one dashed stub on the hub: a hint of a lane
- * running outward, labeled "N units", with a drying glyph before the label when one of
- * them is drying. The hub box is widened to hold the stubs' entries.
+ * On a HUB layout each non-zero side draws a chip beside the hub, "+N units", with a drying
+ * glyph before the text when one of them is drying; a tap on it reaches the callback
+ * ui_filament_path_canvas_set_offpage_callback() registers.
  *
- * @param before units on earlier pages (the stub left of the hub); 0 for none
+ * @param before units on earlier pages (the chip left of the hub); 0 for none
  * @param before_drying one of those is drying
- * @param after units on later pages (the stub right of the hub); 0 for none
+ * @param after units on later pages (the chip right of the hub); 0 for none
  * @param after_drying one of those is drying
  */
 void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool before_drying,
@@ -433,10 +433,9 @@ void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::Path
  * @brief Keep @p px columns clear at both ends of the widget, over a band of rows
  *
  * Controls overlaid on the widget's edges (the paging arrows) sit there; the off-page
- * stubs and their labels stop short of them wherever they would share rows with a
- * control. @p y_top and @p y_bottom are the rows the controls span, in absolute display
- * coordinates; with @p y_bottom <= @p y_top the reserve holds on every row. 0 px clears
- * nothing.
+ * chips stop short of them wherever they would share rows with a control. @p y_top and @p y_bottom
+ * are the rows the controls span, in absolute display coordinates; with @p y_bottom <= @p y_top the
+ * reserve holds on every row. 0 px clears nothing.
  */
 void ui_filament_path_canvas_set_edge_reserve(lv_obj_t* obj, int32_t px, int32_t y_top = 0,
                                               int32_t y_bottom = 0);
@@ -686,6 +685,12 @@ void ui_filament_path_canvas_set_toolhead_sensor(lv_obj_t* obj, bool has_sensor)
  */
 typedef void (*hub_callback_t)(lv_point_t click_pt, void* user_data);
 void ui_filament_path_canvas_set_hub_callback(lv_obj_t* obj, hub_callback_t cb, void* user_data);
+
+/// A tap on an off-page chip beside the hub: @p side 0 for the units on earlier pages, 1 for
+/// later ones.
+typedef void (*offpage_callback_t)(int side, void* user_data);
+void ui_filament_path_canvas_set_offpage_callback(lv_obj_t* obj, offpage_callback_t cb,
+                                                  void* user_data);
 
 /// Whether a tap on the hub has actions to offer (a selector's menu): only then does the hub
 /// carry its gear. True until set.

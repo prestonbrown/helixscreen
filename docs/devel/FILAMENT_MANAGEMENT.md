@@ -1353,7 +1353,7 @@ Key files:
 | `ui_xml/ams_overview_panel.xml` | Two-column layout: cards and system path, or the unit view, on the left; loaded info right |
 | `ui_xml/ams_unit_card.xml` | Mini unit card with slot bars and hub sensor dot |
 | `include/ams_unit_pages.h`, `src/ui/filament/ams_unit_pages.cpp` | The page model: `build_unit_pages()`, `page_of_unit()`, `initial_unit_page()`. Pure data, no LVGL |
-| `src/ui/filament/ui_filament_path_plan.cpp` | Off-page stub geometry (`layout_offpage_stub`), widened hub |
+| `src/ui/filament/ui_filament_path_plan.cpp` | Off-page chip placement (`offpage_chip_rect`) |
 
 **The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). A hub is a combiner, so the overview draws a hub box only where two or more lines enter one toolhead and one leaves: a unit card stands for the merge of its own lanes, a line that is the only one into its toolhead has no box, and every line into a shared toolhead (any unit, any topology, a shared hub or several hubs of their own) meets in ONE box above it. `syspath::nozzle_feed()` makes that call for the plan and the canvas. With several toolheads every line runs down from its card, across at its own height and down to its nozzle or junction slot; the heights are chosen so no two lines cross or come within a haloed tube's width unless their ends are swapped, and stems of cards scrolled off one side stand a tube pitch apart. The one-toolhead drawing is the case where every unit feeds the one toolhead. A hub at a junction may carry its buffer: the box then reads "Hub+BUF" in the buffer's tint; a buffer on a lone line stays a box on that line. A buffer box is the box the unit view shows for its unit (`ams_detail_buffer_box()`, same label and tint); the one-toolhead drawing shows the system reading's box the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
 
@@ -1463,19 +1463,14 @@ cards row scrolls as before. The plain swipe direction (`lv_indev_get_gesture_di
 calls `lv_indev_wait_release()` so the release that ends a swipe is not a click on the spool
 it began on.
 
-**Off-page stubs.** When other units of the shown unit's hub lie on earlier pages the hub
-draws one dashed stub on its left; units on later pages draw one on its right. Each stub is
-a lane that is only suggested: a short run outward (about 5/6 of the hub width, shrinking to
-a floor so it and its label stay clear of the arrows), a diagonal at the slope of the
-outermost real lane on that side, and a drop into the top of the hub box like the lanes'.
-It ends in a label, `N units` (`1 unit`), with the heat glyph the environment pill shows
-while drying before it, while one of those units is drying. A canvas with no room for the label beside the diagonal
-(the smallest screens) draws the stub bare, a dashed hint without its count. The canvas takes the counts through
-`ui_filament_path_canvas_set_offpage_units()`. While either stub exists the merge fan
-reserves one entry beside its outermost lanes on **both** sides (`reserve_each_side` in
-`pathgeo::build_merge_fan()`), so the hub box is a fixed width across a hub's pages and the
-real lanes do not move when a page has one stub or two. LINEAR, MIXED, PARALLEL and
-on-toolhead hubs draw no stub.
+**Off-page stubs.** When other units of the shown unit's hub lie on earlier pages, a chip
+on the hub's left edge says so (`+1 unit`, `+N units`, or `+N` where the full text has no
+room), and units on later pages put one on its right edge. A tap on a chip pages toward
+those units. While one of them is drying the chip carries the heat glyph the environment
+pill shows. The canvas takes the counts through `ui_filament_path_canvas_set_offpage_units()`
+and the tap through `ui_filament_path_canvas_set_offpage_callback()`. The chips stand beside
+the hub on its rows, so they cross no tube. LINEAR, MIXED, PARALLEL and on-toolhead hubs draw
+no chip.
 
 **Bypass.** The bypass spool floats beside the path as on `AmsPanel`
 (`bypass_spool_sync_from_state()` is the shared state push); the canvas draws the

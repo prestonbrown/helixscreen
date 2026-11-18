@@ -253,6 +253,8 @@ struct HitRects {
     bool buffer_valid = false;
     lv_area_t bypass = {0, 0, 0, 0};
     bool bypass_valid = false;
+    lv_area_t offpage[2] = {}; ///< the off-page chips: [0] earlier pages, [1] later
+    bool offpage_valid[2] = {};
     lv_point_t origin = {0, 0}; ///< Widget's top-left when the rects were recorded
 };
 
@@ -412,6 +414,8 @@ struct FilamentPathData {
     filament_path_buffer_cb_t buffer_callback = nullptr;
     void* buffer_user_data = nullptr;
     hub_callback_t hub_callback = nullptr;
+    offpage_callback_t offpage_callback = nullptr;
+    void* offpage_user_data = nullptr;
     // The hub opens a menu of actions (a selector's), so it carries a gear; else a plain box.
     bool hub_has_actions = true;
     void* hub_user_data = nullptr;
