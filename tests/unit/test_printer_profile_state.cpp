@@ -121,6 +121,21 @@ TEST_CASE("PrinterProfileState knows which printers cannot print from a dot-dire
     CHECK_FALSE(profile.klipper_hides_dot_dirs());
 }
 
+TEST_CASE("PrinterProfileState knows which firmware turns the heaters off on a print error",
+          "[printer_state][profile][print_completion]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+
+    REQUIRE(profile.set_printer_type("Creality K2 Plus (Jacobean firmware)", true, false, false));
+    CHECK(profile.firmware_owns_error_heaters());
+    // Creality's firmware and everything else get the app's shutdown.
+    REQUIRE(profile.set_printer_type("Creality K2 Plus", true, false, false));
+    CHECK_FALSE(profile.firmware_owns_error_heaters());
+    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
+    CHECK_FALSE(profile.firmware_owns_error_heaters());
+}
+
 TEST_CASE("Z-offset tune hint claims auto-save only where something persists it",
           "[printer_state][profile][zoffset]") {
     using S = ZOffsetCalibrationStrategy;
