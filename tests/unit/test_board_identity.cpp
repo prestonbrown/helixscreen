@@ -137,11 +137,11 @@ TEST_CASE("board rows carry the spec's values", "[board]") {
     for (Board b : {Board::Generic, Board::K1, Board::K2, Board::Cc1, Board::SnapmakerU1})
         CHECK_FALSE(info(b).firmware_dims_backlight_after_boot);
 
-    CHECK(std::string(info(Board::SnapmakerU1).firmware_package_binary) ==
-          "/oem/apps/helixscreen/latest/bin/helix-screen");
+    CHECK(std::string(info(Board::SnapmakerU1).firmware_package_dir) == "/oem/apps/helixscreen");
+    CHECK(std::string(info(Board::SnapmakerU1).installer_root) == "/userdata/helixscreen");
     for (Board b : {Board::Generic, Board::Ad5m, Board::Ad5x, Board::Creator5, Board::Creator5Pro,
                     Board::K1, Board::K2, Board::Cc1})
-        CHECK(info(b).firmware_package_binary == nullptr);
+        CHECK(info(b).firmware_package_dir == nullptr);
 
     CHECK(std::string(info(Board::Ad5x).legacy_release_asset) == "ad5x");
     CHECK(std::string(info(Board::K1).legacy_release_asset) == "k1");
@@ -222,7 +222,42 @@ TEST_CASE("PAXX's own HelixScreen package is firmware-managed", "[board][update]
     // Only the U1 row names a package; the same layout means nothing to another board.
     CHECK_FALSE(firmware_manages_updates(Board::K1, package.string(), tmp.path.string()));
     CHECK_FALSE(firmware_manages_updates(Board::Generic, package.string(), tmp.path.string()));
+}
 
+TEST_CASE("a PAXX version dir that latest does not name is still firmware-managed",
+          "[board][update]") {
+    using helix::board::firmware_manages_updates;
+    TempDirGuard tmp;
+    make_paxx_package(tmp.path);
+    // An older version dir left beside the one `latest` names, launched by its own path.
+    const fs::path older =
+        touch_exe(tmp.path / "oem/apps/helixscreen/helixscreen-1.0.4/bin/helix-screen");
+    CHECK(firmware_manages_updates(Board::SnapmakerU1, older.string(), tmp.path.string()));
+
+    // The same file reached through another path, as the lmd hook's bind mount does.
+    const fs::path gui = tmp.path / "usr/bin/gui";
+    fs::create_directories(gui.parent_path());
+    fs::create_hard_link(older, gui);
+    CHECK(firmware_manages_updates(Board::SnapmakerU1, gui.string(), tmp.path.string()));
+}
+
+TEST_CASE("an unidentifiable executable beside a PAXX package is firmware-managed",
+          "[board][update]") {
+    using helix::board::firmware_manages_updates;
+    TempDirGuard tmp;
+
+    // No PAXX package: a stat failure cannot be PAXX's install, so it self-updates.
     CHECK_FALSE(firmware_manages_updates(Board::SnapmakerU1, (tmp.path / "missing").string(),
                                          tmp.path.string()));
+
+    // With /oem/apps/helixscreen present, anything not provably ours is left to the firmware.
+    fs::create_directories(tmp.path / "oem/apps/helixscreen");
+    CHECK(firmware_manages_updates(Board::SnapmakerU1, (tmp.path / "missing").string(),
+                                   tmp.path.string()));
+    const fs::path elsewhere = touch_exe(tmp.path / "opt/helix/bin/helix-screen");
+    CHECK(firmware_manages_updates(Board::SnapmakerU1, elsewhere.string(), tmp.path.string()));
+
+    // Our own install root stays ours even then.
+    const fs::path ours = touch_exe(tmp.path / "userdata/helixscreen/bin/helix-screen");
+    CHECK_FALSE(firmware_manages_updates(Board::SnapmakerU1, ours.string(), tmp.path.string()));
 }

@@ -91,17 +91,24 @@ parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
 `helix::board::firmware_manages_updates()` (`include/board_identity.h`), the single place any
 platform is named.
 
-A board row names the binary a firmware package manager owns (`firmware_package_binary`), and
-the default is true only when the running executable is that same file, compared by device
-and inode. Today only the **Snapmaker U1** row names one. PAXX Extended Firmware ships
+A board row names the directory a firmware package manager installs HelixScreen into
+(`firmware_package_dir`, one subdirectory per version) and our installer's own root
+(`installer_root`). Today only the **Snapmaker U1** row names them. PAXX Extended Firmware ships
 HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
 `/oem/apps/helixscreen/<versioned dir>` via `extended-pkg` and pointing `latest` at it;
-self-updating there rewrites a package the firmware believes it owns. The comparison is by
-file identity rather than install root because PAXX's lmd hook bind-mounts
-`/oem/apps/helixscreen/latest/bin/helix-screen` over `/usr/bin/gui`, so `/proc/self/exe`
-names `/usr/bin/gui` and the install root does not resolve. No path's presence settles it
-on its own: an install of ours can sit beside a PAXX package or hook, and PAXX keeps
-`HELIX_CACHE_DIR` under `/userdata/helixscreen`, the stock install's directory. A U1 on stock
+self-updating there rewrites a package the firmware believes it owns. The decision fails
+toward "managed", because self-updating a firmware's package is the worse mistake:
+
+1. No `/oem/apps/helixscreen`: self-updating.
+2. The running executable is the same file, by device and inode, as
+   `bin/helix-screen` in any subdirectory of it, `latest` included: managed. Identity rather
+   than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
+   `/proc/self/exe` names `/usr/bin/gui` and the install root does not resolve.
+3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
+   executable that cannot be stat'd or resolved counts as the firmware's.
+
+PAXX keeps `HELIX_CACHE_DIR` under `/userdata/helixscreen`, so that directory existing proves
+nothing; only where the executable lives does. A U1 on stock
 firmware runs our installer's `/userdata/helixscreen` and self-updates like any other
 printer; its manifest entry is the `helixscreen-snapmaker-u1-<tag>.tar.gz` asset, because
 `scripts/generate-manifest.sh` withholds `zip_url` from `snapmaker-u1`. The default lives here in C++ rather than in the firmware hook
