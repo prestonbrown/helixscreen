@@ -1150,7 +1150,7 @@ MANIFEST_WITH_HASHES='{
 # --version pinned from another channel is verified against the one listing it.
 _channel_manifests() {
     STABLE_M='{"version": "1.0.3", "assets": {"pi": {"zip_sha256": "aaaa"}}}'
-    BETA_M='{"version": "1.1.0-beta.4", "assets": {"pi": {"zip_sha256": "bbbb"}}}'
+    BETA_M='{"version": "1.1.0-beta.4", "assets": {"pi": {"sha256": "dddd", "zip_sha256": "bbbb"}}}'
     R2_CHANNEL=stable
     _R2_MANIFEST=""
     serve_manifest() {
@@ -1184,7 +1184,7 @@ _channel_manifests() {
 
     run download_release "v1.1.0-beta.4" "pi"
     [ "$status" -eq 0 ]
-    contains "sha=bbbb" "$output"
+    contains "sha=dddd" "$output"
     contains "plain-HTTP mirror" "$output"
 }
 
@@ -1374,4 +1374,43 @@ $unwired"
 @test "parse_tarball_version prints nothing for the unversioned zip layout" {
     run parse_tarball_version "helixscreen-pi.zip"
     [ -z "$output" ] || fail "expected empty, got [$output]"
+}
+
+# The plain-HTTP mirror (server/dl-worker) serves release tarballs only; it
+# answers 404 for every .zip, so no candidate may ask it for one.
+_record_candidates() {
+    R2_CHANNEL=beta
+    _R2_MANIFEST='{"version": "1.1.0-rc.3", "assets": {"ad5m": {"sha256": "cccc"}}}'
+    _R2_MANIFEST_TRANSPORT=http
+    _ensure_manifest() { return 0; }
+    _try_download_candidate() {
+        echo "CANDIDATE $1"
+        case "$1" in
+            "${HTTP_BASE_URL}"/*.tar.gz) : > "$2"; return 0 ;;
+        esac
+        return 1
+    }
+}
+
+@test "download_release: never asks the plain-HTTP mirror for a zip" {
+    _record_candidates
+    check_https_capability() { return 0; }
+
+    run download_release "v1.1.0-rc.3" "ad5m"
+    [ "$status" -eq 0 ]
+    contains "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" "$output"
+    lacks "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip" "$output"
+}
+
+@test "download_release: a host without HTTPS goes straight to the plain-HTTP tarball" {
+    # BusyBox wget on the AD5M fails every https:// URL ("not an http or ftp
+    # url"), so the CDN and GitHub candidates only cost time and log noise.
+    _record_candidates
+    check_https_capability() { return 1; }
+
+    run download_release "v1.1.0-rc.3" "ad5m"
+    [ "$status" -eq 0 ]
+    [ "$(echo "$output" | grep '^CANDIDATE ')" = \
+      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
+    lacks "trying GitHub" "$output"
 }

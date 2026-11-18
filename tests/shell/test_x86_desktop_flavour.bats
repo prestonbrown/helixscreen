@@ -374,7 +374,7 @@ called() { grep -qs "^$1" "$BATS_TEST_TMPDIR/calls.log"; }
     [ "$(get_download_platform x86-desktop)" = x86-desktop ]
     [ "$(helix_self_update_asset x86-desktop)" = helixscreen-x86-desktop.zip ]
     _ensure_manifest() { return 1; }
-    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http zip_sha tar_sha manifest_ok
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http zip_sha tar_sha manifest_ok
     _release_candidates v1.2.3 "$(get_release_platform x86-desktop)"
     [ "$zip_filename" = helixscreen-x86-desktop.zip ]
     [ "$tar_filename" = helixscreen-x86-desktop-v1.2.3.tar.gz ]
