@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <vector>
 
 namespace helix {
 struct AmsSystemInfo;
@@ -149,5 +150,16 @@ const UnitShell* unit_shell_by_id(const char* id);
 /// The shell for one unit, or nullptr to keep the generic tray. @p has_dryer joins the unit's
 /// own climate readings as evidence that an optionally enclosed unit has its enclosure.
 const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
+
+/// A drawing and the units whose bays it shows, in order.
+struct DeviceShell {
+    const UnitShell* shell = nullptr;
+    std::vector<int> unit_indices;
+};
+
+/// The drawing of the whole device unit @p unit_index belongs to. A backend can report one
+/// device as several units, each drawn as its slice of it: such a unit gets the device's
+/// drawing and every unit that makes it up. Any other unit gets its own shell.
+DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
 
 } // namespace helix::ui::tray

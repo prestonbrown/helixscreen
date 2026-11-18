@@ -23,8 +23,29 @@ struct ShellRow {
     const char* enclosed_shell_id; ///< nullptr when the unit is never enclosed.
     int only_lanes;                ///< Match only this many lanes; 0 for any.
     bool selector_rail = false;    ///< Match only units that report a linear selector.
+    /// Match only the Nth unit (from 0) whose name matches this row, for hardware a backend
+    /// reports as several units that draw differently; -1 for every one.
+    int nth_named = -1;
+    /// The whole device's shell, for a unit drawn as one slice of it; nullptr otherwise.
+    const char* device_shell_id = nullptr;
     bool model_unreported = false; ///< Match only units that report no model.
 };
+
+[[maybe_unused]] std::string unit_name_key(const AmsUnit& unit) {
+    return helix::text_io::to_lower("\n" + unit.name + "\n" + unit.model);
+}
+
+[[maybe_unused]] bool name_matches(const ShellRow& row, const std::string& key) {
+    return !row.unit_name_part || key.find(row.unit_name_part) != std::string::npos;
+}
+
+/// How many units before unit_index carry a name this row matches.
+[[maybe_unused]] int named_before(const ShellRow& row, const AmsSystemInfo& info, int unit_index) {
+    int n = 0;
+    for (int i = 0; i < unit_index; ++i)
+        n += name_matches(row, unit_name_key(info.units[static_cast<size_t>(i)])) ? 1 : 0;
+    return n;
+}
 
 constexpr ShellRow kShellRows[] = {
     {"ace", nullptr, "ace_pro", nullptr, 0},
@@ -51,6 +72,10 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "3ms", "3ms", nullptr, 0},
     {"happy_hare", "emu", "emu", nullptr, 0},
     {"happy_hare", "kms", "kms", nullptr, 0},
+    // A YAMMU reports vendor "Other"; only a display_name of "YAMMU" names it. Happy Hare
+    // reports its two drawers as two units: the first is the upper drawer, the second the lower.
+    {"happy_hare", "yammu", "yammu_lower", nullptr, 0, false, 1, "yammu"},
+    {"happy_hare", "yammu", "yammu_upper", nullptr, 0, false, -1, "yammu"},
     // Happy Hare publishes the vendor as "VVD" and names the unit "BTT ViViD" by default.
     {"happy_hare", "vvd", "btt_vivid", nullptr, 0},
     {"happy_hare", "qidi", "qidi_box", nullptr, 0},
@@ -81,8 +106,8 @@ constexpr ShellRow kShellRows[] = {
     {"openams", "\ntradrack", "tradrack_rail", nullptr, 0, true},
     // klipper_openams publishes no family: its single-lane unit is the AMS HT, and the rest are
     // OpenAMS 1 boards in an original AMS.
-    {"openams", nullptr, "ams_ht", nullptr, 1, false, true},
-    {"openams", nullptr, "ams", nullptr, 0, false, true},
+    {"openams", nullptr, "ams_ht", nullptr, 1, false, -1, nullptr, true},
+    {"openams", nullptr, "ams", nullptr, 0, false, -1, nullptr, true},
 };
 
 /// Climate readings or a dryer mean the unit is closed up.
@@ -98,6 +123,36 @@ constexpr ShellRow kShellRows[] = {
 
 } // namespace
 
+#ifndef ESP_PLATFORM
+namespace {
+
+/// The first row that draws unit @p unit_index, or nullptr.
+const ShellRow* row_for(const AmsSystemInfo& info, int unit_index) {
+    if (unit_index < 0 || unit_index >= static_cast<int>(info.units.size()))
+        return nullptr;
+    const char* slug = ams_type_telemetry_slug(info.type);
+    const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
+    const std::string unit_name = unit_name_key(unit);
+    for (const ShellRow& row : kShellRows) {
+        if (std::strcmp(row.backend_slug, slug) == 0 && name_matches(row, unit_name) &&
+            (row.only_lanes == 0 || unit.slot_count == row.only_lanes) &&
+            (!row.selector_rail || unit.topology == PathTopology::LINEAR) &&
+            (!row.model_unreported || unit.model.empty()) &&
+            (row.nth_named < 0 || named_before(row, info, unit_index) == row.nth_named))
+            return &row;
+    }
+    return nullptr;
+}
+
+const UnitShell* shell_of(const ShellRow& row, const AmsUnit& unit, bool has_dryer) {
+    return unit_shell_by_id(row.enclosed_shell_id && has_climate(unit, has_dryer)
+                                ? row.enclosed_shell_id
+                                : row.shell_id);
+}
+
+} // namespace
+#endif
+
 const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
 #ifdef ESP_PLATFORM
     // The firmware image carries no unit art and stays on logos.
@@ -106,22 +161,32 @@ const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool 
     (void)has_dryer;
     return nullptr;
 #else
-    if (unit_index < 0 || unit_index >= static_cast<int>(info.units.size()))
-        return nullptr;
-    const char* slug = ams_type_telemetry_slug(info.type);
-    const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
-    const std::string unit_name = helix::text_io::to_lower("\n" + unit.name + "\n" + unit.model);
-    for (const ShellRow& row : kShellRows) {
-        if (std::strcmp(row.backend_slug, slug) == 0 &&
-            (!row.unit_name_part || unit_name.find(row.unit_name_part) != std::string::npos) &&
-            (row.only_lanes == 0 || unit.slot_count == row.only_lanes) &&
-            (!row.selector_rail || unit.topology == PathTopology::LINEAR) &&
-            (!row.model_unreported || unit.model.empty()))
-            return unit_shell_by_id(row.enclosed_shell_id && has_climate(unit, has_dryer)
-                                        ? row.enclosed_shell_id
-                                        : row.shell_id);
+    const ShellRow* row = row_for(info, unit_index);
+    return row ? shell_of(*row, info.units[static_cast<size_t>(unit_index)], has_dryer) : nullptr;
+#endif
+}
+
+DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
+#ifdef ESP_PLATFORM
+    (void)info;
+    (void)unit_index;
+    (void)has_dryer;
+    return {};
+#else
+    const ShellRow* row = row_for(info, unit_index);
+    if (!row)
+        return {};
+    if (!row->device_shell_id)
+        return {shell_of(*row, info.units[static_cast<size_t>(unit_index)], has_dryer),
+                {unit_index}};
+    DeviceShell device{unit_shell_by_id(row->device_shell_id), {}};
+    for (int i = 0; i < static_cast<int>(info.units.size()); ++i) {
+        const ShellRow* other = row_for(info, i);
+        if (other && other->device_shell_id &&
+            std::strcmp(other->device_shell_id, row->device_shell_id) == 0)
+            device.unit_indices.push_back(i);
     }
-    return nullptr;
+    return device;
 #endif
 }
 

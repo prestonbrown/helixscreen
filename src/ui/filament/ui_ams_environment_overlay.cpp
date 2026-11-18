@@ -759,14 +759,18 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     lv_subject_set_string(&unit_logo_subject_, unit_logo_buf_);
     lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
     lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
+    // The dryer belongs to the whole device, so a unit that is one slice of a device shows all
+    // of it.
     const bool has_art =
         info && helix::ui::unit_art_available(*info, zone.unit_index,
-                                              helix::ui::unit_reports_climate(zone.unit_index));
+                                              helix::ui::unit_reports_climate(zone.unit_index),
+                                              helix::ui::UnitArtScope::Device);
     lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
     lv_obj_t* const unit_art = lv_obj_find_by_name(overlay_root_, "unit_art_picture");
     if (info)
         helix::ui::unit_art_set_unit(unit_art, *info, zone.unit_index,
-                                     helix::ui::unit_reports_climate(zone.unit_index));
+                                     helix::ui::unit_reports_climate(zone.unit_index),
+                                     helix::ui::UnitArtScope::Device);
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());

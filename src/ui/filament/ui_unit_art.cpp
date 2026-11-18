@@ -433,10 +433,37 @@ UnitArtLane unit_art_lane(const SlotInfo& slot) {
     return {filled, slot.color_rgb};
 }
 
-bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
-    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
-    return shell && tray::unit_shell_has_art_for(
-                        *shell, info.units[static_cast<size_t>(unit_index)].slot_count);
+namespace {
+
+/// The drawing a picture of @p scope shows for unit @p unit_index, with the units it covers.
+tray::DeviceShell art_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer,
+                                UnitArtScope scope) {
+    if (scope == UnitArtScope::Device)
+        return tray::device_shell_for(info, unit_index, has_dryer);
+    return {tray::unit_shell_for(info, unit_index, has_dryer), {unit_index}};
+}
+
+/// Every bay the drawing shows, unit after unit.
+std::vector<UnitArtLane> art_lanes(const AmsSystemInfo& info, const std::vector<int>& units) {
+    std::vector<UnitArtLane> lanes;
+    for (int u : units) {
+        const AmsUnit& unit = info.units[static_cast<size_t>(u)];
+        for (int i = 0; i < unit.slot_count; ++i)
+            lanes.push_back(i < static_cast<int>(unit.slots.size())
+                                ? unit_art_lane(unit.slots[static_cast<size_t>(i)])
+                                : UnitArtLane{});
+    }
+    return lanes;
+}
+
+} // namespace
+
+bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer,
+                        UnitArtScope scope) {
+    const tray::DeviceShell drawn = art_shell_for(info, unit_index, has_dryer, scope);
+    return drawn.shell &&
+           tray::unit_shell_has_art_for(
+               *drawn.shell, static_cast<int>(art_lanes(info, drawn.unit_indices).size()));
 }
 
 void register_unit_art_widget() {
@@ -447,24 +474,27 @@ lv_obj_t* unit_art_create(lv_obj_t* parent, UnitArtTier tier) {
     return make_widget(parent, tier);
 }
 
-void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index, bool has_dryer) {
+void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index, bool has_dryer,
+                       UnitArtScope scope) {
     ArtData* data = art ? data_of(art) : nullptr;
     if (!data)
         return;
-    if (!unit_art_available(info, unit_index, has_dryer)) {
+    if (!unit_art_available(info, unit_index, has_dryer, scope)) {
         lv_obj_set_hidden(art, true);
         return;
     }
-    const tray::UnitShell* shell = tray::unit_shell_for(info, unit_index, has_dryer);
+    const tray::DeviceShell drawn = art_shell_for(info, unit_index, has_dryer, scope);
+    const tray::UnitShell* shell = drawn.shell;
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
-    if (data->built_id != shell->id || data->built_lanes != unit.slot_count)
-        build_layers(art, data, shell, unit.slot_count);
+    const std::vector<UnitArtLane> lanes = art_lanes(info, drawn.unit_indices);
+    const int lane_count = static_cast<int>(lanes.size());
+    if (data->built_id != shell->id || data->built_lanes != lane_count)
+        build_layers(art, data, shell, lane_count);
     lv_obj_set_hidden(art, false);
 
     uint64_t key = 1469598103934665603ull;
     for (size_t i = 0; i < data->lanes.size(); ++i) {
-        const UnitArtLane lane =
-            i < unit.slots.size() ? unit_art_lane(unit.slots[i]) : UnitArtLane{};
+        const UnitArtLane lane = i < lanes.size() ? lanes[i] : UnitArtLane{};
         key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);

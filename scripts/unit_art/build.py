@@ -33,6 +33,7 @@ from unit_art.units import (  # noqa: E402
     quattro_box,
     rail,
     three_ms,
+    yammu,
 )
 
 UNITS = [
@@ -56,6 +57,9 @@ UNITS = [
     ad5x_ifs.UNIT,
     elegoo_canvas.UNIT,
     emu.UNIT,
+    yammu.UNIT,
+    yammu.UPPER,
+    yammu.LOWER,
     rail.ERCF,
     rail.TRADRACK,
 ]
