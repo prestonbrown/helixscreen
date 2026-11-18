@@ -434,6 +434,30 @@ TEST_CASE("stagger labels: below medium a label keeps to its two-lane span",
     CHECK(ams_stagger_label_width(0, UiBreakpoint::Micro, 4) == 0);
 }
 
+TEST_CASE("labels over a drawn unit: one row when every label fits its pitch, else two",
+          "[ams][tray][stagger][over-lane]") {
+    using helix::ui::ams_over_lane_label_rows;
+    CHECK(ams_over_lane_label_rows(36, 40, 4) == 1);
+    CHECK(ams_over_lane_label_rows(37, 40, 4) == 2);
+    CHECK(ams_over_lane_label_rows(120, 40, 4) == 2);
+}
+
+TEST_CASE("labels over a drawn unit: staggered labels clear their neighbours and the ticks",
+          "[ams][tray][stagger][over-lane]") {
+    using helix::ui::ams_over_lane_label_width;
+    const int32_t pitch = 40, gap = 4;
+    // One row: neighbours a pitch apart never touch.
+    CHECK(ams_over_lane_label_width(pitch, 1, gap) == pitch - gap);
+    // Two rows: a label's row neighbours stand two pitches away, and the tick of the lane
+    // between them, one pitch away, rises past it; the label stops a gap short of that tick.
+    const int32_t w = ams_over_lane_label_width(pitch, 2, gap);
+    CHECK(w / 2 + gap <= pitch);
+    CHECK(w > pitch);
+    // Same-row labels of lanes 0 and 2, each centered over its lane, do not overlap.
+    const int32_t right_of_0 = 0 + w / 2, left_of_2 = 2 * pitch - w / 2;
+    CHECK(right_of_0 < left_of_2);
+}
+
 TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][badge]") {
     const TrayBox b = reference_box(); // front face y 101..126
     SECTION("a wide pitch puts it at the lane's front bottom-right") {

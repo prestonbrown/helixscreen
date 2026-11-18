@@ -25,6 +25,7 @@
 #include "config.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "src/ui/filament/ui_ams_detail_tray.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
@@ -131,6 +132,41 @@ class AmsTrayPanelFixture : public XMLTestFixture {
 
     lv_obj_t* slot(int i) const {
         return lv_obj_get_child(slot_grid_, i);
+    }
+
+    /// Each label over the drawn unit stands centered over its own spool, its dotted tick a
+    /// straight vertical line from just under it down to the spool top; labels alternate
+    /// between at most two rows by lane, and no two in one row overlap.
+    void check_labels_over_lanes(const std::vector<lv_obj_t*>& labels) {
+        namespace at = helix::ui::ams_tray;
+        const int n = (int)labels.size();
+        REQUIRE(at::s_tray.leader_count == n);
+        int32_t row_y[2] = {INT32_MIN, INT32_MIN};
+        std::vector<lv_area_t> areas((size_t)n);
+        for (int i = 0; i < n; ++i) {
+            CAPTURE(i);
+            lv_area_t& la = areas[(size_t)i];
+            lv_obj_get_coords(labels[(size_t)i], &la);
+            const tray::PointF* tick = at::s_tray.leader[i];
+            CAPTURE(la.x1, la.x2, la.y2, tick[0].x, tick[0].y, tick[2].x, tick[2].y);
+            CHECK(tick[0].x == Catch::Approx(tick[2].x).margin(0.5));
+            CHECK(tick[1].x == Catch::Approx(tick[2].x).margin(0.5));
+            CHECK(tick[2].y > tick[0].y);
+            CHECK(std::fabs((float)((la.x1 + la.x2) / 2 - origin_.x) - tick[2].x) <= 1.0f);
+            CHECK(std::fabs((float)(la.y2 - origin_.y) - tick[0].y) <= 3.0f);
+            int32_t& y = row_y[i % 2];
+            if (y == INT32_MIN)
+                y = la.y1;
+            CHECK(la.y1 == y);
+        }
+        const bool two_rows = row_y[0] != row_y[1];
+        for (int i = 0; i + 1 < n; ++i) {
+            const int j = two_rows ? i + 2 : i + 1;
+            if (j >= n)
+                continue;
+            CAPTURE(i, j);
+            CHECK(areas[(size_t)i].x2 < areas[(size_t)j].x1);
+        }
     }
 
     float top() const {
@@ -747,8 +783,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(canvas != nullptr);
     lv_obj_update_layout(test_screen());
 
-    // Labels take an even share of the width each, in one row or alternating between two,
-    // and keep to the shares their row gives them.
+    // Labels stand in one row or alternate between two, each centered over its own spool
+    // with a short straight tick down to it, and no two in a row overlap.
     lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
     REQUIRE(layer != nullptr);
     std::vector<lv_obj_t*> labels;
@@ -759,20 +795,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
             labels.push_back(c);
     }
     REQUIRE(labels.size() == 8);
-    const int32_t share = lv_obj_get_content_width(layer) / 8;
-    int32_t row_y[2] = {INT32_MIN, INT32_MIN};
-    for (int i = 0; i < 8; ++i) {
-        CAPTURE(i);
-        lv_area_t la;
-        lv_obj_get_coords(labels[(size_t)i], &la);
-        int32_t& y = row_y[i % 2];
-        if (y == INT32_MIN)
-            y = la.y1;
-        CHECK(la.y1 == y);
-    }
-    const int rows = row_y[0] == row_y[1] ? 1 : 2;
-    for (lv_obj_t* label : labels)
-        CHECK(lv_obj_get_width(label) < rows * share);
+    check_labels_over_lanes(labels);
 
     // The nozzle is drawn inside the canvas, not cut off by its bottom.
     lv_area_t toolhead, cc;
@@ -978,6 +1001,36 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
     CHECK_FALSE(lv_obj_is_hidden(arrows));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: each label stands over its own spool on a short vertical tick",
+                 "[ams][tray][ui_integration][stagger][over-lane]") {
+    const bool art = GENERATE(false, true);
+    const int lanes = GENERATE(4, 8);
+    const bool small = GENERATE(false, true);
+    CAPTURE(art, lanes, small);
+    helix::test::ScopedGeometry geometry(small ? 480 : 800, small ? 272 : 480);
+    if (art)
+        unit_name_ = "ACE 1";
+    build("passive", lanes, /*tool_changer=*/false, /*ace=*/art);
+    if (art) {
+        lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+        if (!drawing || lv_obj_is_hidden(drawing))
+            SKIP("no art for this lane count");
+    }
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
+    REQUIRE(layer != nullptr);
+    std::vector<lv_obj_t*> labels;
+    for (uint32_t k = 0; k < lv_obj_get_child_count(layer); ++k) {
+        lv_obj_t* c = lv_obj_get_child(layer, (int32_t)k);
+        const char* name = lv_obj_get_name(c);
+        if (name && std::strcmp(name, "material_label") == 0)
+            labels.push_back(c);
+    }
+    REQUIRE((int)labels.size() == lanes);
+    check_labels_over_lanes(labels);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,

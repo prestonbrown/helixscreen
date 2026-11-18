@@ -201,6 +201,24 @@ inline int32_t ams_stagger_row_height(int32_t line_height, UiBreakpoint bp) {
 }
 
 /**
+ * @brief Rows the labels over a drawn unit take: each stands centered over its own lane,
+ * lanes @p pitch apart, so one row holds when the widest fits a pitch less @p gap; else
+ * they alternate lane by lane between two (ams_alternate_row()).
+ */
+inline int ams_over_lane_label_rows(int32_t widest, int32_t pitch, int32_t gap) {
+    return widest <= pitch - gap ? 1 : 2;
+}
+
+/**
+ * @brief Widest a label over a drawn unit may be in @p rows rows. In one row it keeps a
+ * pitch less @p gap. In two its row neighbours stand two pitches away, and the tick of the
+ * lane between rises past it one pitch away: it stops @p gap short of that tick each side.
+ */
+inline int32_t ams_over_lane_label_width(int32_t pitch, int rows, int32_t gap) {
+    return rows > 1 ? 2 * (pitch - gap) : pitch - gap;
+}
+
+/**
  * @brief Widest a staggered label may be, or 0 for no limit.
  *
  * Below the medium breakpoint a label shares its row with the lanes two either
