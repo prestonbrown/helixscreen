@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Material presets heat the bed and chamber** - a material preset now sets the bed along with the nozzle on every screen: the Filament panel, the Home screen's Preheat widget and the nozzle presets on the temperature graph. The Filament panel's presets also set the chamber when the material has a chamber temperature. With Settings > Printing > Material presets heat the bed and chamber turned off, a preset heats only the nozzle, and the bed and the chamber keep the targets they had. Each printer keeps its own setting.
+- **Material presets heat the bed and chamber** - a material preset now sets the bed along with the nozzle on every screen: the Filament panel, the Home screen's Preheat widget and the nozzle presets on the temperature graph. On a printer with a chamber heater, a preset also sets the chamber when the material has a chamber temperature. With Settings > Printing > Material presets heat the bed and chamber turned off, a preset heats only the nozzle, and the bed and the chamber keep the targets they had. Each printer keeps its own setting.
 
 ### Changed
 

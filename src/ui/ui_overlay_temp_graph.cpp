@@ -750,13 +750,23 @@ void TempGraphOverlay::on_temp_graph_preset_clicked(lv_event_t* e) {
         } else {
             c->set_target(type, static_cast<double>(data.preset_value), {.toast = true});
         }
-        // A nozzle material preset heats the bed with it, unless "Material
-        // presets heat the bed and chamber" is off. Off (index 0) touches the
-        // nozzle alone.
+        // A nozzle material preset heats the bed, and the chamber on a printer
+        // with a chamber heater, unless "Material presets heat the bed and
+        // chamber" is off. Off (index 0) touches the nozzle alone.
         if (type == helix::HeaterType::Nozzle && preset_idx > 0) {
             if (const auto temps = helix::presets::slot_temps(preset_idx - 1)) {
-                if (const auto bed = helix::presets::heater_targets(temps->bed).bed) {
-                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                const int chamber =
+                    self->printer_state_
+                        ? helix::presets::chamber_request(temps->chamber,
+                                                          self->printer_state_->temperature_state())
+                        : 0;
+                const auto targets = helix::presets::heater_targets(temps->bed, chamber);
+                if (targets.bed) {
+                    c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                                  {.toast = true});
+                }
+                if (targets.chamber) {
+                    c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
                                   {.toast = true});
                 }
             }

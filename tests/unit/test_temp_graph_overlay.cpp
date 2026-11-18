@@ -18,6 +18,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "material_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "preset_materials.h"
@@ -511,6 +512,52 @@ TEST_CASE_METHOD(
     CHECK(sent("HEATER=heater_bed TARGET=" + std::to_string(slot->bed)) == heat_bed);
     CHECK(sent("HEATER=heater_bed") == heat_bed);
 
+    sm.set_material_presets_heat_bed_and_chamber(saved);
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
+}
+
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: a nozzle material preset heats the chamber only while the setting is on",
+    "[temp_graph_overlay][preset_bed][chamber]") {
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    const bool heat_bed_and_chamber = GENERATE(true, false);
+    CAPTURE(heat_bed_and_chamber);
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed_and_chamber);
+    sm.set_chamber_heater_assignment("auto");
+    auto& materials = helix::MaterialSettingsManager::instance();
+    materials.init();
+    filament::MaterialOverride abs;
+    abs.chamber_temp = 45;
+    materials.set_override("ABS", abs);
+    materials.set_preset_material(0, "ABS");
+    REQUIRE(helix::presets::slot_temps(0)->chamber == 45);
+
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json{"extruder", "extruder1", "heater_bed", "heater_generic chamber_heater"});
+    state.set_hardware(hw);
+    REQUIRE(controller_->resolved_name(helix::HeaterType::Chamber) ==
+            "heater_generic chamber_heater");
+    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    client.clear_gcode_script_history();
+
+    TempGraphOverlayTestAccess::preset_clicked(overlay, "preset_1", 215, lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& hist = client.gcode_script_history();
+    const bool chamber_sent = std::any_of(hist.begin(), hist.end(), [](const std::string& g) {
+        return g.find("HEATER=chamber_heater TARGET=45") != std::string::npos;
+    });
+    CHECK(chamber_sent == heat_bed_and_chamber);
+
+    materials.clear_override("ABS");
+    materials.reset_preset_materials();
     sm.set_material_presets_heat_bed_and_chamber(saved);
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }

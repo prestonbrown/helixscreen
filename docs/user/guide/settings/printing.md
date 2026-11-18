@@ -210,7 +210,7 @@ The editor opens when the printer reports a slot that was empty now holds filame
 
 | Setting | What it does |
 |---------|--------------|
-| **On** (default) | A material preset sets the bed to the material's bed temperature along with the nozzle, and on the Filament screen the chamber to the material's chamber temperature when it has one |
+| **On** (default) | A material preset sets the bed to the material's bed temperature along with the nozzle, and the chamber to the material's chamber temperature when the material has one and the printer has a chamber heater |
 | **Off** | A material preset sets the nozzle only and leaves the bed's and the chamber's targets as they are |
 
 This covers every material preset: the PLA, PETG, ABS/ASA and TPU buttons and the spool's own preset on the Filament screen, the Home screen's Preheat widget, and the nozzle presets on the temperature graph screen. The graph screen's bed and chamber presets still set the bed and the chamber. A material whose preheat macro you assigned in Material Temperatures, and marked as handling heating, runs that macro instead, and the macro sets whatever heaters it sets. Each printer keeps its own setting.
