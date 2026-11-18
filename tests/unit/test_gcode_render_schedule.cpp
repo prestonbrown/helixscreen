@@ -114,6 +114,15 @@ TEST_CASE("plan_bands strides surfaces with the shell past half the budget",
     REQUIRE(p.band_layers == 6); // 550k over 100k
 }
 
+TEST_CASE("a faster measured GPU gets a denser moving mesh", "[gcode][render_schedule]") {
+    // Benchy-sized shell, no surfaces: the band depth tracks the moving budget.
+    REQUIRE(moving_budget_triangles(0.0f) == 100000); // unmeasured: Pi 3B seed
+    const int seed_bands = plan_bands(400000, 0, moving_budget_triangles(0.0f)).band_layers;
+    const int pi4_bands = plan_bands(400000, 0, moving_budget_triangles(12000.0f)).band_layers;
+    REQUIRE(seed_bands == 44); // ceil(400k * 11 tris / 100k)
+    REQUIRE(pi4_bands == 15);  // ceil(400k * 11 tris / 300k)
+}
+
 TEST_CASE("plan_bands with no budget is off", "[gcode][render_schedule]") {
     BandPlan p = plan_bands(36000, 2000, 0);
     REQUIRE(p.band_layers == 1);

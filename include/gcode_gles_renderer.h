@@ -633,6 +633,9 @@ class GCodeGLESRenderer {
     /// still path, so the moving path compares epochs instead.
     uint64_t scene_epoch_ = 0;
     void mark_frame_dirty();
+    /// Folds one measured submission into the smoothed rate and publishes it
+    /// for the moving-mesh build of the next file.
+    void record_rate(size_t triangles, float elapsed_ms);
     size_t triangles_rendered_ = 0;
 
     // ====== Time-sliced refinement ======

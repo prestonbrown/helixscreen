@@ -1521,8 +1521,7 @@ void GCodeGLESRenderer::render_moving(lv_layer_t* layer, const ParsedGCodeFile& 
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    gpu_rate_tris_per_ms_ =
-        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     blit_to_lvgl(layer, widget_coords, /*overlays_drawn=*/false);
     moving_frame_valid_ = draw_buf_ != nullptr;
@@ -1704,8 +1703,7 @@ bool GCodeGLESRenderer::run_slice(const ParsedGCodeFile& gcode, const GCodeCamer
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    gpu_rate_tris_per_ms_ =
-        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms);
     job_.slices++;
     job_.max_slice_ms = std::max(job_.max_slice_ms, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -1994,6 +1992,15 @@ void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
     // Each gesture plans its resolution afresh, and its first frame always draws.
     moving_half_res_held_ = false;
     moving_frame_valid_ = false;
+}
+
+void GCodeGLESRenderer::record_rate(size_t triangles, float elapsed_ms) {
+    gpu_rate_tris_per_ms_ =
+        render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles, elapsed_ms);
+    if (gpu_rate_tris_per_ms_ > 0.0f) {
+        render_schedule::last_measured_rate().store(gpu_rate_tris_per_ms_,
+                                                    std::memory_order_relaxed);
+    }
 }
 
 void GCodeGLESRenderer::mark_frame_dirty() {
