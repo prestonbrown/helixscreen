@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../test_helpers/config_dir_guard.h"
+#include "../test_helpers/unique_temp_dir.h"
 #include "core/data_root_resolver.h"
 #include "json_utils.h"
+#include "printer_event_journal.h"
 #include "system/debug_bundle_collector.h"
 #include "wifi_saved_config.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <string>
+#include <utime.h>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -169,4 +174,191 @@ TEST_CASE("The host census ships process names, never their arguments",
         CHECK_FALSE(
             helix::DebugBundleCollector::collect_system_info({}, census).contains("failed_units"));
     }
+}
+
+namespace {
+
+/// A printer's log directory on this host, handed to collect() through its
+/// LogLocator. Each file's mtime is set explicitly, so the bundle's age and
+/// staleness verdicts read from literals.
+class LocalLogDir {
+  public:
+    LocalLogDir() : root_(helix::test::unique_temp_dir("helix_bundle_logs")) {
+        std::filesystem::create_directories(root_);
+    }
+    ~LocalLogDir() {
+        std::error_code ec;
+        std::filesystem::remove_all(root_, ec);
+    }
+
+    std::string write(const std::string& name, const std::string& body, std::time_t mtime) {
+        const std::string path = root_ + "/" + name;
+        std::ofstream(path) << body;
+        const utimbuf times{mtime, mtime};
+        REQUIRE(::utime(path.c_str(), &times) == 0);
+        paths_[name] = path;
+        return path;
+    }
+
+    helix::LogLocator locator() const {
+        return [paths = paths_](const std::string& name) -> std::vector<std::string> {
+            auto it = paths.find(name);
+            if (it == paths.end())
+                return {};
+            return {it->second};
+        };
+    }
+
+  private:
+    std::string root_;
+    std::map<std::string, std::string> paths_;
+};
+
+/// A klippy.log tail as Klipper writes it: the start banner, a config dump
+/// (which the bundle elides whole), then the runtime lines a user's macros and
+/// shell commands put secrets into, among the ordinary lines a triager reads.
+const char* const kKlippyLog =
+    "Start printer at Mon Nov 16 10:00:00 2026 (1763287200.0 12.3)\n"
+    "===== Config file =====\n"
+    "[gcode_shell_command snapshot]\n"
+    "command = curl -s http://192.168.1.40:8080/?action=snapshot\n"
+    "=======================\n"
+    "Running command {curl -s http://octo:hunter2pass@192.168.1.40:8080/?action=snapshot}\n"
+    "Read 1781.2: 'NOTIFY URL=https://discord.com/api/webhooks/112233/AbCdEfGhIjKlMnOp\\n'\n"
+    "ghp_aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5\n"
+    "Echo: print started by owner.name@example.com\n"
+    "webhooks client 1234: New connection from 8.8.4.4\n"
+    "webhooks client 5678: New connection from 192.168.1.50\n"
+    "Host network: wlan0 ether dc:a6:32:12:34:56\n"
+    "MCU error during connect\n"
+    "Stats 1234.5: gcodein=0 mcu: mcu_awake=0.003 mcu_task_avg=0.000010\n";
+
+} // namespace
+
+/**
+ * klippy.log read off this host's disk goes through the same line scrubber as
+ * every other log in the bundle. The config dump inside it is where a user's
+ * webhook URLs, shell-command credentials and pasted tokens end up.
+ */
+TEST_CASE("A local klippy.log reaches the bundle scrubbed and otherwise intact",
+          "[debug-bundle][security]") {
+    LocalLogDir dir;
+    const std::time_t now = std::time(nullptr);
+    const std::string klippy = dir.write("klippy.log", kKlippyLog, now);
+
+    helix::BundleOptions opts;
+    opts.include_klipper_logs = true;
+    opts.log_locator = dir.locator();
+    const json bundle = helix::DebugBundleCollector::collect(opts);
+
+    REQUIRE(bundle.contains("klipper_log"));
+    const std::string log = bundle["klipper_log"].get<std::string>();
+    INFO(log);
+    // Read from the fixture, not from Moonraker or this machine's own Klipper.
+    REQUIRE(log.rfind("[read from local disk: " + klippy + ", last written ", 0) == 0);
+
+    SECTION("secrets are redacted") {
+        CHECK(log.find("discord.com/api/webhooks") == std::string::npos);
+        CHECK(log.find("AbCdEfGhIjKlMnOp") == std::string::npos);
+        CHECK(log.find("[REDACTED_WEBHOOK]") != std::string::npos);
+
+        CHECK(log.find("hunter2pass") == std::string::npos);
+        CHECK(log.find("http://[REDACTED_CREDENTIALS]@192.168.1.40:8080/?action=snapshot") !=
+              std::string::npos);
+
+        CHECK(log.find("ghp_aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5") == std::string::npos);
+        CHECK(log.find("\n[REDACTED_TOKEN]\n") != std::string::npos);
+
+        CHECK(log.find("owner.name@example.com") == std::string::npos);
+        CHECK(log.find("Echo: print started by [REDACTED_EMAIL]") != std::string::npos);
+
+        CHECK(log.find("dc:a6:32:12:34:56") == std::string::npos);
+        CHECK(log.find("wlan0 ether [REDACTED_MAC]") != std::string::npos);
+
+        CHECK(log.find("8.8.4.4") == std::string::npos);
+        CHECK(log.find("webhooks client 1234: New connection from ip#") != std::string::npos);
+    }
+
+    SECTION("diagnostic lines survive") {
+        CHECK(log.find("Start printer at Mon Nov 16 10:00:00 2026") != std::string::npos);
+        CHECK(log.find("New connection from 192.168.1.50") != std::string::npos);
+        CHECK(log.find("MCU error during connect") != std::string::npos);
+        CHECK(log.find("Stats 1234.5: gcodein=0 mcu: mcu_awake=0.003") != std::string::npos);
+    }
+}
+
+/**
+ * The Klipper log metadata compares the klippy.log's last write with Klippy's
+ * latest connection in moonraker.log, both read through the same locator. A
+ * copy written before that connection is some earlier session's and says so.
+ */
+TEST_CASE("klipper_log_meta judges a local klippy.log against moonraker.log",
+          "[debug-bundle][klippy]") {
+    helix::LocalEventJournal::instance().clear();
+    LocalLogDir dir;
+    // 2020-01-01T00:00:00Z.
+    const std::time_t old_write = 1577836800;
+    const std::string moonraker_log =
+        "2026-11-16 10:05:00,123 [klippy_connection.py:_on_connection_established()] - "
+        "Klippy Connection Established\n";
+
+    helix::BundleOptions opts;
+    opts.include_klipper_logs = true;
+    opts.include_moonraker_logs = true;
+
+    SECTION("a klippy.log older than the connection is stale and bannered") {
+        const std::string klippy = dir.write("klippy.log", kKlippyLog, old_write);
+        dir.write("moonraker.log", moonraker_log, std::time(nullptr));
+        opts.log_locator = dir.locator();
+        const json bundle = helix::DebugBundleCollector::collect(opts);
+
+        REQUIRE(bundle.contains("klipper_log_meta"));
+        const json& meta = bundle["klipper_log_meta"];
+        INFO(meta.dump());
+        CHECK(meta["source"] == "local");
+        CHECK(meta["path"] == klippy);
+        CHECK(meta["modified"] == "2020-01-01T00:00:00Z");
+        CHECK(meta["last_stamp"] == "2026-11-16 10:00:00");
+        CHECK(meta["klippy_connected_from"] == "moonraker.log");
+        CHECK(meta["stale"] == true);
+        CHECK(bundle["klipper_log"].get<std::string>().rfind(
+                  "[helix] STALE: this klippy.log was last written 2020-01-01T00:00:00Z", 0) == 0);
+    }
+
+    SECTION("a klippy.log written since the connection is current") {
+        dir.write("klippy.log", kKlippyLog, std::time(nullptr));
+        dir.write("moonraker.log", moonraker_log, std::time(nullptr));
+        opts.log_locator = dir.locator();
+        const json bundle = helix::DebugBundleCollector::collect(opts);
+
+        REQUIRE(bundle.contains("klipper_log_meta"));
+        CHECK(bundle["klipper_log_meta"]["klippy_connected_from"] == "moonraker.log");
+        CHECK(bundle["klipper_log_meta"]["stale"] == false);
+        CHECK(bundle["klipper_log"].get<std::string>().rfind("[read from local disk: ", 0) == 0);
+    }
+}
+
+/// The launcher log comes from the locator too, so a bundle built from fixture
+/// files carries the fixture's exit records and nothing from this machine.
+TEST_CASE("The bundle's launcher_log comes from the located launcher.log",
+          "[debug-bundle][security]") {
+    LocalLogDir dir;
+    const std::string launcher =
+        dir.write("launcher.log",
+                  "[2026-11-16 10:00:00] [helix-launcher] helix-screen exited with code 139\n"
+                  "[2026-11-16 10:00:01] [helix-launcher] restarting as admin@example.com\n",
+                  std::time(nullptr));
+
+    helix::BundleOptions opts;
+    opts.log_locator = dir.locator();
+    const json bundle = helix::DebugBundleCollector::collect(opts);
+
+    REQUIRE(bundle.contains("launcher_log"));
+    const std::string log = bundle["launcher_log"].get<std::string>();
+    INFO(log);
+    CHECK(log.rfind("[read from local disk: " + launcher, 0) == 0);
+    CHECK(log.find("helix-screen exited with code 139") != std::string::npos);
+    CHECK(log.find("admin@example.com") == std::string::npos);
+    // Klipper logs were not asked for, so none ship.
+    CHECK_FALSE(bundle.contains("klipper_log"));
 }
