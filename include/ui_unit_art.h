@@ -115,6 +115,7 @@ struct UnitArtLaneMark {
     bool absent = false; ///< no spool in the bay: its spool is not drawn at all
     bool ghost = false;  ///< a remembered spool, not confirmed there: see-through, grayed, dashed
     bool prep_fault = false; ///< its prep sensor reports a fault: the drawn sensor turns red
+    bool outline = false;    ///< a finger is down on it: a bright solid ring on both flanges
 };
 
 /// Marks each lane of @p art, in its own place in the drawing's depth: a glow just behind

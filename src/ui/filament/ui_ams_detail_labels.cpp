@@ -442,12 +442,10 @@ void refresh_unit_view_marks() {
         m.ghost = spool && helix::ui::ams_lane_spool_ghosted(spool);
         m.absent = spool && helix::ui::ams_lane_spool_empty(spool);
         m.prep_fault = lane_sensor_fault(slot) == helix::LaneSensor::PREP;
-        // A lane a finger is down on lights whole: its spool's glow and a ring on its number.
+        // A lane a finger is down on is outlined whole: a bright ring round its spool (or its
+        // empty bay) and one on its number.
         const bool pressed = i == s_tray.pressed_lane;
-        if (pressed) {
-            m.glow = true;
-            m.color = theme_manager_get_color("primary");
-        }
+        m.outline = pressed;
         if (lv_obj_t* badge = ui_ams_slot_get_status_badge(slot)) {
             // DECLARATIVE_OK: per-lane press state with no subject behind it
             lv_obj_set_style_outline_width(badge, pressed ? 2 : 0, LV_PART_MAIN);

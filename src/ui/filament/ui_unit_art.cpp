@@ -300,7 +300,7 @@ uint64_t marks_key(const ArtData* data) {
         key = (key ^ (lane.mark.glow ? lv_color_to_u32(lane.mark.color) + 1u : 0u)) * kFnvPrime;
         key = (key ^ (lane.mark.dim ? 1u : 0u)) * kFnvPrime;
         key = (key ^ (lane.mark.absent ? 2u : 0u) ^ (lane.mark.ghost ? 4u : 0u) ^
-               (lane.mark.prep_fault ? 8u : 0u)) *
+               (lane.mark.prep_fault ? 8u : 0u) ^ (lane.mark.outline ? 16u : 0u)) *
               kFnvPrime;
     }
     key = (key ^ lv_color_to_u32(theme_manager_get_color("card_bg"))) * kFnvPrime;
@@ -318,8 +318,8 @@ Content content_of(const ArtData* data, int32_t w, int32_t h) {
     return {((float)w - dw) / 2, ((float)h - dw / aspect) / 2, dw};
 }
 
-/// Draws a ghost lane's dashed rims round both its spool's flanges: each flange's disc of
-/// radius 1 in the lane's (ey, ez) basis, dashed in even segments.
+/// Draws rims round both a lane's spool's flanges, each flange's disc of radius 1 in the
+/// lane's (ey, ez) basis: dashed and muted on a ghost, solid and bright on a pressed lane.
 void draw_ghost_rim(lv_event_t* e) {
     lv_obj_t* rim = lv_event_get_target_obj(e);
     lv_obj_t* art = lv_obj_get_parent(lv_obj_get_parent(rim));
@@ -340,8 +340,9 @@ void draw_ghost_rim(lv_event_t* e) {
     };
     lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init(&line);
-    line.color = theme_manager_get_color("text_muted");
-    line.width = c.w > 300 ? 2 : 1;
+    const bool solid = data->lanes[static_cast<size_t>(lane)].mark.outline;
+    line.color = theme_manager_get_color(solid ? "text" : "text_muted");
+    line.width = solid ? 2 : c.w > 300 ? 2 : 1;
     line.round_start = line.round_end = true;
     constexpr int kDashes = 18;
     constexpr int kSteps = 3; // per dash, so a dash follows the curve
@@ -351,7 +352,8 @@ void draw_ghost_rim(lv_event_t* e) {
         fy = y;
         for (int d = 0; d < kDashes; ++d) {
             const float t0 = 2.0f * 3.14159265f * (float)d / kDashes;
-            const float span = 3.14159265f / kDashes; // half the period: dash, then gap
+            // Half the period, dash then gap; a solid rim fills the whole period.
+            const float span = (solid ? 2.0f : 1.0f) * 3.14159265f / kDashes;
             for (int k = 0; k < kSteps; ++k) {
                 line.p1 = at(t0 + span * (float)k / kSteps);
                 line.p2 = at(t0 + span * (float)(k + 1) / kSteps);
@@ -910,7 +912,7 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             lv_obj_set_style_image_recolor_opa(lane.glow, LV_OPA_COVER, LV_PART_MAIN);
         }
         if (lane.rim)
-            set_lane_visible(lane.rim, lane.mark.ghost);
+            set_lane_visible(lane.rim, lane.mark.ghost || lane.mark.outline);
         if (lane.dim) {
             set_lane_visible(lane.dim, lane.mark.dim);
             // DECLARATIVE_OK: a missing bay fades into the card it stands on.
