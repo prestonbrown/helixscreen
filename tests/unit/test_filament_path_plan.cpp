@@ -591,7 +591,7 @@ TEST_CASE("FilamentPath plan: fill and error follow the segment the filament rea
     }
 }
 
-TEST_CASE("FilamentPath plan: the LINEAR selector passage is painted under the box",
+TEST_CASE("FilamentPath plan: the LINEAR selector passage runs hidden under the box",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::LINEAR);
     load_active(*d, 2, PathSegment::OUTPUT);
@@ -605,8 +605,8 @@ TEST_CASE("FilamentPath plan: the LINEAR selector passage is painted under the b
     for (int i = 0; i < r.path.count; i++) {
         if (near(seg_start(r.path.segs[i]), 250, 44) && near(seg_end(r.path.segs[i]), 250, 84)) {
             found = true;
-            CHECK(r.style[i].painted);
-            CHECK(r.style[i].filled);
+            // Hidden like a hub's: painted, it would cross the bar's label.
+            CHECK_FALSE(r.style[i].painted);
         }
     }
     CHECK(found);

@@ -1574,7 +1574,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
     const int32_t tuck = theme_manager_get_spacing("space_sm");
     CHECK(pa.x1 > last.x2);
-    CHECK(pa.y2 == aa.y1 + drawn.y2 + tuck);
+    // At the drawing's foot, or the view's bottom where the foot stands lower.
+    lv_area_t view;
+    lv_obj_get_coords(lv_obj_get_parent(pill), &view);
+    CHECK(pa.y2 == std::min(aa.y1 + drawn.y2 + tuck, view.y2));
+    CHECK(pa.x2 <= view.x2);
 }
 
 TEST_CASE_METHOD(

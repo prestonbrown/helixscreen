@@ -15,7 +15,7 @@
     <lv_obj name="filament_picker_card"
             width="content" height="content" style_max_height="100%" style_bg_color="#elevated_bg" style_bg_opa="255"
             style_radius="#border_radius" style_border_width="0" style_pad_all="#space_md" style_pad_gap="#space_xs"
-            flex_flow="column" scrollbar_mode="active" clickable="true">
+            flex_flow="column" scrollbar_mode="auto" clickable="true">
       <text_body name="filament_picker_title" bind_text="filament_picker_title">
         <bind_flag_if_eq subject="filament_picker_has_title" flag="hidden" ref_value="0"/>
       </text_body>

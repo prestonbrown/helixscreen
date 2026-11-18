@@ -1332,8 +1332,10 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
-            // Painted: the selector is translucent, so the tube shows through it.
-            append_line(r, x, hub_top, (float)f.output_x, hub_bot, lane.style(PathSegment::HUB));
+            // Hidden through the selector, as through a hub: drawn over it, the tube would cross
+            // the bar's label.
+            append_line(r, x, hub_top, (float)f.output_x, hub_bot,
+                        unpainted(lane.style(PathSegment::HUB)));
         } else {
             pg::PathPoint pts[4] = {f.hub_fan[i].pts[0], f.hub_fan[i].pts[1], f.hub_fan[i].pts[2],
                                     f.hub_fan[i].pts[3]};

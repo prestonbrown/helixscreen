@@ -740,6 +740,18 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         s_tray.lane_x[i] = cx[i] - skew / 2;
     const float spacing = n > 1 ? s_tray.lane_x[1] - s_tray.lane_x[0] : tray::spool_pitch(size);
     const float half = tray::lane_lid_half_width(spacing, box);
+    // A lane's tool tag over its spool needs room to read as its own: twice its width of the
+    // row. Where the lanes stand closer the tags crowd each other and the labels above, and
+    // the heads below carry them.
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* tag = lv_obj_find_by_name(slot_widgets[i], "tool_badge");
+        if (!tag)
+            continue;
+        lv_obj_update_layout(tag);
+        const bool fits = n < 2 || 2.0f * (float)lv_obj_get_width(tag) <= spacing;
+        // DECLARATIVE_OK: measured layout; the tags step aside where the lanes crowd them
+        lv_obj_set_style_opa(tag, fits ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
+    }
 
     // The spools stand on the floor: their mid-depth centre is RISE/2 above the
     // front-plane centre, whose flange bottom sits the floor gap above FB.
