@@ -49,6 +49,7 @@ uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha);
 struct UnitArtLane {
     bool filled = false;
     uint32_t color = 0;
+    float fill = 1.0f; ///< how full its spool is drawn, 0..1
 };
 
 /// Which drawing a unit that holds no spools uses: spools behind it, or tube stubs.
@@ -83,6 +84,35 @@ lv_obj_t* unit_art_glow_obj(lv_obj_t* art);
 
 /// The tinted image of @p lane, or nullptr before the widget has art.
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane);
+
+/// The drawing's width over its height, or 0 when it has no baked lane geometry.
+float unit_art_aspect(lv_obj_t* art);
+
+/// Where lane @p lane's spool (its flanges' bounds) and outlet stand in @p art at its current
+/// size, relative to the widget, from the bake's lane geometry. False without geometry.
+bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& outlet);
+
+/// What the drawing covers at @p art's current size, relative to the widget.
+bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
+
+/// How one lane of the drawing is marked over the art.
+struct UnitArtLaneMark {
+    bool glow = false; ///< a halo round the spool's outline, in @p color
+    lv_color_t color{};
+    bool dim = false; ///< the spool dimmed, as a bay that is not there
+};
+
+/// Marks each lane of @p art; lanes past @p marks keep none.
+void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks);
+
+/// The image showing the lane marks, or nullptr when none has been shown.
+lv_obj_t* unit_art_marks_obj(lv_obj_t* art);
+
+/// A lane's alpha in the marks image at (@p x, @p y), widget-relative; for tests.
+uint8_t unit_art_marks_alpha(lv_obj_t* art, int32_t x, int32_t y);
+
+/// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.
+int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
 
 /// The image currently showing the sliding selector, or nullptr for a unit without one.
 lv_obj_t* unit_art_carriage_obj(lv_obj_t* art);

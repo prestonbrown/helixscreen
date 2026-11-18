@@ -6,6 +6,10 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "display_settings_manager.h"
+#include "unit_art_geometry.h"
+
+#include <cmath>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -413,4 +417,121 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art glow: its pulse dies with the widget
     REQUIRE(lv_anim_get(glow, nullptr) != nullptr);
     lv_obj_delete(art);
     CHECK(lv_anim_get(glow, nullptr) == nullptr);
+}
+
+namespace {
+
+/// The pixel at @p radius flange radii from the middle of @p lane's axis, straight up its
+/// flange's z, in a widget @p w wide that holds the drawing exactly.
+lv_point_t lane_point(const tray::UnitArtGeom& geom, int lane, float radius, int32_t w) {
+    const tray::ArtLaneGeom& g = geom.lane[lane];
+    const float x = (g.far_x + g.near_x) / 2 + radius * g.ez_x;
+    const float y = (g.far_y + g.near_y) / 2 + radius * g.ez_y;
+    return {(int32_t)std::lround(x * w), (int32_t)std::lround(y * w)};
+}
+
+uint8_t mask_at(lv_obj_t* image, lv_point_t p) {
+    const auto* mask =
+        static_cast<const lv_draw_buf_t*>(lv_obj_get_style_bitmap_mask_src(image, LV_PART_MAIN));
+    return mask ? *static_cast<const uint8_t*>(lv_draw_buf_goto_xy(mask, p.x, p.y)) : 255;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: a part-wound lane shows its filament that far out",
+                 "[ams][unit-art][fill]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    AmsSystemInfo info = ace_system();
+    for (SlotInfo& s : info.units[0].slots) {
+        s.total_weight_g = 1000.0f;
+        s.remaining_weight_g = 1000.0f;
+    }
+    info.units[0].slots[1].remaining_weight_g = 500.0f;
+    info.units[0].slots[2].remaining_weight_g = 100.0f;
+    const int32_t w = 300;
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
+    unit_art_set_unit(art, info, 0);
+
+    CHECK(unit_art_lane_fill_pct(art, 0) == 100);
+    CHECK(unit_art_lane_fill_pct(art, 1) == 50);
+    CHECK(unit_art_lane_fill_pct(art, 2) == 10);
+    // A full spool is not masked; a half one shows filament inside its wound radius only.
+    CHECK(lv_obj_get_style_bitmap_mask_src(unit_art_lane_color_obj(art, 0), LV_PART_MAIN) ==
+          nullptr);
+    const tray::ArtLaneGeom& g = geom->lane[1];
+    const float half = tray::wound_radius(g.core, g.wound, 0.5f);
+    lv_obj_t* lane1 = unit_art_lane_color_obj(art, 1);
+    CHECK(mask_at(lane1, lane_point(*geom, 1, half - 0.1f, w)) == 255);
+    CHECK(mask_at(lane1, lane_point(*geom, 1, half + 0.1f, w)) == 0);
+    // Refilled, the mask goes.
+    info.units[0].slots[1].remaining_weight_g = 1000.0f;
+    unit_art_set_unit(art, info, 0);
+    CHECK(unit_art_lane_fill_pct(art, 1) == 100);
+    CHECK(lv_obj_get_style_bitmap_mask_src(lane1, LV_PART_MAIN) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a glow rings its spool, a dim covers it",
+                 "[ams][unit-art][marks]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t w = 300;
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, w, (int32_t)std::lround(w / geom->aspect));
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK(unit_art_marks_obj(art) == nullptr);
+
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[0].glow = true;
+    marks[0].color = lv_color_hex(0x2080ff);
+    marks[3].dim = true;
+    unit_art_set_lane_marks(art, marks);
+    REQUIRE(unit_art_marks_obj(art) != nullptr);
+    // A point @p radius flange radii out past a lane's outer end: the left lane's far flange,
+    // the right lane's near one, where no neighbor stands.
+    auto alpha_out = [&](int lane, float radius) {
+        const tray::ArtLaneGeom& g = geom->lane[lane];
+        const bool near_end = lane == 3;
+        const float det = g.ey_x * g.ez_y - g.ey_y * g.ez_x;
+        const float ax = g.near_x - g.far_x, ay = g.near_y - g.far_y;
+        const float u = (ax * g.ez_y - ay * g.ez_x) / det, v = (g.ey_x * ay - g.ey_y * ax) / det;
+        const float len = std::hypot(u, v), s = near_end ? radius / len : -radius / len;
+        const float x = (near_end ? g.near_x : g.far_x) + s * (u * g.ey_x + v * g.ez_x);
+        const float y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
+        return unit_art_marks_alpha(art, (int32_t)std::lround(x * w), (int32_t)std::lround(y * w));
+    };
+    // The glow stands just outside the spool's rim, not over the spool itself.
+    CHECK(alpha_out(0, 0.5f) == 0);
+    CHECK(alpha_out(0, 1.12f) > 0);
+    CHECK(alpha_out(0, 2.5f) == 0);
+    // The dim covers its spool and nothing past it.
+    CHECK(alpha_out(3, 0.5f) > 0);
+    CHECK(alpha_out(3, 1.3f) == 0);
+
+    // No marks, no image.
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(unit_art_marks_obj(art) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: places each lane's spool and outlet from the bake",
+                 "[ams][unit-art][geometry]") {
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    // A widget wider than the drawing centers it.
+    const int32_t h = 200, dw = (int32_t)std::lround(h * geom->aspect);
+    lv_obj_set_size(art, dw + 40, h);
+    unit_art_set_unit(art, ace_system(), 0);
+    lv_area_t spool;
+    lv_point_t outlet;
+    REQUIRE(unit_art_lane_place(art, 2, spool, outlet));
+    const tray::ArtLaneGeom& g = geom->lane[2];
+    CHECK(std::abs(spool.x1 - (20 + (int32_t)std::lround(g.box_x0 * dw))) <= 1);
+    CHECK(std::abs(spool.y1 - (int32_t)std::lround(g.box_y0 * dw)) <= 1);
+    CHECK(std::abs(outlet.x - (20 + (int32_t)std::lround(g.outlet_x * dw))) <= 1);
+    CHECK(std::abs(outlet.y - (int32_t)std::lround(g.outlet_y * dw)) <= 1);
+    CHECK_FALSE(unit_art_lane_place(art, 4, spool, outlet));
 }

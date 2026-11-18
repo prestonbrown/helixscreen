@@ -16,10 +16,12 @@
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 #include "theme_manager.h"
 #include "ui/opa_pulse.h"
+#include "unit_art_geometry.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -39,6 +41,8 @@ constexpr uint32_t kCarriageSlideMs = 600;
 struct LaneImages {
     lv_obj_t* color;
     lv_obj_t* shade;
+    lv_draw_buf_t* mask = nullptr; ///< the wound filament's outline at mask_fill, A8
+    int mask_pct = 100;
 };
 
 struct ArtData {
@@ -55,6 +59,12 @@ struct ArtData {
     lv_obj_t* glow = nullptr;  // WIDGET_PTR_OK: child of this widget, gone with it
     lv_draw_buf_t* glow_buf = nullptr;
     uint64_t glow_key = 0;
+
+    const tray::UnitArtGeom* geom = nullptr; ///< where the drawing's spools stand
+    int32_t mask_w = 0, mask_h = 0;
+    lv_obj_t* marks = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
+    lv_draw_buf_t* marks_buf = nullptr;
+    uint64_t marks_key = 0;
 
     const tray::CarriageTrack* track = nullptr;
     lv_obj_t* carriage = nullptr;      // WIDGET_PTR_OK: child of this widget, gone with it
@@ -102,7 +112,6 @@ lv_obj_t* add_layer(lv_obj_t* art, const std::string& path) {
 void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
     // Runs under subject observers, where a synchronous delete corrupts the event batch.
     helix::ui::safe_clean_children(art);
-    data->lanes.clear();
     data->flat_key = 0;
     if (data->flat_buf) {
         data->retired.push_back(data->flat_buf);
@@ -119,10 +128,21 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         data->retired.push_back(data->carriage_buf);
         data->carriage_buf = nullptr;
     }
+    for (const LaneImages& lane : data->lanes) {
+        if (lane.mask)
+            data->retired.push_back(lane.mask);
+    }
+    if (data->marks_buf) {
+        data->retired.push_back(data->marks_buf);
+        data->marks_buf = nullptr;
+    }
+    data->marks = nullptr;
+    data->marks_key = 0;
     data->carriage = nullptr;
     data->carriage_flat = nullptr;
     data->carriage_gate = 0;
     data->carriage_placed = false;
+    data->lanes.clear();
     data->track = tray::unit_shell_carriage(*shell, lane_count);
     data->layers = lv_obj_create(art);
     lv_obj_remove_style_all(data->layers);
@@ -136,6 +156,10 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     static const FeederLook look = parse_feeder_look(std::getenv("HELIX_UNIT_ART_FEEDER"));
     const std::string base =
         helix::asset_component_uri(unit_art_base_stem(*shell, lane_count, data->tier, look));
+    // The stub look frames its own body, which the spool look's geometry does not describe.
+    data->geom = shell->has_stub_art && look == FeederLook::Stubs
+                     ? nullptr
+                     : tray::unit_art_geometry(shell->id, lane_count);
     add_layer(data->layers, base + "_back.png");
     for (int lane = 0; lane < lane_count; ++lane) {
         const std::string stem = base + "_lane" + std::to_string(lane);
@@ -168,6 +192,58 @@ void set_lane_visible(lv_obj_t* image, bool visible) {
 void destroy_buf(lv_draw_buf_t* buf) {
     lv_image_cache_drop(buf);
     lv_draw_buf_destroy(buf);
+}
+
+/// Where the drawing stands in a widget @p w by @p h: it is contained and centered.
+struct Content {
+    float x, y, w;
+};
+
+Content content_of(const ArtData* data, int32_t w, int32_t h) {
+    const float aspect = data->geom ? data->geom->aspect : 1.0f;
+    const float dw = std::min((float)w, (float)h * aspect);
+    return {((float)w - dw) / 2, ((float)h - dw / aspect) / 2, dw};
+}
+
+/// Masks lane @p i's color and shading to the filament wound at @p pct percent, or lifts
+/// the mask on a full spool.
+void apply_fill_mask(ArtData* data, int i, int pct, int32_t w, int32_t h) {
+    LaneImages& lane = data->lanes[static_cast<size_t>(i)];
+    if (!data->geom || pct >= 100 || w <= 0 || h <= 0) {
+        if (lane.mask) {
+            lv_obj_set_style_bitmap_mask_src(lane.color, nullptr, LV_PART_MAIN);
+            lv_obj_set_style_bitmap_mask_src(lane.shade, nullptr, LV_PART_MAIN);
+            data->retired.push_back(lane.mask);
+            lane.mask = nullptr;
+        }
+        lane.mask_pct = 100;
+        return;
+    }
+    if (lane.mask && lane.mask_pct == pct && data->mask_w == w && data->mask_h == h)
+        return;
+    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
+    if (!buf)
+        return;
+    const tray::ArtLaneGeom& g = data->geom->lane[i];
+    const Content c = content_of(data, w, h);
+    const float k = tray::art_lane_px_per_unit(g, c.w);
+    const float r = tray::wound_radius(g.core, g.wound, (float)pct / 100.0f);
+    for (int32_t y = 0; y < h; ++y) {
+        auto* row = static_cast<uint8_t*>(lv_draw_buf_goto_xy(buf, 0, y));
+        const float sy = ((float)y + 0.5f - c.y) / c.w;
+        for (int32_t x = 0; x < w; ++x) {
+            const float sx = ((float)x + 0.5f - c.x) / c.w;
+            row[x] = static_cast<uint8_t>(
+                std::lround(255.0f * tray::art_lane_coverage(g, sx, sy, r, k)));
+        }
+    }
+    // DECLARATIVE_OK: the live fill of this lane's spool.
+    lv_obj_set_style_bitmap_mask_src(lane.color, buf, LV_PART_MAIN);
+    lv_obj_set_style_bitmap_mask_src(lane.shade, buf, LV_PART_MAIN);
+    if (lane.mask)
+        data->retired.push_back(lane.mask);
+    lane.mask = buf;
+    lane.mask_pct = pct;
 }
 
 lv_obj_t* live_carriage(const ArtData* data) {
@@ -380,6 +456,12 @@ void delete_cb(lv_event_t* e) {
             lv_draw_buf_destroy(data->glow_buf);
         if (data->carriage_buf)
             lv_draw_buf_destroy(data->carriage_buf);
+        if (data->marks_buf)
+            lv_draw_buf_destroy(data->marks_buf);
+        for (const LaneImages& lane : data->lanes) {
+            if (lane.mask)
+                lv_draw_buf_destroy(lane.mask);
+        }
         for (lv_draw_buf_t* buf : data->retired)
             lv_draw_buf_destroy(buf);
     }
@@ -430,7 +512,7 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
 
 UnitArtLane unit_art_lane(const SlotInfo& slot) {
     const bool filled = slot.status != SlotStatus::EMPTY && slot.status != SlotStatus::UNKNOWN;
-    return {filled, slot.color_rgb};
+    return {filled, slot.color_rgb, slot.display_fill_level().value_or(1.0f)};
 }
 
 bool unit_art_available(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
@@ -461,11 +543,17 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         build_layers(art, data, shell, unit.slot_count);
     lv_obj_set_hidden(art, false);
 
+    lv_obj_update_layout(art);
+    const int32_t w = lv_obj_get_width(art);
+    const int32_t h = lv_obj_get_height(art);
     uint64_t key = 1469598103934665603ull;
     for (size_t i = 0; i < data->lanes.size(); ++i) {
         const UnitArtLane lane =
             i < unit.slots.size() ? unit_art_lane(unit.slots[i]) : UnitArtLane{};
+        const int pct = static_cast<int>(std::lround(std::clamp(lane.fill, 0.0f, 1.0f) * 100.0f));
+        apply_fill_mask(data, static_cast<int>(i), lane.filled ? pct : 100, w, h);
         key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
+        key = (key ^ static_cast<uint64_t>(data->lanes[i].mask_pct)) * kFnvPrime;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);
         if (lane.filled) {
@@ -474,6 +562,8 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
                                            LV_PART_MAIN);
         }
     }
+    data->mask_w = w;
+    data->mask_h = h;
     flatten(art, data, key);
 
     if (data->track) {
@@ -489,6 +579,37 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         }
         data->carriage_placed = true;
     }
+}
+
+bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& outlet) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom || lane < 0 || lane >= data->geom->lanes)
+        return false;
+    lv_obj_update_layout(art);
+    const Content c = content_of(data, lv_obj_get_width(art), lv_obj_get_height(art));
+    const tray::ArtLaneGeom& g = data->geom->lane[lane];
+    auto px = [&](float sx) { return (int32_t)std::lround(c.x + sx * c.w); };
+    auto py = [&](float sy) { return (int32_t)std::lround(c.y + sy * c.w); };
+    spool = {px(g.box_x0), py(g.box_y0), px(g.box_x1), py(g.box_y1)};
+    outlet = {px(g.outlet_x), py(g.outlet_y)};
+    return true;
+}
+
+bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom)
+        return false;
+    lv_obj_update_layout(art);
+    const Content c = content_of(data, lv_obj_get_width(art), lv_obj_get_height(art));
+    const float* d = data->geom->drawn;
+    out = {(int32_t)std::lround(c.x + d[0] * c.w), (int32_t)std::lround(c.y + d[1] * c.w),
+           (int32_t)std::lround(c.x + d[2] * c.w), (int32_t)std::lround(c.y + d[3] * c.w)};
+    return true;
+}
+
+float unit_art_aspect(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    return data && data->geom ? data->geom->aspect : 0.0f;
 }
 
 bool unit_art_is_flattened(lv_obj_t* art) {
@@ -535,6 +656,134 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
     }
     lv_obj_set_hidden(data->glow, false);
     set_image_opa_pulse(data->glow, glow == UnitArtGlow::Pulsing, kGlowPulse);
+}
+
+namespace {
+constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
+constexpr int kLaneHaloDivisor = 40; ///< halo spread: the drawing's width over this
+constexpr int kLaneHaloGain = 3;     ///< lifts the blurred outline into a visible band
+} // namespace
+
+void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data)
+        return;
+    lv_obj_update_layout(art);
+    const int32_t w = lv_obj_get_width(art);
+    const int32_t h = lv_obj_get_height(art);
+    const lv_color_t dim_color = theme_manager_get_color("card_bg");
+    uint64_t key = 1469598103934665603ull;
+    bool any = false;
+    for (const UnitArtLaneMark& m : marks) {
+        key = (key ^ (m.glow ? lv_color_to_u32(m.color) + 1u : 0u)) * kFnvPrime;
+        key = (key ^ (m.dim ? 1u : 0u)) * kFnvPrime;
+        any = any || m.glow || m.dim;
+    }
+    key = (key ^ static_cast<uint64_t>(w)) * kFnvPrime;
+    key = (key ^ static_cast<uint64_t>(h)) * kFnvPrime;
+    key = (key ^ lv_color_to_u32(dim_color)) * kFnvPrime;
+    if (!any || !data->geom || w <= 0 || h <= 0) {
+        if (data->marks)
+            lv_obj_set_hidden(data->marks, true); // DECLARATIVE_OK: per-lane state
+        return;
+    }
+    if (data->marks && key == data->marks_key) {
+        lv_obj_set_hidden(data->marks, false); // DECLARATIVE_OK: per-lane state
+        return;
+    }
+    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+    if (!buf)
+        return;
+    lv_draw_buf_clear(buf, nullptr);
+    const Content c = content_of(data, w, h);
+    const size_t pixels = static_cast<size_t>(w) * static_cast<size_t>(h);
+    auto blend = [&](int32_t x, int32_t y, lv_color_t color, uint8_t a) {
+        if (a == 0)
+            return;
+        auto* px = static_cast<uint8_t*>(lv_draw_buf_goto_xy(buf, x, y));
+        const uint8_t da = px[3];
+        const int oa = a + da * (255 - a) / 255;
+        auto mix = [&](uint8_t dst, uint8_t src) {
+            return static_cast<uint8_t>(oa ? (src * a + dst * da * (255 - a) / 255) / oa : 0);
+        };
+        px[0] = mix(px[0], color.blue);
+        px[1] = mix(px[1], color.green);
+        px[2] = mix(px[2], color.red);
+        px[3] = static_cast<uint8_t>(oa);
+    };
+    const int lanes = std::min<int>(static_cast<int>(marks.size()), data->geom->lanes);
+    for (int i = 0; i < lanes; ++i) {
+        const UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
+        if (!m.glow && !m.dim)
+            continue;
+        const tray::ArtLaneGeom& g = data->geom->lane[i];
+        const float k = tray::art_lane_px_per_unit(g, c.w);
+        std::vector<uint8_t> spool(pixels);
+        for (int32_t y = 0; y < h; ++y) {
+            const float sy = ((float)y + 0.5f - c.y) / c.w;
+            for (int32_t x = 0; x < w; ++x) {
+                const float sx = ((float)x + 0.5f - c.x) / c.w;
+                spool[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)] =
+                    static_cast<uint8_t>(
+                        std::lround(255.0f * tray::art_lane_coverage(g, sx, sy, 1.0f, k)));
+            }
+        }
+        if (m.dim) {
+            for (int32_t y = 0; y < h; ++y)
+                for (int32_t x = 0; x < w; ++x)
+                    blend(x, y, dim_color,
+                          static_cast<uint8_t>(spool[static_cast<size_t>(y) * w + x] * kDimOpa /
+                                               255));
+        }
+        if (m.glow) {
+            // A halo outside the spool's outline: its silhouette, spread and lifted, less itself.
+            std::vector<uint8_t> halo = spool;
+            const int radius = std::max(2, (int)c.w / kLaneHaloDivisor);
+            for (int pass = 0; pass < 2; ++pass) {
+                box_blur(halo, w, h, 1, w, radius);
+                box_blur(halo, h, w, w, 1, radius);
+            }
+            for (int32_t y = 0; y < h; ++y) {
+                for (int32_t x = 0; x < w; ++x) {
+                    const size_t idx = static_cast<size_t>(y) * w + x;
+                    const int lifted = std::min(255, halo[idx] * kLaneHaloGain);
+                    blend(x, y, m.color, static_cast<uint8_t>(lifted * (255 - spool[idx]) / 255));
+                }
+            }
+        }
+    }
+    if (!data->marks) {
+        data->marks = lv_image_create(art);
+        lv_obj_set_size(data->marks, lv_pct(100), lv_pct(100));
+        lv_obj_set_clickable(data->marks, false);
+    }
+    lv_obj_move_to_index(data->marks, -1);
+    lv_image_set_src(data->marks, buf);
+    if (data->marks_buf)
+        data->retired.push_back(data->marks_buf);
+    data->marks_buf = buf;
+    data->marks_key = key;
+    lv_obj_set_hidden(data->marks, false); // DECLARATIVE_OK: per-lane state
+}
+
+lv_obj_t* unit_art_marks_obj(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    return data && data->marks && !lv_obj_is_hidden(data->marks) ? data->marks : nullptr;
+}
+
+uint8_t unit_art_marks_alpha(lv_obj_t* art, int32_t x, int32_t y) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->marks_buf || lv_obj_is_hidden(data->marks) || x < 0 || y < 0 ||
+        x >= (int32_t)data->marks_buf->header.w || y >= (int32_t)data->marks_buf->header.h)
+        return 0;
+    return static_cast<const uint8_t*>(lv_draw_buf_goto_xy(data->marks_buf, x, y))[3];
+}
+
+int unit_art_lane_fill_pct(lv_obj_t* art, int lane) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || lane < 0 || lane >= static_cast<int>(data->lanes.size()))
+        return 100;
+    return data->lanes[static_cast<size_t>(lane)].mask_pct;
 }
 
 lv_obj_t* unit_art_glow_obj(lv_obj_t* art) {
