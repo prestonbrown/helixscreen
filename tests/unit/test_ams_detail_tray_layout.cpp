@@ -14,6 +14,7 @@
 #include "ui_humidity_drop.h"
 #include "ui_panel_ams.h"
 #include "ui_spool_canvas.h"
+#include "ui_unit_art.h"
 
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_panel_test_access.h"
@@ -531,7 +532,8 @@ TEST_CASE_METHOD(
     AmsTrayPanelFixture,
     "AMS tray: a drawn unit's readout tucks low over its end, clear of the last number",
     "[ams][tray][ui_integration]") {
-    build("dryer", 4, /*tool_changer=*/false, /*ace=*/true);
+    // Five lanes: the ACE's own drawing, which has no five-lane art.
+    build("dryer", 5, /*tool_changer=*/false, /*ace=*/true);
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(pill));
@@ -973,4 +975,105 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);
     CHECK_FALSE(lv_obj_is_hidden(arrows));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit with baked art: the art stands in for the tray, lanes leave its outlets",
+                 "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(art));
+    lv_area_t aa;
+    lv_obj_get_coords(art, &aa);
+    auto* path = helix::ui::fpath::get_data(lv_obj_find_by_name(panel_obj_, "path_canvas"));
+    REQUIRE(path != nullptr);
+    lv_area_t pc;
+    lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "path_canvas"), &pc);
+    lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
+    REQUIRE(badges != nullptr);
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_area_t spool;
+        lv_point_t outlet;
+        REQUIRE(helix::ui::unit_art_lane_place(art, i, spool, outlet));
+        // The slot's own spool is not drawn; its tap target stands over the art's spool.
+        lv_obj_t* lane_spool = lv_obj_find_by_name(slot(i), "lane_spool");
+        REQUIRE(lane_spool != nullptr);
+        CHECK(lv_obj_get_style_opa(lane_spool, LV_PART_MAIN) == LV_OPA_TRANSP);
+        lv_area_t sa;
+        lv_obj_get_coords(slot(i), &sa);
+        const int32_t spool_mid = aa.x1 + (spool.x1 + spool.x2) / 2;
+        CHECK((sa.x1 <= spool_mid && spool_mid <= sa.x2));
+        // The path's lane runs straight down from the lane's outlet.
+        CHECK(std::abs(pc.x1 + helix::ui::fpath::get_slot_x(path, i, pc.x1) - (aa.x1 + outlet.x)) <=
+              1);
+        // Its number stands right of the tube, below the outlet.
+        lv_area_t ba;
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
+        CHECK(ba.x1 > aa.x1 + outlet.x);
+        CHECK(ba.y1 >= aa.y1 + outlet.y);
+    }
+    // The path takes the lanes on at the drawing's foot.
+    lv_area_t drawn, g;
+    REQUIRE(helix::ui::unit_art_drawn_area(art, drawn));
+    lv_obj_get_coords(slot_grid_, &g);
+    CHECK(std::abs(path->lane_entry_offset - (aa.y1 + drawn.y2 - g.y1)) <= 1);
+    // The readout tucks low over the drawing's end, clear of the last number.
+    lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+    REQUIRE(pill != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(pill));
+    lv_area_t pa, last;
+    lv_obj_get_coords(pill, &pa);
+    lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
+    const int32_t tuck = theme_manager_get_spacing("space_sm");
+    CHECK(pa.x1 > last.x2);
+    CHECK(pa.y2 == aa.y1 + drawn.y2 + tuck);
+}
+
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS unit with baked art: an empty lane's badge carries its plus, a missing bay dims",
+    "[ams][tray][ui_integration][unit-art]") {
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    // Each badge carries its lane's "+" exactly when the lane shows as empty.
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* spool = lv_obj_find_by_name(slot(i), "lane_spool");
+        lv_obj_t* plus = lv_obj_find_by_name(ui_ams_slot_get_status_badge(slot(i)), "badge_plus");
+        REQUIRE(plus != nullptr);
+        CHECK(lv_obj_is_hidden(plus) == !helix::ui::ams_lane_spool_empty(spool));
+    }
+    // The badge shows what it is told: the "+" after the number, the dot on its corner.
+    lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(2));
+    ui_ams_slot_set_badge_marks(slot(2), true, true, SlotError::Severity::ERROR);
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(badge, "badge_plus")));
+    lv_obj_t* dot = lv_obj_find_by_name(badge, "badge_error_dot");
+    REQUIRE(dot != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(dot));
+    lv_obj_update_layout(badge);
+    lv_area_t da, ba;
+    lv_obj_get_coords(dot, &da);
+    lv_obj_get_coords(badge, &ba);
+    CHECK(da.x2 > ba.x2);
+    CHECK(da.y1 < ba.y1);
+    ui_ams_slot_set_badge_marks(slot(2), false, false, SlotError::Severity::INFO);
+    CHECK(lv_obj_is_hidden(dot));
+    // A bay that is not on the bus takes the disabled state, and the art dims its spool.
+    lv_obj_t* art = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(art != nullptr);
+    lv_obj_add_state(slot(1), LV_STATE_DISABLED);
+    helix::ui::WidgetRef slots[4];
+    for (int i = 0; i < 4; ++i)
+        slots[i].reset(slot(i));
+    AmsSystemInfo info = *AmsState::instance().system_info();
+    info.units[0].absent = true;
+    helix::ui::ams_detail_sync_slot_states(slots, 4, info);
+    lv_area_t spool;
+    lv_point_t outlet;
+    REQUIRE(helix::ui::unit_art_lane_place(art, 1, spool, outlet));
+    CHECK(helix::ui::unit_art_marks_alpha(art, (spool.x1 + spool.x2) / 2,
+                                          (spool.y1 + spool.y2) / 2) > 0);
 }

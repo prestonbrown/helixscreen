@@ -435,6 +435,16 @@ AmsError AmsBackendMock::start() {
             }
             emit_event(EVENT_STATE_CHANGED);
             spdlog::info("[AMS Mock] Applied initial state scenario: disconnected (last unit)");
+        } else if (scenario == "absent") {
+            // The last unit's bays are reserved but its box is not on the bus.
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (!system_info_.units.empty()) {
+                    system_info_.units.back().absent = true;
+                }
+            }
+            emit_event(EVENT_STATE_CHANGED);
+            spdlog::info("[AMS Mock] Applied initial state scenario: absent (last unit)");
         } else if (scenario == "unaccounted") {
             // Filament at the toolhead with no lane accounting for it — drives
             // the unaccounted_toolhead_filament print-start gate (hand-fed /

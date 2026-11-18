@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -157,6 +159,12 @@ lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj);
 /// Draw the slot's spool at @p spool_size px, its container sized to hold it.
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size);
+
+/// Show the "+" of an empty lane and its error dot on the slot's number badge, for a view
+/// that draws the lane's spool itself.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
+                                 helix::SlotError::Severity severity);
 
 /// The slot's material label, wherever it is parented, or nullptr.
 // NAMESPACE_OK: the widget's C API, beside its siblings

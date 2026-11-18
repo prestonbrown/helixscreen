@@ -1146,6 +1146,19 @@ void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size) {
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
+                                 helix::SlotError::Severity severity) {
+    auto* data = get_slot_data(obj);
+    if (!data || !data->status_badge_bg)
+        return;
+    if (lv_obj_t* icon = lv_obj_find_by_name(data->status_badge_bg, "badge_plus"))
+        lv_obj_set_hidden(icon, !plus); // DECLARATIVE_OK: per-lane state with no subject
+    if (lv_obj_t* dot = lv_obj_find_by_name(data->status_badge_bg, "badge_error_dot"))
+        ams_draw::update_error_badge(dot, error, severity,
+                                     DisplaySettingsManager::instance().get_animations_enabled());
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->material_label : nullptr;

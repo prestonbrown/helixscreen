@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ui_ams_detail.h"
+#include "ui_widget_ref.h"
 
 #include "ams_tray_projection.h"
 #include "ams_tray_shell_draw.h"
@@ -50,6 +51,14 @@ struct TrayState {
     TrayOpacities opa = kDarkOpa;
     const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
     float spool_size = 0;
+    bool art = false; // the unit's baked art stands in for the tray, which draws its outlets
+    helix::ui::WidgetRef art_obj;                  // the drawing, while it is shown
+    helix::ui::WidgetRef slot[kAmsDetailMaxSlots]; // the slots it stands under
+    int unit_index = -1;
+    tray::PointF outlet[kAmsDetailMaxSlots] = {}; // each lane's outlet on the art
+    bool lane_loaded[kAmsDetailMaxSlots] = {};
+    uint32_t lane_color[kAmsDetailMaxSlots] = {};
+    int active_lane = -1;
     // Leaders from the labels above the unit to their spools: label, knee, spool top.
     tray::PointF leader[kAmsDetailMaxSlots][3] = {};
     int leader_count = 0;

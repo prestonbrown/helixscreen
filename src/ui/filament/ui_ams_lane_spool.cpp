@@ -215,6 +215,10 @@ struct LaneSpoolData {
     ObserverGuard has_error_observer;
     ObserverGuard severity_observer;
     ObserverGuard theme_observer; ///< a lit glow re-reads the accent
+
+    /// Told when what the lane shows changes, for a view that draws the lane itself.
+    void (*listener)(void*) = nullptr;
+    void* listener_user = nullptr;
 };
 
 static helix::WidgetDataRegistry<LaneSpoolData> s_lane_spool_registry;
@@ -288,29 +292,43 @@ static void glow_opa_anim_cb(void* obj, int32_t value) {
 /// otherwise the current lane glows in the accent. Pulse animates only the
 /// layer's opacity, so no frame repaints or re-blurs anything; a running pulse
 /// is left alone, so repeated applies never restart it.
-static void apply_highlight(LaneSpoolData* d) {
-    lv_obj_t* glow = d->sv.glow;
-    if (!glow)
-        return;
+static void notify_listener(const LaneSpoolData* d) {
+    if (d && d->listener)
+        d->listener(d->listener_user);
+}
+
+/// Whether the lane glows, and in what: an error's severity, else the accent of a lane
+/// highlighted as current. An empty lane never glows; its error shows as a dot.
+static bool glow_state(const LaneSpoolData* d, lv_color_t& color, bool& pulse) {
     using helix::ui::SpoolHighlight;
     const bool has_spool = d->lane_state != helix::ui::LaneState::Empty;
     const bool error = has_spool && d->has_error;
     const bool on = error || (has_spool && d->highlight != SpoolHighlight::None);
-    const bool pulse = error ? DisplaySettingsManager::instance().get_animations_enabled()
-                             : on && d->highlight == SpoolHighlight::Pulse;
+    pulse = error ? DisplaySettingsManager::instance().get_animations_enabled()
+                  : on && d->highlight == SpoolHighlight::Pulse;
+    color = error ? ams_draw::severity_color(d->severity) : helix::ui::tube_accent();
+    return on;
+}
+
+static void apply_highlight(LaneSpoolData* d) {
+    lv_obj_t* glow = d->sv.glow;
+    if (!glow)
+        return;
+    lv_color_t color;
+    bool pulse = false;
+    const bool on = glow_state(d, color, pulse);
     const bool pulsing = lv_anim_get(glow, glow_opa_anim_cb) != nullptr;
     if (pulsing && !pulse) {
         lv_anim_delete(glow, glow_opa_anim_cb);
         lv_obj_set_style_opa(glow, LV_OPA_COVER, LV_PART_MAIN);
     }
+    notify_listener(d);
     if (!on) {
         helix::ui::spool_glow_clear(glow);
         lv_obj_set_hidden(glow, true);
         helix::ui::refresh_overhang_chain(glow);
         return;
     }
-    const lv_color_t color =
-        error ? ams_draw::severity_color(d->severity) : helix::ui::tube_accent();
     helix::ui::spool_glow_paint(glow, d->sv.canvas, d->sv.spool_size, color);
     lv_obj_set_hidden(glow, false);
     helix::ui::refresh_overhang_chain(glow);
@@ -409,6 +427,7 @@ static void apply_color(LaneSpoolData* d, int color_int) {
         finish = helix::ui::swatch_finish_of(slot);
     }
     spool_visual_set_color(d->sv, d->color_int, multi, finish);
+    notify_listener(d);
 }
 
 /**
@@ -431,6 +450,7 @@ static void apply_fill_pct(LaneSpoolData* d, int pct) {
     pct = std::clamp(pct, 0, 100);
     d->fill_level = static_cast<float>(pct) / 100.0f;
     show_fill(d);
+    notify_listener(d);
 }
 
 // ============================================================================
@@ -702,6 +722,32 @@ void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index
     data->slot_index = slot_index;
     data->backend_index = backend_index;
     setup_lane_spool_observers(data);
+}
+
+bool ams_lane_spool_glow(lv_obj_t* spool, lv_color_t& color) {
+    const LaneSpoolData* data = get_lane_spool_data(spool);
+    bool pulse = false;
+    return data && glow_state(data, color, pulse);
+}
+
+bool ams_lane_spool_empty(lv_obj_t* spool) {
+    const LaneSpoolData* data = get_lane_spool_data(spool);
+    return data && data->lane_state == helix::ui::LaneState::Empty;
+}
+
+bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity) {
+    const LaneSpoolData* data = get_lane_spool_data(spool);
+    if (!data || !data->has_error || data->lane_state != helix::ui::LaneState::Empty)
+        return false;
+    severity = data->severity;
+    return true;
+}
+
+void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void* user) {
+    if (LaneSpoolData* data = get_lane_spool_data(spool)) {
+        data->listener = listener;
+        data->listener_user = user;
+    }
 }
 
 void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {

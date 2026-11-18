@@ -161,6 +161,25 @@
     <px name="ams_slot_status_badge_size_medium" value="20"/>
     <px name="ams_slot_status_badge_size_large" value="20"/>
 
+    <!-- The error dot an empty lane's badge carries over a unit's drawing, and how far it
+         stands out past the badge's top-right corner: the badge's side padding and border,
+         then a little more, since the dot aligns to the badge's content area. -->
+    <px name="ams_slot_badge_error_dot_micro" value="6"/>
+    <px name="ams_slot_badge_error_dot_tiny" value="6"/>
+    <px name="ams_slot_badge_error_dot_small" value="8"/>
+    <px name="ams_slot_badge_error_dot_medium" value="8"/>
+    <px name="ams_slot_badge_error_dot_large" value="8"/>
+    <px name="ams_slot_badge_error_dot_out_micro" value="5"/>
+    <px name="ams_slot_badge_error_dot_out_tiny" value="5"/>
+    <px name="ams_slot_badge_error_dot_out_small" value="9"/>
+    <px name="ams_slot_badge_error_dot_out_medium" value="9"/>
+    <px name="ams_slot_badge_error_dot_out_large" value="9"/>
+    <px name="ams_slot_badge_error_dot_up_micro" value="-2"/>
+    <px name="ams_slot_badge_error_dot_up_tiny" value="-2"/>
+    <px name="ams_slot_badge_error_dot_up_small" value="-3"/>
+    <px name="ams_slot_badge_error_dot_up_medium" value="-3"/>
+    <px name="ams_slot_badge_error_dot_up_large" value="-3"/>
+
     <px name="ams_slot_tool_badge_h_micro" value="14"/>
     <px name="ams_slot_tool_badge_h_tiny" value="14"/>
     <px name="ams_slot_tool_badge_h_small" value="16"/>
