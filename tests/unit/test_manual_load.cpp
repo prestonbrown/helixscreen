@@ -419,11 +419,11 @@ TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head fed past its feeder loads b
                  "[ams][snapmaker][manual_load]") {
     helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg;
     auto& backend = *backend_reg;
-    const auto port = [&](bool detected) {
+    const auto port = [&](bool detected, const char* channel_state = "wait_insert") {
         backend.fire_status(nlohmann::json{{"filament_feed left",
                                             {{"extruder1",
                                               {{"filament_detected", detected},
-                                               {"channel_state", "wait_insert"},
+                                               {"channel_state", channel_state},
                                                {"module_exist", true},
                                                {"disable_auto", false}}}}}});
     };
@@ -443,5 +443,9 @@ TEST_CASE_METHOD(DrainingFixture, "Snapmaker: a head fed past its feeder loads b
 
     // A spool in the feeder port is a feed the firmware can run.
     port(true);
+    CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
+
+    // A head loaded to its nozzle stays the feeder's when its spool tail leaves the port.
+    port(false, "load_finish");
     CHECK(backend.head_filament_ops(1).load == helix::FilamentOpSupport::Automatic);
 }
