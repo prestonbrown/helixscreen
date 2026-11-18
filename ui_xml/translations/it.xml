@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" it="Spurgo ugello"/>
   <translation tag="Purging old filament" it="Spurgo del filamento precedente"/>
   <translation tag="Purging..." it="Spurgo..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." it="Spingi il filamento a mano nella testina, poi tocca Riprendi."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." it="Spingere il filamento di pulizia nell&apos;estrusore fino in fondo, poi toccare Estrusione."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." it="Spingi il filamento nell&apos;estrusore fino in fondo. Viene afferrato automaticamente, oppure tocca Estrusione."/>
   <translation tag="QGL" it="QGL"/>

@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" ja="ノズルをパージ中"/>
   <translation tag="Purging old filament" ja="古いフィラメントをパージ中"/>
   <translation tag="Purging..." ja="パージ中..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." ja="フィラメントを手でツールヘッドに押し込んでから、再開をタップしてください。"/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ja="清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
   <translation tag="QGL" ja="QGL"/>

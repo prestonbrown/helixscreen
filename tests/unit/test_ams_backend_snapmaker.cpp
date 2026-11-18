@@ -3131,6 +3131,39 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker takes a hand load as the load a fa
     CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
 }
 
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past its feeder",
+                 "[ams][snapmaker][resume][load_unconfirmed]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    ResumeRecoveryHarness h;
+    const json switch_on{{"filament_motion_sensor e0_filament", {{"filament_detected", true}}}};
+    const json switch_off{{"filament_motion_sensor e0_filament", {{"filament_detected", false}}}};
+    h.backend.fire_status(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+
+    SECTION("pushed in after a refeed found nothing to feed") {
+        fail_refeed_then_switch_present(h);
+        h.backend.fire_status(switch_on);
+        CHECK(resume_once(h, 0).success());
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+    }
+    SECTION("ran out: Resume asks for a hand load instead of a refeed") {
+        h.backend.fire_status(switch_on);
+        h.backend.fire_status(switch_off);
+        const AmsError err = resume_once(h, 0);
+        CHECK_FALSE(err.success());
+        CHECK(err.suggestion == "Push filament into the toolhead by hand, then tap Resume.");
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+    }
+    SECTION("a feeder spool's tail passing the port is no hand push: Resume refeeds") {
+        h.backend.fire_status(make_feed_status(0, "load_finish"));
+        h.backend.fire_status(switch_on);
+        h.backend.fire_status(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.backend.fire_status(switch_off);
+        (void)resume_once(h, 0);
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 1);
+    }
+}
+
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker refuses RESUME into a head its feeder is still loading",
                  "[ams][snapmaker][resume][load_unconfirmed]") {
@@ -5664,6 +5697,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker says nothing when every used head 
         FileToolsProbe probe(h.backend, {0, 2});
         slicer_print_ready(h);
         h.frame(feeder(2, "load_feeding"));
+        h.print("printing");
+    }
+    SECTION("a head loaded by hand past its feeder") {
+        FileToolsProbe probe(h.backend, {0, 2});
+        slicer_print_ready(h);
+        h.frame(json{{"filament_feed right", {{"extruder2", {{"filament_detected", false}}}}}});
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", true}}}});
         h.print("printing");
     }
     CHECK(warnings.seen.empty());
