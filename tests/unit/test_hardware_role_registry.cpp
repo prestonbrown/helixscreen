@@ -1,7 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "../test_helpers/config_test_access.h"
 #include "config.h"
 #include "hardware_role_registry.h"
+#include "hardware_validator.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_fan_state.h"
@@ -424,13 +426,16 @@ TEST_CASE("guess never returns a non-candidate", "[hwrole][guess]") {
 // ---------------------------------------------------------------------------
 
 // A K1C on a modded Klipper config keeps the k1c preset's stock exhaust name,
-// output_pin fan1, which this printer never had.
-TEST_CASE("guided_reconfig_steps: asks only about a fan the last session saw",
+// output_pin fan1, which this printer never had. Each discovery saves its snapshot
+// whether or not the user was asked anything (a print running, a wizard left open).
+TEST_CASE("guided_reconfig_steps: asks only about hardware this printer has reported",
           "[hwrole][reconfig]") {
     Config* cfg = Config::get_instance();
+    const nlohmann::json saved_config = ConfigTestAccess::data(*cfg);
     GuidedKeyStash stash(cfg);
     stash.clear_all();
     stash.set(helix::wizard::EXHAUST_FAN, "output_pin fan1");
+    cfg->set<nlohmann::json>(cfg->df() + "hardware", nlohmann::json::object());
     const std::vector<std::string> fans = {"fan", "fan_generic chamber", "fan_generic auxiliary",
                                            "heater_fan hotend", "temperature_fan chamber_fan"};
     MoonrakerClientMock client;
@@ -439,20 +444,49 @@ TEST_CASE("guided_reconfig_steps: asks only about a fan the last session saw",
     const auto exhaust = [cfg] {
         return cfg->get<std::string>(cfg->df() + helix::wizard::EXHAUST_FAN, "?");
     };
+    const auto steps_now = [&] {
+        return helix::guided_reconfig_steps(cfg, client.hardware(),
+                                            HardwareValidator::load_seen_hardware(cfg));
+    };
+    HardwareValidator validator;
     const std::vector<helix::wizard::StepId> fan_step = {helix::wizard::StepId::FanSelect};
 
     SECTION("a preset fan the printer never had is settled, not asked") {
-        CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), {fans, {}}).empty());
+        validator.save_session_snapshot(cfg, client.hardware());
+        validator.save_session_snapshot(cfg, client.hardware());
+        CHECK(steps_now().empty());
         CHECK(exhaust().empty());
     }
-    SECTION("a fan present last boot that disappeared still gets the step") {
+    SECTION("a fan that went away while nobody was asked still gets the step") {
+        // Seen once, then gone across a discovery that saved its snapshot without a
+        // prompt (print running, wizard left unanswered or blocked).
+        MoonrakerClientMock with_fan;
         std::vector<std::string> last_boot = fans;
         last_boot.push_back("output_pin fan1");
-        CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), {last_boot, {}}) == fan_step);
+        with_fan.set_fans(last_boot);
+        with_fan.set_heaters({"extruder", "heater_bed"});
+        validator.save_session_snapshot(cfg, with_fan.hardware());
+        CHECK(steps_now() == fan_step);
+        validator.save_session_snapshot(cfg, client.hardware());
+
+        CHECK(steps_now() == fan_step);
         CHECK(exhaust() == "output_pin fan1");
     }
-    SECTION("with no record of the last boot's fans it is asked") {
-        CHECK(helix::guided_reconfig_steps(cfg, client.hardware(), {}) == fan_step);
+    SECTION("a bed heater that went away while nobody was asked still gets the step") {
+        stash.set(helix::wizard::EXHAUST_FAN, "");
+        stash.set(helix::wizard::BED_HEATER, "heater_bed");
+        validator.save_session_snapshot(cfg, client.hardware());
+        client.set_heaters({"extruder"});
+        validator.save_session_snapshot(cfg, client.hardware());
+
+        const std::vector<helix::wizard::StepId> heater_step = {
+            helix::wizard::StepId::HeaterSelect};
+        CHECK(steps_now() == heater_step);
+        CHECK(cfg->get<std::string>(cfg->df() + helix::wizard::BED_HEATER, "") == "heater_bed");
+    }
+    SECTION("with no record of this printer's fans it is asked") {
+        CHECK(steps_now() == fan_step);
         CHECK(exhaust() == "output_pin fan1");
     }
+    ConfigTestAccess::data(*cfg) = saved_config;
 }
