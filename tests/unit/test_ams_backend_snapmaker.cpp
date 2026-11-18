@@ -3623,8 +3623,6 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker takes a hand load as the load a fa
     CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
 }
 
-// A head fed past its feeder (a BMCU, a passive reloader) never reaches load_finish: its
-// toolhead switch is the only witness, and its empty port leaves a refeed nothing to feed.
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past its feeder",
                  "[ams][snapmaker][resume][load_unconfirmed]") {
     lv_init_safe();
@@ -3639,6 +3637,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past
         fail_refeed_then_switch_present(h);
         SnapmakerTestAccess::handle_status(h.backend, switch_on);
         CHECK(resume_once(h, 0).success());
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
     }
     SECTION("ran out: Resume asks for a hand load instead of a refeed") {
         SnapmakerTestAccess::handle_status(h.backend, switch_on);
@@ -3646,8 +3645,17 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past
         const AmsError err = resume_once(h, 0);
         CHECK_FALSE(err.success());
         CHECK(err.suggestion == "Push filament into the toolhead by hand, then tap Resume.");
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
     }
-    CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+    SECTION("a feeder spool's tail passing the port is no hand push: Resume refeeds") {
+        SnapmakerTestAccess::handle_status(h.backend, make_feed_status(0, "load_finish"));
+        SnapmakerTestAccess::handle_status(h.backend, switch_on);
+        SnapmakerTestAccess::handle_status(
+            h.backend, make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        SnapmakerTestAccess::handle_status(h.backend, switch_off);
+        (void)resume_once(h, 0);
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 1);
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,

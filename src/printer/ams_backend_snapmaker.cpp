@@ -396,6 +396,7 @@ void AmsBackendSnapmaker::on_started() {
         insert_verdict_.fill(InsertIdentity::NotRead);
         feed_presence_seen_.fill(false);
         hand_fed_head_.fill(false);
+        switch_was_raised_.fill(false);
         // The sink names the store being replaced; the new one's first read rebinds it.
         rfid_tracker_.set_baseline_sink(nullptr);
     }
@@ -894,7 +895,7 @@ HeadFilamentOps AmsBackendSnapmaker::head_filament_ops(int head) const {
     bool fed_past_feeder = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        fed_past_feeder = fed_past_feeder_locked(head);
+        fed_past_feeder = hand_fed_head_[head];
     }
     if (!feeder_absent(snap) && !fed_past_feeder) {
         return ops;
@@ -1133,7 +1134,7 @@ void AmsBackendSnapmaker::prepare_for_resume(int slot_index, ResumeReadyCallback
     {
         std::lock_guard<std::mutex> lock(mutex_);
         hand_fed = slot >= 0 && slot < kNumTools && hand_fed_head_[slot];
-        if (hand_fed && sensor_present) {
+        if (hand_fed && sensor_filament_present_[slot]) {
             load_unconfirmed_[slot] = false;
         }
         unconfirmed = unconfirmed_load_head_locked(slot);
