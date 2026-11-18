@@ -872,6 +872,7 @@ void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool 
     }
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_t rise) {
     auto* data = get_data(obj);
     if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
@@ -883,6 +884,7 @@ void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_
     }
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop) {
     auto* data = get_data(obj);
     if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
