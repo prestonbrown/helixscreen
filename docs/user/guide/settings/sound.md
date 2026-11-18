@@ -111,7 +111,7 @@ The full file format is in the [Sound System developer docs](../../../devel/SOUN
 | **Desktop (SDL)** | Full sound through your computer's speakers. The best quality |
 | **Linux sound card (ALSA)** | Full sound with 4 notes at once, plus music tracks for richer themes |
 | **FlashForge AD5X, Creator 5 and Creator 5 Pro** | The printer's speaker. Chords, full themes and music (including the startup jingle) played as tone sequences |
-| **Creality K1 / K1C / K1 Max** | The printer's built-in speaker, played through its ALSA sound card. Full sound with 4 notes at once |
+| **Creality K1 / K1C / K1 Max** | None. The K1 series has no speaker, so there is nothing to play through |
 | **FlashForge AD5M / AD5M Pro** | The printer's buzzer. Tones only: no startup music and no music themes |
 | **Other Klipper printers** | Beeps sent through Moonraker. Needs an output pin in your Klipper config whose name contains `beeper`, `buzzer` or `speaker` (for example `[output_pin beeper]`), or an `M300` macro. Simple beeps only |
 | **Buzzer on a board's PWM pin** | A buzzer wired to a Raspberry Pi, BTT CB1 or other board. UI sounds and alerts on the buzzer, or on a Pi 4 or earlier, full sound including music through its audio. See [Buzzer on a PWM Pin](#buzzer-on-a-pwm-pin) |

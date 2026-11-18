@@ -412,18 +412,14 @@ public CrealityOfficial source does not contain it, and we have not checked its 
 
 ## Sound
 
-The board has an ALSA codec (`card 0: icodecsoundcard`, `/dev/snd/pcmC0D0p`) and the
-rootfs ships alsa-utils, but the static musl binary links no libasound and cannot dlopen
-the device's `libasound.so.2`. The `mips` build therefore reaches the card through the PCM
-pipe backend: a child `/usr/bin/aplay -t raw -f S16_LE -c 1 -r 44100 -` per sound burst,
-fed from the same in-process synthesis the Pi's ALSA backend uses
-(`docs/devel/SOUND_SYSTEM.md` § Backend Auto-Detection). The Settings > Sound row appears
-only when `aplay` is executable and a playback node exists under `/dev/snd`;
-`HELIX_PCM_PLAYER` names another player or disables the backend. Klipper on the K1 has no
-`M300` handler, so forcing the speaker capability override on is not a substitute.
-
-`aplay` and the card were confirmed by hand on a K1 Max ([#1895](https://github.com/prestonbrown/helixscreen/issues/1895));
-the backend itself has not yet run on a printer.
+The K1 series has no speaker. The board has an ALSA codec (`card 0: icodecsoundcard`,
+`/dev/snd/pcmC0D0p`), and ALSA opens and accepts samples, but nothing is audible
+([#1895](https://github.com/prestonbrown/helixscreen/issues/1895)). The MIPS and K1 builds
+link no ALSA backend: the static musl binary has no libasound. The only sound path they carry
+is the PCM pipe backend (a child `aplay` per sound burst, `docs/devel/SOUND_SYSTEM.md`
+§ Backend Auto-Detection), which probes an executable `aplay` and a playback node under
+`/dev/snd`; `HELIX_PCM_PLAYER` names another player or disables it. Klipper on the K1 has no
+`M300` handler either.
 
 ## Known Limitations
 
