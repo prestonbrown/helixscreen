@@ -108,12 +108,12 @@ The unit view draws both the same way, Preston's call: the lanes leave the unit 
 
 | Combiner | Units |
 |----------|-------|
-| internal | Box Turtle (open and enclosed), Bambu AMS 2 Pro, original Bambu AMS, OpenAMS, Creality CFS, Night Owl, ERCF and Tradrack (selectors) |
+| internal | Box Turtle (open and enclosed), Bambu AMS 2 Pro, original Bambu AMS, OpenAMS, YAMMU, Creality CFS, Night Owl, ERCF and Tradrack (selectors) |
 | external | ACE Pro and ACE Pro 2 (each ACE under multiACE too), QIDI Box, HTLF, AD5X IFS, Elegoo Canvas, EMU, BTT ViViD, BMCU, MMX, 3MS, KMS, Quattro Box, Bambu AMS Lite |
 | none | AMS HT (one lane) |
 | no combiner at all | Toolchangers, the Snapmaker U1's SnapSwap, INDX, MedusaHC: every lane runs to its own head |
 
-The original AMS and the AMS Lite have no drawing yet; the rows above are for when they get one. **A unit not in this table: ask Preston, don't guess.** `build.py` refuses a unit that leaves `combiner` unset.
+**A unit not in this table: ask Preston, don't guess.** `build.py` refuses a unit that leaves `combiner` unset.
 
 The combiner's presence sensor is optional. The hub box draws its sensor band only when the backend reports a hub sensor for that unit (`AmsUnit::has_hub_sensor`); the AD5X IFS has none, only the toolhead sensor. Lanes bound for separate extruders never meet a combiner: a PARALLEL path draws none, and on a MIXED path only the lanes that share an extruder converge. A unit whose selector slides (ERCF, Tradrack) keeps its rail in the selector's place whatever its combiner. The combiner shows only in the unit view. On the AMS overview a unit's own combiner is implicit, since the unit card stands for the merge of its lanes, and a hub box appears only where two or more routes meet (`nozzle_feed` in `src/ui/filament/ui_system_path_plan.h`). The rule is `helix::ui::fpath::combined_topology` (`src/ui/filament/ui_filament_path_plan.h`); `docs/devel/FILAMENT_PATH_CANVAS.md` § "Topology Renderers" says how the canvas draws each case.
 
