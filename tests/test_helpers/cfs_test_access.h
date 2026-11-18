@@ -251,6 +251,11 @@ class CfsTestAccess {
         b.finish_action();
     }
 
+    /// Run the real failure path (the gcode-script error callback body).
+    static void abort_action(helix::printer::AmsBackendCfs& b, const MoonrakerError& err) {
+        b.abort_action_state(err);
+    }
+
     /// Run the real on_started (declaration restore + initial query; the
     /// Moonraker query itself is null-guarded in test constructions).
     /// on_started() with the store's first read left unlanded on the queue.

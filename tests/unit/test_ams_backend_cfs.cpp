@@ -5332,6 +5332,60 @@ TEST_CASE("CFS bypass unload completes instead of erroring with filament still d
     CHECK(backend.get_system_info().operation_detail.empty());
 }
 
+TEST_CASE("CFS action completion publishes the settled action without another status frame",
+          "[ams][cfs][action_emit]") {
+    // AmsState syncs the action subject (which ends the Filament panel's
+    // operation guard) only on a backend event. A completion that settles
+    // system_info_ silently leaves the UI on the old action until some later
+    // status push.
+    helix::MacroParamCache::instance().clear();
+    CfsRemapHelper backend;
+    backend.mark_running();
+    std::vector<std::string> events;
+    backend.set_event_callback(
+        [&events](const std::string& name, const std::string&) { events.push_back(name); });
+
+    CfsTestAccess::set_loaded_state(backend, /*filament_loaded=*/false, /*current_slot=*/-1);
+    REQUIRE(backend.load_filament(0).result == AmsResult::SUCCESS);
+    REQUIRE(backend.get_system_info().action == AmsAction::LOADING);
+
+    SECTION("success settles to IDLE and says so") {
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
+        events.clear();
+        CfsTestAccess::complete_action(backend);
+        REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
+        CHECK(std::count(events.begin(), events.end(),
+                         std::string(AmsBackend::EVENT_STATE_CHANGED)) == 1);
+    }
+
+    SECTION("a failed phase check settles to ERROR and says so") {
+        CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/false);
+        events.clear();
+        CfsTestAccess::complete_action(backend);
+        REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+        CHECK(std::count(events.begin(), events.end(),
+                         std::string(AmsBackend::EVENT_STATE_CHANGED)) == 1);
+    }
+
+    SECTION("a rejected script settles to IDLE and says so") {
+        MoonrakerError err;
+        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+        err.message = "key849";
+        events.clear();
+        CfsTestAccess::abort_action(backend, err);
+        REQUIRE(backend.get_system_info().action == AmsAction::IDLE);
+        CHECK(std::count(events.begin(), events.end(),
+                         std::string(AmsBackend::EVENT_STATE_CHANGED)) == 1);
+    }
+
+    SECTION("a completion with nothing in flight stays quiet") {
+        CfsTestAccess::complete_action(backend);
+        events.clear();
+        CfsTestAccess::complete_action(backend);
+        CHECK(events.empty());
+    }
+}
+
 TEST_CASE("CFS phase verify: stays silent without a sensor reading", "[ams][cfs][968]") {
     using V = AmsBackendCfs::PhaseVerdict;
 

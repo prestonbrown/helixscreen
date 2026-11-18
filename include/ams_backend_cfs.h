@@ -1455,6 +1455,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend {
     // not). Takes mutex_ itself. Named rather than inline so tests drive the
     // real completion path instead of a copy of it.
     void finish_action();
+    // finish_action()'s verify-then-settle step, run with mutex_ held.
+    void settle_finished_action_locked();
 
     // Drive phase machine on signal changes. Caller must hold mutex_.
     void on_filament_transition_locked(bool new_detected);
