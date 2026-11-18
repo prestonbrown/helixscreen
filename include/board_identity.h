@@ -35,7 +35,10 @@ struct Info {
     bool has_jz_pwm_piezo;            ///< a piezo driven through the Ingenic PWM device
     bool reduced_effects;             ///< decorative animation is too heavy for the SoC
     bool firmware_dims_backlight_after_boot; ///< stock firmware undoes our brightness
-    bool firmware_manages_updates;           ///< the firmware owns HelixScreen's updates
+    /// The helix-screen binary a firmware package manager installs and updates on this
+    /// board, or nullptr. Its presence alone settles nothing: firmware_manages_updates()
+    /// asks whether the running process IS that binary.
+    const char* firmware_package_binary;
 };
 
 /// The board a build with platform key @p platform_key is on. "ad5m", "ad5x", "k1", "k2",
@@ -55,6 +58,15 @@ const Info& info(Board board);
 inline const Info& current_info() {
     return info(current());
 }
+
+/// True when @p board's firmware owns the HelixScreen install that is running, so the
+/// in-app updater must leave it alone. That is the case only when @p running_exe is the
+/// same file (device and inode) as the board's firmware_package_binary resolved under
+/// @p probe_root. Identity rather than a path compare, because a firmware can launch
+/// the package through a bind mount over another path. A board with no package
+/// binary, a missing package, or a separate install of ours all answer false.
+bool firmware_manages_updates(Board board, const std::string& running_exe = "/proc/self/exe",
+                              const std::string& probe_root = "/");
 
 /// Test-only, main-thread-only: make current() answer @p board until reset with
 /// std::nullopt. HelixTestFixture::reset_all() resets it.

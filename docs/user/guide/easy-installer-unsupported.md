@@ -6,7 +6,7 @@ Each section says what works today.
 
 ## Snapmaker U1
 
-Install by hand. The U1 needs SSH access, either from the **Root access** option on stock firmware 1.2 and newer or from PAXX Extended Firmware. The steps, firmware-upgrade notes and recovery are in the [Snapmaker U1 install guide](install-u1.md). The U1's firmware handles HelixScreen updates itself afterwards.
+Install by hand. The U1 needs SSH access, either from the **Root access** option on stock firmware 1.2 and newer or from PAXX Extended Firmware. The steps, firmware-upgrade notes and recovery are in the [Snapmaker U1 install guide](install-u1.md). Afterwards, HelixScreen updates from its own screen (**Settings > Updates**). If HelixScreen came with PAXX firmware as a firmware component, the firmware updates it instead.
 
 ## QIDI with a TJC screen
 

@@ -87,13 +87,24 @@ The two underlying reasons, and the notice each raises:
 
 `HELIX_DISABLE_AUTO_UPDATES` decides it **in either direction** when set to a value that
 parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
-`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which is the
-single place any platform is named.
+`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which asks
+`helix::board::firmware_manages_updates()` (`include/board_identity.h`), the single place any
+platform is named.
 
-Today that default is true only for the **Snapmaker U1**. PAXX Extended Firmware ships
+A board row names the binary a firmware package manager owns (`firmware_package_binary`), and
+the default is true only when the running executable is that same file, compared by device
+and inode. Today only the **Snapmaker U1** row names one. PAXX Extended Firmware ships
 HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
-`/oem/apps/helixscreen` via `extended-pkg`; self-updating there rewrites a package the
-firmware believes it owns. The default lives here in C++ rather than in the firmware hook
+`/oem/apps/helixscreen/<versioned dir>` via `extended-pkg` and pointing `latest` at it;
+self-updating there rewrites a package the firmware believes it owns. The comparison is by
+file identity rather than install root because PAXX's lmd hook bind-mounts
+`/oem/apps/helixscreen/latest/bin/helix-screen` over `/usr/bin/gui`, so `/proc/self/exe`
+names `/usr/bin/gui` and the install root does not resolve. No path's presence settles it
+on its own: an install of ours can sit beside a PAXX package or hook, and PAXX keeps
+`HELIX_CACHE_DIR` under `/userdata/helixscreen`, the stock install's directory. A U1 on stock
+firmware runs our installer's `/userdata/helixscreen` and self-updates like any other
+printer; its manifest entry is the `helixscreen-snapmaker-u1-<tag>.tar.gz` asset, because
+`scripts/generate-manifest.sh` withholds `zip_url` from `snapmaker-u1`. The default lives here in C++ rather than in the firmware hook
 because the hook exports data paths and nothing else: their lmd hook
 (<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh) exports `HELIX_DATA_DIR`,
 `HELIX_SUPERVISED`, `HELIX_DRM_DEVICE`, `HELIX_CACHE_DIR`, `HELIX_CONFIG_DIR` and
