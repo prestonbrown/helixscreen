@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.0-rc.4] - UNRELEASED
+## [1.1.0-rc.4] - 2026-11-18
 
 ### Added
 - **Happy Hare 4.2's pause hint in the recovery popup** - when Happy Hare 4.2 pauses a print, the recovery popup now shows its hint about what to do next under the reason, since HelixScreen closes Happy Hare's own dialog that carried it.
@@ -16,8 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on the print file screen and on Print Status, is a button: tapping it puts the model back at its starting angle and zoom. The button is hidden whenever the preview shows the 2D view.
 
 ### Fixed
+- **Steadier time remaining** - the time left on Print Status and the Home screen no longer jumps by half a minute or more each time the print passes a percent. It now counts down with the print and takes about a minute to settle when the pace changes. A long tool change or reheat near the end no longer shows 0:00, and while the print is still preparing, the estimate includes the preparation time.
+- **Snapmaker U1: runout guidance for the head that ran out** - when the printer paused because a toolhead other than the one in use ran out of filament, or HelixScreen restarted into such a pause, the screen showed only an error message. The runout guidance now opens for the toolhead the printer names, and the pause reason on Print Status names that toolhead.
+- **No false "Filament operation timed out" on a Creality CFS** - a load or unload from the Filament panel that had finished on the printer could still end with this warning two minutes later. The screen now sees the operation end as soon as it does.
 - **Smoother 3D preview on slower boards** - rotating the 3D G-code preview no longer freezes the rest of the screen, because the preview draws on its own thread. A drag draws each frame once instead of up to three times, and on faster boards the simplified model shown while rotating keeps more of its detail. On a board where rotating still cannot reach about 7 frames a second, the preview switches to the 2D view for the rest of the session instead of stalling.
-- **Snapmaker U1: filament pushed straight into a toolhead** (#2000) - a toolhead fed past its feeder, such as by a BMCU, read as empty to the pre-print check, and Load tried to feed from the empty feeder. It counts as holding filament, and Load opens the hand-load dialog.
+- **Snapmaker U1: filament pushed straight into a toolhead** (#2000) - a toolhead fed past its feeder, such as by a BMCU, read as empty to the pre-print check, and Load tried to feed from the empty feeder. It counts as holding filament, and Load opens the hand-load dialog. Resuming a print on such a toolhead no longer tries to feed it again.
 - **No HelixPrint plugin downgrade at startup** - when Moonraker already runs a newer HelixPrint plugin than the one this HelixScreen ships, such as one installed by a newer development build, HelixScreen now leaves it in place. It used to point Moonraker back at its own older plugin and restart Moonraker to load it. Plugin versions are now compared by number, so 1.10.0 counts as newer than 1.9.0, and an older plugin is still updated as before.
 - **HelixPrint plugin installs on a Snapmaker U1 with PAXX firmware** - when the PAXX Extended Firmware runs HelixScreen as its own package, installing the HelixPrint plugin from the screen failed with "Install script not found". HelixScreen now finds the package it runs from, so the plugin install, its uninstall, the timelapse plugin setup and the plugin check at startup all work there, and the installed plugin keeps working after PAXX updates the package (#2136).
 - **FlashForge Forge-X updates restart HelixScreen** - on an AD5M or AD5X running Forge-X, updating HelixScreen with the installer (`--update`, or a local archive) stopped the screen and ended with "Reboot to start it", leaving it dark until a reboot. The installer now starts the new version the same way the printer does at boot, and the summary says it is running. A first install still asks for a reboot. Starting HelixScreen on the AD5X also no longer reports "Failed to start" when it actually started.
@@ -10466,6 +10469,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-rc.4]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.2...v1.1.0-rc.3
 [1.1.0-rc.2]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.1...v1.1.0-rc.2
 [1.1.0-rc.1]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-beta.18...v1.1.0-rc.1
