@@ -616,5 +616,21 @@ def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
             assert (tmp_path / "box_turtle" / names["body"]).is_file()
     for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
         assert names["glow"] == f"full_lane{lane}_glow.png"
-        assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
+        # Its stacks hold nothing but spools, so a dim recolors the stack itself.
+        assert "silhouette" not in names
     assert all("glow" not in n for n in manifest["tiers"]["thumb"]["lanes"])
+
+
+def test_only_a_drawing_with_more_than_spools_in_its_stacks_bakes_silhouettes(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    emu = next(u for u in build.UNITS if u.id == "emu")
+    build.bake_unit(emu, tmp_path, render=fake_render)
+    manifest = json.loads((tmp_path / "emu" / "2" / "manifest.json").read_text())
+    for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
+        assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
+    table = build.generate_shell_table(build.UNITS)
+    rows = [line for line in table.splitlines() if line.startswith("    {\"") and "_lanes" in line]
+    assert any(r.startswith('    {"emu", 2, ') and r.endswith("_lanes, true},") for r in rows)
+    assert any(r.startswith('    {"box_turtle", 4, ') and r.endswith("_lanes},") for r in rows)

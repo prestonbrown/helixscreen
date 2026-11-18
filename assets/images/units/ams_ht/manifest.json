@@ -11,8 +11,7 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png",
-          "silhouette": "full_lane0_silhouette.png"
+          "glow": "full_lane0_glow.png"
         }
       ]
     },

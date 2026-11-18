@@ -47,6 +47,7 @@ struct LaneImages {
     lv_obj_t* body = nullptr; ///< the lane's spool stack less its filament, when baked so
     lv_obj_t* glow = nullptr; ///< its spool's soft light, just behind it; hidden unless marked
     lv_obj_t* dim = nullptr;  ///< its spool's silhouette in the card's color; hidden unless marked
+    lv_color_t filament = {}; ///< the live filament color the tint takes
     UnitArtLaneMark mark;
 };
 
@@ -189,7 +190,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         lv_obj_set_name(images.color, (name + "_tint").c_str());
         images.shade = add_layer(data->layers, stem + "_shade.png");
         lv_obj_set_name(images.shade, (name + "_shade").c_str());
-        if (marked) {
+        if (marked && data->geom->silhouettes) {
             images.dim = add_layer(data->layers, stem + "_silhouette.png");
             lv_obj_set_name(images.dim, (name + "_dim").c_str());
             set_lane_visible(images.dim, false);
@@ -212,6 +213,24 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
 }
 
 constexpr lv_opa_t kDimOpa = 150; ///< how far a missing bay's spool fades into the card
+
+/// Color a lane's stack. A lane with no silhouette of its own dims by fading each layer of its
+/// stack toward the card, which over an opaque pixel is the card laid over it at kDimOpa.
+void apply_lane_colors(LaneImages& lane) {
+    const bool fade = lane.mark.dim && !lane.dim;
+    const lv_color_t card = theme_manager_get_color("card_bg");
+    // DECLARATIVE_OK: each lane's colour is per-widget live data.
+    lv_obj_set_style_image_recolor(
+        lane.color, fade ? lv_color_mix(card, lane.filament, kDimOpa) : lane.filament,
+        LV_PART_MAIN);
+    for (lv_obj_t* layer : {lane.body, lane.shade}) {
+        if (!layer)
+            continue;
+        // DECLARATIVE_OK: a missing bay fades into the card it stands on.
+        lv_obj_set_style_image_recolor(layer, card, LV_PART_MAIN);
+        lv_obj_set_style_image_recolor_opa(layer, fade ? kDimOpa : LV_OPA_TRANSP, LV_PART_MAIN);
+    }
+}
 
 /// The lanes' marks, folded into the flat image's key so a new mark builds a new image.
 uint64_t marks_key(const ArtData* data) {
@@ -591,11 +610,9 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         key = (key ^ static_cast<uint64_t>(data->lanes[i].mask_pct)) * kFnvPrime;
         set_lane_visible(data->lanes[i].color, lane.filled);
         set_lane_visible(data->lanes[i].shade, lane.filled);
-        if (lane.filled) {
-            // DECLARATIVE_OK: the live filament colour of this lane.
-            lv_obj_set_style_image_recolor(data->lanes[i].color, lv_color_hex(lane.color),
-                                           LV_PART_MAIN);
-        }
+        if (lane.filled)
+            data->lanes[i].filament = lv_color_hex(lane.color);
+        apply_lane_colors(data->lanes[i]);
     }
     data->mask_w = w;
     data->mask_h = h;
@@ -727,6 +744,7 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             lv_obj_set_style_image_recolor_opa(lane.dim, LV_OPA_COVER, LV_PART_MAIN);
             lv_obj_set_style_image_opa(lane.dim, kDimOpa, LV_PART_MAIN);
         }
+        apply_lane_colors(lane);
     }
     flatten(art, data, data->lane_key ^ marks_key(data));
 }

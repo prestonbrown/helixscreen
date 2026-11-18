@@ -484,6 +484,10 @@ class Scene:
         """Lane's stack without its tintable filament: flanges, core, and what is drawn with them."""
         return self._wrap(width, "".join(i.svg() for i in self.lane_items(lane) if i.lane is None))
 
+    def stacks_hold_more_than_spools(self):
+        """Whether any lane's stack carries parts besides its spool, such as a bay's walls."""
+        return any(i.spool is None for lane in self.spools for i in self.lane_items(lane))
+
     def _silhouette(self, lane):
         return "".join(i.svg(fill="#fff", opacity=1.0) for i in self.items if i.spool == lane and not i.blur)
 

@@ -168,6 +168,9 @@ struct UnitArtGeom {
     float drawn[4];       // x0, y0, x1, y1
     float bottom_edge[4]; // the unit's front bottom edge as drawn: x0, y0, x1, y1
     const ArtLaneGeom* lane;
+    /// Its lanes' stacks hold parts besides their spools, so a dim lays each spool's own baked
+    /// silhouette over its stack instead of recoloring the stack.
+    bool silhouettes = false;
 };
 
 /// The baked lane geometry of @p id's drawing at @p lanes lanes, or nullptr when it has none.

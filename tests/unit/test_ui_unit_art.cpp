@@ -6,6 +6,7 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "display_settings_manager.h"
+#include "theme_manager.h"
 #include "unit_art_geometry.h"
 
 #include <algorithm>
@@ -536,7 +537,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     std::vector<std::string> want = {"back"};
     for (int lane = 0; lane < 4; ++lane) {
         const std::string n = "lane" + std::to_string(lane);
-        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_dim"})
+        // A spool-only stack dims by recoloring itself, with no layer of its own.
+        for (const char* part : {"_glow", "_body", "_tint", "_shade"})
             want.push_back(n + part);
     }
     want.push_back("front");
@@ -552,6 +554,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     CHECK(order.back() == "front");
     CHECK(std::none_of(order.begin(), order.end(),
                        [](const std::string& n) { return n.find("_glow") != std::string::npos; }));
+
+    // A drawing whose stacks hold more than their spools dims each spool with its own silhouette,
+    // just in front of the stack.
+    AmsSystemInfo emu_info = turtle_system();
+    emu_info.units[0].name = "EMU Turtle_1";
+    lv_obj_t* emu = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(emu, 230, 195);
+    unit_art_set_unit(emu, emu_info, 0);
+    const std::vector<std::string> emu_order = unit_art_compose_order(emu);
+    for (int lane = 0; lane < 4; ++lane) {
+        const std::string n = "lane" + std::to_string(lane);
+        const auto shade = std::find(emu_order.begin(), emu_order.end(), n + "_shade");
+        REQUIRE(shade != emu_order.end());
+        REQUIRE(shade + 1 != emu_order.end());
+        CHECK(*(shade + 1) == n + "_dim");
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -607,6 +625,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a missing bay dims its own sp
     std::vector<UnitArtLaneMark> marks(4);
     marks[1].dim = true;
     unit_art_set_lane_marks(art, marks);
-    CHECK(pixel(art, mx, my) != mine);
+    // The spool fades toward the card as if the card's color lay over it at the dim's opacity,
+    // within the rounding LVGL's recolor and blend each add.
+    const uint32_t dimmed = pixel(art, mx, my);
+    const lv_color_t want =
+        lv_color_mix(theme_manager_get_color("card_bg"), lv_color_hex(mine & 0xffffff), 150);
+    CHECK(dimmed != mine);
+    CHECK(std::abs((int)((dimmed >> 16) & 0xff) - want.red) <= 4);
+    CHECK(std::abs((int)((dimmed >> 8) & 0xff) - want.green) <= 4);
+    CHECK(std::abs((int)(dimmed & 0xff) - want.blue) <= 4);
     CHECK(pixel(art, nx, ny) == beside);
+
+    // Undimmed, the spool is as it was.
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(pixel(art, mx, my) == mine);
 }

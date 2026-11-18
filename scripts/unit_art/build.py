@@ -254,6 +254,9 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
         render(scene.layer_svg("back", width), width, target / back)
         render(scene.layer_svg("front", width), width, target / front)
         lanes = []
+        # A stack of nothing but its spool dims by recoloring itself; one with more needs the
+        # spool's own outline to dim only the spool.
+        silhouettes = scene.stacks_hold_more_than_spools()
         for lane in range(lane_count):
             names = {"color": f"{tier}_lane{lane}.png", "shade": f"{tier}_lane{lane}_shade.png"}
             render(scene.lane_color_svg(lane, width), width, target / names["color"])
@@ -264,9 +267,10 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                 # Only the unit view marks lanes, and it draws the full tier.
                 if tier == "full":
                     names["glow"] = f"{tier}_lane{lane}_glow.png"
-                    names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
                     render(scene.lane_glow_svg(lane, width), width, target / names["glow"])
-                    render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
+                    if silhouettes:
+                        names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
+                        render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
         if tier == "full":
@@ -293,7 +297,7 @@ def _rounded(value):
 
 
 def _geometry_rows(unit):
-    """(lanes, aspect, ArtLaneGeom initialisers) for each lane count the unit's art is baked at."""
+    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes) per baked lane count."""
     rows = []
     for _, lanes in art_dirs(unit, "."):
         scene = kit.Scene(kit.ART_CAMERA)
@@ -310,7 +314,7 @@ def _geometry_rows(unit):
             "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
             for g in geometry
         ]
-        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows))
+        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows, scene.stacks_hold_more_than_spools()))
     return rows
 
 
@@ -390,12 +394,13 @@ def generate_shell_table(units):
     for unit in units:
         if unit.tray is None:
             continue
-        for lanes, aspect, drawn, edge, lane_rows in _geometry_rows(unit):
+        for lanes, aspect, drawn, edge, lane_rows, silhouettes in _geometry_rows(unit):
             name = f"k_{unit.id}_{lanes}_lanes"
             out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
             box = ", ".join(f"{v:.5f}f" for v in drawn)
             foot = ", ".join(f"{v:.5f}f" for v in edge)
-            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}}},')
+            flag = ", true" if silhouettes else ""
+            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}{flag}}},')
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "", "const UnitArtGeom kArtGeoms[] = {"] + geoms + ["};", "} // namespace", ""]
     out += [
         "const UnitShell* unit_shell_by_id(const char* id) {",
