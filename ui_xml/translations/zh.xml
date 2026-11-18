@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." zh="调整在重启前保持有效。打印完成后保存。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" zh="调整加热器的各项参数以实现最佳控制"/>
   <translation tag="Advanced" zh="高级"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" zh="前进"/>
   <translation tag="After an error" zh="发生错误后"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." zh="连接{}后，建议重新校准输入整形，以确保打印质量。"/>
   <translation tag="After running the commands, tap Check Again below." zh="执行命令后，点击下方的重新检查。"/>
@@ -850,7 +850,7 @@
   <translation tag="Completed {}h ago" zh="{} 小时前完成"/>
   <translation tag="Completed {}m ago" zh="{} 分钟前完成"/>
   <translation tag="Completed: {}" zh="已完成：{}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" zh="压缩"/>
   <translation tag="Computing calibration..." zh="正在计算校准..."/>
   <translation tag="Config Dir" zh="配置目录"/>
   <translation tag="Config Edit Failed" zh="配置编辑失败"/>
@@ -1365,7 +1365,7 @@
   <translation tag="Exhaust fan speed" zh="排气风扇速度"/>
   <translation tag="Exhaust: keep chamber at or below" zh="排气：将腔体保持在不高于"/>
   <translation tag="Exit Code" zh="退出代码"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" zh="伸展"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
   <translation tag="Expected float" zh="需要小数值"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." zh="探索所选调色板如何影响文本、控件和状态颜色。"/>
@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" zh="正在清洗喷嘴"/>
   <translation tag="Purging old filament" zh="正在清除旧耗材"/>
   <translation tag="Purging..." zh="正在清料..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." zh="请用手将耗材推入工具头，然后点按恢复。"/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." zh="将清洁耗材推入挤出机直到推不动,然后点击挤出。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." zh="将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"/>
   <translation tag="QGL" zh="QGL"/>
@@ -4411,7 +4412,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" zh="滞后"/>
   <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>

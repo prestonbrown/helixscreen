@@ -826,10 +826,15 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     void demote_runout_slots_locked(FrameEffects& fx);
     /// A head fed past its feeder holds filament its empty port cannot see. The lane
     /// model lays EMPTY on its slot each frame; this runs after it and says AVAILABLE.
+    /// It also keeps hand_fed_head_ current.
     void converge_hand_fed_slots_locked(FrameEffects& fx) {
         for (int i = 0; i < kNumTools; ++i) {
+            const bool fed = fed_past_feeder_locked(i);
+            if (fed || port_sensor_filament_present_[i] || loaded_at_toolhead_[i]) {
+                hand_fed_head_[i] = fed;
+            }
             auto* slot = system_info_.units[0].get_slot(i);
-            if (slot && slot->status == SlotStatus::EMPTY && fed_past_feeder_locked(i)) {
+            if (slot && slot->status == SlotStatus::EMPTY && fed) {
                 slot->status = SlotStatus::AVAILABLE;
                 fx.changed = true;
             }
@@ -1010,6 +1015,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// ("no reading yet", not "no filament"), and declaring those defaults
     /// would empty a lane whose only signal so far is the toolhead pin state.
     std::array<bool, kNumTools> feed_presence_seen_{{false, false, false, false}};
+    /// Head i was last seen fed past its feeder, and has not loaded through it since:
+    /// its feeder has nothing to refeed after a runout.
+    std::array<bool, kNumTools> hand_fed_head_{{false, false, false, false}};
 
     /// Per-channel pending insert: parse passes held since the feed-port
     /// presence rose, 0 = none pending. The port edge fires the moment

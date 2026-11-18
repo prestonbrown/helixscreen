@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." de="Anpassungen bleiben bis zum Neustart aktiv. Nach Druckende speichern."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" de="Passt individuelle Eigenschaften Ihrer Heizungen für optimale Regelung an"/>
   <translation tag="Advanced" de="Erweitert"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" de="Vorlaufend"/>
   <translation tag="After an error" de="Nach einem Fehler"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." de="Nach dem Anschließen von {} empfehlen wir, Input Shaping neu zu kalibrieren, um die Druckqualität zu sichern."/>
   <translation tag="After running the commands, tap Check Again below." de="Tippen Sie nach Ausführung der Befehle unten auf Erneut prüfen."/>
@@ -850,7 +850,7 @@
   <translation tag="Completed {}h ago" de="Vor {} Std. abgeschlossen"/>
   <translation tag="Completed {}m ago" de="Vor {} Min. abgeschlossen"/>
   <translation tag="Completed: {}" de="Abgeschlossen: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" de="Komprimiert"/>
   <translation tag="Computing calibration..." de="Kalibrierung wird berechnet..."/>
   <translation tag="Config Dir" de="Konfig-Verzeichnis"/>
   <translation tag="Config Edit Failed" de="Konfigurationsänderung fehlgeschlagen"/>
@@ -1365,7 +1365,7 @@
   <translation tag="Exhaust fan speed" de="Abluftlüfter-Drehzahl"/>
   <translation tag="Exhaust: keep chamber at or below" de="Abluft: Kammer höchstens halten bei"/>
   <translation tag="Exit Code" de="Exit-Code"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" de="Ausgedehnt"/>
   <translation tag="Expected boolean" de="Boolescher Wert erwartet"/>
   <translation tag="Expected float" de="Gleitkommazahl erwartet"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." de="Erkunden Sie, wie die gewählte Palette Text, Steuerelemente und Statusfarben gestaltet."/>
@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" de="Düse wird gespült"/>
   <translation tag="Purging old filament" de="Altes Filament wird gespült"/>
   <translation tag="Purging..." de="Entlüften..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." de="Schieben Sie das Filament von Hand in den Werkzeugkopf und tippen Sie dann auf Fortsetzen."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." de="Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." de="Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."/>
   <translation tag="QGL" de="QGL"/>
@@ -4411,7 +4412,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" de="Ziel berühren (Punkt %1$d von 3) — Berührung %2$d von %3$d"/>
   <translation tag="TouchCalibration" de="Touch-Kalibrierung"/>
   <translation tag="Trace" de="Trace"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" de="Nachlaufend"/>
   <translation tag="Tried ports {} and {}." de="Versucht: Ports {} und {}."/>
   <translation tag="Trigger" de="Auslöser"/>
   <translation tag="Troubleshooting:" de="Fehlerbehebung:"/>

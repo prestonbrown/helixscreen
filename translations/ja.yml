@@ -2277,6 +2277,7 @@ translations:
   Load filament first: 先にフィラメントを装填してください
   Load filament to the toolhead, then tap Resume.: 'ツールヘッドまでフィラメントをロードしてから、再開をタップしてください。'
   Load into which tool?: 'どのツールにロードしますか？'
+  Push filament into the toolhead by hand, then tap Resume.: "フィラメントを手でツールヘッドに押し込んでから、再開をタップしてください。"
   Load it in the filament panel, then tap Resume.: 'フィラメントパネルでロードしてから、再開をタップしてください。'
   Load or unload filament.: フィラメントを装填または排出します。
   Load Profile: 'プロファイルを読み込む'

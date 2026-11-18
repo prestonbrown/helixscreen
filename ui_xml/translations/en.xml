@@ -3138,6 +3138,7 @@
   <translation tag="Purging nozzle" en="Purging nozzle"/>
   <translation tag="Purging old filament" en="Purging old filament"/>
   <translation tag="Purging..." en="Purging..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." en="Push filament into the toolhead by hand, then tap Resume."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." en="Push the cleaning filament into the extruder until it stops, then tap Extrude."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." en="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude."/>
   <translation tag="QGL" en="QGL"/>

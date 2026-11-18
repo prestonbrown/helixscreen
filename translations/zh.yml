@@ -2277,6 +2277,7 @@ translations:
   Load filament first: 请先装载耗材
   Load filament to the toolhead, then tap Resume.: '请将耗材装载到工具头，然后点按恢复。'
   Load into which tool?: '装入哪个工具？'
+  Push filament into the toolhead by hand, then tap Resume.: "请用手将耗材推入工具头，然后点按恢复。"
   Load it in the filament panel, then tap Resume.: '请在耗材面板中装载，然后点按恢复。'
   Load or unload filament.: 装载或卸载耗材。
   Load Profile: '加载配置'
