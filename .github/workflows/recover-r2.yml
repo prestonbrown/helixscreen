@@ -13,6 +13,14 @@ name: Recover R2 Publish
 #
 # .debug.zst symbols are NOT recovered (CI-only, never uploaded to GitHub); .80
 # crash backtraces will resolve to function names but not source lines.
+#
+# Every regenerated manifest is signed with the release key exactly as release.yml
+# signs it (#1834): clients refuse a manifest whose manifest.json.minisig does not
+# verify, so an unsigned one would leave every install unable to update. The key is
+# a release-signing environment secret, and that environment admits only v* tags,
+# so run this FROM THE TAG and approve the deployment when it waits:
+#
+#   gh workflow run recover-r2.yml --ref v1.0.10 -f tag=v1.0.10
 
 on:
   workflow_dispatch:
@@ -23,13 +31,35 @@ on:
         type: string
 
 jobs:
+  # Outside the environment, so a dispatch from a branch fails here with the command
+  # to run instead of at the environment's deployment policy.
+  guard:
+    name: Dispatched from the tag
+    runs-on: ubuntu-latest
+    steps:
+    - name: Require the run's ref to be the tag being recovered
+      env:
+        TAG: ${{ inputs.tag }}
+        REF: ${{ github.ref }}
+      run: |
+        if [ "$REF" != "refs/tags/$TAG" ]; then
+          echo "::error::recover-r2 signs the manifest with the release key, which only a run on the tag can read. Dispatch it from the tag: gh workflow run recover-r2.yml --ref $TAG -f tag=$TAG (this run's ref is $REF)"
+          exit 1
+        fi
+
   recover:
     name: Recover R2 publish
+    needs: guard
     runs-on: ubuntu-latest
+    # Holds HELIX_RELEASE_MINISIGN_KEY and its password; waits for a reviewer.
+    # docs/devel/RELEASE_SIGNING.md.
+    environment: release-signing
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
       with:
+        # The run is on the tag; the tooling is the default branch's.
+        ref: ${{ github.event.repository.default_branch }}
         # Full history + tags: the channel is resolved from RELEASE_CHANNEL as it
         # stood AT THE TAG, not on the default branch. Recovering a v1.0.x stable
         # publish must not pick up main's channel once main moves to the devel line.
@@ -98,6 +128,41 @@ jobs:
           echo "CHANGELOG_EOF"
         } >> $GITHUB_OUTPUT
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install minisign
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq minisign
+        minisign -v
+
+    # Generated and signed before anything uploads: a signing failure publishes nothing.
+    # The release key reaches only this step.
+    - name: Generate and sign channel manifests
+      env:
+        HELIX_RELEASE_MINISIGN_KEY: ${{ secrets.HELIX_RELEASE_MINISIGN_KEY }}
+        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ secrets.HELIX_RELEASE_MINISIGN_PASSWORD }}
+        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        RELEASE_VERSION: ${{ steps.meta.outputs.version }}
+        RELEASE_TAG: ${{ steps.meta.outputs.tag }}
+        RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
+        UPLOAD_CHANNELS: ${{ steps.meta.outputs.channels }}
+      run: |
+        chmod +x scripts/generate-manifest.sh
+        manifests=()
+        for CHANNEL in $UPLOAD_CHANNELS; do
+          echo "=== Generating ${CHANNEL} manifest ==="
+          scripts/generate-manifest.sh \
+            --version "$RELEASE_VERSION" --tag "$RELEASE_TAG" --notes "$RELEASE_NOTES" \
+            --dir release-files \
+            --base-url "${R2_PUBLIC_URL}/releases/v${RELEASE_VERSION}" \
+            --output "release-files/manifest-${CHANNEL}.json"
+          jq . "release-files/manifest-${CHANNEL}.json"
+          manifests+=("release-files/manifest-${CHANNEL}.json")
+        done
+        scripts/sign-release-manifest.sh --mode publish "${manifests[@]}"
+
     - name: Upload artifacts and manifests to R2
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -106,12 +171,8 @@ jobs:
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
         RELEASE_VERSION: ${{ steps.meta.outputs.version }}
-        RELEASE_TAG: ${{ steps.meta.outputs.tag }}
-        RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
         UPLOAD_CHANNELS: ${{ steps.meta.outputs.channels }}
       run: |
-        chmod +x scripts/generate-manifest.sh
-
         # Retry wrapper for transient R2 errors (mirrors release.yml's s3cp).
         s3cp() {
           local attempt=1 max=4
@@ -132,15 +193,14 @@ jobs:
           s3cp "$tarball" "s3://${R2_BUCKET}/releases/v${RELEASE_VERSION}/$(basename "$tarball")"
         done
 
-        # 2. Per-channel manifest + readback-verify (the visibility artifact).
+        # 2. Per-channel signature + manifest + readback-verify (the visibility artifact).
         for CHANNEL in $UPLOAD_CHANNELS; do
-          echo "=== Generating ${CHANNEL} manifest ==="
-          scripts/generate-manifest.sh \
-            --version "$RELEASE_VERSION" --tag "$RELEASE_TAG" --notes "$RELEASE_NOTES" \
-            --dir release-files \
-            --base-url "${R2_PUBLIC_URL}/releases/v${RELEASE_VERSION}" \
-            --output "release-files/manifest-${CHANNEL}.json"
-          jq . "release-files/manifest-${CHANNEL}.json"
+          # The signature goes up first: a client reading between the two puts sees
+          # the old manifest with the new signature and refuses it, rather than
+          # trusting a manifest whose signature is not there yet.
+          echo "Uploading ${CHANNEL}/manifest.json.minisig..."
+          s3cp "release-files/manifest-${CHANNEL}.json.minisig" \
+            "s3://${R2_BUCKET}/${CHANNEL}/manifest.json.minisig" --content-type "text/plain"
 
           echo "Uploading ${CHANNEL}/manifest.json..."
           s3cp "release-files/manifest-${CHANNEL}.json" \
@@ -158,7 +218,20 @@ jobs:
             echo "::error::${CHANNEL} manifest serves '${served:-<none>}', expected '${RELEASE_VERSION}'"
             exit 1
           fi
-          echo "=== ${CHANNEL} manifest uploaded and verified (v${served}) ==="
+          sig_served=false
+          for attempt in 1 2 3 4; do
+            if curl -fsS "${R2_PUBLIC_URL}/${CHANNEL}/manifest.json.minisig" \
+                | cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"; then
+              sig_served=true; break
+            fi
+            echo "  attempt ${attempt}: ${CHANNEL}/manifest.json.minisig not served as signed; retrying in 5s..."
+            sleep 5
+          done
+          if [ "$sig_served" != true ]; then
+            echo "::error::${CHANNEL}/manifest.json.minisig is not served as signed; clients would refuse this manifest"
+            exit 1
+          fi
+          echo "=== ${CHANNEL} manifest and signature uploaded and verified (v${served}) ==="
         done
 
         # 3. Zips (Moonraker Update Manager) + install.sh AFTER the manifest.

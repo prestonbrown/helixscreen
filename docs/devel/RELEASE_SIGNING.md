@@ -22,6 +22,7 @@ signature, so it cannot be moved onto another channel's signature.
 | `.github/release-minisign.pub` | The public key. The release workflow verifies every signature against it before upload |
 | `scripts/sign-release-manifest.sh` | Signs and checks each channel manifest in CI |
 | `.github/workflows/release.yml` (`upload-r2`) | Generates, signs, verifies and uploads each manifest, behind the `release-signing` environment |
+| `.github/workflows/recover-r2.yml` | Republishes a tag's R2 upload, signing its regenerated manifests the same way; dispatched from the tag (`--ref vX.Y.Z`), since the environment admits only tags |
 | helix-installer `crates/core/src/keys.rs` (`RELEASE_PUBKEY`) | The same key compiled into the easy installer |
 
 The release key is `RWRXImmr5YYfqd5aaV48WN+50k5e83NgKuEtxECC6agLUBkXG7t7AH9S` (key id
@@ -103,8 +104,8 @@ A client that requires a signature cannot update from a channel that serves none
 ## Testing
 
 Tests use throwaway keys only, never the release key.
-`tests/shell/test_release_manifest_signing.bats` covers the signing script, the workflow's signing
-step, upload order, secret gating and environment.
+`tests/shell/test_release_manifest_signing.bats` covers the signing script, and the release and
+recovery workflows' signing step, upload order, secret gating and environment.
 
 Signing a test manifest by hand:
 
