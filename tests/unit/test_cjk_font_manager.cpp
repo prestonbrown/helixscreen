@@ -47,8 +47,9 @@ TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: Chinese loads CJK", "[c
     REQUIRE(CjkFontManager::instance().is_loaded());
 }
 
-TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: Japanese loads CJK", "[cjk_font]") {
-    CjkFontManager::instance().on_language_changed("ja");
+TEST_CASE_METHOD(CjkFontManagerFixture, "CjkFontManager: regional Japanese loads CJK",
+                 "[cjk_font]") {
+    CjkFontManager::instance().on_language_changed("ja-JP");
     REQUIRE(CjkFontManager::instance().is_loaded());
 }
 

@@ -101,7 +101,7 @@ ToolheadInlet toolhead_inlet(ToolheadStyle style, int32_t nozzle_y, int32_t scal
         const ToolheadArtPoint entry = toolhead_art_entry(*art, 0, nozzle_y, scale);
         return {-entry.x, entry.y};
     }
-    return {0, nozzle_y - scale * 2};
+    return {0, top_of(style, nozzle_y, scale)};
 }
 
 ToolBadgeColors tool_badge_colors(bool is_override) {

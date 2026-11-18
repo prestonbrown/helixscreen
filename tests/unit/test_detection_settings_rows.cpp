@@ -20,11 +20,14 @@
  * seeding anything, and each section then writes the values it asserts against.
  */
 
+#include "ui_settings_safety.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "u1_stock_detection_source.h"
 
@@ -237,4 +240,36 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
     lv_subject_set_int(bed_available, 0);
     lv_subject_set_int(bed_enabled, 1);
     lv_subject_set_int(m.subject_bed_check_switchable(), 1);
+}
+
+TEST_CASE_METHOD(DetectionRowsFixture, "Safety confirmation rows write their settings",
+                 "[settings][safety]") {
+    helix::settings::get_safety_settings_overlay().register_callbacks();
+    auto& safety = helix::SafetySettingsManager::instance();
+    safety.set_motors_off_require_confirmation(true);
+    safety.set_power_require_confirmation(true);
+    safety.set_power_target(helix::PowerTarget::Ask);
+    build();
+    const auto widget = [this](const char* row, const char* name) {
+        lv_obj_t* r = lv_obj_find_by_name(root_, row);
+        REQUIRE(r != nullptr);
+        lv_obj_t* w = lv_obj_find_by_name(r, name);
+        REQUIRE(w != nullptr);
+        return w;
+    };
+    for (const char* row : {"row_motors_off_confirm", "row_power_confirm"}) {
+        lv_obj_t* sw = widget(row, "toggle");
+        lv_obj_remove_state(sw, LV_STATE_CHECKED);
+        lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+    }
+    lv_obj_t* target = widget("row_power_target", "dropdown");
+    lv_dropdown_set_selected(target, 2);
+    lv_obj_send_event(target, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    CHECK_FALSE(safety.get_motors_off_require_confirmation());
+    CHECK_FALSE(safety.get_power_require_confirmation());
+    CHECK(safety.get_power_target() == helix::PowerTarget::Screen);
+    safety.set_motors_off_require_confirmation(true);
+    safety.set_power_require_confirmation(true);
+    safety.set_power_target(helix::PowerTarget::Ask);
 }

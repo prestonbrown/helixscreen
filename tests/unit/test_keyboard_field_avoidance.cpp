@@ -195,7 +195,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A field already above the keyboard leaves t
     lv_obj_delete(placed);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "A focused textarea deleted hides the keyboard",
+TEST_CASE_METHOD(LVGLUITestFixture, "A focused textarea deleted hides the keyboard and says so",
                  "[keyboard][1983]") {
     ScopedAnimatedKeyboard scoped(test_screen());
     lv_obj_t* textarea = lv_textarea_create(test_screen());
@@ -207,9 +207,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A focused textarea deleted hides the keyboa
     lv_group_set_default(group);
     keyboard.show(textarea);
     REQUIRE(keyboard.is_visible());
+    CHECK(DisplaySettingsManager::instance().soft_keyboard_visible());
 
     lv_obj_delete(textarea);
     process_lvgl(400);
 
     CHECK_FALSE(keyboard.is_visible());
+    CHECK_FALSE(DisplaySettingsManager::instance().soft_keyboard_visible());
 }

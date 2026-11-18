@@ -33,7 +33,8 @@ GlyphBounds toolhead_bounds(ToolheadStyle style, int32_t cx, int32_t nozzle_y, i
 int32_t toolhead_nozzle_standing_on(ToolheadStyle style, int32_t bottom_y, int32_t scale);
 
 /// Where filament meets a head: @p dx shifts the head sideways so its entry sits on the
-/// filament column it is centered on, and @p y is the entry's row.
+/// filament column it is centered on, and @p y is the entry's row: the art's entry marker, or
+/// for a drawn head, its top edge.
 struct ToolheadInlet {
     int32_t dx, y;
 };

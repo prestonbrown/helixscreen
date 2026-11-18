@@ -15,6 +15,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -100,6 +101,12 @@ class GateBackend : public AmsBackendMock, public IFeederControl {
     AmsError park_active_tool() override {
         ++park_calls;
         return AmsErrorHelper::success();
+    }
+
+    /// What fault_concerns_carriage() answers, when set.
+    std::optional<bool> carriage_fault;
+    bool fault_concerns_carriage() const override {
+        return carriage_fault.value_or(AmsBackendMock::fault_concerns_carriage());
     }
 
     bool has_feeder = false;

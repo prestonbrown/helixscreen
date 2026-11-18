@@ -538,6 +538,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(btn != nullptr);
         CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+        int tapped = -1;
+        menu.set_action_callback([&](MenuAction action, int slot) {
+            tapped = action == MenuAction::MARK_AVAILABLE ? slot : -2;
+        });
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(tapped == 1);
     }
 
     SECTION("the empty gate, paused") {

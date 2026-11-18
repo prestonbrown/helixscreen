@@ -847,14 +847,15 @@ TEST_CASE("only the digits that change flip, each on its own card and all at onc
 namespace {
 
 /// The values card `i` shows while `sim` steps toward `face` in `dt`-ms frames until it rests,
-/// each once in order, and how long that took.
+/// each once in order, and how long that took. A run with no drift step in it redraws only
+/// the moving cards' own boxes.
 struct FlipRun {
     std::string values;
     uint32_t ms = 0;
     uint32_t last_flip_ms = 0; ///< from landing on the final value to rest
 };
 FlipRun run_card(FlipClockSim& sim, TestFrame& frame, const FlipFace& face, size_t i,
-                 uint32_t dt = 5) {
+                 uint32_t dt = 5, bool drift_free = true) {
     FlipRun run;
     run.values += sim.shown(i).digit;
     std::vector<DirtyRect> dirty;
@@ -868,10 +869,9 @@ FlipRun run_card(FlipClockSim& sim, TestFrame& frame, const FlipFace& face, size
         sim.step(dt, frame.target, face, dirty);
         run.ms += dt;
         run.last_flip_ms += dt;
-        // A run redraws only the moving cards' own boxes.
         const auto& cards = sim.layout().cards;
         for (const DirtyRect& box : dirty) {
-            CHECK(std::find(cards.begin(), cards.end(), box) != cards.end());
+            CHECK((!drift_free || std::find(cards.begin(), cards.end(), box) != cards.end()));
         }
     } while (sim.flipping() && run.ms < 5000);
     return run;
@@ -946,6 +946,47 @@ TEST_CASE("a card more than one step away runs through the values between, then 
         REQUIRE(sim.shown(3).digit == '5');
         const FlipRun run = run_card(sim, frame, clock_face(hms(10, 3), true), 3);
         CHECK(run.values == "567890123");
+    }
+    SECTION("a new value the drum is already turning to ends the run there") {
+        sim.init(frame.target, 0, clock_face(hms(10, 2), true));
+        std::vector<DirtyRect> dirty;
+        const FlipFace first = clock_face(hms(10, 9), true);
+        sim.step(0, frame.target, first, dirty);
+        for (int i = 0; i < 400 && sim.shown(3).digit != '5'; i++) {
+            sim.step(5, frame.target, first, dirty);
+        }
+        REQUIRE(sim.flip_progress(3) < 1.0f);
+        const FlipFace five = clock_face(hms(10, 5), true);
+        const FlipRun run = run_card(sim, frame, five, 3);
+        CHECK(run.values == "5");
+        CHECK(run.ms <= helix::ui::kFlipRunStepMs + 5);
+        TestFrame rest_frame(400, 240, PixelFormat::XRGB8888);
+        FlipClockSim rest;
+        rest.init(rest_frame.target, 0, five);
+        CHECK(bytes_differing(card_bytes(frame, sim.layout().cards[3]),
+                              card_bytes(rest_frame, rest.layout().cards[3])) == 0);
+    }
+    SECTION("a drift step mid-run does not cut the run short") {
+        const FlipFace two = clock_face(hms(10, 2), true);
+        const FlipFace nine = clock_face(hms(10, 9), true);
+        sim.init(frame.target, 0, two);
+        std::vector<DirtyRect> dirty;
+        uint32_t elapsed = 0;
+        bool drifted = false;
+        // Each run starts 200 ms before a drift step, until a step moves the cards.
+        for (uint32_t minute = 1; minute < 30 && !drifted; minute++) {
+            const bool up = minute % 2 == 1;
+            sim.step(minute * kClockDriftStepMs - 200 - elapsed, frame.target, up ? two : nine,
+                     dirty);
+            const DirtyRect before = sim.layout().cards[3];
+            const FlipRun run = run_card(sim, frame, up ? nine : two, 3, 5, false);
+            elapsed = minute * kClockDriftStepMs - 200 + run.ms;
+            drifted = !(sim.layout().cards[3] == before);
+            if (drifted) {
+                CHECK(run.values == (up ? "23456789" : "9012"));
+            }
+        }
+        CHECK(drifted);
     }
     SECTION("a level that does not animate goes straight to the value") {
         sim.init(frame.target, kFlipClockLevelCount - 1, clock_face(hms(10, 2), true));

@@ -9,7 +9,9 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_backend_afc.h"
+#include "moonraker_client_mock.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_env.h"
 
 #include <algorithm>
 #include <string>
@@ -67,7 +69,10 @@ class AfcLaneInfoHelper : public AmsBackendAfc {
         for (const char* c : commands) {
             result[c] = "desc";
         }
-        REQUIRE(apply_gcode_help_response(nlohmann::json{{"result", result}}));
+        help_reply(nlohmann::json{{"result", result}});
+    }
+    void help_reply(const nlohmann::json& reply) {
+        REQUIRE(apply_gcode_help_response(reply));
     }
 
     [[nodiscard]] bool sent_starting(const std::string& prefix) const {
@@ -100,7 +105,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::test::RegisteredBackend<AfcLaneInfoHelper> reg{
         std::vector<std::string>{"lane1", "lane2"}};
     AfcLaneInfoHelper& afc = *reg;
-    afc.help_lists({"AFC_SET_SPOOL_TEMP", "SET_FILAMENT_INFO"});
+    // The AFC mock's own help, so mock mode offers these commands too.
+    ScopedEnv mock_ams{"HELIX_MOCK_AMS", "afc"};
+    MoonrakerClientMock mock;
+    nlohmann::json help;
+    mock.send_jsonrpc("printer.gcode.help", nlohmann::json::object(),
+                      [&help](const nlohmann::json& reply) { help = reply; });
+    afc.help_reply(help);
 
     REQUIRE(afc.apply_user_edit(0, edited_lane()).success());
     CHECK(std::count(afc.gcodes.begin(), afc.gcodes.end(),

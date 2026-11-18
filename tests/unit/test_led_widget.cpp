@@ -18,6 +18,7 @@
 #include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/led_widget.h"
+#include "src/ui/panel_widgets/printer_image_widget.h"
 
 #include <algorithm>
 
@@ -377,6 +378,22 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     CHECK(lv_xml_get_subject(nullptr, "led_picker_count") != nullptr);
     CHECK(lv_obj_find_by_name(test_screen(), "led_picker_row_1") != nullptr);
     w.detach_tile();
+}
+
+TEST_CASE_METHOD(LedPickerFixture, "PrinterImageWidget: detaching closes its light picker",
+                 "[led][printer_image]") {
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+    lv_obj_t* widget_obj = lv_obj_create(test_screen());
+    lv_obj_set_name(lv_image_create(widget_obj), "printer_image");
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    w.on_edit_configure();
+    REQUIRE(lv_obj_find_by_name(test_screen(), "led_picker_row_1") != nullptr);
+
+    w.detach();
+    process_lvgl(50);
+
+    CHECK(lv_obj_find_by_name(test_screen(), "led_picker_row_1") == nullptr);
 }
 
 namespace {

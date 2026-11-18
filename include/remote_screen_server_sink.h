@@ -126,8 +126,6 @@ class ScreenFrameStore {
     /// Free every buffer unconditionally.
     void release();
 
-    size_t allocated_bytes() const;
-
   private:
     std::chrono::steady_clock::time_point now() const;
     /// @p last (steady_clock ticks, INT64_MIN = never) is within kViewerIdleMs of now().

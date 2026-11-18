@@ -101,7 +101,7 @@ int segment_starting_at(const pg::FilamentPath& route, float y) {
 }
 
 float inlet_y(const HubCanvas& c) {
-    return (float)(c.data->path_cache.nozzle_y - c.data->theme.extruder_scale * 2);
+    return (float)path_toolhead_inlet(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale).y;
 }
 
 // The plan the canvas painted, rebuilt from its own state.
@@ -388,7 +388,8 @@ TEST_CASE_METHOD(HubStackFixture,
         CHECK(reaches);
     }
 
-    // MIXED: the lane sensors move below the art, and each lane returns to its own column.
+    // MIXED: the lane sensors move below the art, and each lane enters its inlet and returns to
+    // its own column.
     ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(helix::PathTopology::MIXED));
     ui_filament_path_canvas_set_slot_hub_routed(c.obj, 2, true);
     ui_filament_path_canvas_set_slot_hub_routed(c.obj, 3, true);
@@ -401,13 +402,19 @@ TEST_CASE_METHOD(HubStackFixture,
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
         const pg::FilamentPath& path = mixed.routes[i].path;
+        const float gate = (float)rail_gate_x(*art, m.through, i);
+        const float inlet_y = (float)rail_inlet_y(*art, m.through);
         bool at_sensor = false;
+        bool at_inlet = false;
         for (int s = 0; s < path.count; ++s) {
             const pg::PathPoint p = seg_end(path.segs[s]);
             at_sensor = at_sensor || (std::fabs(p.x - (float)g.slot_x[i]) < 0.5f &&
                                       std::fabs(p.y - (float)m.sensor_y) < 0.5f);
+            at_inlet =
+                at_inlet || (std::fabs(p.x - gate) < 0.5f && std::fabs(p.y - inlet_y) < 0.5f);
         }
         CHECK(at_sensor);
+        CHECK(at_inlet);
     }
 
     // LINEAR draws no pass-through art, and art whose images are missing draws none at all.

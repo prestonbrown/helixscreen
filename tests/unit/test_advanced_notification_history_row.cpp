@@ -20,6 +20,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "settings_manager.h"
 
 #include <string>
 
@@ -123,4 +124,38 @@ TEST_CASE_METHOD(NotificationRowFixture,
         home.set(home_layout(nlohmann::json::array({bell(true, 0, 0)})));
         CHECK(row_hidden_after_activate());
     }
+}
+
+TEST_CASE_METHOD(NotificationRowFixture,
+                 "Host Terminal row shows where it runs once its HOST ACCESS switch is on",
+                 "[advanced][host_terminal]") {
+    auto& settings = SettingsManager::instance();
+    settings.init_subjects();
+    settings.set_host_terminal_enabled(false);
+    lv_subject_t* supported = lv_xml_get_subject(nullptr, "platform_host_terminal_supported");
+    REQUIRE(supported != nullptr);
+    const int supported_before = lv_subject_get_int(supported);
+    lv_subject_set_int(supported, 1);
+    auto* panel =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "advanced_panel", nullptr));
+    REQUIRE(panel != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(panel, "row_host_terminal");
+    lv_obj_t* opt_in = lv_obj_find_by_name(panel, "row_host_terminal_enabled");
+    REQUIRE(row != nullptr);
+    REQUIRE(opt_in != nullptr);
+    lv_obj_t* sw = lv_obj_find_by_name(opt_in, "toggle");
+    REQUIRE(sw != nullptr);
+    CHECK(lv_obj_is_hidden(row));
+
+    lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(settings.get_host_terminal_enabled());
+    CHECK_FALSE(lv_obj_is_hidden(row));
+
+    lv_subject_set_int(supported, 0);
+    CHECK(lv_obj_is_hidden(row));
+
+    lv_obj_delete(panel);
+    lv_subject_set_int(supported, supported_before);
+    settings.set_host_terminal_enabled(false);
 }

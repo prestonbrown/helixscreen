@@ -24,6 +24,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_breakpoint.h"
+#include "system_settings_manager.h"
 #include "theme_manager.h"
 
 #include <lvgl/lvgl.h>
@@ -179,4 +180,23 @@ TEST_CASE_METHOD(WizardLanguageUIFixture, "Welcome header follows a mid-wizard b
     // Unfolding back: the face follows the subject up again, so the observer is
     // not a one-shot.
     CHECK(lv_obj_get_style_text_font(header, LV_PART_MAIN) == medium_face);
+}
+
+TEST_CASE_METHOD(WizardLanguageUIFixture, "Each language row picks its language and shows a flag",
+                 "[wizard][ui]") {
+    require_ready();
+
+    const std::pair<const char*, const char*> rows[] = {
+        {"lang_item_en_gb", "en-GB"}, {"lang_item_de", "de"}, {"lang_item_fr", "fr"},
+        {"lang_item_es", "es"},       {"lang_item_ru", "ru"}, {"lang_item_pt", "pt"},
+        {"lang_item_it", "it"},       {"lang_item_en", "en"},
+    };
+    for (const auto& [name, code] : rows) {
+        CAPTURE(name);
+        lv_obj_t* row = lv_obj_find_by_name(wizard_, name);
+        REQUIRE(row != nullptr);
+        CHECK(lv_image_get_src(lv_obj_get_child(row, 0)) != nullptr);
+        lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+        CHECK(helix::SystemSettingsManager::instance().get_language() == code);
+    }
 }

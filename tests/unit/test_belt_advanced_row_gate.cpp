@@ -25,6 +25,7 @@
 #include "setting_group.h"
 
 #include <string>
+#include <utility>
 
 #include "../catch_amalgamated.hpp"
 
@@ -208,4 +209,24 @@ TEST_CASE_METHOD(AdvancedBeltRowFixture, "Advanced G-code Console row needs a co
         CHECK(hidden_in_panel(row("row_console")) == (has_console == 0));
     }
     lv_subject_set_int(supported, before);
+}
+
+TEST_CASE_METHOD(AdvancedBeltRowFixture,
+                 "Auto belt tension and cutter calibration rows need a printer that runs them",
+                 "[advanced][xml][belt_cutter]") {
+    const std::pair<const char*, const char*> rows[] = {
+        {"row_belt_tension_auto", "printer_can_tension_belts"},
+        {"row_cutter_calibration", "printer_can_calibrate_cutter"},
+    };
+    for (const auto& [name, ability] : rows) {
+        CAPTURE(name);
+        auto* can = subject(ability);
+        const int before = lv_subject_get_int(can);
+        for (int value : {1, 0}) {
+            lv_subject_set_int(can, value);
+            process_lvgl(10);
+            CHECK(hidden_in_panel(row(name)) == (value == 0));
+        }
+        lv_subject_set_int(can, before);
+    }
 }
