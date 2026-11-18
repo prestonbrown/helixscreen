@@ -13,6 +13,7 @@
 #include "ui_endless_spool_arrows.h"
 #include "ui_error_reporting.h"
 #include "ui_filament_path_canvas.h"
+#include "ui_filament_slot_picker.h"
 #include "ui_toast_manager.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
@@ -528,6 +529,70 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     return true;
 }
 
+/// Lanes narrower than this, a finger's width, are not each a tap target: a tap on the unit
+/// asks which lane instead.
+constexpr int32_t kMinLaneTapPx = 28;
+
+/// The drawn unit was tapped where its lanes are too narrow to tell apart: a picker lists the
+/// unit's lanes, and the chosen one opens as a tap on its own slot would.
+void pick_lane_cb(lv_event_t* e) {
+    lv_obj_t* art = lv_event_get_current_target_obj(e);
+    std::vector<helix::AvailableSlot> lanes;
+    const std::vector<helix::AvailableSlot> all =
+        helix::AmsState::instance().collect_available_slots();
+    for (int i = 0; i < s_tray.lane_count; ++i) {
+        lv_obj_t* slot = s_tray.slot[i].get();
+        const int global = slot ? (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)) : -1;
+        for (const helix::AvailableSlot& a : all)
+            if (a.slot_index == global)
+                lanes.push_back(a);
+    }
+    if (lanes.empty())
+        return;
+    // Never destroyed: its destructor deletes LVGL objects, after lv_deinit() at exit.
+    static helix::ui::FilamentSlotPicker* picker = new helix::ui::FilamentSlotPicker();
+    helix::ui::FilamentSlotPicker::Options options;
+    options.title = lv_tr("Choose a lane");
+    options.highlight_trigger = false;
+    options.cancel_choice = lv_tr("Cancel");
+    picker->show(
+        lv_screen_active(), art, lanes, {},
+        [](const helix::ui::FilamentSlotPicker::Selection& sel) {
+            for (int i = 0; i < s_tray.lane_count; ++i) {
+                lv_obj_t* slot = s_tray.slot[i].get();
+                if (slot &&
+                    (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)) == sel.slot_index) {
+                    lv_obj_send_event(slot, LV_EVENT_CLICKED, nullptr);
+                    return;
+                }
+            }
+        },
+        options);
+}
+
+/// Where a drawn unit's lanes are narrower than a finger, the drawing takes the tap and asks
+/// which lane (pick_lane_cb); otherwise each lane's slot is its own target.
+void set_lane_picking(const helix::ui::WidgetRef slot_widgets[], int n, const UnitViewArt* art) {
+    int32_t pitch = INT32_MAX;
+    for (int i = 1; art && i < n; ++i)
+        pitch = std::min<int32_t>(pitch, std::abs(art->outlet[i].x - art->outlet[i - 1].x));
+    const bool pick = art && n > 1 && pitch < kMinLaneTapPx;
+    for (int i = 0; i < n; ++i)
+        if (slot_widgets[i])
+            lv_obj_set_clickable(slot_widgets[i], !pick);
+    // The slots' row lies over the drawing and would take the tap itself.
+    if (n > 0 && slot_widgets[0])
+        lv_obj_set_clickable(lv_obj_get_parent(slot_widgets[0]), !pick);
+    lv_obj_t* drawing = s_tray.art_obj.get();
+    if (!drawing)
+        return;
+    // DECLARATIVE_OK: the drawing is created in C++; it takes the tap only where lanes are narrow
+    lv_obj_remove_event_cb(drawing, pick_lane_cb);
+    lv_obj_set_clickable(drawing, pick);
+    if (pick)
+        lv_obj_add_event_cb(drawing, pick_lane_cb, LV_EVENT_CLICKED, nullptr);
+}
+
 /// Anchors the linked-lanes bracket over the unit to its drawing: each lane's tick drops to its
 /// label's top, or to its spool's where it shows no label. With no drawing, or a unit whose
 /// lanes are not the system's first, the bracket keeps the slot row.
@@ -728,6 +793,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
                                     LV_PART_MAIN | LV_STATE_PRESSED);
         }
     }
+    set_lane_picking(slot_widgets, n, s_tray.art ? &art : nullptr);
 
     // Labels sit space_md above the unit's top, lane humidity above them.
     // Without a lid the spools rise above the back wall; the labels clear both.
