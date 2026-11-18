@@ -129,9 +129,12 @@ SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_
     }
     const int32_t shorter = std::min(k.screen_w, k.screen_h);
     const helix::ui::PathViewScale& scale = refresh_view_scale(view);
-    const int32_t cap = scale.spool_max > 0 ? scale.spool_max
-                        : shorter > 0       ? shorter / 5
-                                            : helix::ui::ams_slot_spool_size();
+    // A unit with its own drawing grows to the view scale's spool; a tray-drawn one keeps the
+    // screen's share, which leaves its path and climate pill their room.
+    const bool has_art = unit_view_art_geom(unit, slot_count) != nullptr;
+    const int32_t cap = scale.spool_max > 0 && has_art ? scale.spool_max
+                        : shorter > 0                  ? shorter / 5
+                                                       : helix::ui::ams_slot_spool_size();
     k.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
     // Under a view scale a unit already drawn takes the width its drawing allows: the drawing
     // scales with its spools, often narrower than the generic tray the fit above measures.

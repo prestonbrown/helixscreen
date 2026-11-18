@@ -32,6 +32,9 @@ bool unit_has_physical_tray();
 bool draws_tray();
 /// The unit a view shows: the whole-backend view of a one-unit system counts as that unit.
 int view_unit(const helix::AmsSystemInfo& info, int unit_index);
+/// Where the unit view stands the unit's own drawing for its @p lanes: its geometry, or null
+/// when the tray draws the unit.
+const tray::UnitArtGeom* unit_view_art_geom(int unit_index, int lanes);
 
 // Defined in ui_ams_detail_labels.cpp.
 

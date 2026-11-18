@@ -380,7 +380,9 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
     const int32_t own = g.height;
     // Under a view scale the answer is the least height that lays it out, so a unit above
     // can take what the path leaves; otherwise a canvas that fits keeps its own.
-    const bool least = data.view_hub_h > 0;
+    // A pass-through unit's own drawing takes the room the canvas has, so there the canvas
+    // keeps its height as without a scale.
+    const bool least = data.view_hub_h > 0 && !has_through_art(data);
     if (own <= 0 || (!least && fits(own)))
         return own;
     if (least) {

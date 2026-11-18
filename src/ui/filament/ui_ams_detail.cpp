@@ -174,6 +174,20 @@ void place_env_pill_beside_spools(lv_obj_t* pill, lv_obj_t* container,
 int view_unit(const helix::AmsSystemInfo& info, int unit_index) {
     return unit_index < 0 && info.units.size() == 1 ? 0 : unit_index;
 }
+const tray::UnitArtGeom* unit_view_art_geom(int unit_index, int lanes) {
+    const auto info = helix::AmsState::instance().system_info();
+    const int u = info ? view_unit(*info, unit_index) : -1;
+    const bool dryer = helix::ui::unit_reports_climate(unit_index);
+    const tray::UnitShell* shell =
+        info && u >= 0 && u < static_cast<int>(info->units.size()) &&
+                info->units[static_cast<size_t>(u)].slot_count == lanes &&
+                helix::ui::unit_art_available(*info, u, dryer)
+            ? tray::unit_shell_for(*info, u, dryer)
+            : nullptr;
+    const tray::UnitArtGeom* found = shell ? tray::unit_art_geometry(shell->id, lanes) : nullptr;
+    return found && tray::unit_view_fits(*found) ? found : nullptr;
+}
+
 } // namespace helix::ui::ams_detail_layout
 
 AmsDetailWidgets ams_detail_find_widgets(lv_obj_t* root) {
@@ -461,13 +475,7 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     const auto info = helix::AmsState::instance().system_info();
     const int u = info ? view_unit(*info, unit_index) : -1;
     const bool dryer = helix::ui::unit_reports_climate(unit_index);
-    const tray::UnitShell* shell = info && u >= 0 && u < static_cast<int>(info->units.size()) &&
-                                           info->units[static_cast<size_t>(u)].slot_count == n &&
-                                           helix::ui::unit_art_available(*info, u, dryer)
-                                       ? tray::unit_shell_for(*info, u, dryer)
-                                       : nullptr;
-    const tray::UnitArtGeom* found = shell ? tray::unit_art_geometry(shell->id, n) : nullptr;
-    const tray::UnitArtGeom* geom = found && tray::unit_view_fits(*found) ? found : nullptr;
+    const tray::UnitArtGeom* geom = unit_view_art_geom(unit_index, n);
     lv_obj_t* art = lv_obj_find_by_name(container, "unit_view_art");
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = slot_widgets[i];
