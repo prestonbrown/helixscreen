@@ -105,10 +105,10 @@ TEST_CASE("mock_real_lane_count: a product's mock builds the lanes it is sold wi
     CHECK(mock_real_lane_count("quattro_box", 6) == 4);
     CHECK(mock_real_lane_count("hh_night_owl", 4) == 2);
     CHECK(mock_real_lane_count("afc_cfs", 8) == 4);
-    // Box Turtles stack as whole four-lane units, at most two.
-    CHECK(mock_real_lane_count("afc", 2) == 4);
-    CHECK(mock_real_lane_count("afc", 6) == 8);
-    CHECK(mock_real_lane_count("afc", 12) == 8);
+    // One Box Turtle is built with two to eight lanes.
+    CHECK(mock_real_lane_count("afc", 1) == 2);
+    CHECK(mock_real_lane_count("afc", 6) == 6);
+    CHECK(mock_real_lane_count("hh_box_turtle", 12) == 8);
     // A count the product leaves free passes through.
     CHECK(mock_real_lane_count("ercf", 9) == 9);
     CHECK(mock_real_lane_count("kms", 6) == 6);

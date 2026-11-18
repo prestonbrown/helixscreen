@@ -375,33 +375,25 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
     return {};
 }
 
-/// Lanes in one real Box Turtle; the AFC mock stacks whole Turtles to reach a larger count.
-inline constexpr int kMockBoxTurtleLanes = 4;
-/// The most Box Turtles the AFC mock stacks.
-inline constexpr int kMockMaxBoxTurtles = 2;
-
-/// The lane count a mock AMS mode builds when HELIX_AMS_GATES asks for `requested`. A mode
-/// that stands for a real product builds that product's lane count; the AFC Box Turtle
-/// stacks whole four-lane units. Modes whose count is free (selector rails, KMS, HTLF,
-/// the scenario rigs) keep `requested`.
+/// The lane count a mock AMS mode builds when HELIX_AMS_GATES asks for `requested`: a mode
+/// that stands for a real product keeps the count inside the range that product is built in.
+/// Modes whose count is free (selector rails, KMS, HTLF, the scenario rigs) keep `requested`.
 [[nodiscard]] inline int mock_real_lane_count(std::string_view mode, int requested) {
     struct Row {
         std::string_view mode;
-        int lanes;
+        int min_lanes;
+        int max_lanes;
     };
-    static constexpr Row kFixed[] = {
-        {"quattro_box", 4}, {"quattrobox", 4},    {"ace", 4},          {"afc_ace", 4},
-        {"afc-ace", 4},     {"afc_cfs", 4},       {"afc-cfs", 4},      {"hh_qidi", 4},
-        {"hh_vivid", 4},    {"hh_box_turtle", 4}, {"hh_night_owl", 2},
+    static constexpr Row kRows[] = {
+        {"quattro_box", 4, 4}, {"quattrobox", 4, 4},    {"ace", 4, 4},     {"afc_ace", 4, 4},
+        {"afc-ace", 4, 4},     {"afc_cfs", 4, 4},       {"afc-cfs", 4, 4}, {"hh_qidi", 4, 4},
+        {"hh_vivid", 4, 4},    {"hh_night_owl", 2, 2},  {"afc", 2, 8},     {"box_turtle", 2, 8},
+        {"boxturtle", 2, 8},   {"hh_box_turtle", 2, 8},
     };
-    for (const Row& row : kFixed) {
+    for (const Row& row : kRows) {
         if (mode == row.mode) {
-            return row.lanes;
+            return std::clamp(requested, row.min_lanes, row.max_lanes);
         }
-    }
-    if (mode == "afc" || mode == "box_turtle" || mode == "boxturtle") {
-        const int units = (requested + kMockBoxTurtleLanes - 1) / kMockBoxTurtleLanes;
-        return std::clamp(units, 1, kMockMaxBoxTurtles) * kMockBoxTurtleLanes;
     }
     return requested;
 }

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// AFC on Box Turtles (HELIX_MOCK_AMS=afc): the objects AFC-Klipper-Add-On
+// AFC on one Box Turtle (HELIX_MOCK_AMS=afc): the objects AFC-Klipper-Add-On
 // publishes for `[AFC_BoxTurtle Turtle_1]` with four `[AFC_stepper laneN]`, one hub,
-// one TurtleNeck buffer and one extruder, plus a second Turtle with its own hub when
-// HELIX_AMS_GATES asks for more than four lanes, and the Python commands that change them,
+// one TurtleNeck buffer and one extruder, and the Python commands that change them,
 // so real discovery builds the production AmsBackendAfc under --test. The shapes
 // follow tests/fixtures/afc_*.json, captured from a real Box Turtle.
 //
@@ -108,27 +107,6 @@ bool afc_cfs_mode() {
     const std::string mode = effective_mock_ams_env();
     return mode == "afc_cfs" || mode == "afc-cfs";
 }
-
-/// The unit holding each lane: four lanes to a Box Turtle, Turtle_1 first; the one ACE or
-/// CFS holds them all.
-std::string unit_of_lane(const UnitShape& unit, size_t lane) {
-    if (&unit != &kBoxTurtle) {
-        return unit.name;
-    }
-    return "Turtle_" + std::to_string(lane / helix::mock::kMockBoxTurtleLanes + 1);
-}
-
-/// Every unit the lanes fill, in order.
-std::vector<std::string> unit_names(const UnitShape& unit, size_t lanes) {
-    std::vector<std::string> out;
-    for (size_t i = 0; i < std::max<size_t>(lanes, 1); ++i) {
-        std::string name = unit_of_lane(unit, i);
-        if (out.empty() || out.back() != name) {
-            out.push_back(std::move(name));
-        }
-    }
-    return out;
-}
 } // namespace
 
 void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
@@ -150,19 +128,14 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
 
 void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) const {
     const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
-    std::lock_guard<std::mutex> lock(afc_mutex_);
-    const std::vector<std::string> units = unit_names(unit, afc_lanes_.size());
     objects.push_back("AFC");
-    for (const std::string& name : units) {
-        objects.push_back(unit.object_prefix + name);
-    }
+    objects.push_back(std::string(unit.object_prefix) + unit.name);
     if (unit.has_buffer) {
         objects.push_back(std::string("AFC_buffer ") + unit.name);
     }
     objects.push_back("AFC_extruder extruder");
-    for (const std::string& name : units) {
-        objects.push_back("AFC_hub " + name);
-    }
+    objects.push_back(std::string("AFC_hub ") + unit.name);
+    std::lock_guard<std::mutex> lock(afc_mutex_);
     for (size_t i = 0; i < afc_lanes_.size(); ++i) {
         objects.push_back(unit.lane_prefix + lane_name(static_cast<int>(i)));
     }
@@ -170,8 +143,7 @@ void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) 
 
 nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
     const UnitShape& unit = unit_shape(is_mock_afc_ace(), afc_cfs_mode());
-    // A stack of Box Turtles shares one TurtleNeck, named for the first.
-    const char* const kBuffer = unit.name;
+    const char* const kUnit = unit.name;
     std::vector<AfcLane> lanes;
     int loaded = -1;
     std::string state;
@@ -188,20 +160,6 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
     for (size_t i = 0; i < lanes.size(); ++i) {
         names.push_back(lane_name(static_cast<int>(i)));
     }
-    const std::vector<std::string> units = unit_names(unit, lanes.size());
-    nlohmann::json unit_list = nlohmann::json::array();
-    for (const std::string& name : units) {
-        unit_list.push_back(std::string(unit.type) + " " + name);
-    }
-    const auto lanes_of = [&](const std::string& name) {
-        nlohmann::json out = nlohmann::json::array();
-        for (size_t i = 0; i < lanes.size(); ++i) {
-            if (unit_of_lane(unit, i) == name) {
-                out.push_back(lane_name(static_cast<int>(i)));
-            }
-        }
-        return out;
-    };
     const nlohmann::json loaded_lane =
         loaded >= 0 ? nlohmann::json(lane_name(loaded)) : nlohmann::json(nullptr);
 
@@ -221,16 +179,16 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         {"bypass_state", false},
         {"quiet_mode", false},
         {"position_saved", false},
-        {"units", unit_list},
+        {"units", {std::string(unit.type) + " " + kUnit}},
         {"lanes", names},
         {"extruders", {"extruder"}},
-        {"hubs", units},
-        {"buffers", unit.has_buffer ? nlohmann::json::array({kBuffer}) : nlohmann::json::array()},
+        {"hubs", {kUnit}},
+        {"buffers", unit.has_buffer ? nlohmann::json::array({kUnit}) : nlohmann::json::array()},
         {"message", {{"message", ""}, {"type", ""}}},
         {"led_state", true}};
     nlohmann::json unit_object = {{"lanes", names},
                                   {"extruders", {"extruder"}},
-                                  {"hubs", {units.front()}},
+                                  {"hubs", {kUnit}},
                                   {"buffers", out["AFC"]["buffers"]}};
     if (is_mock_afc_ace()) {
         // AFC_ACE.py get_status: the ACE's own dryer and climate readings.
@@ -277,24 +235,15 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         }
         unit_object["cfs"] = {{"online", true}, {"lanes", cfs_lanes}};
     }
-    for (const std::string& name : units) {
-        nlohmann::json object = unit_object;
-        object["lanes"] = lanes_of(name);
-        object["hubs"] = {name};
-        out[unit.object_prefix + name] = std::move(object);
-        const bool hub_loaded =
-            loaded >= 0 && unit_of_lane(unit, static_cast<size_t>(loaded)) == name;
-        out["AFC_hub " + name] = {{"state", hub_loaded},
-                                  {"afc_bowden_length", 1285.0},
-                                  {"cut", false},
-                                  {"lanes", lanes_of(name)}};
-    }
+    out[std::string(unit.object_prefix) + kUnit] = std::move(unit_object);
+    out[std::string("AFC_hub ") + kUnit] = {
+        {"state", loaded >= 0}, {"afc_bowden_length", 1285.0}, {"cut", false}, {"lanes", names}};
     if (unit.has_buffer) {
-        out[std::string("AFC_buffer ") + kBuffer] = {{"enabled", true},
-                                                     {"fault_detection_enabled", false},
-                                                     {"distance_to_fault", nullptr},
-                                                     {"lanes", names},
-                                                     {"state", "Trailing"}};
+        out[std::string("AFC_buffer ") + kUnit] = {{"enabled", true},
+                                                   {"fault_detection_enabled", false},
+                                                   {"distance_to_fault", nullptr},
+                                                   {"lanes", names},
+                                                   {"state", "Trailing"}};
     }
     out["AFC_extruder extruder"] = {{"buffer", nullptr},
                                     {"lane_loaded", loaded_lane},
@@ -311,10 +260,10 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         const bool tooled = static_cast<int>(i) == loaded;
         out[unit.lane_prefix + lane_name(static_cast<int>(i))] = {
             {"name", lane_name(static_cast<int>(i))},
-            {"unit", unit_of_lane(unit, i)},
-            {"hub", unit_of_lane(unit, i)},
+            {"unit", kUnit},
+            {"hub", kUnit},
             {"extruder", "extruder"},
-            {"buffer", unit.has_buffer ? nlohmann::json(kBuffer) : nlohmann::json(nullptr)},
+            {"buffer", unit.has_buffer ? nlohmann::json(kUnit) : nlohmann::json(nullptr)},
             {"buffer_status", tooled ? nlohmann::json("Trailing") : nlohmann::json(nullptr)},
             {"lane", static_cast<int>(i) + 1},
             {"map", l.map >= 0 ? nlohmann::json(tool_name(l.map)) : nlohmann::json(nullptr)},

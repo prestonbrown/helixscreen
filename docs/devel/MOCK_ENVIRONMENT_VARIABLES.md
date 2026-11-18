@@ -758,7 +758,7 @@ Select the mock AMS topology/type.
 | `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots whatever `HELIX_AMS_GATES` says |
-| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (lane 1 tooled, lane 4 unlinked and weightless). A Box Turtle has four lanes, so `HELIX_AMS_GATES` above 4 adds a second Turtle (`Turtle_2`, its own hub, lanes 5-8) on the one TurtleNeck; a count that is not a whole number of Turtles rounds up, to at most two with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP`, AFC DEV's `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` (both listed in `printer.gcode.help`) and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
+| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, 2 to 8, the counts a Box Turtle is built in; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP`, AFC DEV's `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` (both listed in `printer.gcode.help`) and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `afc_ace` | 1 | **An ACE Pro run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_ACE Ace_1` over `AFC_lane lane1`..`lane4` (an ACE Pro has four; `HELIX_AMS_GATES` is ignored) and no buffer. The unit object carries AFC_ACE.py's `ace_dryer` / `ace_dryer_target` / `ace_dryer_duration` / `ace_dryer_remain` / `ace_temp` / `ace_humidity`, mid cycle at start (50 °C, 205 of 240 minutes left), and `ace_slots` with an identified RFID tag for every loaded spool, and `AFC_ACE_DRY UNIT=Ace_1 TEMP= DURATION=` / `AFC_ACE_DRY_STOP UNIT=Ace_1` start and stop it. Alias: `afc-ace` |
 | `afc_cfs` | 1 | **A Creality CFS run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_CFS cfs_1` over `AFC_lane lane1`..`lane4` (a CFS has four; `HELIX_AMS_GATES` is ignored) and no buffer; the unit object's `cfs.lanes.<lane>.tag` carries each loaded spool's decoded tag (material, color, 1000 g). Alias: `afc-cfs` |
 | `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
@@ -766,7 +766,7 @@ Select the mock AMS topology/type.
 | `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, always 4 lanes |
 | `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
 | `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB, always 2 lanes |
-| `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, always 4 lanes; the enclosed drawing while the mock reports a dryer or climate |
+| `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, `HELIX_AMS_GATES` lanes from 2 to 8; the enclosed drawing while the mock reports a dryer or climate |
 | `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
@@ -807,7 +807,7 @@ HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_AMS=multiace HELIX_MOCK_MULTIACE_MODE
 HELIX_MOCK_MULTIACE_UNITS=2 ./build/bin/helix-screen --test
 ```
 
-A mode that stands for a real product builds that product's lane count, whatever `HELIX_AMS_GATES` asks, and logs the count it ignored (`helix::mock::mock_real_lane_count` in `include/mock_persona.h`). `kms` and `hh_htlf` still take `HELIX_AMS_GATES` as given.
+A mode that stands for a real product keeps `HELIX_AMS_GATES` inside the lane counts that product is built in (a Box Turtle 2 to 8, a Night Owl 2, the others named above 4) and logs the count it ignored (`helix::mock::mock_real_lane_count` in `include/mock_persona.h`). `kms` and `hh_htlf` still take `HELIX_AMS_GATES` as given.
 
 `HELIX_MOCK_AMS=ercf` and `HELIX_MOCK_AMS=tradrack` report the Happy Hare mock as that selector rail; `HELIX_AMS_GATES` picks the gate count (art exists for 4, 6, 8, 9 and 12).
 
