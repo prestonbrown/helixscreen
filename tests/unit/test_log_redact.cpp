@@ -544,6 +544,19 @@ TEST_CASE("redact::names_in_text scrubs the network name and keeps the error rea
     CHECK(out.find(helix::redact::ssid("My Home WiFi")) != std::string::npos);
 }
 
+TEST_CASE("redact::names_in_text scrubs nmcli's quoting and an escaped quote in the name",
+          "[redact][privacy][wifi]") {
+    const std::string nm =
+        helix::redact::names_in_text("Error: No network with SSID 'Home Net' found.");
+    CHECK(nm.find("Home Net") == std::string::npos);
+    CHECK(nm.find("found.") != std::string::npos);
+
+    const std::string escaped = helix::redact::names_in_text(
+        "CTRL-EVENT-SSID-TEMP-DISABLED ssid=\"Bob\\\"s Net\" reason=WRONG_KEY");
+    CHECK(escaped.find("s Net") == std::string::npos);
+    CHECK(escaped.find("reason=WRONG_KEY") != std::string::npos);
+}
+
 TEST_CASE("redact::names_in_text handles bare values, repeats and lookalike keys",
           "[redact][privacy][wifi]") {
     const std::string bare =

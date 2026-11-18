@@ -863,7 +863,7 @@ void WifiBackendNetworkManager::connect_thread_func(std::string ssid, std::strin
     // Failure path
     if (is_polkit_permission_error(attempt.stderr_out)) {
         spdlog::warn("[WifiBackend] NM: Permission denied connecting to '{}': {}",
-                     helix::redact::ssid(ssid), attempt.stderr_out);
+                     helix::redact::ssid(ssid), helix::redact::names_in_text(attempt.stderr_out));
         fire_event("AUTH_FAILED",
                    "Permission denied - check WiFi permissions. Re-run the HelixScreen "
                    "installer, or see Troubleshooting docs");
@@ -873,7 +873,9 @@ void WifiBackendNetworkManager::connect_thread_func(std::string ssid, std::strin
 
     spdlog::warn("[WifiBackend] NM: Connection to '{}' failed (exit code {}{})",
                  helix::redact::ssid(ssid), attempt.exit_code,
-                 attempt.stderr_out.empty() ? "" : ", stderr: " + attempt.stderr_out);
+                 attempt.stderr_out.empty()
+                     ? ""
+                     : ", stderr: " + helix::redact::names_in_text(attempt.stderr_out));
     // nmcli exit code 10 = connection timeout; doesn't cleanly distinguish auth
     // failure. Fire AUTH_FAILED as the best guess for secured networks.
     if (!password.empty()) {
