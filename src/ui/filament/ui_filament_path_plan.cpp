@@ -306,7 +306,7 @@ int32_t lane_start_y(const FilamentPathData& data, const LinearHubFrame& f, int 
     if (!f.prep_on_box_edge || f.rail.w != 0 || f.through.w != 0 || lane < 0 ||
         lane >= FilamentPathData::kMaxSlots)
         return f.entry_y;
-    return f.entry_y - std::max(0, data.lane_entry_rise[lane]);
+    return f.entry_y - std::max<int32_t>(0, data.lane_entry_rise[lane]);
 }
 
 int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane) {
@@ -314,7 +314,7 @@ int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int l
     if (f.rail.w != 0 || f.through.w != 0 || lane < 0 || lane >= FilamentPathData::kMaxSlots)
         return f.prep_band_y;
     const int32_t start = f.prep_on_box_edge ? lane_start_y(data, f, lane) : f.prep_band_y;
-    return std::clamp(start + std::max(0, data.lane_band_drop[lane]), start,
+    return std::clamp(start + std::max<int32_t>(0, data.lane_band_drop[lane]), start,
                       std::max(start, f.prep_y - kBandThickness));
 }
 
