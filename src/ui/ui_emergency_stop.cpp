@@ -142,6 +142,7 @@ void EmergencyStopOverlay::init_subjects() {
     // Register click callbacks for XML event binding
     register_xml_callbacks({
         {"emergency_stop_clicked", emergency_stop_clicked},
+        {"lock_screen_estop_clicked", lock_screen_estop_clicked},
         {"estop_dialog_cancel_clicked", estop_dialog_cancel_clicked},
         {"estop_dialog_confirm_clicked", estop_dialog_confirm_clicked},
         {"recovery_restart_klipper_clicked", recovery_restart_klipper_clicked},
@@ -443,9 +444,26 @@ void EmergencyStopOverlay::execute_emergency_stop() {
         });
 }
 
+bool EmergencyStopOverlay::confirmation_dialog_open() {
+    if (!confirmation_dialog_) {
+        return false;
+    }
+    // The bare modal factory never reports a backdrop tap or ESC back here, so
+    // the handle can outlive its dialog. A handle left set would read as
+    // "already visible" and swallow every later E-Stop press.
+    auto& stack = ModalStack::instance();
+    lv_obj_t* backdrop = stack.backdrop_for(confirmation_dialog_);
+    if (!backdrop || stack.is_exiting(backdrop)) {
+        spdlog::debug("[EmergencyStop] Confirmation dialog was dismissed externally, "
+                      "clearing stale reference");
+        confirmation_dialog_ = nullptr;
+        return false;
+    }
+    return true;
+}
+
 void EmergencyStopOverlay::show_confirmation_dialog() {
-    // Don't show if already visible
-    if (confirmation_dialog_) {
+    if (confirmation_dialog_open()) {
         spdlog::debug("[EmergencyStop] Confirmation dialog already visible");
         return;
     }
@@ -465,7 +483,7 @@ void EmergencyStopOverlay::show_confirmation_dialog() {
 }
 
 void EmergencyStopOverlay::dismiss_confirmation_dialog() {
-    if (confirmation_dialog_) {
+    if (confirmation_dialog_open()) {
         helix::ui::modal_hide(confirmation_dialog_);
         confirmation_dialog_ = nullptr;
         spdlog::debug("[EmergencyStop] Confirmation dialog dismissed");
@@ -894,6 +912,15 @@ void EmergencyStopOverlay::firmware_restart() {
 void EmergencyStopOverlay::emergency_stop_clicked(lv_event_t* e) {
     LV_UNUSED(e);
     EmergencyStopOverlay::instance().handle_click();
+}
+
+void EmergencyStopOverlay::lock_screen_estop_clicked(lv_event_t* e) {
+    LV_UNUSED(e);
+    // The lock screen sits on lv_layer_top, above any modal, so a confirmation
+    // dialog would open hidden behind it. The lock guards against casual input,
+    // not an emergency: stop at once.
+    spdlog::info("[EmergencyStop] E-Stop clicked from lock screen - skipping confirmation");
+    EmergencyStopOverlay::instance().execute_emergency_stop();
 }
 
 void EmergencyStopOverlay::estop_dialog_cancel_clicked(lv_event_t* e) {

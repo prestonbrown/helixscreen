@@ -332,6 +332,9 @@ class EmergencyStopOverlay {
     // Event handlers
     void handle_click();
     void execute_emergency_stop();
+    /// Whether the confirmation dialog is still up; clears a handle whose
+    /// dialog was closed by a backdrop tap or ESC.
+    bool confirmation_dialog_open();
     void show_confirmation_dialog();
     void dismiss_confirmation_dialog();
     friend class EmergencyStopOverlayTestAccess;
@@ -388,6 +391,7 @@ class EmergencyStopOverlay {
 
     // Static callbacks
     static void emergency_stop_clicked(lv_event_t* e);
+    static void lock_screen_estop_clicked(lv_event_t* e);
     static void estop_dialog_cancel_clicked(lv_event_t* e);
     static void estop_dialog_confirm_clicked(lv_event_t* e);
     static void recovery_restart_klipper_clicked(lv_event_t* e);
