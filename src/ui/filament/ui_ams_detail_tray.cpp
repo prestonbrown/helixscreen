@@ -161,41 +161,16 @@ void draw_sheen(lv_layer_t* layer, lv_point_t o, const tray::Lid& lid) {
 
 /// Front wall, right side, edges and the glass lid, in front of the spools.
 
-/// Over a unit's drawing, each lane's tube from its outlet down to the drawing's foot, where
-/// the path canvas takes it on, in the path's own tube style.
-void draw_outlet_tubes(lv_layer_t* layer, lv_point_t o) {
-    const bool dark = theme_manager_is_dark_mode();
-    const lv_color_t idle =
-        theme_manager_get_color(dark ? "filament_idle_dark" : "filament_idle_light");
-    const lv_color_t bg = theme_manager_get_color("card_bg");
-    const int32_t gauge =
-        helix::ui::fpath::tube_gauge_for_spacing(theme_manager_get_spacing("space_xs"));
-    for (int i = 0; i < s_tray.lane_count; ++i) {
-        const tray::PointF top = s_tray.outlet[i];
-        if (top.y >= s_tray.box.fb)
-            continue;
-        pathgeo::FilamentPath path;
-        path.add_line((float)o.x + top.x, (float)o.y + top.y, (float)o.x + top.x,
-                      (float)o.y + s_tray.box.fb);
-        const helix::ui::LaneStyle style = helix::ui::lane_style(
-            s_tray.lane_loaded[i], i == s_tray.active_lane, lv_color_hex(s_tray.lane_color[i]),
-            idle, helix::ui::tube_accent(), bg, gauge);
-        helix::ui::TubePass passes[4];
-        const int count = helix::ui::lane_passes(style, passes);
-        helix::ui::stroke_path(layer, path, passes, count);
-    }
-}
 } // namespace
 
 void tray_front_draw_cb(lv_event_t* e) {
     lv_layer_t* layer = lv_event_get_layer(e);
     if (!layer || !s_tray.valid)
         return;
-    const lv_point_t o = container_origin(lv_event_get_target_obj(e));
-    if (s_tray.art) {
-        draw_outlet_tubes(layer, o);
+    // Over a unit's drawing the art is the unit; nothing stands in front of it.
+    if (s_tray.art)
         return;
-    }
+    const lv_point_t o = container_origin(lv_event_get_target_obj(e));
     load_tray_look();
     const tray::TrayFaces f = tray::tray_faces(s_tray.box);
     const TrayColors& c = s_tray.color;

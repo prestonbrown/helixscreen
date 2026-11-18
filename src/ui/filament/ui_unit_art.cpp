@@ -4,6 +4,7 @@
 
 #include "ui_utils.h"
 
+#include "ams_lane_state.h"
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "core/data_root_resolver.h"
@@ -511,7 +512,9 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
 }
 
 UnitArtLane unit_art_lane(const SlotInfo& slot) {
-    const bool filled = slot.status != SlotStatus::EMPTY && slot.status != SlotStatus::UNKNOWN;
+    // A bay that still names its spool shows it, as the drawn spool does; only an empty
+    // one is a bare reel.
+    const bool filled = classify_lane(slot) != LaneState::Empty;
     return {filled, slot.color_rgb, slot.display_fill_level().value_or(1.0f)};
 }
 
@@ -659,9 +662,9 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
 }
 
 namespace {
-constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
-constexpr int kLaneHaloDivisor = 40; ///< halo spread: the drawing's width over this
-constexpr int kLaneHaloGain = 3;     ///< lifts the blurred outline into a visible band
+constexpr lv_opa_t kDimOpa = 150;     ///< how far a missing bay's spool fades into the card
+constexpr int kLaneHaloDivisor = 100; ///< rim spread: the drawing's width over this
+constexpr int kLaneHaloGain = 5;      ///< lifts the blurred outline into a visible rim
 } // namespace
 
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
@@ -736,13 +739,12 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
                                                255));
         }
         if (m.glow) {
-            // A halo outside the spool's outline: its silhouette, spread and lifted, less itself.
+            // A rim just outside the spool's outline: its silhouette, spread a little and
+            // lifted, less itself.
             std::vector<uint8_t> halo = spool;
             const int radius = std::max(2, (int)c.w / kLaneHaloDivisor);
-            for (int pass = 0; pass < 2; ++pass) {
-                box_blur(halo, w, h, 1, w, radius);
-                box_blur(halo, h, w, w, 1, radius);
-            }
+            box_blur(halo, w, h, 1, w, radius);
+            box_blur(halo, h, w, w, 1, radius);
             for (int32_t y = 0; y < h; ++y) {
                 for (int32_t x = 0; x < w; ++x) {
                     const size_t idx = static_cast<size_t>(y) * w + x;

@@ -978,7 +978,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
-                 "AMS unit with baked art: the art stands in for the tray, lanes leave its outlets",
+                 "AMS unit with baked art: the art stands in for the tray, lanes leave its foot",
                  "[ams][tray][ui_integration][unit-art]") {
     unit_name_ = "ACE 1";
     build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
@@ -1009,12 +1009,26 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         // The path's lane runs straight down from the lane's outlet.
         CHECK(std::abs(pc.x1 + helix::ui::fpath::get_slot_x(path, i, pc.x1) - (aa.x1 + outlet.x)) <=
               1);
-        // Its number stands right of the tube, below the outlet.
-        lv_area_t ba;
+        // Its number stands right of the lane's column, resting on the drawing's bottom edge.
+        lv_area_t ba, drawn_area;
+        REQUIRE(helix::ui::unit_art_drawn_area(art, drawn_area));
         lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
         CHECK(ba.x1 > aa.x1 + outlet.x);
-        CHECK(ba.y1 >= aa.y1 + outlet.y);
+        CHECK(std::abs(ba.y2 - (aa.y1 + drawn_area.y2)) <= 1);
     }
+    // No tube is drawn over the unit: the layer in front of the spools paints nothing.
+    lv_obj_t* front = lv_obj_find_by_name(panel_obj_, "slot_tray");
+    REQUIRE(front != nullptr);
+    lv_draw_buf_t* snap = lv_snapshot_take(front, LV_COLOR_FORMAT_ARGB8888);
+    REQUIRE(snap != nullptr);
+    int painted = 0;
+    for (uint32_t y = 0; y < snap->header.h; ++y) {
+        const auto* row = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(snap, 0, y));
+        for (uint32_t x = 0; x < snap->header.w; ++x)
+            painted += row[x * 4 + 3] > 0;
+    }
+    lv_draw_buf_destroy(snap);
+    CHECK(painted == 0);
     // The path takes the lanes on at the drawing's foot.
     lv_area_t drawn, g;
     REQUIRE(helix::ui::unit_art_drawn_area(art, drawn));

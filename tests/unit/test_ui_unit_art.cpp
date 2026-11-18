@@ -158,6 +158,11 @@ TEST_CASE("unit art: an empty bay shows no filament; black filament is still fil
     CHECK_FALSE(unit_art_lane(slot(SlotStatus::UNKNOWN, 0x123456)).filled);
     const UnitArtLane lane = unit_art_lane(slot(SlotStatus::LOADED, 0x000000));
     CHECK((lane.filled && lane.color == 0x000000));
+    // A bay that reads empty but still names its spool keeps the spool's color, as the
+    // drawn spool does, rather than showing a bare reel.
+    SlotInfo known = slot(SlotStatus::EMPTY, 0x2244aa);
+    known.material = "ABS";
+    CHECK(unit_art_lane(known).filled);
 }
 
 TEST_CASE("unit art: drawn only at the lane counts its art is baked in", "[ams][unit-art]") {
@@ -502,10 +507,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a glow rings its spool, a dim
         const float y = (near_end ? g.near_y : g.far_y) + s * (u * g.ey_y + v * g.ez_y);
         return unit_art_marks_alpha(art, (int32_t)std::lround(x * w), (int32_t)std::lround(y * w));
     };
-    // The glow stands just outside the spool's rim, not over the spool itself.
+    // The glow is a rim just outside the spool's outline, not over the spool itself and not
+    // spreading far past it.
     CHECK(alpha_out(0, 0.5f) == 0);
-    CHECK(alpha_out(0, 1.12f) > 0);
-    CHECK(alpha_out(0, 2.5f) == 0);
+    CHECK(alpha_out(0, 1.06f) > 0);
+    CHECK(alpha_out(0, 1.35f) == 0);
     // The dim covers its spool and nothing past it.
     CHECK(alpha_out(3, 0.5f) > 0);
     CHECK(alpha_out(3, 1.3f) == 0);

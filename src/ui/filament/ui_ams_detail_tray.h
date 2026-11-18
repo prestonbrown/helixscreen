@@ -51,7 +51,7 @@ struct TrayState {
     TrayOpacities opa = kDarkOpa;
     const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
     float spool_size = 0;
-    bool art = false; // the unit's baked art stands in for the tray, which draws its outlets
+    bool art = false; // the unit's baked art stands in for the tray, which draws nothing
     helix::ui::WidgetRef art_obj;                  // the drawing, while it is shown
     helix::ui::WidgetRef slot[kAmsDetailMaxSlots]; // the slots it stands under
     int unit_index = -1;

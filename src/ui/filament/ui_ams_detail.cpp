@@ -500,7 +500,7 @@ namespace {
 struct UnitViewArt {
     lv_area_t drawn{};                          // what the drawing covers
     lv_area_t lane[kAmsDetailMaxSlots] = {};    // each lane's spool, its flanges' bounds
-    lv_point_t outlet[kAmsDetailMaxSlots] = {}; // where each lane's filament leaves the unit
+    lv_point_t outlet[kAmsDetailMaxSlots] = {}; // each lane's outlet: its column is the lane's
 };
 
 /// The unit a view shows: the whole-backend view of a one-unit system counts as that unit.
@@ -613,14 +613,6 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
         out.outlet[i].y += y;
     }
     s_tray.art_obj = art;
-    const helix::AmsUnit& unit = info->units[static_cast<size_t>(u)];
-    s_tray.active_lane = info->current_slot - unit.first_slot_global_index;
-    for (int i = 0; i < n && i < static_cast<int>(unit.slots.size()); ++i) {
-        const helix::ui::UnitArtLane lane =
-            helix::ui::unit_art_lane(unit.slots[static_cast<size_t>(i)]);
-        s_tray.lane_loaded[i] = lane.filled;
-        s_tray.lane_color[i] = lane.color;
-    }
     return true;
 }
 
@@ -753,12 +745,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         s_tray.slot[i] = slot_widgets[i].get();
     s_tray.art = place_unit_view_art(container, slot_widgets, n, unit_index, cx, cy_sum / n, art);
     if (s_tray.art) {
-        // The path's lanes start at the drawing's foot, under each lane's outlet; the tray
-        // draws each lane's tube from its outlet down to there.
+        // The path's lanes start at the drawing's foot, each in its outlet's column, so no
+        // tube runs over the unit.
         box.fb = (float)art.drawn.y2;
         s_tray.box.fb = box.fb;
         for (int i = 0; i < n; ++i) {
-            s_tray.outlet[i] = {(float)art.outlet[i].x, (float)art.outlet[i].y};
             if (lv_obj_t* holder = ui_ams_slot_get_spool_container(slot_widgets[i])) {
                 lv_area_t ha;
                 lv_obj_get_coords(holder, &ha);
@@ -910,14 +901,15 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             lv_obj_update_layout(badge);
             const float bw = (float)lv_obj_get_width(badge);
             const float bh = (float)lv_obj_get_height(badge);
-            // On art the number stands just right of its lane's tube, under the outlet.
+            // On art the number stands just right of its lane's column, resting on the
+            // drawing's bottom edge, where the lane's tube starts.
             const float tube_half = (float)helix::ui::fpath::tube_gauge_for_spacing(
                                         theme_manager_get_spacing("space_xs")) /
                                     2;
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x + tube_half + inset,
-                                   (float)art.outlet[i].y + inset}
+                                   (float)art.drawn.y2 - bh}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);

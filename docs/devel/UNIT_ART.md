@@ -49,7 +49,7 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 | `front` | Everything in front of the spools (`scene.layer = "front"`) |
 | carriage | For a unit with a sliding selector: the moving part, baked at gate 0 and shifted per gate |
 
-`<unit_art>` stacks them back to front, tints each filled lane, and hides a lane that is empty or has a zero colour. A unit with no matching art hides the widget. Variants:
+`<unit_art>` stacks them back to front, tints each lane that holds or still names a spool, and hides the tint of an empty one. A unit with no matching art hides the widget. Variants:
 
 - A unit built in several lane counts sets `lane_variants` and bakes each count to `assets/images/units/<id>/<n>/`. A lane count without baked art keeps the live tray shell and loses only the picture.
 - `stub_art` bakes a second drawing, the body alone with a tube per lane, under `stubs/`. Units that hold no spools (BMCU, MMX, 3MS, AD5X IFS) can show either look, chosen by `HELIX_UNIT_ART_FEEDER` (`docs/devel/ENVIRONMENT_VARIABLES.md#helix_unit_art_feeder`).
@@ -60,7 +60,7 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 The bake also records each lane's geometry, in shares of the drawing's width (`manifest.json` `geometry` and `drawn`, and a `UnitArtGeom` row in `src/generated/ams_unit_shells_gen.cpp`): the two flange centers and the flange's radius vectors, so the spool is every flange disc between them; the full and bare-core radii of the wound filament; the flange cylinder's bounds; and the lane's outlet, where its filament leaves the unit (`kit.outlet`, else the front bottom edge under the spool). The runtime reads these and never measures the art's pixels (`include/unit_art_geometry.h`):
 
 - Fill level masks each lane's tint and shade to the filament wound at its weight, by the one rule the drawn spool uses (`tray::wound_radius`).
-- `unit_art_set_lane_marks` draws, per lane, a halo just outside the spool's outline (the current lane in the accent color, a lane in error in its severity's) and a dim over a bay that is not there.
+- `unit_art_set_lane_marks` draws, per lane, a thin rim just outside the spool's outline (the current lane in the accent color, a lane in error in its severity's) and a dim over a bay that is not there.
 
 Spools follow the app. The kit reads the flange colours, vent pattern and sizes from the C++ spool values (`spool_constants`), so art cannot drift from the live widget. Every unit draws its spools at one real spool proportion in a common frame (`kSpoolWidth` is 0.294 of the spool size).
 
@@ -78,7 +78,7 @@ Each unit resolves on its own, so a rig of mixed units mixes tiles. A unit that 
 
 ## The unit view
 
-A unit with art and lane geometry for its lane count is drawn from its art in the AMS unit view too (`src/ui/filament/ui_ams_detail.cpp#place_unit_view_art`). The art is scaled so its first and last spools stand over the first and last slots, which stay as tap targets with their own spool drawing transparent. Each lane's tube runs from its baked outlet down to the drawing's foot, where the path canvas takes it on in the same column, with the lane's number just right of it. Labels and their dotted leaders end at each spool's top, the readout tucks over the drawing's right end, and a tool badge stands beside its label, off the drawing. The art shows each lane's color, fill, glow and dim; an empty lane's "+" and its error dot ride on its number badge. Any other unit keeps the drawn tray below.
+A unit with art and lane geometry for its lane count is drawn from its art in the AMS unit view too (`src/ui/filament/ui_ams_detail.cpp#place_unit_view_art`). The art is scaled so its first and last spools stand over the first and last slots, which stay as tap targets with their own spool drawing transparent. Each lane's tube starts at the drawing's foot, in its baked outlet's column, so no tube runs over the unit, with the lane's number just right of it on that edge. Labels and their dotted leaders end at each spool's top, the readout tucks over the drawing's right end, and a tool badge stands beside its label, off the drawing. The art shows each lane's color, fill, glow and dim; an empty lane's "+" and its error dot ride on its number badge. Any other unit keeps the drawn tray below.
 
 ## The live tray
 
