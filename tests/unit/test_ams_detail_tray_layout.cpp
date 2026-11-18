@@ -1060,6 +1060,47 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK_FALSE(lv_obj_is_hidden(arrows));
 }
 
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: a lane that fills or empties shows or drops its label at once",
+                 "[ams][tray][ui_integration][over-lane][lane-label-live]") {
+    const bool art = GENERATE(false, true);
+    CAPTURE(art);
+    if (art)
+        unit_name_ = "Box Turtle 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
+          /*buffer=*/false, /*empty_lane=*/1);
+    namespace at = helix::ui::ams_tray;
+    lv_obj_t* label = ui_ams_slot_get_material_label(slot(1));
+    REQUIRE(label != nullptr);
+    REQUIRE(lv_obj_is_hidden(label));
+    const int ticks = at::s_tray.leader_count;
+
+    // Load lane 1: no unit refresh, only the backend's update.
+    auto* backend = AmsState::instance().get_backend();
+    REQUIRE(backend != nullptr);
+    SlotInfo info = backend->get_slot_info(1);
+    info.status = SlotStatus::AVAILABLE;
+    info.material = "PETG";
+    info.color_rgb = 0x2E7D32;
+    REQUIRE(helix::test::apply_edit(*backend, 1, info).success());
+    static_cast<AmsBackendMock*>(backend)->force_slot_status(1, SlotStatus::AVAILABLE);
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    lv_obj_update_layout(test_screen());
+    CHECK_FALSE(lv_obj_is_hidden(label));
+    CHECK(at::s_tray.leader_count == ticks + 1);
+
+    // And empty it again.
+    static_cast<AmsBackendMock*>(backend)->force_slot_status(1, SlotStatus::EMPTY);
+    info.status = SlotStatus::EMPTY;
+    info.material.clear();
+    REQUIRE(helix::test::apply_edit(*backend, 1, info).success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    CHECK(lv_obj_is_hidden(label));
+    CHECK(at::s_tray.leader_count == ticks);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap at any size",
                  "[ams][tray][ui_integration][unit-art][lane-badges]") {
     const int unit = GENERATE(0, 1, 2); // Box Turtle, ACE, OpenAMS's AMS 2 Pro

@@ -1206,13 +1206,39 @@ drawing is `src/ui/filament/ui_ams_detail.cpp`.
   toolhead whole at 480x272 with eight lanes: the path canvas reports the glyph's drawn
   box (`ui_filament_path_canvas_get_toolhead_box()`), and `[ams][tray]` pins it inside
   the canvas there.
+- **Labels over a drawn unit** (a unit's art or the drawn tray, labels on `labels_layer`).
+  Each label stands over its own spool and drops a short straight dotted tick to the spool
+  top (`src/ui/filament/ui_ams_detail.cpp#place_unit_labels`). An empty lane shows no label and no tick: its
+  "+" badge says it, and the backend's slot status decides, so the label comes or goes the
+  moment a lane fills or empties (the lane spool's listener, `unit_view_lane_changed`,
+  lays the labels out again without placing the tray). Labels take the fewest rows, up to
+  three (`ams_over_lane_label_rows`), that show every name whole, else at least three
+  characters before the ellipsis, cycling label by label. Each keeps clear of its same-row
+  neighbours and of the ticks of labels in higher rows, and stays inside the unit's row
+  (`ams_over_lane_label_spans`); centered where the room allows, it slides off a crowded side
+  with its tick still under it.
 - **Badges.** Each lane's number badge stands on the box's front face
   (`tray::lane_badge_origin`): its right edge inside the lane's lid edge, or centred on
   the lane when the pitch is too tight, never below the box. The per-slot tool badges
   (T0, T1, ...) show only when they add something to the lane numbers
   (`include/display_numbering.h#tool_badges_add_information`): an identity map in index
   space (tool N feeds slot N, which displays as lane N+1) hides them; a remap, a tool
-  with no lane, or an empty map shows them.
+  with no lane, or an empty map shows them. Under a unit's art each number stands right of
+  its lane's tube, level with the lane's sensor band under the drawing's slanted foot.
+  Where neighbouring numbers would stand closer than a number and a gap they alternate
+  rows, odd lanes a number lower less what the foot's slant already gives them
+  (`art_lane_band_drop`); where even that crowds them, empty lanes drop their "+" and the
+  number's own tap state says it (`include/ui_ams_slot_layout.h#ams_lane_badge_layout`).
+- **A drawing too tall for its path.** Under a unit's art the path keeps the height it
+  needs at full size (a full-size head, the buffer on the trunk), found by the planner
+  itself (`ui_filament_path_canvas_required_height()`). Where the path falls short, or the
+  diagram runs past the screen, the unit's spools are capped for that unit, slot count,
+  width and screen, and the panel lays it out again (`ams_detail_sync_lane_entry()` returns
+  true); a unit that fits is untouched. The drawing keeps at least half the size its width
+  gives it; past that the head gives up the rest (OpenAMS at 480x272). In portrait both
+  AMS panels scroll, the diagram whole on screen and the sidebar's actions below it at
+  their own height (`ams_sidebar.xml` binds its height: full in landscape, content in
+  portrait).
 - **Environment pill.** `ams_env_pill.xml` (instance `env_indicator` in
   `ams_unit_detail.xml`) is a flex sibling of the slot container, so it takes its width
   from the unit's row: the box narrows to make room and box and pill centre as one.

@@ -367,6 +367,14 @@ untouched. The drawing keeps at least half the size its width gives it; past tha
 gives up the rest. In portrait the AMS panels scroll, so the sidebar's actions stand below
 the diagram at their own height.
 
+**Lane numbers and labels under a drawn unit.** Each lane's sensor band, and the number on
+it, stands below where the lane leaves the drawing's slanted foot by half a number
+(`set_lane_band_drop`). Where the numbers alternate rows, odd lanes drop a number further
+(less the foot's slant), and the planner keeps the hub a radius below the lowest number
+(`badges_bottom` in `compute_linear_hub_frame()`). The labels above the unit, their ticks and
+which lanes show one (none for an empty lane) are the unit view's: FILAMENT_MANAGEMENT.md,
+"Labels over a drawn unit".
+
 `src/ui/filament/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
 `draw_sensor_band`, so `[filament-path][plan]` tests it without a display.
 
