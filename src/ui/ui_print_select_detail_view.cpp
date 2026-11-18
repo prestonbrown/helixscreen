@@ -177,6 +177,9 @@ void PrintSelectDetailView::init_subjects() {
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     UI_MANAGED_SUBJECT_INT(detail_gcode_viewer_mode_, 0, "detail_gcode_viewer_mode", subjects_);
+    // 1 while the viewer draws in 2D although 3D was asked for (memory budget,
+    // GPU fallback); hides the 3D-only reset-view button.
+    UI_MANAGED_SUBJECT_INT(detail_preview_drawn_2d_, 0, "detail_preview_drawn_2d", subjects_);
     // G-code loading indicator (0=hidden, 1=visible)
     UI_MANAGED_SUBJECT_INT(detail_gcode_loading_, 0, "detail_gcode_loading", subjects_);
 
@@ -1080,6 +1083,7 @@ void PrintSelectDetailView::disarm_viewer_callbacks() {
         return;
     }
     helix::ui::gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
+    helix::ui::gcode_viewer_set_render_path_callback(gcode_viewer_, nullptr, nullptr);
     helix::ui::gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
     helix::ui::gcode_viewer_set_clear_callback(gcode_viewer_, nullptr, nullptr);
 }
@@ -2500,6 +2504,13 @@ void PrintSelectDetailView::load_gcode_for_preview() {
             spdlog::debug("[DetailView] First frame rendered — revealing viewer");
             lv_subject_set_int(&self->detail_viewer_first_frame_, 1);
             self->refresh_viewer_visibility();
+        },
+        this);
+    helix::ui::gcode_viewer_set_render_path_callback(
+        gcode_viewer_,
+        [](lv_obj_t* /*viewer*/, void* user_data, bool drawn_3d) {
+            auto* self = static_cast<PrintSelectDetailView*>(user_data);
+            lv_subject_set_int(&self->detail_preview_drawn_2d_, drawn_3d ? 0 : 1);
         },
         this);
 

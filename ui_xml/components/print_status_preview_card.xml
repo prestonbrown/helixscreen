@@ -36,7 +36,7 @@
                      thumbnail_name="print_thumbnail" hint_name="rotate_hint" gradient_hidden="exclude_map_active eq 1"
                      viewer_hidden="gcode_viewer_mode eq 0"
                      thumbnail_hidden="gcode_viewer_mode gt 0 or exclude_map_active eq 1"
-                     hint_hidden="gcode_viewer_mode ne 1"/>
+                     hint_hidden="gcode_viewer_mode ne 1 or print_preview_drawn_2d eq 1"/>
       <!-- Live camera in place of the preview, cover-fit and clipped to the
            band. It takes taps so they do nothing rather than reach the paused
            viewer underneath. -->

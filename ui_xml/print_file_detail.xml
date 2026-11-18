@@ -99,7 +99,7 @@
                          hint_name="detail_rotate_hint" thumbnail_src="selected_detail_thumbnail"
                          gradient_hidden="selected_has_thumbnail eq 0" thumbnail_offset_y="#preview_offset_y"
                          viewer_hidden="detail_viewer_hidden eq 1" thumbnail_hidden="detail_viewer_first_frame eq 1"
-                         hint_hidden="detail_gcode_viewer_mode ne 1"/>
+                         hint_hidden="detail_gcode_viewer_mode ne 1 or detail_preview_drawn_2d eq 1"/>
           <!-- Top-left of the preview: the skip-objects button (same component and
                corner as print status) and, beside it, the loading pill, shown while
                G-code downloads/indexes. The corner keeps the thumbnail readable, toasts

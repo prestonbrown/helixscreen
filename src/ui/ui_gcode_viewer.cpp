@@ -547,6 +547,22 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
 
     draw_object_badges(st, layer, widget_coords);
 
+    // Tell the host which path drew, when it changed: the host hides
+    // 3D-only controls over a 2D render. Deferred like the first-frame callback
+    // below, since it writes subjects.
+    const int drawn_path = st->is_using_2d_mode() ? 0 : 1;
+    if (st->render_path_callback && drawn_path != st->reported_render_path_) {
+        st->reported_render_path_ = drawn_path;
+        helix::ui::queue_widget_update(obj, [](lv_obj_t* viewer) {
+            auto* state = get_state(viewer);
+            if (!state || !state->render_path_callback || state->reported_render_path_ < 0) {
+                return;
+            }
+            state->render_path_callback(viewer, state->render_path_callback_user_data,
+                                        state->reported_render_path_ == 1);
+        });
+    }
+
     // Fire the one-shot first-frame callback once the viewer has real content
     // on its canvas (not during VBO upload, not on a skipped/failed frame).
     // Callers (e.g. PrintSelectDetailView) use this to hide the thumbnail they
@@ -942,6 +958,20 @@ void helix::ui::gcode_viewer_set_first_frame_callback(
     st->first_frame_callback = callback;
     st->first_frame_callback_user_data = user_data;
     st->first_frame_fired_ = false;
+}
+
+void helix::ui::gcode_viewer_set_render_path_callback(
+    lv_obj_t* obj, helix::ui::gcode_viewer_render_path_callback_t callback, void* user_data) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return;
+    }
+    st->render_path_callback = callback;
+    st->render_path_callback_user_data = user_data;
+    st->reported_render_path_ = -1;
+    if (callback) {
+        lv_obj_invalidate(obj); // the next draw reports the current path
+    }
 }
 
 void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
@@ -1946,6 +1976,9 @@ void helix::ui::gcode_viewer_set_load_callback(lv_obj_t*, helix::ui::gcode_viewe
 void helix::ui::gcode_viewer_set_first_frame_callback(lv_obj_t*,
                                                       helix::ui::gcode_viewer_load_callback_t,
                                                       void*) {}
+
+void helix::ui::gcode_viewer_set_render_path_callback(
+    lv_obj_t*, helix::ui::gcode_viewer_render_path_callback_t, void*) {}
 
 void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t*, bool) {}
 

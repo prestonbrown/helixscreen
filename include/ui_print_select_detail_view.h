@@ -832,6 +832,8 @@ class PrintSelectDetailView : public OverlayBase {
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     lv_subject_t detail_gcode_viewer_mode_{};
+    // 1 while the viewer draws 2D although 3D was asked for
+    lv_subject_t detail_preview_drawn_2d_{};
     // G-code loading indicator (0=hidden, 1=visible)
     lv_subject_t detail_gcode_loading_{};
 
