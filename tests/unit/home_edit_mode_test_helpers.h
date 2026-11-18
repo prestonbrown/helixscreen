@@ -21,6 +21,7 @@
 #include "ui_panel_home.h"
 
 #include "../test_helpers/home_panel_test_access.h"
+#include "app_globals.h"
 #include "config.h"
 #include "input_settings_manager.h"
 #include "input_settings_test_helpers.h"
@@ -106,6 +107,9 @@ class ScopedLockState {
 class ScopedHomePanelPage {
   public:
     ScopedHomePanelPage(HomePanel& panel, lv_obj_t* container) : panel_(panel) {
+        // Entering edit mode publishes the navbar's edit-mode subjects, which
+        // app_globals_init_subjects() creates; idempotent.
+        app_globals_init_subjects();
         HomePanelTestAccess::set_single_page_container(panel_, container);
     }
     ~ScopedHomePanelPage() {

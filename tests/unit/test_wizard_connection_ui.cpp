@@ -42,6 +42,7 @@ using namespace helix;
 class WizardConnectionLifetimeFixture : public LVGLTestFixture {
   public:
     WizardConnectionLifetimeFixture() {
+        ui_wizard_init_subjects(); // defines connection_test_passed (idempotent)
         step = get_wizard_connection_step();
         step->init_subjects();
     }

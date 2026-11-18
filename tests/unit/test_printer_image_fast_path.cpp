@@ -59,6 +59,8 @@ std::string current_src(lv_obj_t* img) {
 
 TEST_CASE_METHOD(LVGLTestFixture, "Printer widget prefers the exact-size copy",
                  "[printer_image][fastpath]") {
+    // attach() publishes the widget's printer-info and callout subjects.
+    helix::test::init_panel_widget_subjects();
     Subtree s = make_subtree();
     REQUIRE(lv_obj_get_width(s.img) == kW);
 

@@ -9,6 +9,7 @@
 #include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_whole_cell_def.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "config.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
@@ -63,6 +64,8 @@ TEST_CASE("PanelWidgetEntry::disable_and_unplace surrenders the cell with the fl
 
 TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: enter, exit and selection are tracked and guarded",
                  "[grid_edit][edit_mode][selection][catalog]") {
+    // enter() and exit() publish the navbar's edit-mode subjects; idempotent.
+    app_globals_init_subjects();
     GridEditMode em;
     REQUIRE_FALSE(em.is_active());
     REQUIRE_FALSE(em.is_catalog_open());

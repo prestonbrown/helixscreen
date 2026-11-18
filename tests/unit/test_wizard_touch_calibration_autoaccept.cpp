@@ -26,6 +26,7 @@
  * on an 800x480 target.
  */
 
+#include "ui_wizard.h"
 #include "ui_wizard_touch_calibration.h"
 
 #include "../test_helpers/touch_calibration_panel_test_access.h"
@@ -56,6 +57,8 @@ constexpr Point kPoint3{660, 60};
 class WizardAutoAcceptFixture {
   public:
     WizardAutoAcceptFixture() {
+        // The step writes its instructions to the wizard's subtitle subject; idempotent.
+        ui_wizard_init_subjects();
         panel_ = WizardTouchCalibrationTestAccess::panel(step_);
         REQUIRE(panel_ != nullptr);
         panel_->set_screen_size(800, 480);
