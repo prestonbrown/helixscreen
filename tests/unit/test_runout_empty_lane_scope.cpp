@@ -497,6 +497,46 @@ TEST_CASE("has_real_runout: a toolhead sensor on a multi-extruder lane system fo
     AmsState::instance().set_backend(nullptr);
 }
 
+namespace {
+
+// The same lanes with lane 1 empty: the active tool's number names a lane the
+// job is not drawing from.
+class MultiExtruderLanesOneEmpty : public MultiExtruderLanes {
+  public:
+    [[nodiscard]] SlotInfo get_slot_info(int slot) const override {
+        SlotInfo info = MultiExtruderLanes::get_slot_info(slot);
+        if (slot == 1) {
+            info.status = SlotStatus::EMPTY;
+        }
+        return info;
+    }
+};
+
+} // namespace
+
+TEST_CASE("has_real_runout: an empty lane that shares only the tool's number is not fed",
+          "[runout][scope]") {
+    // Tool 1 prints from lane 4. Lane 1 is empty and its sensor reads empty,
+    // which says nothing about the job: only the current slot is being fed.
+    HelixTestFixture fx;
+    AmsState::instance().set_backend(std::make_unique<MultiExtruderLanesOneEmpty>());
+    auto& fsm = FilamentSensorManager::instance();
+    setup_four_lane_sensors(fsm);
+    get_printer_state().init_subjects(false);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    AmsBackend* be = AmsState::instance().get_backend();
+    REQUIRE(be->get_current_tool() == 1);
+    REQUIRE_FALSE(be->get_slot_info(1).is_present());
+
+    fsm.update_from_status(make_sensor_status(1, false));
+    drain();
+    CHECK(fsm.has_any_runout());
+    CHECK_FALSE(fsm.has_real_runout());
+
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
+    AmsState::instance().set_backend(nullptr);
+}
+
 TEST_CASE("has_real_runout: no AMS backend -> behaves like has_any_runout", "[runout][scope]") {
     HelixTestFixture fx;
     AmsState::instance().set_backend(nullptr);
