@@ -454,11 +454,15 @@ TEST_CASE_METHOD(
 }
 
 // The set_hardware step hands discovery's tachometer map to the fan state, so a
-// separately published RPM reaches the fan it measures.
-TEST_CASE_METHOD(StepFixture, "set_hardware hands the tachometer map to the fan state",
+// separately published RPM reaches the fan it measures, and its heater-fan map, so
+// the active tool's hotend fan is the one its heater drives.
+TEST_CASE_METHOD(StepFixture,
+                 "set_hardware hands the tachometer and heater-fan maps to the fan state",
                  "[discovery_steps][fan_tach]") {
-    api.hardware().parse_objects(json::array({"fan", "output_pin fan2", "fan_feedback"}));
+    api.hardware().parse_objects(json::array(
+        {"fan", "output_pin fan2", "fan_feedback", "heater_fan hotend_a", "heater_fan hotend_b"}));
     api.hardware().set_fan_tachometers({{"fan_feedback", "fan2_speed", "fan"}});
+    api.hardware().set_heater_fans({{"heater_fan hotend_b", {"extruder1"}}});
     auto ctx = context(/*hw_changed=*/true);
     bool ran_step = false;
     for (const DiscoveryStep& step : helix::discovery_core_steps()) {
@@ -469,11 +473,19 @@ TEST_CASE_METHOD(StepFixture, "set_hardware hands the tachometer map to the fan 
     }
     REQUIRE(ran_step);
 
+    auto& fans = get_printer_state().fan_state();
     get_printer_state().update_from_status({{"fan_feedback", {{"fan2_speed", 6857}}}});
     std::optional<int> part, pin2;
-    for (const auto& fan : get_printer_state().fan_state().get_fans()) {
-        (fan.object_name == "fan" ? part : pin2) = fan.rpm;
+    for (const auto& fan : fans.get_fans()) {
+        if (fan.object_name == "fan" || fan.object_name == "output_pin fan2") {
+            (fan.object_name == "fan" ? part : pin2) = fan.rpm;
+        }
     }
     CHECK(part == std::optional<int>(6857));
     CHECK_FALSE(pin2.has_value());
+
+    fans.set_active_tool_fans("extruder1", "");
+    CHECK(fans.classify_primary_fans().hotend == "heater_fan hotend_b");
+    fans.set_active_tool_fans("", "");
+    fans.set_heater_fans({});
 }

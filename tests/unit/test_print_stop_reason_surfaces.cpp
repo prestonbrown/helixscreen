@@ -3,22 +3,27 @@
 // Where a print's stop reason reaches the user: the print-status card's paused
 // and canceled overlays, the completion modal and the completion toast. Each
 // case builds the production XML and reads the reason back off the widget the
-// user sees.
+// user sees. The last case follows a failed print's ending to the printer.
 
 #include "ui_modal.h"
 #include "ui_panel_print_status.h"
 #include "ui_print_completion_modal.h"
 
+#include "../fake_moonraker_client.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/moonraker_manager_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "audio_settings_manager.h"
 #include "core/update_queue.h"
 #include "display_wake_request.h"
+#include "moonraker_manager.h"
 #include "print_completion.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <lvgl.h>
 #include <memory>
 #include <string>
@@ -223,4 +228,60 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     test::set_wire_state(state(), PrintJobState::STANDBY);
     UpdateQueue::instance().drain();
     process_lvgl(10);
+}
+
+namespace {
+
+/// The app's MoonrakerManager on a fake client, installed as the global the
+/// completion observer sends through, with the printer type and alert mode put
+/// back however the case ends.
+struct HeaterOffScope {
+    PrinterState& state;
+    MoonrakerManager moonraker;
+    const std::vector<std::string>* sent = nullptr;
+    std::string saved_type;
+    CompletionAlertMode saved_mode;
+
+    explicit HeaterOffScope(PrinterState& st)
+        : state(st), saved_type(st.profile_state().printer_type()),
+          saved_mode(AudioSettingsManager::instance().get_completion_alert_mode()) {
+        auto fake = std::make_unique<helix::test::FakeMoonrakerClient>();
+        sent = &fake->gcode_scripts;
+        MoonrakerManagerTestAccess::install_client(moonraker, std::move(fake));
+        set_moonraker_manager(&moonraker);
+        AudioSettingsManager::instance().set_completion_alert_mode(
+            CompletionAlertMode::NOTIFICATION);
+        helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+    }
+    ~HeaterOffScope() {
+        set_moonraker_manager(nullptr);
+        state.profile_state().set_printer_type(saved_type, true, false, false);
+        helix::ui::set_test_toast_hook(nullptr);
+        AudioSettingsManager::instance().set_completion_alert_mode(saved_mode);
+        test::set_wire_state(state, PrintJobState::STANDBY);
+        UpdateQueue::instance().drain();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Completion: a print error turns the heaters off unless the firmware does",
+                 "[print_completion][stop_reason]") {
+    HeaterOffScope scope(state());
+    ObserverGuard completion = init_print_completion_observer();
+
+    const bool firmware_owns = GENERATE(false, true);
+    CAPTURE(firmware_owns);
+    REQUIRE(state().profile_state().set_printer_type(
+        firmware_owns ? "Creality K2 Plus (Jacobean firmware)" : "Creality K2 Plus", true, false,
+        false));
+    REQUIRE(state().profile_state().firmware_owns_error_heaters() == firmware_owns);
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    UpdateQueue::instance().drain();
+    test::set_wire_state(state(), PrintJobState::ERROR);
+    UpdateQueue::instance().drain();
+
+    CHECK(std::count(scope.sent->begin(), scope.sent->end(), std::string("TURN_OFF_HEATERS")) ==
+          (firmware_owns ? 0 : 1));
 }

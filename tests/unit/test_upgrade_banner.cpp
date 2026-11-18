@@ -37,7 +37,7 @@ class UpgradeBannerFixture : public XMLTestFixture {
     ~UpgradeBannerFixture() override {
         banner.shutdown();
         set_nudge("off", "");
-        UpdateCheckerTestAccess::clear(UpdateChecker::instance());
+        UpdateChecker::instance().clear_cache();
         helix::ui::UpdateQueue::instance().drain();
         PrinterStateTestAccess::reset(get_printer_state());
         get_printer_state().init_subjects(false);
