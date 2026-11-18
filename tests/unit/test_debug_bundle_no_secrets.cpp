@@ -440,7 +440,8 @@ TEST_CASE("A local moonraker.log reaches the bundle with its credentials redacte
     CHECK(log.find("\ntoken: [REDACTED]\n") != std::string::npos);
     CHECK(log.find("/websocket?token=[REDACTED]&client=mainsail (192.168.1.50)") !=
           std::string::npos);
-    CHECK(log.find("X-Api-Key: [REDACTED] Authorization: [REDACTED]\n") != std::string::npos);
+    CHECK(log.find("X-Api-Key: [REDACTED] Authorization: Bearer [REDACTED]\n") !=
+          std::string::npos);
     // Settings that only name a credential are diagnostic and stay.
     CHECK(log.find("\nenable_api_key = True\n") != std::string::npos);
     CHECK(log.find("\nforce_logins = False\n") != std::string::npos);

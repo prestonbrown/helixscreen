@@ -888,10 +888,18 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         }
 
         std::string result = value;
+        // A pattern that gives up (the matcher's step limit) has not looked at
+        // the rest of the line, so the line is withheld rather than shipped.
+        bool gave_up = false;
+        auto redact = [&](const helix::Regex& re, std::string_view fmt) {
+            bool aborted = false;
+            result = helix::regex_replace(result, re, fmt, &aborted);
+            gave_up = gave_up || aborted;
+        };
 
         // Redact URL credentials: ://user:pass@ -> ://[REDACTED_CREDENTIALS]@
         static const helix::Regex cred_url_re(R"(://[^@/\s]+:[^@/\s]+@)");
-        result = helix::regex_replace(result, cred_url_re, "://[REDACTED_CREDENTIALS]@");
+        redact(cred_url_re, "://[REDACTED_CREDENTIALS]@");
 
         // A notification URL (Apprise: tgram://, discord://, pover://,
         // mailto://...) carries its bot token, webhook key or login in the
@@ -900,21 +908,39 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         static const helix::Regex service_url_re(
             R"(\b(?!(?:https?|wss?|unix|file)://)([A-Za-z][A-Za-z0-9+.-]*)://[^\s"'<>]+)",
             helix::Regex::ICase);
-        result = helix::regex_replace(result, service_url_re, "$1://[REDACTED]");
+        redact(service_url_re, "$1://[REDACTED]");
+
+        // An Authorization value is a scheme name and its credential, in
+        // whatever shape the scheme takes (Bearer, Basic, Token, Digest k=v
+        // lists): the scheme stays, everything after it goes.
+        static const helix::Regex auth_scheme_re(
+            R"(((?:\b|[_.-])(?:authorization|auth)["']?\s*[:=]\s*[A-Za-z][\w-]*\s+)\S.*)",
+            helix::Regex::ICase);
+        redact(auth_scheme_re, "$1[REDACTED]");
+
+        // A query parameter's value ends at the next & or whitespace.
+        static const helix::Regex query_re(
+            R"(([?&](?:[\w-]*[_-])?(?:password|passwd|token|secret|api[_-]?key|apikey|auth)=)[^&\s#"']*)",
+            helix::Regex::ICase);
+        redact(query_re, "$1[REDACTED]");
 
         // Redact the value of a credential-named key, keeping the key so the
         // line still reads: Moonraker writes its config back to its log as
-        // `key = value`, request URIs carry `?token=`, Python dicts print
-        // `'api_key': '...'`, wpa_supplicant writes `psk="..."`. A boolean is
-        // a setting about a credential (`enable_api_key = True`), not one.
+        // `key = value`, Python dicts print `'api_key': '...'`, wpa_supplicant
+        // writes `psk="..."`. A quoted value ends at its unescaped closing
+        // quote; a bare one runs to the end of the line or the next `key:` /
+        // `key=`. A lone boolean is a setting about a credential
+        // (`enable_api_key = True`), not one.
         static const helix::Regex key_value_re(
-            R"(\b((?:[\w.-]{0,40}[_.-])?)"
+            R"(((?:\b|[_.-]))"
             R"((?:password|passwd|passphrase|psk|secret|token|api[_-]?key|apikey|auth|authorization))"
             R"(["']?\s*[:=]\s*))"
-            R"((?!(?:true|false|yes|no|none|null|on|off)\b))"
-            R"((?:"[^"]*"|'[^']*'|(?:bearer|basic)\s+[^\s,;&"'}\]]+|[^\s,;&"'}\]]+))",
+            R"((?!\[REDACTED|[A-Za-z][\w-]*\s+\[REDACTED\]))"
+            R"((?!(?:true|false|yes|no|none|null|on|off)\s*(?:$|[,;&])))"
+            R"((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|)"
+            R"([^\s"'].*?(?=\s*$|[,;&]\s*[\w.-]+["']?\s*[:=]|\s+[\w.-]+["']?\s*[:=]|&)))",
             helix::Regex::ICase);
-        result = helix::regex_replace(result, key_value_re, "$1[REDACTED]");
+        redact(key_value_re, "$1[REDACTED]");
 
         // Redact email addresses. The last label must be alphabetic, because a
         // bare `<word>@<number>.<number><unit>` is a diagnostic value, not an
@@ -922,11 +948,14 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // pattern that accepts a numeric final label eats it. No TLD is a
         // single character, so requiring two costs no real address.
         static const helix::Regex email_re(R"(\b[\w.+-]+@[\w-]+(\.[\w-]+)*\.[A-Za-z]{2,}\b)");
-        result = helix::regex_replace(result, email_re, "[REDACTED_EMAIL]");
+        redact(email_re, "[REDACTED_EMAIL]");
 
         // Redact MAC addresses (aa:bb:cc:dd:ee:ff or AA-BB-CC-DD-EE-FF)
         static const helix::Regex mac_re(R"(\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b)");
-        result = helix::regex_replace(result, mac_re, "[REDACTED_MAC]");
+        redact(mac_re, "[REDACTED_MAC]");
+
+        if (gave_up)
+            return "[REDACTED]";
 
         // Redact globally routable IP addresses, IPv4 and IPv6 alike. Private
         // ones are deliberately kept: 192.168.1.50 is the same address in

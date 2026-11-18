@@ -593,6 +593,10 @@ class RegexMatcher {
         return false;
     }
 
+    bool aborted() const {
+        return aborted_;
+    }
+
     bool match_whole(RegexMatch& m) {
         steps_ = 0;
         aborted_ = false;
@@ -808,10 +812,12 @@ bool regex_match(std::string_view subject, const Regex& re) {
     return regex_match(subject, m, re);
 }
 
-std::string regex_replace(std::string_view subject, const Regex& re, std::string_view fmt) {
+std::string regex_replace(std::string_view subject, const Regex& re, std::string_view fmt,
+                          bool* aborted) {
     std::string out;
     size_t last = 0;
-    for (RegexIterator it(subject, re), end; it != end; ++it) {
+    RegexIterator it(subject, re);
+    for (const RegexIterator end; it != end; ++it) {
         const RegexMatch& m = *it;
         out.append(subject.substr(last, m.position(0) - last));
         for (size_t i = 0; i < fmt.size(); ++i) {
@@ -856,13 +862,18 @@ std::string regex_replace(std::string_view subject, const Regex& re, std::string
         last = m.end();
     }
     out.append(subject.substr(last));
+    if (aborted != nullptr)
+        *aborted = it.aborted();
     return out;
 }
 
 RegexIterator::RegexIterator(std::string_view subject, const Regex& re)
     : subject_(subject), re_(&re) {
-    if (!RegexMatcher(re, subject).search(0, false, match_))
+    RegexMatcher matcher(re, subject);
+    if (!matcher.search(0, false, match_)) {
         re_ = nullptr;
+        aborted_ = matcher.aborted();
+    }
 }
 
 RegexIterator& RegexIterator::operator++() {
@@ -875,8 +886,10 @@ RegexIterator& RegexIterator::operator++() {
         return *this;
     }
     RegexMatch next;
-    if (!RegexMatcher(*re_, subject_).search(from, was_empty, next)) {
+    RegexMatcher matcher(*re_, subject_);
+    if (!matcher.search(from, was_empty, next)) {
         re_ = nullptr;
+        aborted_ = matcher.aborted();
         return *this;
     }
     match_ = std::move(next);
