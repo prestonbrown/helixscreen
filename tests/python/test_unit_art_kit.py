@@ -11,7 +11,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
 
 from unit_art import build, kit, spool  # noqa: E402
-from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
+from unit_art.units import ace_pro, ad5x_ifs, ams_ht, bmcu, box_turtle, cfs, elegoo_canvas, emu, htlf, mmx, night_owl, quattro_box, rail, three_ms  # noqa: E402
 
 
 def test_camera_is_the_agreed_three_quarter():
@@ -228,37 +228,37 @@ def test_every_spool_draws_at_one_size_and_the_unit_fits_its_frame(unit):
     assert vy <= min(ys) and max(ys) <= vy + vh
 
 
-@pytest.mark.parametrize("lanes", quattro_box.UNIT.lane_variants)
+@pytest.mark.parametrize("lanes", emu.UNIT.lane_variants)
 def test_a_variable_unit_draws_each_lane_count(lanes):
     scene = kit.Scene(kit.ART_CAMERA)
-    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * lanes, "full")
+    emu.UNIT.draw_art(scene, ["#ffffff"] * lanes, "full")
     assert {i.lane for i in scene.items if i.lane is not None} == set(range(lanes))
 
 
-def test_a_variable_units_width_is_two_caps_and_a_pitch_per_lane():
-    widths = [quattro_box.width(n) for n in (2, 3, 4, 5)]
-    assert widths[0] == pytest.approx(2 * quattro_box.CAP + quattro_box.PITCH)
-    steps = {round(b - a, 6) for a, b in zip(widths, widths[1:])}
-    assert steps == {round(quattro_box.PITCH, 6)}
+def test_the_quattro_box_is_drawn_with_four_lanes_only():
+    assert quattro_box.UNIT.lanes == 4
+    assert quattro_box.UNIT.lane_variants == ()
+    scene = kit.Scene(kit.ART_CAMERA)
+    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * 4, "full")
+    assert {i.lane for i in scene.items if i.lane is not None} == set(range(4))
 
 
-@pytest.mark.parametrize("lanes", (2, 5))
-def test_quattro_spools_stay_inside_the_body(lanes):
+def test_quattro_spools_stay_inside_the_body():
     c = spool.spool_constants(REPO)
     half = c["spool_width"] * (quattro_box.SPOOL_R / c["flange_radius"]) / 2
-    centers = quattro_box.centers(lanes)
-    assert len(centers) == lanes
-    assert centers[0] - half > 0
-    assert centers[-1] + half < quattro_box.width(lanes)
+    centers = quattro_box.centers()
+    assert len(centers) == 4
+    assert centers[0] - half > quattro_box.BEVEL
+    assert centers[-1] + half < quattro_box.W - quattro_box.BEVEL
     assert quattro_box.SPOOL_Y + quattro_box.SPOOL_R < quattro_box.D
     assert quattro_box.SPOOL_Z + quattro_box.SPOOL_R < quattro_box.H
 
 
 def test_a_variable_unit_bakes_one_set_per_lane_count(tmp_path):
-    build.bake_unit(quattro_box.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
-    root = tmp_path / quattro_box.UNIT.id
+    build.bake_unit(emu.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
+    root = tmp_path / emu.UNIT.id
     assert not (root / "manifest.json").exists()
-    for lanes in quattro_box.UNIT.lane_variants:
+    for lanes in emu.UNIT.lane_variants:
         manifest = json.loads((root / str(lanes) / "manifest.json").read_text())
         assert manifest["lanes"] == lanes
         for tier in ("full", "thumb"):
@@ -269,18 +269,18 @@ def test_a_variable_unit_bakes_one_set_per_lane_count(tmp_path):
 
 
 def test_the_shell_table_records_which_lane_counts_have_art():
-    table = build.generate_shell_table([quattro_box.UNIT, ace_pro.UNIT])
+    table = build.generate_shell_table([emu.UNIT, ace_pro.UNIT])
 
     def row(uid):
         return next(line for line in table.splitlines() if line.strip().startswith('{"%s"' % uid))
 
-    assert row("quattro_box").rstrip().endswith("0x34},")
+    assert ", 0x17e, " in row("emu")
     assert row("ace_pro").rstrip().endswith("0x0},")
 
 
 def test_a_unit_wider_than_the_frame_widens_it_to_fit():
     scene = kit.Scene(kit.ART_CAMERA)
-    quattro_box.UNIT.draw_art(scene, ["#ffffff"] * 5, "full")
+    emu.UNIT.draw_art(scene, ["#ffffff"] * 8, "full")
     vx, vy, vw, vh = scene._viewbox()
     assert vw / scene.spool_radius > kit.ART_FRAME[0] / kit.ART_SPOOL_R
     xs = [p[0] for i in scene.items for p in i.points]

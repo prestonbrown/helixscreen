@@ -767,7 +767,7 @@ Select the mock AMS topology/type.
 | `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
 | `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB. Its drawing has 2 lanes, so set `HELIX_AMS_GATES=2` |
 | `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, 4 lanes; the enclosed drawing while the mock reports a dryer or climate |
-| `quattro_box` | 1 | AFC Quattro Box, HUB; `HELIX_AMS_GATES` sets its lanes. Alias: `quattrobox` |
+| `quattro_box` | 1 | AFC Quattro Box, HUB; always 4 lanes, the only count it is built in (`HELIX_AMS_GATES` is ignored). Alias: `quattrobox` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |

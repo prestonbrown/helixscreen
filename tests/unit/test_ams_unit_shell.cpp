@@ -70,14 +70,17 @@ TEST_CASE("unit shell: a Quattro Box or an EMU is found through both of its firm
     CHECK(id(AmsType::HAPPY_HARE, "ERCF") == "none");
     CHECK(id(AmsType::AFC, "EMU Turtle_1") == "emu");
     CHECK(id(AmsType::HAPPY_HARE, "EMU") == "emu");
+    // A Quattro Box's lanes merge in a hub mounted outside it.
+    CHECK(unit_shell_for(one_unit(AmsType::AFC, "Quattro_Box QuattroBox_1"), 0)->lane_join ==
+          LaneJoin::Hub);
 }
 
 TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[ams][unit-art]") {
-    AmsSystemInfo info = one_unit(AmsType::AFC, "Quattro_Box QuattroBox_1");
+    AmsSystemInfo info = one_unit(AmsType::AFC, "EMU Turtle_1");
     for (int lanes : {1, 2, 3, 5, 8}) {
         info.units[0].slot_count = lanes;
         REQUIRE(unit_shell_for(info, 0) != nullptr);
-        CHECK(std::string(unit_shell_for(info, 0)->id) == "quattro_box");
+        CHECK(std::string(unit_shell_for(info, 0)->id) == "emu");
     }
     CHECK(unit_shell_for(info, 0)->lane_join == LaneJoin::Junction);
 }
