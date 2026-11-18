@@ -322,7 +322,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." ru="Настройки активны до перезагрузки. Сохраните после завершения печати."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ru="Настраивает индивидуальные характеристики нагревателей для оптимального контроля"/>
   <translation tag="Advanced" ru="Дополнительно"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" ru="Опережение"/>
   <translation tag="After an error" ru="После ошибки"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ru="После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати."/>
   <translation tag="After running the commands, tap Check Again below." ru="После выполнения команд нажмите «Проверить снова» ниже."/>
@@ -895,7 +895,7 @@
   <translation tag="Completed {}h ago" ru="Завершено {} ч назад"/>
   <translation tag="Completed {}m ago" ru="Завершено {} мин назад"/>
   <translation tag="Completed: {}" ru="Завершено: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" ru="Сжат"/>
   <translation tag="Computing calibration..." ru="Вычисление калибровки..."/>
   <translation tag="Config Dir" ru="Директория конфигурации"/>
   <translation tag="Config Edit Failed" ru="Не удалось изменить конфигурацию"/>
@@ -1410,7 +1410,7 @@
   <translation tag="Exhaust fan speed" ru="Скорость вытяжного вентилятора"/>
   <translation tag="Exhaust: keep chamber at or below" ru="Вытяжка: держать камеру не выше"/>
   <translation tag="Exit Code" ru="Код выхода"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" ru="Растянут"/>
   <translation tag="Expected boolean" ru="Ожидалось логическое значение"/>
   <translation tag="Expected float" ru="Ожидалось дробное число"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." ru="Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса."/>
@@ -4477,7 +4477,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ru="Коснитесь цели (точка %1$d из 3) — касание %2$d из %3$d"/>
   <translation tag="TouchCalibration" ru="Калибровка касания"/>
   <translation tag="Trace" ru="Трассировка"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" ru="Отставание"/>
   <translation tag="Tried ports {} and {}." ru="Проверены порты {} и {}."/>
   <translation tag="Trigger" ru="Триггер"/>
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
