@@ -885,6 +885,8 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     }
 
     if (reprint_gates_) {
+        // filament_colors_ is the file Print Files has open, not this one.
+        ctx.filament_color_count = reprint_gates_->facts.palette.colors.size();
         helix::fill_file_context(ctx, reprint_gates_->facts);
     } else if (detail_view_) {
         ctx.has_file_facts = true;

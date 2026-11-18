@@ -134,3 +134,36 @@ TEST_CASE_METHOD(ReprintGatesFixture, "a reprint no gate stops starts once with 
     CHECK(started == 1);
     CHECK(errors == 0);
 }
+
+TEST_CASE_METHOD(ReprintGatesFixture,
+                 "a multi-color reprint judges its own palette, not the file Print Files holds",
+                 "[reprint_gates][reprint][print_start]") {
+    // Two lanes for a four-color file: tools 2 and 3 have none.
+    helix::test::ScopedMockAms ams({{0xFF0000, "PLA"}, {0x00FF00, "PLA"}});
+    PlantedGcode file("reprint_four_color.gcode", "",
+                      "; filament_type = PLA;PLA;PLA;PLA\n"
+                      "; filament_colour = #FF0000;#00FF00;#0000FF;#FFFF00\n"
+                      "G28\nT0\nT1\nT2\nT3\n"
+                      "; filament used [g] = 1.00, 1.00, 1.00, 1.00\n");
+    // Print Files holds a one-color file of its own, or none at all.
+    if (GENERATE(false, true)) {
+        controller().set_file("single.gcode", "", {"#FF0000"}, "");
+    }
+
+    controller().initiate_reprint(
+        file.name(), "", {0, 1, 2, 3}, [this]() { ++started; }, [this]() { ++errors; });
+    settle();
+
+    auto& c = controller();
+    // Earlier gates may ask first; each is confirmed until the tool question.
+    for (int i = 0; i < 8 && PrintStartControllerTestAccess::print_gate_modal(c) != nullptr &&
+                    PrintStartControllerTestAccess::open_gate_name(c) != "unresolved_tools";
+         ++i) {
+        press("btn_primary");
+    }
+    REQUIRE(PrintStartControllerTestAccess::print_gate_modal(c) != nullptr);
+    CHECK(PrintStartControllerTestAccess::open_gate_name(c) == "unresolved_tools");
+    CHECK(start_params.empty());
+    press("btn_secondary");
+    CHECK(errors == 1);
+}
