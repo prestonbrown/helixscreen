@@ -891,13 +891,28 @@ void AmsPanel::setup_path_canvas() {
     ui_filament_path_canvas_set_buffer_callback(path_canvas_, on_buffer_clicked, this);
 
     // Configure from backend using shared helper
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits);
+    relayout_if_capped(ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits));
 
     spdlog::debug("[{}] Path canvas setup complete", get_name());
 }
 
 void AmsPanel::update_path_canvas_from_backend() {
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits);
+    relayout_if_capped(ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits));
+}
+
+void AmsPanel::relayout_if_capped(bool capped) {
+    // The path is set up from observers of the slots themselves, so the slots are made again
+    // only after the callback returns.
+    if (!capped || relayout_pending_)
+        return;
+    relayout_pending_ = true;
+    object_lifetime_.defer("AmsPanel::relayout_if_capped", [this]() {
+        relayout_pending_ = false;
+        if (!panel_)
+            return;
+        create_slots(current_slot_count_);
+        update_path_canvas_from_backend();
+    });
 }
 
 void AmsPanel::setup_bypass_spool() {
@@ -1078,7 +1093,8 @@ void AmsPanel::refresh_slots() {
     // early when canvas/backend is null) and never writes slot subjects, so it
     // can't recurse back into a slots_version bump.
     if (backend && info)
-        ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info);
+        relayout_if_capped(
+            ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info));
 }
 
 // ============================================================================

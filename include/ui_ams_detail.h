@@ -115,12 +115,14 @@ void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
  * @param canvas     The filament_path_canvas widget
  * @param slot_grid  The slot grid (for sizing sync) — may be nullptr
  * @param unit_index Backend unit index (-1 = whole backend)
+ * @return true when the drawn unit is too tall for the path below it and its spools were
+ *         capped (ams_detail_sync_lane_entry()): the caller lays its slots out again.
  */
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index);
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index);
 
 /// The same, for a caller that already holds the system info it just read from @p backend.
 // NAMESPACE_OK: an overload of the global three-argument ams_detail_setup_path_canvas
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
                                   const helix::AmsBackend* backend,
                                   const helix::AmsSystemInfo& info);
 

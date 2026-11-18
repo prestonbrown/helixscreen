@@ -1208,7 +1208,7 @@ drawing is `src/ui/filament/ui_ams_detail.cpp`.
   the canvas there.
 - **Labels over a drawn unit** (a unit's art or the drawn tray, labels on `labels_layer`).
   Each label stands over its own spool and drops a short straight dotted tick to the spool
-  top (`src/ui/filament/ui_ams_detail.cpp#place_unit_labels`). An empty lane shows no label and no tick: its
+  top (`src/ui/filament/ui_ams_detail_labels.cpp#place_unit_labels`). An empty lane shows no label and no tick: its
   "+" badge says it, and the backend's slot status decides, so the label comes or goes the
   moment a lane fills or empties (the lane spool's listener, `unit_view_lane_changed`,
   lays the labels out again without placing the tray). Labels take the fewest rows, up to

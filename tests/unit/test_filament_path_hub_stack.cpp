@@ -484,9 +484,9 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     CHECK((c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
 }
 
-TEST_CASE("The required height is the least that lays the path out at full size",
-          "[filament-path][hub-stack][art-fit]") {
-    FilamentPathData d;
+namespace {
+/// A four-lane hub with a buffer over a 480x272 unit view's canvas, too short for its stack.
+void short_hub_canvas(FilamentPathData& d, BaseGeometry& g) {
     d.topology = static_cast<int>(helix::PathTopology::HUB);
     d.slot_count = 4;
     d.theme.tube_gauge = 5;
@@ -500,7 +500,6 @@ TEST_CASE("The required height is the least that lays the path out at full size"
     d.has_hub_sensor = true;
     d.has_toolhead_sensor = true;
     d.buffer_present = true;
-    BaseGeometry g;
     g.x_off = 330;
     g.y_off = 194;
     g.width = 285;
@@ -509,23 +508,48 @@ TEST_CASE("The required height is the least that lays the path out at full size"
         g.slot_x[i] = 384 + 58 * i;
     g.center_x = 471;
     g.lane_entry_y = 196;
-    const auto full_size = [&](int32_t height) {
-        BaseGeometry h = g;
-        h.height = height;
-        const LinearHubFrame f = compute_linear_hub_frame(
-            d, h, toolhead_top_y(linear_hub_nozzle_y(d, h), d.theme.extruder_scale));
-        return f.tool_scale == d.theme.extruder_scale && f.has_buffer;
-    };
-    g.height = 66; // the 480x272 unit view's canvas
-    REQUIRE_FALSE(full_size(g.height));
+    g.height = 66;
+}
+
+/// The path at @p height lays out its head at full size and, where asked, holds its buffer.
+bool full_size_at(const FilamentPathData& d, BaseGeometry g, int32_t height, bool with_buffer) {
+    g.height = height;
+    const LinearHubFrame f = compute_linear_hub_frame(
+        d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    return f.tool_scale == d.theme.extruder_scale && (!with_buffer || f.has_buffer);
+}
+} // namespace
+
+TEST_CASE("The required height is the least that lays the path out at full size",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    REQUIRE_FALSE(full_size_at(d, g, g.height, true));
     const int32_t need = linear_hub_required_height(d, g);
     CAPTURE(need);
     CHECK(need > g.height);
-    CHECK(full_size(need));
-    CHECK_FALSE(full_size(need - 1));
+    CHECK(full_size_at(d, g, need, true));
+    CHECK_FALSE(full_size_at(d, g, need - 1, true));
     // A canvas that already fits needs nothing more.
     g.height = need + 40;
     CHECK(linear_hub_required_height(d, g) == need + 40);
+}
+
+TEST_CASE("A path no taller canvas would help asks for no height past its own",
+          "[filament-path][hub-stack][art-fit][buffer]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    // A hub on the head, whose stub holds no buffer at any height and whose head fits; or a
+    // head too large for any canvas.
+    const bool head_hub = GENERATE(true, false);
+    CAPTURE(head_hub);
+    if (head_hub)
+        d.hub_on_toolhead = true;
+    else
+        d.theme.extruder_scale = 4000;
+    CHECK(linear_hub_required_height(d, g) == g.height);
 }
 
 TEST_CASE_METHOD(HubStackFixture,

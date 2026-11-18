@@ -225,6 +225,7 @@ class AmsPanel : public PanelBase {
     int current_slot_count_ = 0; ///< Number of slots currently created
     static constexpr int kMaxRelayoutPasses = 2;
     int relayout_passes_ = 0; ///< how deep create_slots() is in laying a too-tall unit out again
+    bool relayout_pending_ = false; ///< a relayout_if_capped() pass is queued
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots
 
     // === Filament Path Canvas ===
@@ -260,6 +261,9 @@ class AmsPanel : public PanelBase {
     void setup_slots();
     void setup_path_canvas();
     void update_path_canvas_from_backend();
+    /// When setting the path up capped the drawn unit's spools (@p capped), lays the slots out
+    /// again at that size, once the caller's callback has returned.
+    void relayout_if_capped(bool capped);
     /// (Re)wire per-slot LIVE path observers for the current slot count (Task 1).
     void setup_slot_path_observers(int slot_count);
     void setup_bypass_spool();

@@ -335,18 +335,24 @@ int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int l
 }
 
 int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g) {
+    // The short stub under a hub on the head holds no buffer at any height, so only the head's
+    // size asks for room there.
+    const bool wants_buffer = data.buffer_present && !data.hub_on_toolhead;
     const auto fits = [&](int32_t height) {
         g.height = height;
         const int32_t nozzle = linear_hub_nozzle_y(g, data.theme.extruder_scale);
         const LinearHubFrame f =
             compute_linear_hub_frame(data, g, toolhead_top_y(nozzle, data.theme.extruder_scale));
-        return f.tool_scale == data.theme.extruder_scale && (!data.buffer_present || f.has_buffer);
+        return f.tool_scale == data.theme.extruder_scale && (!wants_buffer || f.has_buffer);
     };
-    if (g.height <= 0 || fits(g.height))
-        return g.height;
-    int32_t lo = g.height + 1, hi = g.height * 4;
+    const int32_t own = g.height;
+    if (own <= 0 || fits(own))
+        return own;
+    int32_t lo = own + 1, hi = own * 4;
+    // Where even four times the height does not lay it out at full size, no height asked for
+    // would: the canvas keeps its own.
     if (!fits(hi))
-        return hi;
+        return own;
     while (lo < hi) {
         const int32_t mid = lo + (hi - lo) / 2;
         if (fits(mid))

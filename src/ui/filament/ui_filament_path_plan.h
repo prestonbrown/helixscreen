@@ -242,7 +242,8 @@ int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
 /// short for its hub above that glyph draws a smaller head (LinearHubFrame::tool_scale).
 /// The least height @p g (its top where it is) needs for compute_linear_hub_frame() to lay the
 /// path out at full size: a full-size head, and the buffer kept on the trunk when the unit
-/// reports one. @p g's own height when that already fits.
+/// reports one and its hub is not on the head. @p g's own height when that already fits, or
+/// when no height up to four times it would.
 int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g);
 
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,

@@ -206,3 +206,12 @@ void ui_ams_slot_clear_highlight(lv_obj_t* obj);
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef __cplusplus
+#include <string>
+
+/// The whole text the slot's material label shows, before any ellipsis its width cuts it to
+/// (the label's own text then holds the cut form); "" without one.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+std::string ui_ams_slot_get_material_text(lv_obj_t* obj);
+#endif
