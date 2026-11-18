@@ -8,6 +8,9 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_toolhead_badge.h"
 
+#include "helix/ui/text_metrics.h"
+#include "hub_buffer_meter.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -227,12 +230,6 @@ int32_t hub_box_gap(const SystemPathData& data) {
     return LV_MAX(4, data.tube_gauge);
 }
 
-// The width a junction box's label is sized for: "Hub", or "Hub+BUF" when the
-// hub carries the buffer.
-int32_t junction_label_w(const SystemPathData& data, bool with_buffer) {
-    return with_buffer ? data.hub_width : data.hub_width * 2 / 3;
-}
-
 // The width that fits @p lanes tubes entering a box top side by side.
 int32_t junction_lanes_w(const SystemPathData& data, int lanes) {
     return 2 * (int32_t)kFanEntryMargin + lanes * lane_pitch(data);
@@ -261,8 +258,8 @@ void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const No
         h.buffer_unit = f.buffer ? f.buffer_unit : -1;
         if (f.junction) {
             h.buffer_in_hub = f.buffer;
-            h.mini_hub_w =
-                LV_MAX(junction_label_w(data, f.buffer), junction_lanes_w(data, f.routes));
+            h.mini_hub_w = LV_MAX(junction_label_w(data, ys.height, f.buffer),
+                                  junction_lanes_w(data, f.routes));
         } else if (f.buffer) {
             h.buffer_h = ys.height;
             h.buffer_w = LV_MAX(1, buffer_w);
@@ -401,7 +398,8 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const Nozzl
         row.pref[row.n] = boxes.hubs[t].hub_x;
         full_w[row.n] = boxes.hubs[t].mini_hub_w;
         min_w[row.n] = LV_MIN(full_w[row.n], junction_lanes_w(data, feeds[t].routes));
-        label_w[row.n] = junction_label_w(data, boxes.hubs[t].buffer_in_hub);
+        label_w[row.n] =
+            junction_label_w(data, boxes.hubs[t].mini_hub_h, boxes.hubs[t].buffer_in_hub);
         ++row.n;
     }
     if (row.n == 0)
@@ -946,6 +944,14 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
     }
     f.junction = f.routes >= 2;
     return f;
+}
+
+int32_t junction_label_w(const SystemPathData& data, int32_t box_h, bool with_buffer) {
+    const int32_t meter = with_buffer ? helix::ui::buffer_meter_slot_width(box_h) : 0;
+    if (!data.label_font)
+        return LV_MAX(data.hub_width * 2 / 3, meter);
+    return LV_MAX(data.hub_width * 2 / 3,
+                  helix::ui::text_width(kHubLabel, data.label_font, 0) + 2 * data.space_xs + meter);
 }
 
 int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled) {

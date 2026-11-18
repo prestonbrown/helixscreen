@@ -884,25 +884,25 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
     CHECK(routes_ending_at(p->plan, (float)hub.tool_x, nozzle_top) == 1);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry label and severity",
+TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry position and severity",
                  "[system_path][filament_path][hub_groups]") {
     lv_obj_t* canvas = ui_system_path_canvas_create(lv_screen_active());
     REQUIRE(canvas != nullptr);
     const SystemPathData* data = system_path_data(canvas);
     REQUIRE(data != nullptr);
 
-    helix::ui::ui_system_path_canvas_set_buffer(canvas, true, 2, "BUF");
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, true, 2, 0.8f);
     CHECK(data->has_buffer);
     CHECK(data->buffer_fault == 2);
-    CHECK(std::string(data->buffer_label) == "BUF");
-    helix::ui::ui_system_path_canvas_set_buffer(canvas, false, 0, "");
+    CHECK(data->buffer_position == 0.8f);
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, false, 0, 0.0f);
     CHECK_FALSE(data->has_buffer);
 
-    helix::ui::ui_system_path_canvas_set_unit_hub(canvas, 3, 2, true, 1, "FPS");
+    helix::ui::ui_system_path_canvas_set_unit_hub(canvas, 3, 2, true, 1, -0.5f);
     CHECK(data->unit_hub_group[3] == 2);
     CHECK(data->unit_has_buffer[3]);
     CHECK(data->unit_buffer_fault[3] == 1);
-    CHECK(std::string(data->unit_buffer_label[3]) == "FPS");
+    CHECK(data->unit_buffer_position[3] == -0.5f);
     CHECK_FALSE(data->unit_has_buffer[2]);
     lv_obj_delete(canvas);
 }

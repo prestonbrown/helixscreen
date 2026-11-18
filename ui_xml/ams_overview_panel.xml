@@ -67,9 +67,8 @@
           <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
           <!-- Overview title (hidden in the unit view) -->
           <text_heading name="header_title"
-                        width="1" flex_grow="1" text="Multi-Filament Overview" text_transform="uppercase"
-                        long_mode="dots" style_text_align="left" clickable="false" event_bubble="true"
-                        scrollable="false">
+                        width="1" flex_grow="1" text="Multi-Filament" text_transform="uppercase" long_mode="dots"
+                        style_text_align="left" clickable="false" event_bubble="true" scrollable="false">
             <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
           </text_heading>
           <!-- The unit view's title is the unit on this page: logo + name. width="1"+flex_grow:
