@@ -12,24 +12,21 @@
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
           "glow": "full_lane0_glow.png",
-          "silhouette": "full_lane0_silhouette.png",
-          "edge": "full_lane0_edge.png"
+          "silhouette": "full_lane0_silhouette.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
           "glow": "full_lane1_glow.png",
-          "silhouette": "full_lane1_silhouette.png",
-          "edge": "full_lane1_edge.png"
+          "silhouette": "full_lane1_silhouette.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
           "glow": "full_lane2_glow.png",
-          "silhouette": "full_lane2_silhouette.png",
-          "edge": "full_lane2_edge.png"
+          "silhouette": "full_lane2_silhouette.png"
         }
       ]
     },

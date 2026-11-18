@@ -536,12 +536,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     std::vector<std::string> want = {"back"};
     for (int lane = 0; lane < 4; ++lane) {
         const std::string n = "lane" + std::to_string(lane);
-        want.push_back(n + "_glow");
-    }
-    // Every glow stands behind every spool: the lanes cover it wherever they stand.
-    for (int lane = 0; lane < 4; ++lane) {
-        const std::string n = "lane" + std::to_string(lane);
-        for (const char* part : {"_body", "_tint", "_shade", "_edge", "_dim"})
+        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_dim"})
             want.push_back(n + part);
     }
     want.push_back("front");
@@ -555,9 +550,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     CHECK(order.front() == "back");
     CHECK(order[1] == "lane0_body");
     CHECK(order.back() == "front");
-    CHECK(std::none_of(order.begin(), order.end(), [](const std::string& n) {
-        return n.find("_glow") != std::string::npos || n.find("_edge") != std::string::npos;
-    }));
+    CHECK(std::none_of(order.begin(), order.end(),
+                       [](const std::string& n) { return n.find("_glow") != std::string::npos; }));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -592,98 +586,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Unmarked, the drawing is as it was.
     unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
     CHECK(pixel(art, ox, oy) == open_before);
-}
-
-namespace {
-
-/// A point on a lane's flange disc at @p r flange radii and angle @p a (radians, 0 along y, up
-/// at pi/2), @p out pixels farther out along the radius, in a widget @p w wide.
-std::pair<int32_t, int32_t> flange_point(const tray::ArtLaneGeom& l, bool near, float r, float a,
-                                         int32_t w, float out = 0) {
-    const float cx = near ? l.near_x : l.far_x, cy = near ? l.near_y : l.far_y;
-    const float dx = (std::cos(a) * l.ey_x + std::sin(a) * l.ez_x) * w;
-    const float dy = (std::cos(a) * l.ey_y + std::sin(a) * l.ez_y) * w;
-    const float len = std::hypot(dx, dy);
-    const float k = r + (len > 0 ? out / len : 0);
-    return {(int32_t)std::lround(cx * w + dx * k), (int32_t)std::lround(cy * w + dy * k)};
-}
-
-/// Whether pixel (@p x, @p y) falls within @p r flange radii of a lane's flange center, in the
-/// flange's own plane.
-bool on_flange(const tray::ArtLaneGeom& l, bool near, float r, int32_t x, int32_t y, int32_t w) {
-    const float px = (float)x / w - (near ? l.near_x : l.far_x);
-    const float py = (float)y / w - (near ? l.near_y : l.far_y);
-    const float det = l.ey_x * l.ez_y - l.ez_x * l.ey_y;
-    const float u = (px * l.ez_y - py * l.ez_x) / det, v = (l.ey_x * py - l.ey_y * px) / det;
-    return u * u + v * v <= r * r;
-}
-
-int blue_gain(uint32_t before, uint32_t after) {
-    return (int)(after & 0xff) - (int)(before & 0xff);
-}
-
-} // namespace
-
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "unit art marks: an active lane lights its own flange rims and the air around "
-                 "it, never a neighbor",
-                 "[ams][unit-art][marks]") {
-    const tray::UnitArtGeom* geom = tray::unit_art_geometry("box_turtle", 4);
-    REQUIRE(geom != nullptr);
-    const int32_t w = 230, h = (int32_t)std::lround(w / geom->aspect);
-    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
-    lv_obj_set_size(art, w, h);
-    unit_art_set_unit(art, turtle_system(), 0);
-    const tray::ArtLaneGeom& left = geom->lane[0];
-    const tray::ArtLaneGeom& mine = geom->lane[1];
-    const tray::ArtLaneGeom& right = geom->lane[2];
-    constexpr float kPi = 3.14159265f;
-
-    // Probes taken before the mark: the farther lane's pixels just outside the active lane's
-    // left outline (its far flange's rim), the nearer lane's flanges and filament, the active
-    // near flange's own rim, the top of its filament between the flanges, and open air above.
-    struct Probe {
-        int32_t x, y;
-        uint32_t before;
-    };
-    auto probe = [&](std::pair<int32_t, int32_t> p) {
-        return Probe{p.first, p.second, pixel(art, p.first, p.second)};
-    };
-    std::vector<Probe> behind;
-    for (float a = 0; a < 2 * kPi; a += 0.02f * kPi) {
-        const auto [x, y] = flange_point(mine, false, 1.0f, a, w, 4);
-        if (on_flange(left, true, 0.95f, x, y, w) && !on_flange(mine, false, 1.0f, x, y, w))
-            behind.push_back(probe({x, y}));
-    }
-    REQUIRE(behind.size() >= 6);
-    std::vector<Probe> nearer;
-    for (float a = 0; a < 2 * kPi; a += 0.25f * kPi) {
-        nearer.push_back(probe(flange_point(right, true, 0.6f, a, w)));
-        nearer.push_back(probe(flange_point(right, false, 0.97f, a, w)));
-    }
-    const Probe top = probe(
-        {(int32_t)std::lround(((mine.far_x + mine.near_x) / 2 + mine.wound * mine.ez_x) * w),
-         (int32_t)std::lround(((mine.far_y + mine.near_y) / 2 + mine.wound * mine.ez_y) * w)});
-    const Probe rim = probe(flange_point(mine, true, 0.97f, 0.8f * kPi, w));
-    const Probe air = probe(flange_point(mine, false, 1.0f, 0.5f * kPi, w, 6));
-
-    std::vector<UnitArtLaneMark> marks(4);
-    marks[1].glow = true;
-    marks[1].color = lv_color_hex(0x2080ff);
-    unit_art_set_lane_marks(art, marks);
-
-    for (const Probe& p : behind) {
-        INFO("farther lane at " << p.x << "," << p.y);
-        CHECK(pixel(art, p.x, p.y) == p.before);
-    }
-    for (const Probe& p : nearer) {
-        INFO("nearer lane at " << p.x << "," << p.y);
-        CHECK(pixel(art, p.x, p.y) == p.before);
-    }
-    const int rim_gain = blue_gain(rim.before, pixel(art, rim.x, rim.y));
-    CHECK(rim_gain >= 40);
-    CHECK(blue_gain(top.before, pixel(art, top.x, top.y)) < rim_gain / 2);
-    CHECK(blue_gain(air.before, pixel(art, air.x, air.y)) >= 20);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit art marks: a missing bay dims its own spool, nothing else",

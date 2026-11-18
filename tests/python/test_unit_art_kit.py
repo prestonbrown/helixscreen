@@ -617,16 +617,4 @@ def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
     for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
         assert names["glow"] == f"full_lane{lane}_glow.png"
         assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
-        assert names["edge"] == f"full_lane{lane}_edge.png"
-    assert all("glow" not in n and "edge" not in n for n in manifest["tiers"]["thumb"]["lanes"])
-
-
-def test_a_lanes_edge_rims_only_its_own_two_flanges():
-    scene = _art_scene(box_turtle.UNIT)
-    for lane in range(4):
-        flanges = [i for i in scene.items if i.tag == "flange"]
-        assert [i.spool for i in flanges].count(lane) == 2
-        svg = scene.lane_edge_svg(lane, 300)
-        # One rim stroke per flange; every other item of the stack only covers.
-        assert svg.count('fill="none" stroke="#fff"') == 2
-        assert svg.count('"#fff"') == 3  # the two rims and the masked fill
+    assert all("glow" not in n for n in manifest["tiers"]["thumb"]["lanes"])
