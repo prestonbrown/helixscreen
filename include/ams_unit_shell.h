@@ -160,12 +160,13 @@ struct ArtLaneGeom {
 };
 
 /// A unit drawing's lanes at one lane count: its aspect (width over height), what the drawing
-/// covers, and one ArtLaneGeom per lane.
+/// covers, its bottom edge, and one ArtLaneGeom per lane.
 struct UnitArtGeom {
     const char* id;
     int lanes;
     float aspect;
-    float drawn[4]; // x0, y0, x1, y1
+    float drawn[4];       // x0, y0, x1, y1
+    float bottom_edge[4]; // the unit's front bottom edge as drawn: x0, y0, x1, y1
     const ArtLaneGeom* lane;
 };
 

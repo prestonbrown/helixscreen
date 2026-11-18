@@ -288,16 +288,21 @@ int ui_filament_path_canvas_get_slot_filament(lv_obj_t* obj, int slot_index);
 void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool has_sensor);
 
 /**
- * @brief Stand a lane's prep band @p drop px below the spool box's edge
+ * @brief Start a lane's tube @p rise px above the lane entry (set_lane_entry)
  *
- * Under a drawn unit, neighboring lanes alternate their band's height so the bands and
- * their numbers do not sit side by side. Held a band's width above the lane's row.
+ * Under a drawn unit whose bottom edge slants, the lane entry is the edge's lowest point and
+ * each lane starts where the edge crosses its column.
  */
+void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_t rise);
+
+/// Stand a lane's prep band @p drop px below where its tube starts, held a band's width above
+/// the lane's row.
 void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop);
 
-/// The screen row of @p slot's prep band, as the canvas lays it out. False off a hub or
-/// selector path.
-bool ui_filament_path_canvas_get_lane_band_y(lv_obj_t* obj, int slot, int32_t* y_out);
+/// The screen rows of @p slot's tube start and prep band, as the canvas lays them out; either
+/// out pointer may be null. False off a hub or selector path.
+bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* start_out,
+                                           int32_t* band_out);
 
 /**
  * @brief Set whether a slot has a load sensor between its prep sensor and the

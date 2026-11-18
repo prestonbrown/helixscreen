@@ -92,6 +92,10 @@ float unit_art_aspect(lv_obj_t* art);
 /// size, relative to the widget, from the bake's lane geometry. False without geometry.
 bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& outlet);
 
+/// The two ends of the unit's bottom edge as drawn at @p art's current size, relative to the
+/// widget, from the bake. False without geometry.
+bool unit_art_bottom_edge(lv_obj_t* art, lv_point_t& a, lv_point_t& b);
+
 /// What the drawing covers at @p art's current size, relative to the widget.
 bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 

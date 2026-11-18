@@ -327,14 +327,17 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
 namespace {
 void refresh_unit_view_marks();
 
-/// How far below a drawn unit's foot lane @p lane stands its sensor band and number: just
-/// under the edge, and every other lane a number's height lower, so neighbors never sit side
-/// by side.
-int32_t art_lane_band_drop(int lane) {
-    const int32_t badge_h = theme_manager_get_spacing("ams_slot_status_badge_size");
-    const int32_t gap = theme_manager_get_spacing("space_xxs");
-    const int32_t first = badge_h / 2 + gap;
-    return lane % 2 ? first + badge_h + gap : first;
+/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band and
+/// number stand: on a line parallel to the edge, a half number and a gap under it.
+int32_t art_lane_band_drop() {
+    return theme_manager_get_spacing("ams_slot_status_badge_size") / 2 +
+           theme_manager_get_spacing("space_xxs");
+}
+
+/// Where a drawn unit's bottom edge crosses screen column @p x, from its two ends.
+float edge_y_at(lv_point_t a, lv_point_t b, float x) {
+    return b.x == a.x ? (float)a.y
+                      : (float)a.y + (float)(b.y - a.y) * (x - (float)a.x) / (float)(b.x - a.x);
 }
 } // namespace
 
@@ -424,19 +427,62 @@ void helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
         if (spool_centre(slot_grid, {g.x1, g.y1}, x, y, size))
             offset = (int32_t)std::lround(y + tray::kSpoolFlangeRadius * size);
     }
-    ui_filament_path_canvas_set_lane_entry(canvas, offset);
-    const bool art =
-        slot_grid && s_tray.valid && s_tray.art && s_tray.container == lv_obj_get_parent(slot_grid);
-    for (int i = 0; i < kAmsDetailMaxSlots; ++i)
-        ui_filament_path_canvas_set_lane_band_drop(canvas, i, art ? art_lane_band_drop(i) : 0);
-    if (!art)
+    const bool art = slot_grid && s_tray.valid && s_tray.art && s_tray.art_obj &&
+                     s_tray.container == lv_obj_get_parent(slot_grid);
+    lv_point_t edge_a{}, edge_b{};
+    if (!art || !helix::ui::unit_art_bottom_edge(s_tray.art_obj, edge_a, edge_b)) {
+        // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
+        lv_obj_set_style_margin_top(canvas, 0, LV_PART_MAIN);
+        ui_filament_path_canvas_set_lane_entry(canvas, offset);
+        for (int i = 0; i < kAmsDetailMaxSlots; ++i) {
+            ui_filament_path_canvas_set_lane_entry_rise(canvas, i, 0);
+            ui_filament_path_canvas_set_lane_band_drop(canvas, i, 0);
+        }
         return;
-    // Each number stands level with its lane's band, as the canvas lays the band out.
+    }
+    // Under a drawn unit each lane's tube starts on the unit's bottom edge, slanted as drawn,
+    // where it crosses the lane's column; its band and number stand on a line parallel to it.
+    lv_area_t art_area, g;
+    lv_obj_get_coords(s_tray.art_obj, &art_area);
+    lv_obj_get_coords(slot_grid, &g);
+    edge_a = {edge_a.x + art_area.x1, edge_a.y + art_area.y1};
+    edge_b = {edge_b.x + art_area.x1, edge_b.y + art_area.y1};
     const int n = std::min<int>((int)lv_obj_get_child_count(slot_grid), kAmsDetailMaxSlots);
+    float start[kAmsDetailMaxSlots] = {};
+    float lowest = -INFINITY, highest = INFINITY;
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* holder = ui_ams_slot_get_spool_container(lv_obj_get_child(slot_grid, i));
+        lv_area_t ha{};
+        if (holder)
+            lv_obj_get_coords(holder, &ha);
+        start[i] = edge_y_at(edge_a, edge_b, (float)(ha.x1 + ha.x2) / 2.0f);
+        lowest = std::max(lowest, start[i]);
+        highest = std::min(highest, start[i]);
+    }
+    if (n <= 0)
+        return;
+    const int32_t entry = (int32_t)std::lround(lowest);
+    ui_filament_path_canvas_set_lane_entry(canvas, entry - g.y1);
+    for (int i = 0; i < kAmsDetailMaxSlots; ++i) {
+        ui_filament_path_canvas_set_lane_entry_rise(
+            canvas, i, i < n ? entry - (int32_t)std::lround(start[i]) : 0);
+        ui_filament_path_canvas_set_lane_band_drop(canvas, i, i < n ? art_lane_band_drop() : 0);
+    }
+    // The canvas reaches up to the edge's highest crossing, so it draws every lane from there.
+    // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
+    lv_obj_set_style_margin_top(canvas, 0, LV_PART_MAIN);
+    lv_obj_update_layout(lv_obj_get_parent(canvas));
+    lv_area_t cc;
+    lv_obj_get_coords(canvas, &cc);
+    const int32_t reach = std::max<int32_t>(0, cc.y1 - (int32_t)std::floor(highest) + 1);
+    // DECLARATIVE_OK: as above
+    lv_obj_set_style_margin_top(canvas, -reach, LV_PART_MAIN);
+    lv_obj_update_layout(lv_obj_get_parent(canvas));
+    // Each number stands level with its lane's band, as the canvas lays the band out.
     for (int i = 0; i < n; ++i) {
         lv_obj_t* badge = ui_ams_slot_get_status_badge(lv_obj_get_child(slot_grid, i));
         int32_t band_y = 0;
-        if (!badge || !ui_filament_path_canvas_get_lane_band_y(canvas, i, &band_y))
+        if (!badge || !ui_filament_path_canvas_get_lane_rows(canvas, i, nullptr, &band_y))
             continue;
         lv_area_t ba;
         lv_obj_get_coords(badge, &ba);
@@ -945,7 +991,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x + tube_half + inset,
-                                   (float)(art.drawn.y2 + art_lane_band_drop(i)) - bh / 2}
+                                   (float)(art.drawn.y2 + art_lane_band_drop()) - bh / 2}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);

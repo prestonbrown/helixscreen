@@ -539,3 +539,33 @@ def test_the_shell_table_carries_each_arts_lane_geometry():
     assert '{"box_turtle", 4, ' in table
     # A rail draws no spools and records none.
     assert "k_ercf_rail_6_lanes" not in table
+
+
+@pytest.mark.parametrize("unit", [u for u in SPOOL_UNITS if u.id in ("ace_pro", "box_turtle", "ams_2_pro", "qidi_box", "cfs")], ids=lambda u: u.id)
+def test_the_bake_records_the_units_bottom_edge(unit):
+    scene = _art_scene(unit)
+    x0, y0, x1, y1 = build.art_bottom_edge(scene)
+    vx, vy, vw, vh = scene._viewbox()
+    assert x0 < x1
+    # Nothing of the drawing hangs below the edge across its span.
+    for item in scene.items:
+        if item.blur:
+            continue
+        for px, py in item.points:
+            sx, sy = (px - vx) / vw, (py - vy) / vw
+            if x0 <= sx <= x1:
+                assert sy <= y0 + (y1 - y0) * (sx - x0) / (x1 - x0) + 1e-6
+    # It is the unit's front bottom edge: it runs along the row, as world x projects.
+    cam = kit.ART_CAMERA
+    ax, ay = cam.project((0, 0, 0))
+    bx, by = cam.project((1, 0, 0))
+    assert math.atan2(y1 - y0, x1 - x0) == pytest.approx(math.atan2(by - ay, bx - ax), abs=math.radians(5))
+    # And it spans every lane's column.
+    for g in build.art_lane_geometry(scene, unit.lanes):
+        assert x0 <= g.outlet[0] <= x1
+
+
+def test_the_shell_table_carries_each_arts_bottom_edge():
+    table = build.generate_shell_table(build.UNITS)
+    row = next(line for line in table.splitlines() if line.startswith('    {"box_turtle", 4, '))
+    assert row.count("{") == 3  # the row, its drawn box and its bottom edge

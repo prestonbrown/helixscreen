@@ -183,6 +183,37 @@ def art_drawn_box(scene):
     return ((min(xs) - vx) / vw, (min(ys) - vy) / vw, (max(xs) - vx) / vw, (max(ys) - vy) / vw)
 
 
+def art_bottom_edge(scene):
+    """The unit's bottom edge as the camera sees it, (x0, y0, x1, y1) in shares of the drawing's
+    width: the longest segment of the lower hull of everything drawn, which for a box in this
+    camera is its front bottom edge."""
+    vx, vy, vw, _ = scene._viewbox()
+    pts = sorted({((p[0] - vx) / vw, (p[1] - vy) / vw) for i in scene.items if not i.blur for p in i.points})
+    # Screen y grows downward, so the lower hull is the one bulging toward larger y.
+    hull = []
+    for p in pts:
+        while len(hull) >= 2:
+            (ax, ay), (bx, by) = hull[-2], hull[-1]
+            if (bx - ax) * (p[1] - ay) - (by - ay) * (p[0] - ax) >= 0:
+                hull.pop()
+            else:
+                break
+        hull.append(p)
+    # Of the hull's segments running along the row (within 5 degrees of world x as drawn), the
+    # longest; a unit standing on a narrower plinth has the plinth's edge there.
+    ox, oy = scene.camera.project((0.0, 0.0, 0.0))
+    rx, ry = scene.camera.project((1.0, 0.0, 0.0))
+    along = math.atan2(ry - oy, rx - ox)
+
+    def runs_along(seg):
+        (ax, ay), (bx, by) = seg
+        return abs(math.atan2(by - ay, bx - ax) - along) <= math.radians(5)
+
+    segments = list(zip(hull, hull[1:]))
+    a, b = max([s for s in segments if runs_along(s)] or segments, key=lambda s: math.dist(s[0], s[1]))
+    return (a[0], a[1], b[0], b[1])
+
+
 def art_lane_geometry(scene, lane_count):
     """Each lane's spool and outlet in scene, or [] when the drawing has no spool per lane."""
     if any(lane not in scene.spools for lane in range(lane_count)):
@@ -233,6 +264,7 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
             geometry = art_lane_geometry(scene, lane_count)
             if geometry:
                 manifest["drawn"] = _rounded(art_drawn_box(scene))
+                manifest["bottom_edge"] = _rounded(art_bottom_edge(scene))
                 manifest["geometry"] = [_rounded(dataclasses.asdict(g)) for g in geometry]
         if has_carriage:
             carriage = f"{tier}_carriage.png"
@@ -269,7 +301,7 @@ def _geometry_rows(unit):
             "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
             for g in geometry
         ]
-        rows.append((lanes, vw / vh, art_drawn_box(scene), lane_rows))
+        rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows))
     return rows
 
 
@@ -349,11 +381,12 @@ def generate_shell_table(units):
     for unit in units:
         if unit.tray is None:
             continue
-        for lanes, aspect, drawn, lane_rows in _geometry_rows(unit):
+        for lanes, aspect, drawn, edge, lane_rows in _geometry_rows(unit):
             name = f"k_{unit.id}_{lanes}_lanes"
             out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
             box = ", ".join(f"{v:.5f}f" for v in drawn)
-            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {name}}},')
+            foot = ", ".join(f"{v:.5f}f" for v in edge)
+            geoms.append(f'    {{"{unit.id}", {lanes}, {aspect:.5f}f, {{{box}}}, {{{foot}}}, {name}}},')
     out += ["", "const UnitShell kShells[] = {"] + rows + ["};", "", "const UnitArtGeom kArtGeoms[] = {"] + geoms + ["};", "} // namespace", ""]
     out += [
         "const UnitShell* unit_shell_by_id(const char* id) {",

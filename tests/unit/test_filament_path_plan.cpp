@@ -997,13 +997,16 @@ TEST_CASE("FilamentPath plan: the lanes enter at the spool box's front edge",
     }
 }
 
-TEST_CASE("FilamentPath plan: a dropped lane stands its band lower on its run",
+TEST_CASE("FilamentPath plan: lanes start on a slanted box edge, their bands parallel to it",
           "[filament-path][plan][lane_entry]") {
     auto d = make_data(helix::PathTopology::HUB);
-    d->lane_band_drop[1] = 12;
-    d->lane_band_drop[3] = 500; // more than the run has: held above the lane's row
+    // The edge rises 6 px a lane to the left; every band stands 12 px under its lane's start.
+    for (int i = 0; i < 4; i++) {
+        d->lane_entry_rise[i] = 6 * (3 - i);
+        d->lane_band_drop[i] = 12;
+    }
     BaseGeometry g = geometry();
-    g.lane_entry_y = -20;
+    g.lane_entry_y = -20; // the lowest point of the edge, at the last lane
     const LinearHubFrame f = compute_linear_hub_frame(*d, g, kGlyphTop);
     REQUIRE(f.prep_on_box_edge);
     static PathPlan plan;
@@ -1011,17 +1014,18 @@ TEST_CASE("FilamentPath plan: a dropped lane stands its band lower on its run",
     for (int i = 0; i < 4; i++) {
         CAPTURE(i);
         const Route& r = plan.routes[i];
-        // Every tube still starts on the box edge and runs unbroken.
-        CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, -20));
+        const float start = -20.0f - 6 * (3 - i);
+        CHECK(lane_start_y(*d, f, i) == (int32_t)start);
+        CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, start));
         CHECK(contiguous(r.path));
+        CHECK(lane_band_y(*d, f, i) == (int32_t)start + 12);
+        const SensorBand* band = band_at(plan, 50.0f + 100 * i, start + 12);
+        REQUIRE(band != nullptr);
+        CHECK_FALSE(band->on_box_edge);
     }
-    CHECK(band_at(plan, 50.0f, -20) != nullptr);
-    CHECK(band_at(plan, 150.0f, -20) == nullptr);
-    const SensorBand* dropped = band_at(plan, 150.0f, -8);
-    REQUIRE(dropped != nullptr);
-    CHECK_FALSE(dropped->on_box_edge);
-    // A drop past the run stops a band's width above the lane's row.
-    CHECK(band_at(plan, 350.0f, (float)(f.prep_y - kBandThickness)) != nullptr);
+    // A band never runs past its lane's row: held a band's width above it.
+    d->lane_band_drop[3] = 500;
+    CHECK(lane_band_y(*d, f, 3) == f.prep_y - kBandThickness);
 }
 
 // ============================================================================

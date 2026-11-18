@@ -872,6 +872,17 @@ void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool 
     }
 }
 
+void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_t rise) {
+    auto* data = get_data(obj);
+    if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
+        return;
+    rise = std::max<int32_t>(0, rise);
+    if (data->lane_entry_rise[slot] != rise) {
+        data->lane_entry_rise[slot] = rise;
+        layered_mark_dirty(obj);
+    }
+}
+
 void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop) {
     auto* data = get_data(obj);
     if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
@@ -1271,9 +1282,10 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
 }
 
 // NAMESPACE_OK: the widget's C getter API, beside its siblings
-bool ui_filament_path_canvas_get_lane_band_y(lv_obj_t* obj, int slot, int32_t* y_out) {
+bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* start_out,
+                                           int32_t* band_out) {
     auto* data = get_data(obj);
-    if (!data || !y_out || !is_linear_hub(*data))
+    if (!data || !is_linear_hub(*data))
         return false;
     lv_obj_update_layout(obj);
     const BaseGeometry g = compute_base_geometry(obj, data);
@@ -1283,7 +1295,10 @@ bool ui_filament_path_canvas_get_lane_band_y(lv_obj_t* obj, int slot, int32_t* y
     const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
-    *y_out = lane_band_y(*data, f, slot);
+    if (start_out)
+        *start_out = lane_start_y(*data, f, slot);
+    if (band_out)
+        *band_out = lane_band_y(*data, f, slot);
     return true;
 }
 

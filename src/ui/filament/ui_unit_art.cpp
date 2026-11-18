@@ -641,6 +641,18 @@ bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out) {
     return true;
 }
 
+bool unit_art_bottom_edge(lv_obj_t* art, lv_point_t& a, lv_point_t& b) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom)
+        return false;
+    lv_obj_update_layout(art);
+    const Content c = content_of(data, lv_obj_get_width(art), lv_obj_get_height(art));
+    const float* e = data->geom->bottom_edge;
+    a = {(int32_t)std::lround(c.x + e[0] * c.w), (int32_t)std::lround(c.y + e[1] * c.w)};
+    b = {(int32_t)std::lround(c.x + e[2] * c.w), (int32_t)std::lround(c.y + e[3] * c.w)};
+    return true;
+}
+
 float unit_art_aspect(lv_obj_t* art) {
     ArtData* data = art ? data_of(art) : nullptr;
     return data && data->geom ? data->geom->aspect : 0.0f;
