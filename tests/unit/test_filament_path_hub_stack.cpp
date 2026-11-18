@@ -12,6 +12,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
+#include "path_view_scale.h"
 #include "settings_manager.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
@@ -468,6 +469,18 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     REQUIRE(c.data->hits.buffer_valid);
     check_buffer_on_drop(f, buffered, toolhead_top_y(f.nozzle_y, f.tool_scale));
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(f.buffer_y).margin(2));
+    // Under a view scale the buffer rides on the selector art: no box on the trunk.
+    ui_filament_path_canvas_set_view_scale(c.obj, helix::ui::path_view_scale(220, {4, 8}));
+    render(c);
+    plan_of(c, &f);
+    REQUIRE(c.data->hits.buffer_valid);
+    CHECK_FALSE(f.has_buffer);
+    const lv_area_t& meter = c.data->hits.buffer;
+    CHECK((meter.x1 >= f.rail.x && meter.x2 <= f.rail.x + f.rail.w));
+    CHECK((meter.y1 >= f.rail.y && meter.y2 <= f.rail.y + f.rail.h));
+    ui_filament_path_canvas_set_view_scale(c.obj, helix::ui::PathViewScale{});
+    render(c);
+    plan_of(c, &f);
     // A new selection slides the exit toward that gate's outlet, before any repaint.
     ui_filament_path_canvas_set_active_slot(c.obj, 3);
     CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));

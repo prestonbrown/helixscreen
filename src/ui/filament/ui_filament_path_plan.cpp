@@ -330,10 +330,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.cap_h = data.view_cap_h > 0 ? data.view_cap_h : buffer_capsule_height(f.hub_h);
     const int32_t buf_box_h = f.cap_h;
     // A buffer riding in the hub box takes no room on the trunk. A selector drawn as its rail
-    // art has no box to carry it: its buffer keeps its control on the trunk.
+    // art carries it on the art itself.
     f.rail = rail_art_rect(data, g);
-    f.buffer_in_hub =
-        data.buffer_present && data.buffer_in_hub && !data.hub_on_toolhead && f.rail.w == 0;
+    f.buffer_in_hub = data.buffer_present && data.buffer_in_hub && !data.hub_on_toolhead;
     const bool trunk_buffer = data.buffer_present && !f.buffer_in_hub;
     const bool hub_unit = !linear && !data.hub_on_toolhead;
     // The lanes' fan needs a band's room between where they leave the spools and the hub top.
