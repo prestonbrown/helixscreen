@@ -1208,13 +1208,24 @@ GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderReques
                                                               RenderFrame& back) {
     using Outcome = GCodeRenderWorker::StepOutcome;
     if (gl_render_failed_) {
+        // Nothing is drawn any more, but a released file's VBOs still have to go.
+        if (!retired_vbos_.empty()) {
+#if LV_USE_SDL
+            SdlGlContextGuard guard(sdl_gl_window_, sdl_gl_context_);
+#else
+            EglContextGuard guard(egl_display_, egl_surface_, egl_context_);
+#endif
+            if (guard.ok()) {
+                free_vbos(retired_vbos_);
+            }
+        }
         return {};
     }
 
     // Decide first, so a step with nothing to draw (most of them: every draw
     // event posts) never touches the GL context.
-    enum class Work { None, Upload, Moving, Slice };
-    Work work = Work::None;
+    enum class Work { Idle, Upload, Moving, Slice };
+    Work work = Work::Idle;
     CachedRenderState moving_state;
     if (geometry_ && req.gcode && req.width > 0 && req.height > 0) {
         if (!geometry_uploaded_) {
@@ -1260,7 +1271,7 @@ GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderReques
             }
         }
     }
-    if (work == Work::None && retired_vbos_.empty()) {
+    if (work == Work::Idle && retired_vbos_.empty()) {
         return {};
     }
 
@@ -1273,7 +1284,7 @@ GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderReques
         return {};
 
     free_vbos(retired_vbos_);
-    if (work == Work::None) {
+    if (work == Work::Idle) {
         return {};
     }
 
@@ -1296,7 +1307,7 @@ GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderReques
     }
 
     switch (work) {
-    case Work::None:
+    case Work::Idle:
         return {};
 
     case Work::Upload: {
@@ -1595,7 +1606,7 @@ bool GCodeGLESRenderer::render_moving(const ParsedGCodeFile& gcode, const GCodeC
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    record_rate(triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms, /*publish=*/false);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     moving_frame_valid_ = read_frame(widget_w, widget_h, /*overlays_drawn=*/false, out);
     const float frame_ms =
@@ -1604,13 +1615,20 @@ bool GCodeGLESRenderer::render_moving(const ParsedGCodeFile& gcode, const GCodeC
     spdlog::trace("[GCode GLES] Moving frame: {}stride {}, {} res, {:.1f}ms draw, {:.1f}ms total",
                   plan.use_mesh && draw_vbos == &moving_vbos_ ? "mesh " : "", plan.stride,
                   plan.half_resolution ? "half" : "full", ms, frame_ms);
-    if (render_schedule::moving_too_slow(slow_moving_streak_, frame_ms, plan.half_resolution)) {
+    // A gesture's first frame pays for resizing the FBO from the still size, so
+    // only the frames after it say how fast rotating is.
+    const bool counts = moving_frames_in_gesture_++ > 0;
+    if (counts &&
+        render_schedule::moving_too_slow(slow_moving_streak_, frame_ms, plan.half_resolution)) {
         spdlog::warn("[GCode GLES] Moving frames take {:.0f}ms at half resolution (over {:.0f}ms "
                      "{} times running): too slow to rotate, falling back to 2D",
                      frame_ms, render_schedule::kMaxUsableMovingFrameMs,
                      render_schedule::kSlowMovingFramesToFallBack);
         too_slow_ = true;
+        free_vbos(layer_vbos_);
+        free_vbos(moving_vbos_);
         gl_render_failed_ = true;
+        cancel_job();
     }
     return moving_frame_valid_;
 }
@@ -1788,7 +1806,7 @@ bool GCodeGLESRenderer::run_slice(const ParsedGCodeFile& gcode, const GCodeCamer
     glFinish();
     const float ms =
         std::chrono::duration<float, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    record_rate(triangles_rendered_ - before, ms);
+    record_rate(triangles_rendered_ - before, ms, /*publish=*/true);
     job_.slices++;
     job_.max_slice_ms = std::max(job_.max_slice_ms, ms);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -2045,15 +2063,18 @@ void GCodeGLESRenderer::set_interaction_mode(bool interacting) {
         return;
     std::lock_guard<std::mutex> lock(state_mutex_);
     interaction_mode_ = interacting;
-    // Each gesture plans its resolution afresh, and its first frame always draws.
+    // Each gesture plans its resolution afresh, its first frame always draws,
+    // and only its own frames decide whether rotating is too slow.
     moving_half_res_held_ = false;
     moving_frame_valid_ = false;
+    moving_frames_in_gesture_ = 0;
+    slow_moving_streak_ = 0;
 }
 
-void GCodeGLESRenderer::record_rate(size_t triangles, float elapsed_ms) {
+void GCodeGLESRenderer::record_rate(size_t triangles, float elapsed_ms, bool publish) {
     gpu_rate_tris_per_ms_ =
         render_schedule::update_rate(gpu_rate_tris_per_ms_, triangles, elapsed_ms);
-    if (gpu_rate_tris_per_ms_ > 0.0f) {
+    if (publish && gpu_rate_tris_per_ms_ > 0.0f) {
         render_schedule::last_measured_rate().store(gpu_rate_tris_per_ms_,
                                                     std::memory_order_relaxed);
     }

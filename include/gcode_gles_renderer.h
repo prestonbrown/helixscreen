@@ -517,7 +517,8 @@ class GCodeGLESRenderer {
     bool gl_initialized_ = false;             // LVGL thread; fixed while the worker runs
     std::atomic<bool> gl_init_failed_{false}; // Prevents repeated init attempts
     std::atomic<bool> too_slow_{false};
-    int slow_moving_streak_ = 0; ///< worker thread, under the state mutex
+    int slow_moving_streak_ = 0;       ///< under the state mutex
+    int moving_frames_in_gesture_ = 0; ///< under the state mutex
     std::atomic<bool> gl_render_failed_{
         false}; // Set on a fatal GL draw error; sticky for the session
 
@@ -680,9 +681,10 @@ class GCodeGLESRenderer {
     /// the cached frame is cleared: a frame stamped with an older value
     /// describes a scene that is gone and is never shown.
     std::atomic<uint64_t> scene_gen_{0};
-    /// Folds one measured submission into the smoothed rate and publishes it
-    /// for the moving-mesh build of the next file.
-    void record_rate(size_t triangles, float elapsed_ms);
+    /// Folds one measured submission into the smoothed rate. With `publish`, the
+    /// rate also sizes the next file's moving mesh: only still slices publish,
+    /// since a half-resolution moving frame overstates a full-resolution one.
+    void record_rate(size_t triangles, float elapsed_ms, bool publish);
     size_t triangles_rendered_ = 0;
 
     // ====== Time-sliced refinement ======
