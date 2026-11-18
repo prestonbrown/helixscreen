@@ -63,6 +63,7 @@ tests/shell/test_esp32_compile_gate.bats	firmware/helixscreen-esp32/CMakeLists.t
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
 tests/shell/test_nightly_esp32_link.bats	.github/workflows/nightly.yml .github/workflows/esp32-build.yml tests/shell/helpers.bash
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
+tests/shell/test_esp32_stub_coverage_gate.bats	scripts/check_esp32_app_srcs.py scripts/check_esp32_stub_coverage.py scripts/qc/_lib.sh scripts/qc/esp32_stub_coverage.sh
 tests/shell/test_esp32_xml_bindings_gate.bats	firmware/helixscreen-esp32/components/helixcore/lv_conf.h lv_conf.h scripts/check_esp32_app_srcs.py scripts/check_esp32_xml_bindings.py scripts/check_orphan_callbacks.py scripts/check_orphan_subjects.py scripts/esp32_xml_exempt_screens.txt scripts/qc/esp32_xml_bindings.sh scripts/quality-checks.sh scripts/source_strip.py
 tests/shell/test_feature_gates_gate.bats	Makefile android/app/jni/CMakeLists.txt firmware/helixscreen-esp32/components/helixapp/CMakeLists.txt include/helix_features.h scripts/check_feature_gates.py
 tests/shell/test_filament_ops_neutral_gate.bats	scripts/check_source_rules.py scripts/source_strip.py
