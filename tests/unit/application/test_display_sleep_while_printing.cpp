@@ -170,8 +170,7 @@ TEST_CASE_METHOD(SleepWhilePrintingFixture,
     REQUIRE(lifecycle() == PrintState::Printing);
 
     DisplayManager mgr;
-    // The first tick is where the manager learns of the job, and a job it first hears of
-    // counts as a start; the idle period runs after it.
+    // The first tick learns of the job, which counts as a start.
     mgr.check_display_sleep();
     idle_past_sleep_timeout(mgr);
 
@@ -212,147 +211,95 @@ TEST_CASE_METHOD(SleepWhilePrintingFixture, "a display awake hold keeps an idle 
 
 namespace {
 
-/// Puts @p mgr to sleep through the idle timeout with an idle printer.
-void sleep_with_idle_printer(SleepWhilePrintingFixture& f, DisplayManager& mgr) {
-    f.drive_lifecycle("standby");
-    REQUIRE(f.lifecycle() == PrintState::Idle);
-    f.idle_past_sleep_timeout(mgr);
+/// Idles @p mgr into sleep (no dim stage) or into the screensaver (no sleep stage).
+void go_idle(SleepWhilePrintingFixture& f, DisplayManager& mgr, bool saver) {
+    DisplaySettingsManager::instance().set_display_sleep_sec(saver ? 0 : 1);
+    mgr.set_dim_timeout(saver ? 1 : 0);
+    lv_display_trigger_activity(nullptr);
+    f.process_lvgl(1500);
     mgr.check_display_sleep();
-    REQUIRE(mgr.is_display_sleeping());
 }
+
+bool is_idle(const DisplayManager& mgr) {
+    return mgr.is_display_sleeping() || mgr.is_display_dimmed();
+}
+
+struct StartRow {
+    const char* label;
+    bool saver;
+    bool sleep_while_printing;
+    const char* wire_state;
+    helix::PrintStartPhase phase;
+};
 
 } // namespace
 
-TEST_CASE_METHOD(SleepWhilePrintingFixture, "a print starting wakes a sleeping display",
+// A backlight-only dim needs an injected backlight; decide_idle's truth table covers it.
+TEST_CASE_METHOD(SleepWhilePrintingFixture, "a print starting wakes an idle display once",
                  "[application][display][sleep][print-start-wake]") {
-    // Both settings wake: sleep-while-printing decides only what happens afterwards.
-    const bool sleep_while_printing = GENERATE(true, false);
-    CAPTURE(sleep_while_printing);
-    DisplaySettingsManager::instance().set_sleep_while_printing(sleep_while_printing);
-
+    using helix::PrintStartPhase;
+    const StartRow row = GENERATE(values<StartRow>({
+        {"asleep, printing, setting on", false, true, "printing", PrintStartPhase::IDLE},
+        {"asleep, printing, setting off", false, false, "printing", PrintStartPhase::IDLE},
+        {"asleep, pre-print block, setting on", false, true, "standby", PrintStartPhase::HOMING},
+        {"screensaver, printing, setting on", true, true, "printing", PrintStartPhase::IDLE},
+        {"screensaver, printing, setting off", true, false, "printing", PrintStartPhase::IDLE},
+    }));
+    INFO(row.label);
+    DisplaySettingsManager::instance().set_sleep_while_printing(row.sleep_while_printing);
+    drive_lifecycle("standby");
     DisplayManager mgr;
-    sleep_with_idle_printer(*this, mgr);
+    go_idle(*this, mgr, row.saver);
+    REQUIRE(is_idle(mgr));
 
-    drive_lifecycle("printing");
-    REQUIRE(lifecycle() == PrintState::Printing);
+    drive_lifecycle(row.wire_state, row.phase);
+    REQUIRE(job_holds_machine(lifecycle()));
     mgr.check_display_sleep();
-
-    CHECK_FALSE(mgr.is_display_sleeping());
-    // The wake restarts the idle clock, so the usual timeout runs from the print start.
+    CHECK_FALSE(is_idle(mgr));
     CHECK(lv_display_get_inactive_time(nullptr) < 500);
-}
 
-TEST_CASE_METHOD(SleepWhilePrintingFixture, "a pre-print block starting wakes a sleeping display",
-                 "[application][display][sleep][print-start-wake]") {
-    // A host-side pre-start block is the job's first state; print_stats still reads standby.
-    // Sleep-while-printing is on, so the inhibit's own activity cannot be what wakes it.
-    DisplaySettingsManager::instance().set_sleep_while_printing(true);
-    DisplayManager mgr;
-    sleep_with_idle_printer(*this, mgr);
-
-    drive_lifecycle("standby", helix::PrintStartPhase::HOMING);
-    REQUIRE(lifecycle() == PrintState::Preparing);
-    mgr.check_display_sleep();
-
-    CHECK_FALSE(mgr.is_display_sleeping());
-}
-
-TEST_CASE_METHOD(SleepWhilePrintingFixture, "after a print-start wake the usual sleep rules apply",
-                 "[application][display][sleep][print-start-wake]") {
-    const bool sleep_while_printing = GENERATE(true, false);
-    CAPTURE(sleep_while_printing);
-    DisplaySettingsManager::instance().set_sleep_while_printing(sleep_while_printing);
-
-    DisplayManager mgr;
-    sleep_with_idle_printer(*this, mgr);
-    drive_lifecycle("printing");
-    mgr.check_display_sleep();
-    REQUIRE_FALSE(mgr.is_display_sleeping());
-
-    idle_past_sleep_timeout(mgr);
-    mgr.check_display_sleep();
-    // On: the print may sleep the screen again. Off: the print holds it up.
-    CHECK(mgr.is_display_sleeping() == sleep_while_printing);
-
-    DisplayManagerTestAccess::restore_display_output(mgr);
-}
-
-TEST_CASE_METHOD(SleepWhilePrintingFixture,
-                 "a second status frame of the same print does not wake the display again",
-                 "[application][display][sleep][print-start-wake]") {
-    DisplaySettingsManager::instance().set_sleep_while_printing(true);
-
-    DisplayManager mgr;
-    sleep_with_idle_printer(*this, mgr);
-    drive_lifecycle("printing");
-    mgr.check_display_sleep();
-    REQUIRE_FALSE(mgr.is_display_sleeping());
-
-    idle_past_sleep_timeout(mgr);
-    mgr.check_display_sleep();
-    REQUIRE(mgr.is_display_sleeping());
-
+    // Afterwards the usual rules apply: the setting on lets the print idle the screen again,
+    // off holds it up. A later frame of the same print does not wake it a second time.
+    go_idle(*this, mgr, row.saver);
+    CHECK(is_idle(mgr) == row.sleep_while_printing);
     printer_state.update_from_status(
-        json{{"print_stats", {{"state", "printing"}, {"print_duration", 42.0}}}});
-    process_lvgl(10);
+        json{{"print_stats", {{"state", row.wire_state}, {"print_duration", 42.0}}}});
     helix::ui::UpdateQueue::instance().drain_until_empty();
     mgr.check_display_sleep();
-    CHECK(mgr.is_display_sleeping());
+    CHECK(is_idle(mgr) == row.sleep_while_printing);
 
-    DisplayManagerTestAccess::restore_display_output(mgr);
+    mgr.wake_display();
 }
 
 TEST_CASE_METHOD(SleepWhilePrintingFixture,
-                 "a reconnect into a running print does not wake a sleeping display",
+                 "a print the screen already knew of does not wake it again",
                  "[application][display][sleep][print-start-wake]") {
-    // The screen saw this print start and the user let it sleep; a dropped and restored
-    // connection re-sends the same job and is not a new one.
+    // Pause and resume, or a dropped connection re-sending the same job.
+    const bool reconnect = GENERATE(false, true);
+    CAPTURE(reconnect);
     DisplaySettingsManager::instance().set_sleep_while_printing(true);
     drive_lifecycle("printing");
-    REQUIRE(lifecycle() == PrintState::Printing);
-
     DisplayManager mgr;
-    lv_display_trigger_activity(nullptr);
     mgr.check_display_sleep();
-    idle_past_sleep_timeout(mgr);
-    mgr.check_display_sleep();
+    go_idle(*this, mgr, false);
     REQUIRE(mgr.is_display_sleeping());
 
-    printer_state.set_printer_connection_state(
-        static_cast<int>(helix::ConnectionState::RECONNECTING), "");
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-    mgr.check_display_sleep();
-    printer_state.set_printer_connection_state(static_cast<int>(helix::ConnectionState::CONNECTED),
-                                               "");
-    drive_lifecycle("printing");
-    REQUIRE(lifecycle() == PrintState::Printing);
-    mgr.check_display_sleep();
-
-    CHECK(mgr.is_display_sleeping());
-
-    DisplayManagerTestAccess::restore_display_output(mgr);
-}
-
-TEST_CASE_METHOD(SleepWhilePrintingFixture, "pause and resume do not wake a sleeping display",
-                 "[application][display][sleep][print-start-wake]") {
-    DisplaySettingsManager::instance().set_sleep_while_printing(true);
-    drive_lifecycle("printing");
-
-    DisplayManager mgr;
-    lv_display_trigger_activity(nullptr);
-    mgr.check_display_sleep();
-    idle_past_sleep_timeout(mgr);
-    mgr.check_display_sleep();
-    REQUIRE(mgr.is_display_sleeping());
-
-    drive_lifecycle("paused");
-    mgr.check_display_sleep();
-    CHECK(mgr.is_display_sleeping());
+    if (reconnect) {
+        printer_state.set_printer_connection_state(
+            static_cast<int>(helix::ConnectionState::RECONNECTING), "");
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        mgr.check_display_sleep();
+        printer_state.set_printer_connection_state(
+            static_cast<int>(helix::ConnectionState::CONNECTED), "");
+    } else {
+        drive_lifecycle("paused");
+        mgr.check_display_sleep();
+    }
     drive_lifecycle("printing");
     mgr.check_display_sleep();
     CHECK(mgr.is_display_sleeping());
 
-    DisplayManagerTestAccess::restore_display_output(mgr);
+    mgr.wake_display();
 }
 
 TEST_CASE("DisplayAwakeToken holds at most once and releases what it took",
