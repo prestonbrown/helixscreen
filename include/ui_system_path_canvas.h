@@ -227,7 +227,7 @@ void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_g
  * @param first_tool First tool index for this unit (e.g., 0 for BT, 4 for OpenAMS)
  */
 void ui_system_path_canvas_set_unit_tools(lv_obj_t* obj, int unit_index, int tool_count,
-                                          int first_tool, int hub_lanes = 0);
+                                          int first_tool);
 
 /**
  * @brief Mark a unit column as a box that is not on the bus

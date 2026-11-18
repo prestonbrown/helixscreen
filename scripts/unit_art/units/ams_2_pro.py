@@ -109,4 +109,4 @@ UNIT.tray.front = [
     kit.center(-8, 8, -2, 2, 0xb9bcc2, 2),
 ]
 
-UNIT.tray.lane_join = "inside"
+UNIT.tray.combiner = "internal"

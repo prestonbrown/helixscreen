@@ -146,10 +146,13 @@ bool per_tool_unit(const SystemPathData& data, int u) {
     return data.unit_topology[u] == kTopoParallel || data.unit_topology[u] == kTopoMixed;
 }
 
-// Where a line meets a toolhead glyph whose nozzle stands at @p nozzle_y: the
-// style's own filament inlet, so the line ends at the art instead of across it.
-int32_t nozzle_inlet_y(const SystemPathData& data, int32_t nozzle_y, int32_t scale) {
-    return helix::ui::toolhead_inlet(data.toolhead_style, nozzle_y, scale).y;
+// Where a tube meets a head in the multi-tool row and on the single nozzle: the
+// head's filament inlet, which an art head sets from its own entry point.
+int32_t tool_row_inlet_y(const SystemPathData& data, const SysLayout& L) {
+    return helix::ui::toolhead_inlet(data.toolhead_style, L.tools_y, small_tool_scale(data)).y;
+}
+int32_t single_nozzle_inlet_y(const SystemPathData& data, const SysLayout& L) {
+    return helix::ui::toolhead_inlet(data.toolhead_style, L.nozzle_y, data.extruder_scale).y;
 }
 
 // The hub box row: junction boxes stand just above their nozzles, a short
@@ -163,7 +166,7 @@ struct HubRowYs {
     bool labeled;
 };
 HubRowYs hub_row_ys(const SystemPathData& data, const SysLayout& L) {
-    const int32_t nozzle_top = nozzle_inlet_y(data, L.tools_y, small_tool_scale(data));
+    const int32_t nozzle_top = tool_row_inlet_y(data, L);
     const int32_t outlet = 2 * data.tube_gauge;
     const int32_t bottom = nozzle_top - outlet;
     bool labeled = true;
@@ -702,7 +705,7 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     for (int t = 0; t < tools; ++t)
         feeds[t] = nozzle_feed(data, t);
     const HubRowYs ys = hub_row_ys(data, L);
-    const int32_t nozzle_top = nozzle_inlet_y(data, L.tools_y, small_tool_scale(data));
+    const int32_t nozzle_top = tool_row_inlet_y(data, L);
     for (int r = 0; r < n; ++r) {
         GlobalRoute& route = routes[r];
         const NozzleFeed& feed = feeds[route.tool_idx];
@@ -800,7 +803,7 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     const int32_t hub_top = L.hub_y - L.hub_h / 2;
     TrunkYs y;
     y.hub_bottom = L.hub_y + L.hub_h / 2;
-    y.nozzle_top = nozzle_inlet_y(data, L.nozzle_y, data.extruder_scale);
+    y.nozzle_top = single_nozzle_inlet_y(data, L);
     y.bypass_merge = y.hub_bottom + (L.nozzle_y - y.hub_bottom) / 3;
     y.toolhead = y.hub_bottom + (y.nozzle_top - y.hub_bottom) * 2 / 3;
     const float cx = (float)L.center_x;
@@ -881,10 +884,9 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
             data, {L.x_off, L.y_off, L.x_off + L.width - 1, L.y_off + L.height - 1});
         if (Route* b = try_new_route(plan)) {
             plan.bypass_route = plan.route_count - 1;
-            // Spool → merge carries the SPOOL tag: no AMS error lands on it. The
-            // tube starts inside the opaque spool overlay.
-            append_line(*b, (float)bg.bypass_x, (float)y.bypass_merge, cx, (float)y.bypass_merge,
-                        bypass_lane.style(PathSegment::SPOOL));
+            // Spool → merge carries the SPOOL tag: no AMS error lands on it.
+            fpath::append_bypass_feed(*b, (float)bg.bypass_x, (float)y.bypass_merge, cx,
+                                      bypass_lane.style(PathSegment::SPOOL));
             if (bypass_owns) {
                 append_line(*b, cx, (float)y.bypass_merge, cx, (float)y.toolhead,
                             bypass_lane.style(PathSegment::TOOLHEAD));
@@ -954,7 +956,7 @@ int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, 
 
 TrunkBuffer trunk_buffer(const SystemPathData& data, const SysLayout& L) {
     const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = nozzle_inlet_y(data, L.nozzle_y, data.extruder_scale);
+    const int32_t nozzle_top = single_nozzle_inlet_y(data, L);
     const int32_t run = nozzle_top - hub_bottom;
     TrunkBuffer b{hub_bottom + run / 2, 0, true};
     b.h = labeled_box_h(data, L.hub_h * 2 / 3, run - 2 * data.tube_gauge, &b.labeled);

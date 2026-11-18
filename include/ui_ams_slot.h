@@ -84,8 +84,12 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj);
  * @param obj         The ams_slot widget
  * @param slot_index  This slot's index (0-based)
  * @param total_count Total number of slots being displayed
+ * @param label_rows  Rows the row's labels stand in above the unit, alternating
+ *                    lane by lane; 0 decides from @p total_count and keeps up to
+ *                    four labels in their slots
  */
-void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count);
+void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count,
+                                 int label_rows = 0);
 
 namespace helix::ui {
 /**
@@ -149,6 +153,18 @@ lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj);
 /// The slot's lane-number badge, wherever it is parented, or nullptr.
 // NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj);
+
+/// Draw the slot's spool at @p spool_size px, its container sized to hold it.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size);
+
+/// The slot's material label, wherever it is parented, or nullptr.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj);
+
+/// Hide the slot's own leader line, for a view that draws the leaders itself.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_hide_leader(lv_obj_t* obj);
 
 /// The slot's spool container, the box its spool graphic stands in, or nullptr.
 // NAMESPACE_OK: the widget's C API, beside its siblings

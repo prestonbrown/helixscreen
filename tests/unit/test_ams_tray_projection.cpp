@@ -186,24 +186,62 @@ TEST_CASE("tray projection: per-lane lids meet the box corners", "[ams][tray]") 
     CHECK(overlap <= s / 2 + 0.001f);
 }
 
-TEST_CASE("tray projection: slot pitch from the spool size", "[ams][tray]") {
-    // Footprint 17 + 2 * 11, half the 25.4 px cap tuck, 16 px clear.
-    CHECK(spool_pitch(61) == 68);
+TEST_CASE("tray projection: spools stand at the real units' pitch", "[ams][tray]") {
+    // A 61 px spool is 17.9 px between flanges; real units space spools 1.35 widths apart.
+    CHECK(spool_pitch(61) == 24);
+    CHECK(spool_pitch(96) == 38);
+    // Closer than a spool's own footprint (width plus a flange ellipse each side), so
+    // neighbouring flanges overlap as they do in a photo.
+    CHECK(spool_pitch(96) < 96 * kSpoolWidth + 2 * kDepthSkew * kSpoolFlangeRadius * 96);
 }
 
-TEST_CASE("tray projection: a cap clears only the outer flange", "[ams][tray]") {
+TEST_CASE("tray projection: an end cap clears only the outer flange", "[ams][tray]") {
     const UnitShell* shell = unit_shell_by_id("ace_pro");
     REQUIRE(shell != nullptr);
-    CHECK(cap_width(*shell, 110.0f, 200.0f) ==
+    CHECK(end_cap_width(shell, 110.0f) ==
           Catch::Approx(110.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px));
-    CHECK(cap_width(*shell, 55.0f, 200.0f) ==
+    CHECK(end_cap_width(shell, 55.0f) ==
           Catch::Approx(55.0f * kSpoolWidth / 2.0f + shell->cap_clearance_px / 2.0f));
+    // The generic box clears a flange's depth.
+    CHECK(end_cap_width(nullptr, 100.0f) ==
+          Catch::Approx(100.0f * kSpoolWidth / 2.0f + kDepthSkew * kSpoolFlangeRadius * 100.0f));
 }
 
-TEST_CASE("tray projection: a squeezed row keeps its caps inside half a pitch", "[ams][tray]") {
-    const UnitShell* shell = unit_shell_by_id("ace_pro");
-    REQUIRE(shell != nullptr);
-    CHECK(cap_width(*shell, 110.0f, 30.0f) == Approx(15.0f));
+TEST_CASE("tray projection: a unit's width runs cap to cap plus its side face", "[ams][tray]") {
+    const float s = 96;
+    CHECK(unit_width(4, s) == Catch::Approx(3 * spool_pitch(s) + 2 * end_cap_width(nullptr, s) +
+                                            kDepthSkew * box_depth(s)));
+    CHECK(unit_width(1, s) ==
+          Catch::Approx(2 * end_cap_width(nullptr, s) + kDepthSkew * box_depth(s)));
+}
+
+TEST_CASE("tray projection: the spool grows until its unit fills the width", "[ams][tray]") {
+    for (int lanes : {1, 4, 6, 8}) {
+        for (float width : {200.0f, 277.0f, 416.0f}) {
+            CAPTURE(lanes, width);
+            const int32_t size = fit_spool_size(width, lanes, 400);
+            CHECK(unit_width(lanes, (float)size) <= width);
+            CHECK(unit_width(lanes, (float)(size + 1)) > width);
+        }
+    }
+    // The cap holds when the width has room for more.
+    CHECK(fit_spool_size(416.0f, 4, 96) == 96);
+}
+
+TEST_CASE("tray projection: leader dots keep their spacing round a corner", "[ams][tray]") {
+    const PointF pts[3] = {{10, 0}, {10, 7}, {14, 10}}; // 7 down, then 5 across the diagonal
+    PointF dots[16];
+    const int n = leader_dots(pts, 3, 3.0f, dots, 16);
+    // At 0, 3 and 6 down the drop, then 9 and 12 along the whole run: 2 and 5 into the
+    // diagonal, whose 3-4-5 slope puts them at (11.6, 8.2) and (14, 10).
+    REQUIRE(n == 5);
+    CHECK((dots[0].x == 10 && dots[0].y == 0));
+    CHECK((dots[1].x == 10 && dots[1].y == 3));
+    CHECK((dots[2].x == 10 && dots[2].y == 6));
+    CHECK((dots[3].x == 12 && dots[3].y == 8));
+    CHECK((dots[4].x == 14 && dots[4].y == 10));
+    // The budget caps the count.
+    CHECK(leader_dots(pts, 3, 3.0f, dots, 2) == 2);
 }
 
 TEST_CASE("tray projection: a cheek climbs from the front wall to the back", "[ams][tray]") {

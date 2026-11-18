@@ -114,3 +114,4 @@ def draw_stubs(scene, colors, tier):
 
 _LEVER_RGB = int(LEVER[1:], 16)
 UNIT = UnitDef("bmcu", 4, draw_art, feeder.tray_strip(int(BODY[1:], 16), _LEVER_RGB), stub_art=draw_stubs)
+UNIT.tray.combiner = "external"

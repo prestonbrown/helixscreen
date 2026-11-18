@@ -259,9 +259,10 @@ struct HitRects {
 // cheap to recompute from the path so it isn't cached.
 struct PathCache {
     pg::FilamentPath path = {};
-    int32_t center_x = 0; // last state-tied draw's center_x
-    int32_t nozzle_y = 0; // last state-tied draw's nozzle_y
-    int32_t sensor_r = 0; // last state-tied draw's sensor radius
+    int32_t center_x = 0;   // last state-tied draw's center_x
+    int32_t nozzle_y = 0;   // last state-tied draw's nozzle_y
+    int32_t tool_scale = 0; // and its toolhead glyph's scale
+    int32_t sensor_r = 0;   // last state-tied draw's sensor radius
     // Widget's top-left at that draw. Everything above is in display
     // coordinates, so the DRAW_POST pass shifts it by however far the widget
     // has moved since (a panel sliding in moves it with no state change).
@@ -355,13 +356,12 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
-    bool built_in_hub = false;       // no hub box: the lanes meet at a junction or inside the unit
-    bool lanes_merge_inside = false; // a built_in_hub whose short merge has no junction drawn
-    bool fixed_selector = false;     // the selector is a fixed block with one port per lane
+    bool fixed_selector = false; // the on-head selector is a fixed block, a port per lane
     // A selector rail drawn head-on in place of the bar: static generated table entry, and the
     // unit whose art it is.
     const helix::ui::tray::RailFaceArt* rail_art = nullptr;
     const char* rail_unit = nullptr;
+    bool rail_carriage = false;   // the art has a carriage layer that rides to the active gate
     bool rail_art_failed = false; // its images did not load: the bar is drawn instead
     // The rail art as last painted, for the per-frame carriage: offsets from the widget's corner.
     bool rail_drawn = false;

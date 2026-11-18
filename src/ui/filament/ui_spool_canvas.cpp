@@ -58,6 +58,9 @@ static constexpr uint8_t kVentFilamentShadeBottom = 110;
 static constexpr uint8_t kVentInsideShadeTop = 20;
 static constexpr uint8_t kVentInsideShadeBottom = 50;
 static constexpr float kFlangeThickness = 3.0f / 240.0f; // 3 px on a 240 px spool
+// A one-pixel rim, this much darker than the flange, outlines each flange so a
+// neighbouring spool's flange standing over it stays separate.
+static constexpr uint8_t kFlangeRimDrop = 110;
 static constexpr float kVentLipFraction = kFlangeThickness * kLightDrop;
 static constexpr lv_opa_t kVentLipShade = 115; // 45% toward black
 // Face-on, the flange is smoked plastic over the wound filament.
@@ -842,13 +845,16 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     {
         lv_color_t bf_light = ams_draw::lighten_color(back_color, kFlangeLift);
         lv_color_t bf_dark = ams_draw::darken_color(back_color, kFlangeDrop);
-        // Main flange ellipse with gradient
-        draw_gradient_ellipse(&layer, left_x, cy, flange_rx, flange_ry, bf_light, bf_dark);
+        // Rim, then the flange ellipse with gradient inside it
+        const lv_color_t rim = ams_draw::darken_color(back_color, kFlangeRimDrop);
+        draw_gradient_ellipse(&layer, left_x, cy, flange_rx, flange_ry, rim, rim);
+        draw_gradient_ellipse(&layer, left_x, cy, flange_rx - 1, flange_ry - 1, bf_light, bf_dark);
         // Edge highlight on left side (gives 3D thickness illusion)
         // Dramatic gradient: very bright at top, dark at bottom
         lv_color_t edge_light = ams_draw::lighten_color(back_color, 100);
         lv_color_t edge_dark = ams_draw::darken_color(back_color, 40);
-        draw_ellipse_left_edge(&layer, left_x, cy, flange_rx, flange_ry, edge_light, edge_dark, 2);
+        draw_ellipse_left_edge(&layer, left_x, cy, flange_rx - 1, flange_ry - 1, edge_light,
+                               edge_dark, 2);
     }
     // The back flange is vented as the front is, its slots open to the dark behind the spool;
     // the filament drawn next covers them as it covers the flange.
@@ -932,13 +938,16 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     {
         lv_color_t ff_light = ams_draw::lighten_color(front_color, kFlangeLift);
         lv_color_t ff_dark = ams_draw::darken_color(front_color, kFlangeDrop);
-        // Main flange ellipse with gradient
-        draw_gradient_ellipse(&layer, right_x, cy, flange_rx, flange_ry, ff_light, ff_dark);
+        // Rim, then the flange ellipse with gradient inside it
+        const lv_color_t rim = ams_draw::darken_color(front_color, kFlangeRimDrop);
+        draw_gradient_ellipse(&layer, right_x, cy, flange_rx, flange_ry, rim, rim);
+        draw_gradient_ellipse(&layer, right_x, cy, flange_rx - 1, flange_ry - 1, ff_light, ff_dark);
         // Edge highlight on left side (gives 3D thickness illusion)
         // Dramatic gradient: very bright at top, dark at bottom
         lv_color_t edge_light = ams_draw::lighten_color(front_color, 100);
         lv_color_t edge_dark = ams_draw::darken_color(front_color, 40);
-        draw_ellipse_left_edge(&layer, right_x, cy, flange_rx, flange_ry, edge_light, edge_dark, 2);
+        draw_ellipse_left_edge(&layer, right_x, cy, flange_rx - 1, flange_ry - 1, edge_light,
+                               edge_dark, 2);
 
         // Vents: the filament shows through where it is wound that far out,
         // the dark far flange where it is not.

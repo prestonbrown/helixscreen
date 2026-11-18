@@ -156,6 +156,11 @@ void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
 
+/// Spool size for the detail view. A drawn unit's spools grow until the unit fills
+/// @p available_width, up to a fifth of the screen's height so the filament path
+/// keeps its room below; flat spools keep the ams_slot_spool_size token.
+int32_t ams_detail_spool_size(int32_t available_width, int slot_count);
+
 /// Whether a unit reports temperature, humidity or a dryer, which means it is closed up.
 bool unit_reports_climate(int unit_index);
 

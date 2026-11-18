@@ -641,15 +641,13 @@ void ui_system_path_canvas_set_unit_lane(lv_obj_t* obj, int unit_index, int segm
 }
 
 void ui_system_path_canvas_set_unit_tools(lv_obj_t* obj, int unit_index, int tool_count,
-                                          int first_tool, int hub_lanes) {
+                                          int first_tool) {
     auto* data = get_data(obj);
     if (!data || unit_index < 0 || unit_index >= SystemPathData::kMaxUnits)
         return;
     if (data->unit_tool_count[unit_index] == tool_count &&
-        data->unit_first_tool[unit_index] == first_tool &&
-        data->unit_hub_lanes[unit_index] == hub_lanes)
+        data->unit_first_tool[unit_index] == first_tool)
         return;
-    data->unit_hub_lanes[unit_index] = hub_lanes;
     data->unit_tool_count[unit_index] = tool_count;
     data->unit_first_tool[unit_index] = first_tool;
     lv_obj_invalidate(obj);

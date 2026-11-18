@@ -85,3 +85,4 @@ def _tubes(scene, colors, width):
 
 SPOOLS, STUBS = feeder.looks(_body, W / 2, DEPTH + 0.03, _tubes)
 UNIT = UnitDef("3ms", 4, SPOOLS, feeder.tray_strip(0x35c4c4, 0x3e4044), stub_art=STUBS)
+UNIT.tray.combiner = "external"

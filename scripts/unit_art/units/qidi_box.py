@@ -98,4 +98,4 @@ UNIT.tray.front = [
     kit.center(-2, 2, 2.5, 5.5, 0x8d9096),
 ]
 
-UNIT.tray.lane_join = "junction"
+UNIT.tray.combiner = "external"

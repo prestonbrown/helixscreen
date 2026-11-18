@@ -3,10 +3,11 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 
+#include <string>
+
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-using helix::ui::tray::LaneJoin;
 using helix::ui::tray::unit_shell_for;
 using helix::ui::tray::UnitShell;
 
@@ -79,7 +80,6 @@ TEST_CASE("unit shell: a variable unit keeps its shell at every lane count", "[a
         REQUIRE(unit_shell_for(info, 0) != nullptr);
         CHECK(std::string(unit_shell_for(info, 0)->id) == "quattro_box");
     }
-    CHECK(unit_shell_for(info, 0)->lane_join == LaneJoin::Junction);
 }
 
 TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][unit-art]") {
@@ -89,11 +89,34 @@ TEST_CASE("unit shell: unidentified hardware keeps the generic tray", "[ams][uni
     REQUIRE(bmcu != nullptr);
     CHECK(unit_shell_for(one_unit(AmsType::AFC, "BMCU BMCU_1"), 0) == bmcu);
     CHECK(bmcu->art_lanes == 4);
-    CHECK(bmcu->lane_join == LaneJoin::Hub);
     const UnitShell* owl = helix::ui::tray::unit_shell_by_id("night_owl");
     REQUIRE(owl != nullptr);
     CHECK(owl->art_lanes == 2);
-    CHECK(owl->lane_join == LaneJoin::Junction);
+}
+
+TEST_CASE("unit shell: every unit names where its lanes merge", "[ams][unit-art]") {
+    // Preston's table, docs/devel/UNIT_ART.md § "Combiner".
+    using helix::ui::tray::Combiner;
+    const std::pair<const char*, Combiner> table[] = {
+        {"box_turtle", Combiner::Internal},    {"box_turtle_enclosed", Combiner::Internal},
+        {"ams_2_pro", Combiner::Internal},     {"cfs", Combiner::Internal},
+        {"night_owl", Combiner::Internal},     {"ercf_rail", Combiner::Internal},
+        {"tradrack_rail", Combiner::Internal}, {"ace_pro", Combiner::External},
+        {"qidi_box", Combiner::External},      {"htlf", Combiner::External},
+        {"ad5x_ifs", Combiner::External},      {"elegoo_canvas", Combiner::External},
+        {"emu", Combiner::External},           {"btt_vivid", Combiner::External},
+        {"bmcu", Combiner::External},          {"mmx", Combiner::External},
+        {"3ms", Combiner::External},           {"kms", Combiner::External},
+        {"quattro_box", Combiner::External},   {"ams_ht", Combiner::Absent},
+    };
+    for (const auto& [id, combiner] : table) {
+        CAPTURE(id);
+        const UnitShell* shell = helix::ui::tray::unit_shell_by_id(id);
+        REQUIRE(shell != nullptr);
+        CHECK(shell->combiner == combiner);
+        CHECK(shell->port_block ==
+              (std::string(id) == "ad5x_ifs" || std::string(id) == "elegoo_canvas"));
+    }
 }
 
 TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][unit-art]") {

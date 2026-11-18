@@ -413,6 +413,23 @@ NOZZLE`.
 | PARALLEL | `render_parallel()` | Each slot is an independent column with its own sensor and nozzle: `plan_parallel()`, then `draw_parallel_tool()` per slot. |
 | MIXED | `render_mixed()` | A subset of lanes route directly to their own nozzle; the rest merge through a hub to a shared toolhead. `compute_mixed_frame()` identifies which lanes are hub-routed. |
 
+A unit view draws the unit's combiner, not the selector its backend reports
+(`docs/devel/UNIT_ART.md` § "Combiner"). For a unit with art whose path ends at one
+nozzle (LINEAR or HUB), `combined_topology()` (`src/ui/filament/ui_filament_path_plan.h`)
+decides the layout, and `ams_detail_setup_path_canvas()` applies it:
+
+| Combiner | Drawn as |
+|----------|----------|
+| internal or external | HUB: each lane leaves the unit (through its head-on art when it has one) and the fan converges into the hub box below it |
+| none, or a sliding selector (ERCF, Tradrack) | The topology as reported: the selector rail in LINEAR's bar |
+
+PARALLEL and MIXED keep their own drawings. The hub box carries an output sensor band
+only when the backend reports a hub sensor (`add_hub_output_band`). Head-on art that
+finds no room above the hub's place takes the selector's slot and hangs the hub below it,
+clear of the bypass merge, and the buffer's reading moves to the hub's outlet band
+(`LinearHubFrame::sync_on_output`), as it does for a rail. Where neither fits, the hub box
+draws without the art.
+
 Per-slot render state (color, segment, mounted-ness, at-sensor, at-nozzle) is
 derived once into `SlotRenderStates` by `compute_slot_render_states()` and read
 by the topology bodies, so the same state isn't re-derived across phases.

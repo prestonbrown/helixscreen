@@ -134,8 +134,13 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material);
 /// ams_draw::set_active_ring(). No-op when unchanged.
 void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 
-/// Position the spool box so its center sits at (`cx`, `cy`) in parent-relative
-/// coordinates. The material label is placed above, the "Bypass" label below.
+/// How far above the bypass merge line the spool's bottom edge stands: its tube leaves
+/// the spool there and turns along the merge line, between the spool and its label.
+int32_t bypass_spool_bottom_above_merge();
+
+/// Place the overlay on the bypass merge line at (`cx`, `cy`), parent-relative: the spool
+/// box stands above it (bypass_spool_bottom_above_merge()), the material label above the
+/// box, and the "Bypass" label below the line, clear of the tube.
 void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy);
 
 /// Bring the whole overlay in line with AmsState: shown only where the bypass node

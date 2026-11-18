@@ -23,6 +23,7 @@ A unit is defined once in `scripts/unit_art/units/<id>.py`. `make unit-art` turn
 | Side profile | One list of `(y, z)` points. Art uses it directly; `kit.tray_profile` converts it for `dome` |
 | `TrayShellDef` | `cheek` is the body's top edge; `dome` the lid, empty for an open unit; `corner` is 0 for none |
 | Wordmarks | None. Text never goes in art |
+| `combiner` | Where the lanes merge into one output: `"internal"`, `"external"` or `"none"`, from Preston's table in `docs/devel/UNIT_ART.md` § "Combiner". A unit not in it: ask him, never guess. The path screen draws an external combiner as a hub box below the unit, and an internal one as a merge inside it |
 
 Match the lid to the real unit's profile, whatever the spool shape suggests.
 

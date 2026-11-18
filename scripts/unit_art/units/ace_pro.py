@@ -86,4 +86,4 @@ def _tray_shell():
 
 UNIT = UnitDef("ace_pro", 4, draw_art, _tray_shell())
 
-UNIT.tray.lane_join = "junction"
+UNIT.tray.combiner = "external"

@@ -34,7 +34,8 @@
     Used by both AmsPanel (single-unit view) and AmsOverviewPanel (detail mode).
     C++ resolves child widgets via lv_obj_find_by_name():
     - "slot_grid": flex row container for ams_slot widgets (created dynamically)
-    - "labels_layer": overlay for material labels when 5+ slots overlap
+    - "labels_layer": overlay for material labels above the unit, and the dotted
+      leaders from them to their spools
     - "slot_tray": visual "holder" that renders ON TOP of spool bottoms
 
     Z-order (front to back): badge_layer > slot_tray > labels_layer > slot_grid
@@ -62,7 +63,7 @@
         <!-- Slots created dynamically by ams_detail_create_slots() -->
       </lv_obj>
       <!-- Labels Layer - renders on top of overlapping slots for 5+ gates -->
-      <lv_obj name="labels_layer" width="100%" height="content" style_pad_all="0" scrollable="false" clickable="false"/>
+      <lv_obj name="labels_layer" width="100%" height="100%" style_pad_all="0" scrollable="false" clickable="false"/>
       <!-- Tray - the box's front wall, right side and glass lid, drawn in front of the
            spools. Covers the whole container; ams_detail_update_tray() places the faces. -->
       <lv_obj name="slot_tray"

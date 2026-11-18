@@ -101,4 +101,4 @@ UNIT.tray.front = [
     kit.span(8, 8, 8, 11, 0xd8dbdf),
 ]
 
-UNIT.tray.lane_join = "inside"
+UNIT.tray.combiner = "none"

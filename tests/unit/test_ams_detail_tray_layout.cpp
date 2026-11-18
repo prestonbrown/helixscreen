@@ -227,7 +227,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit with a reading: spools in the bo
     const int32_t space_md = theme_manager_get_spacing("space_md");
     const float skew = tray::kDepthSkew * box_.depth;
 
-    float first_x = 0, last_x = 0;
+    float first_x = 0, last_x = 0, size = 0;
+    int32_t lowest_label = INT32_MIN;
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
         lv_obj_t* spool = lv_obj_find_by_name(slot(i), "spool_graphic");
@@ -243,16 +244,21 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit with a reading: spools in the bo
         if (i == 0)
             first_x = cx - skew / 2;
         last_x = cx - skew / 2;
+        size = (float)lv_area_get_width(&a);
 
-        lv_obj_t* label = lv_obj_find_by_name(slot(i), "material_label");
+        // The label stands above the lid, the lowest row space_md over it.
+        lv_obj_t* label = ui_ams_slot_get_material_label(slot(i));
         REQUIRE(label != nullptr);
         lv_area_t la;
         lv_obj_get_coords(label, &la);
-        CHECK(std::fabs((float)(la.y2 - origin_.y) - (top() - space_md)) <= 1);
+        CHECK((float)(la.y2 - origin_.y) <= top() - space_md + 1);
+        lowest_label = std::max<int32_t>(lowest_label, la.y2);
     }
-    // The box ends where the outer lane lids would.
-    CHECK(box_.fl == Catch::Approx(first_x - half_).margin(0.01));
-    CHECK(box_.fr == Catch::Approx(last_x + half_).margin(0.01));
+    CHECK(std::fabs((float)(lowest_label - origin_.y) - (top() - space_md)) <= 1);
+    // The spools stand at the real units' pitch, and the box ends clear the outer flanges.
+    CHECK(std::fabs((last_x - first_x) / 3 - tray::spool_pitch(size)) <= 1);
+    CHECK(box_.fl == Catch::Approx(first_x - tray::end_cap_width(nullptr, size)).margin(0.01));
+    CHECK(box_.fr == Catch::Approx(last_x + tray::end_cap_width(nullptr, size)).margin(0.01));
 
     // The readout is a pill against the box's right end.
     check_env_chip_clear(4);
@@ -277,7 +283,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     const float wall_top = box_.ft - box_.back_extra - box_.rise;
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
-        lv_obj_t* label = lv_obj_find_by_name(slot(i), "material_label");
+        lv_obj_t* label = ui_ams_slot_get_material_label(slot(i));
         lv_obj_t* spool = lv_obj_find_by_name(slot(i), "spool_graphic");
         REQUIRE(label != nullptr);
         REQUIRE(spool != nullptr);
@@ -325,7 +331,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS per-lane sensors: each lane's humidit
         CHECK(std::abs((drop_x10 + 5) / 10 - std::atoi(value)) <= 1);
 
         // Above its material label.
-        lv_obj_t* label = lv_obj_find_by_name(slot(i), "material_label");
+        lv_obj_t* label = ui_ams_slot_get_material_label(slot(i));
         REQUIRE(label != nullptr);
         lv_area_t ra, la;
         lv_obj_get_coords(row, &ra);
@@ -341,11 +347,19 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(lid_ == tray::LidMode::None);
     REQUIRE_FALSE(helix::ui::reduced_effects());
 
-    // A point on the back wall just under its top edge, midway along it:
-    // between the two middle spools.
+    // A point on the back wall just under its top edge, between the last spool's front
+    // flange and the wall's right end.
     const tray::TrayFaces f = tray::tray_faces(box_);
-    const int x = (int)std::lround((f.back_wall[0].x + f.back_wall[1].x) / 2);
-    const int y = (int)std::lround((f.back_wall[0].y + f.back_wall[1].y) / 2) + 4;
+    lv_obj_t* last = lv_obj_find_by_name(slot(3), "spool_graphic");
+    REQUIRE(last != nullptr);
+    lv_area_t la;
+    lv_obj_get_coords(last, &la);
+    const float size = (float)lv_area_get_width(&la);
+    const float spool_right = (la.x1 + la.x2 + 1) / 2.0f - origin_.x +
+                              size * tray::kSpoolWidth / 2 +
+                              tray::kDepthSkew * tray::kSpoolFlangeRadius * size;
+    const int x = (int)std::lround((spool_right + f.back_wall[1].x) / 2);
+    const int y = (int)std::lround(f.back_wall[1].y) + 2;
 
     auto back_pixel = [&]() {
         lv_draw_buf_t* snap = lv_snapshot_take(container_, LV_COLOR_FORMAT_ARGB8888);
@@ -368,7 +382,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 
     const bool dark = theme_manager_is_dark_mode();
     REQUIRE_FALSE(near(back_token(dark), back_token(!dark)));
-    REQUIRE(near(back_pixel(), back_token(dark)));
+    const lv_color_t seen = back_pixel(), want = back_token(dark);
+    CAPTURE(x, y, (int)seen.red, (int)seen.green, (int)seen.blue, (int)want.red, (int)want.green,
+            (int)want.blue);
+    REQUIRE(near(seen, want));
 
     theme_manager_toggle_dark_mode();
     process_lvgl(20);
@@ -620,29 +637,23 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK(lv_obj_get_style_x(badge, LV_PART_MAIN) == corner_x);
 }
 
-TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a brand stacks directly over its material",
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: a label over a drawn unit reads its material alone",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
     name_every_lane(4, "eSUN");
-    int named = 0;
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
         lv_obj_t* name = lv_obj_find_by_name(slot(i), "name_label");
-        lv_obj_t* material = lv_obj_find_by_name(slot(i), "material_label");
+        lv_obj_t* material = ui_ams_slot_get_material_label(slot(i));
         REQUIRE(name != nullptr);
         REQUIRE(material != nullptr);
-        if (lv_obj_is_hidden(name))
-            continue;
-        ++named;
-        lv_area_t na, ma;
-        lv_obj_get_coords(name, &na);
-        lv_obj_get_coords(material, &ma);
-        // The tray lifts the material above the unit; the name rides with it.
-        const int32_t gap = ma.y1 - na.y2 - 1;
-        CHECK(gap >= 0);
-        CHECK(gap <= lv_obj_get_style_pad_row(slot(i), LV_PART_MAIN));
+        CHECK(lv_obj_is_hidden(name));
+        const char* text = lv_label_get_text(material);
+        REQUIRE(text != nullptr);
+        CHECK(std::strstr(text, "eSUN") == nullptr);
+        CHECK(std::strlen(text) > 0);
     }
-    REQUIRE(named > 0);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
@@ -700,14 +711,6 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: a named slot's badge sits on th
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
     name_every_lane(4, "eSUN");
-    int named = 0;
-    for (int i = 0; i < 4; ++i) {
-        lv_obj_t* name = lv_obj_find_by_name(slot(i), "name_label");
-        REQUIRE(name != nullptr);
-        if (!lv_obj_is_hidden(name))
-            ++named;
-    }
-    REQUIRE(named > 0);
     check_badges_on_front(4);
 }
 
@@ -731,7 +734,7 @@ TEST_CASE_METHOD(
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
-                 "AMS unit at 480x272 with 8 lanes: two label rows and the whole toolhead",
+                 "AMS unit at 480x272 with 8 lanes: labels in at most two rows, the whole toolhead",
                  "[ams][tray][ui_integration][stagger]") {
     helix::test::ScopedGeometry micro(480, 272);
     build("passive", 8);
@@ -739,7 +742,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(canvas != nullptr);
     lv_obj_update_layout(test_screen());
 
-    // Labels alternate between two rows, each keeping to its two-lane span.
+    // Labels take an even share of the width each, in one row or alternating between two,
+    // and keep to the shares their row gives them.
     lv_obj_t* layer = lv_obj_find_by_name(panel_obj_, "labels_layer");
     REQUIRE(layer != nullptr);
     std::vector<lv_obj_t*> labels;
@@ -750,19 +754,20 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
             labels.push_back(c);
     }
     REQUIRE(labels.size() == 8);
-    const int32_t spacing = lv_obj_get_x(slot(1)) - lv_obj_get_x(slot(0));
+    const int32_t share = lv_obj_get_content_width(layer) / 8;
     int32_t row_y[2] = {INT32_MIN, INT32_MIN};
     for (int i = 0; i < 8; ++i) {
         CAPTURE(i);
         lv_area_t la;
         lv_obj_get_coords(labels[(size_t)i], &la);
-        CHECK(lv_area_get_width(&la) < 2 * spacing);
         int32_t& y = row_y[i % 2];
         if (y == INT32_MIN)
             y = la.y1;
         CHECK(la.y1 == y);
     }
-    CHECK(row_y[0] != row_y[1]);
+    const int rows = row_y[0] == row_y[1] ? 1 : 2;
+    for (lv_obj_t* label : labels)
+        CHECK(lv_obj_get_width(label) < rows * share);
 
     // The nozzle is drawn inside the canvas, not cut off by its bottom.
     lv_area_t toolhead, cc;
@@ -902,8 +907,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK(wa.y2 > pa.y1);
 }
 
-TEST_CASE_METHOD(AmsTrayPanelFixture,
-                 "AMS unit: one named lane among unnamed ones keeps every spool level",
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: names never move a drawn unit's spools",
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
     auto clear_name = [](int i) {
@@ -930,29 +934,23 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
                 ++shown;
         return shown;
     };
+    // Over a drawn unit a label reads its material alone, so names take no line and
+    // move no spool, however many lanes have one.
     name_every_lane(4, "eSUN");
     const std::vector<int32_t> all_named = spool_tops();
-    REQUIRE(name_lines_shown() == 4);
+    CHECK(name_lines_shown() == 0);
+    for (int i = 1; i < 4; ++i)
+        CHECK(all_named[i] == all_named[0]);
 
     for (int i : {0, 2, 3})
         clear_name(i);
     process_lvgl(20);
-    const std::vector<int32_t> one_named = spool_tops();
-    CAPTURE(one_named);
-    CHECK(name_lines_shown() == 4);
-    for (int i = 1; i < 4; ++i)
-        CHECK(one_named[i] == one_named[0]);
-    CHECK(one_named[0] == all_named[0]);
+    CHECK(spool_tops() == all_named);
 
-    // With no name in the row, no slot keeps the line.
     clear_name(1);
     process_lvgl(20);
-    const std::vector<int32_t> none_named = spool_tops();
-    CAPTURE(none_named);
+    CHECK(spool_tops() == all_named);
     CHECK(name_lines_shown() == 0);
-    for (int i = 1; i < 4; ++i)
-        CHECK(none_named[i] == none_named[0]);
-    CHECK(none_named[0] < all_named[0]);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,

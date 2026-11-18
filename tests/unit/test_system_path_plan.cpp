@@ -154,8 +154,8 @@ TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
           "[system_path][filament_path]") {
     auto d = multi();
     bool art_inlet_seen = false;
-    for (int s = static_cast<int>(helix::ToolheadStyle::DEFAULT);
-         s <= static_cast<int>(helix::ToolheadStyle::FLASHFORGE_AD5); s++) {
+    for (int s = static_cast<int>(helix::ToolheadStyle::DEFAULT); s <= helix::kLastToolheadStyle;
+         s++) {
         CAPTURE(s);
         d->toolhead_style = static_cast<helix::ToolheadStyle>(s);
         const SysLayout L = compute_sys_layout(*d, AREA);
@@ -345,6 +345,36 @@ TEST_CASE("Overview plan: toolchanger tools each get a continuous route to their
     const pg::PathPoint end = seg_end(
         plan.routes[plan.active_route].path.segs[plan.routes[plan.active_route].path.count - 1]);
     CHECK(std::fabs(end.x - (float)calc_tool_x(1, 3, L.x_off, L.width)) < 0.5f);
+}
+
+// Every head style, so the art heads whose inlet sits below the glyph top
+// (Jabberwocky the deepest) are pinned along with the default glyph.
+TEST_CASE("Overview plan: toolchanger tubes end at each head style's filament inlet",
+          "[system_path][filament_path]") {
+    auto d = multi();
+    d->unit_count = 1;
+    d->unit_x_positions[0] = 200;
+    d->unit_topology[0] = 2;
+    d->unit_tool_count[0] = 3;
+    d->total_tools = 3;
+    d->active_tool = 1;
+    int below_glyph_top = 0;
+    for (int st = (int)helix::ToolheadStyle::DEFAULT; st <= helix::kLastToolheadStyle; ++st) {
+        d->toolhead_style = (helix::ToolheadStyle)st;
+        CAPTURE(st);
+        const PathPlan& plan = plan_of(*d);
+        const SysLayout L = compute_sys_layout(*d, AREA);
+        const int32_t inlet =
+            helix::ui::toolhead_inlet(d->toolhead_style, L.tools_y, small_tool_scale(*d)).y;
+        below_glyph_top += inlet != L.tools_y - small_tool_scale(*d) * 2;
+        REQUIRE(plan.route_count == 3);
+        for (int i = 0; i < 3; i++) {
+            CAPTURE(i);
+            const Route& r = plan.routes[i];
+            CHECK(seg_end(r.path.segs[r.path.count - 1]).y == Catch::Approx(inlet));
+        }
+    }
+    CHECK(below_glyph_top > 0);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the error setter reaches the hub band",

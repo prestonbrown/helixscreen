@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The unit art kit: camera, spools tied to the app's values, baked layers."""
+import dataclasses
 import json
 import math
 import sys
@@ -458,7 +459,7 @@ def test_units_without_a_carriage_keep_their_table_row_shape():
 
 @pytest.mark.parametrize("unit", RAILS, ids=lambda u: u.id)
 def test_a_rails_face_art_puts_every_gate_in_line_and_the_coupler_inside(unit):
-    assert unit.tray.lane_join == "hub"
+    assert unit.tray.combiner == "internal"
     for gates in unit.lane_variants:
         scene = build.face_scene(unit, gates)
         row = build.face_row(scene, gates)
@@ -481,3 +482,9 @@ def test_a_rails_face_art_bakes_a_body_and_a_carriage_per_gate_count(tmp_path):
         assert sorted(f.name for f in (tmp_path / rail.TRADRACK.id / "face" / str(gates)).iterdir()) == ["body.png", "carriage.png"]
     build.bake_unit(ace_pro.UNIT, tmp_path, render=lambda svg, w, path: path.write_bytes(b"png"))
     assert not (tmp_path / ace_pro.UNIT.id / "face").exists()
+
+
+def test_a_unit_without_a_combiner_stops_the_table():
+    unit = dataclasses.replace(ace_pro.UNIT, tray=dataclasses.replace(ace_pro.UNIT.tray, combiner=None))
+    with pytest.raises(ValueError, match="ask Preston"):
+        build.generate_shell_table([unit])

@@ -29,7 +29,9 @@ inline constexpr float kDepthRise = 0.09f;         // back edges rise this share
 inline constexpr float kSpoolFloorGap = 2.0f;      // flange bottom above the floor's front edge
 inline constexpr float kLidGap = 1.0f;             // lid crest above the spool tops
 inline constexpr float kSpoolWidth = 0.294f;       // flange-to-flange width / spool size
-inline constexpr float kPitchClearance = 16.0f;    // free space between neighbouring spools
+// Lane pitch over flange-to-flange width: an AMS, ACE Pro or QIDI Box stands its
+// 67 mm wide spools about 90 mm apart.
+inline constexpr float kPackedPitch = 1.35f;
 
 struct PointF {
     float x = 0;
@@ -44,13 +46,19 @@ struct TrayBox {
 
 float box_depth(float spool_size);
 float box_rise(float depth);
-/// Slot pitch for a spool size: its footprint, half the lid-cap tuck, and the clearance.
+/// Slot pitch for a spool size: the spool's width at the real units' packing, so
+/// neighbouring flanges overlap in the drawing as they do in a photo.
 float spool_pitch(float spool_size);
+/// Front-plane distance from an end spool's centre to the unit's end: the spool's half
+/// width plus the shell's clearance, or a flange's depth for the generic box.
+float end_cap_width(const UnitShell* shell, float spool_size);
 PointF proj(const TrayBox& b, float x, float y, float z);
+/// Drawn width of a unit of @p lanes spools of @p spool_size: the pitches between its
+/// lanes, a generic end cap each side and the right side face.
+float unit_width(int lanes, float spool_size);
+/// The largest spool size, at most @p max_size, whose unit of @p lanes fits @p width.
+int32_t fit_spool_size(float width, int lanes, int32_t max_size);
 
-/// Front-plane distance from an end spool's centre to the unit's end: it clears only the
-/// flange, and never more than half the lane pitch, so a squeezed row stays in its container.
-float cap_width(const UnitShell& shell, float spool_size, float pitch);
 /// Point @p i of the body's top edge, on the side plane at @p x.
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i);
 /// The screen box of one front part, for the lane at front-plane @p lane_x (ignored unless
@@ -106,6 +114,11 @@ PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float 
 float pill_left_x(const TrayBox& b);
 /// The same, moved right as far as needed to stand clear of @p clear_of.
 float pill_left_x(const TrayBox& b, float clear_of);
+
+/// Dots every @p step px along the polyline @p pts (@p n points), the spacing carried
+/// across its corners, each rounded to a whole pixel. Writes at most @p max and
+/// returns the count.
+int leader_dots(const PointF* pts, int n, float step, PointF* out, int max);
 
 enum class LidMode : uint8_t { None, Unit, PerLane };
 /// Any climate data gets glass: a unit reading or a dryer covers the row, per-lane

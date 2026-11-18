@@ -237,4 +237,29 @@ void tray_front_draw_cb(lv_event_t* e) {
         tray::draw_shell_front(shell_view(), layer, o);
 }
 
+void leader_draw_cb(lv_event_t* e) {
+    lv_layer_t* layer = lv_event_get_layer(e);
+    if (!layer || !s_tray.valid || s_tray.leader_count <= 0)
+        return;
+    const lv_point_t o = container_origin(lv_event_get_target_obj(e));
+    // Dots a pixel square on a small spool, two on a large one, a dot and a half apart.
+    const int32_t dot = s_tray.spool_size >= 80 ? 2 : 1;
+    const float step = (float)(2 * dot + 1);
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.bg_color = theme_manager_get_color("text_muted");
+    dsc.bg_opa = LV_OPA_80;
+    constexpr int kMaxDots = 256;
+    tray::PointF dots[kMaxDots];
+    for (int i = 0; i < s_tray.leader_count; ++i) {
+        const int n = tray::leader_dots(s_tray.leader[i], 3, step, dots, kMaxDots);
+        for (int k = 0; k < n; ++k) {
+            const int32_t x = o.x + (int32_t)dots[k].x - dot / 2;
+            const int32_t y = o.y + (int32_t)dots[k].y - dot / 2;
+            const lv_area_t a = {x, y, x + dot - 1, y + dot - 1};
+            lv_draw_rect(layer, &dsc, &a);
+        }
+    }
+}
+
 } // namespace helix::ui::ams_tray

@@ -778,10 +778,8 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
         if (i < static_cast<int>(tool_layout.units.size())) {
             const auto& utl = tool_layout.units[i];
-            const auto& routed = info.units[i].lane_is_hub_routed;
-            ui_system_path_canvas_set_unit_tools(
-                system_path_, i, utl.tool_count, utl.first_physical_tool,
-                static_cast<int>(std::count(routed.begin(), routed.end(), true)));
+            ui_system_path_canvas_set_unit_tools(system_path_, i, utl.tool_count,
+                                                 utl.first_physical_tool);
 
             // The unit's hub and the buffer under it: the box the unit view shows
             // for the hub's first unit. Units on one hub get one group number.

@@ -347,11 +347,11 @@ lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32
 }
 
 // Art laid out at @p r whose layers do not load gives the layout back to the plain drawing:
-// marks the art failed and says so, so the caller lays out again. A sliding selector also needs
-// its carriage layer.
-bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r, bool with_carriage) {
+// marks the art failed and says so, so the caller lays out again. Art with a carriage also needs
+// that layer.
+bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r) {
     if (r.w <= 0 || (rail_layer(data, "body", r.w, r.h) &&
-                     (!with_carriage || rail_layer(data, "carriage", r.w, r.h))))
+                     (!data.rail_carriage || rail_layer(data, "carriage", r.w, r.h))))
         return false;
     data.rail_art_failed = true;
     return true;
@@ -368,7 +368,7 @@ void draw_through_art(const RenderCtx& ctx, const RailArtRect& r) {
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     MixedFrame f = compute_mixed_frame(*data, ctx.geo);
-    if (drop_unloadable_art(*data, f.through, false))
+    if (drop_unloadable_art(*data, f.through))
         f = compute_mixed_frame(*data, ctx.geo);
     PathPlan& plan = plan_scratch();
     plan_mixed(f, *data, ctx.geo, plan);
@@ -486,7 +486,7 @@ bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
 }
 
 void draw_rail_carriage(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
-    if (!data->rail_art || !data->rail_drawn)
+    if (!data->rail_art || !data->rail_drawn || !data->rail_carriage)
         return;
     lv_draw_buf_t* carriage = rail_layer(*data, "carriage", data->rail_w, data->rail_h);
     if (!carriage)
@@ -543,21 +543,6 @@ int32_t draw_fixed_selector(const RenderCtx& ctx, int32_t cy, int32_t w, int32_t
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
     data->rail_drawn = false;
-    if (data->built_in_hub) {
-        // A small junction where the lanes meet the trunk; it is not a control.
-        const BoxColors tint = resolve_hub_tint(*data, f, hub_has_filament(data, f));
-        const int32_t size = LV_MAX(10, f.hub_h / 2);
-        if (!data->lanes_merge_inside) {
-            draw_hub_box(ctx, f.center_x, f.hub_y - f.hub_h / 2, size * 2, size, tint.bg,
-                         tint.border, "", LV_OPA_COVER, /*interactive=*/false);
-        }
-        if (data->hub_callback) {
-            const int32_t y = f.hub_y - f.hub_h / 2;
-            data->hits.hub = {f.center_x - size * 2, y - size, f.center_x + size * 2, y + size};
-            data->hits.hub_valid = true;
-        }
-        return;
-    }
     if (f.rail.w > 0 && draw_selector_rail(ctx, f))
         return;
     const BaseGeometry& g = ctx.geo;
@@ -577,16 +562,6 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     int32_t hub_w = hub_box_width(*data, g, f);
 
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
-
-    if (data->fixed_selector && data->topology == 0) {
-        hub_w = draw_fixed_selector(ctx, f.hub_y, hub_w, f.hub_h, hub_tint);
-        if (data->hub_callback) {
-            data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2, f.center_x + hub_w / 2,
-                              f.hub_y + f.hub_h / 2};
-            data->hits.hub_valid = true;
-        }
-        return;
-    }
 
     // On-toolhead mode draws the passthrough selector first, in its classic
     // spot under the lanes, full slot width like LINEAR's selector.
@@ -665,7 +640,7 @@ void draw_nozzle_glyph(const RenderCtx& ctx, const LinearHubFrame& f) {
         noz_color =
             (f.has_error && f.error_seg == PathSegment::NOZZLE) ? f.error_color : f.active_color;
     }
-    draw_toolhead(ctx.layer, f.head_x, f.nozzle_y, noz_color, data->theme.extruder_scale);
+    draw_toolhead(ctx.layer, f.head_x, f.nozzle_y, noz_color, f.tool_scale);
 }
 
 // LINEAR/HUB renderer: frame → plan → tubes → boxes and glyphs. Hit-rect
@@ -679,7 +654,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
     // Rail art whose images do not load gives way to the bar before anything is laid out for it.
-    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo), true);
+    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo));
 
     // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
@@ -692,7 +667,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     const int32_t glyph_top =
         toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
     LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
-    if (drop_unloadable_art(*data, f.through, false))
+    if (drop_unloadable_art(*data, f.through))
         f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
@@ -713,7 +688,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     draw_hub_section(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f, plan);
-    else if (feeds && f.rail.w > 0 && data->buffer_present) // the rail's outlet band
+    else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer
         record_buffer_hit(data, f, f.output_x, f.output_y);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);
@@ -724,6 +699,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
                                                      : pg::FilamentPath{};
     data->path_cache.center_x = f.center_x;
     data->path_cache.nozzle_y = f.nozzle_y;
+    data->path_cache.tool_scale = f.tool_scale;
     data->path_cache.sensor_r = f.sensor_r;
     data->path_cache.origin = {ctx.geo.x_off, ctx.geo.y_off};
     for (int i = 0; i < pg::FilamentPath::kMaxSegs; ++i)
@@ -757,17 +733,8 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Flow chevrons along the active filament path.
     if (flow_visible(*data) && data->active_slot >= 0) {
-        // The route drops into the toolhead from above; the glyph covers the
-        // run inside it, so the stream ends at the glyph's top.
-        pg::FilamentPath flow_path = path;
-        if (data->feeds_toolhead && flow_path.count > 0) {
-            pg::PathSeg& last = flow_path.segs[flow_path.count - 1];
-            const float top =
-                static_cast<float>(toolhead_top_y(nozzle_y, data->theme.extruder_scale));
-            if (last.type == pg::PathSeg::LINE && std::fabs(last.p1.x - last.p0.x) < 0.5f &&
-                last.p1.y > top)
-                last.p1.y = std::max(last.p0.y, top);
-        }
+        // The route ends at the head's filament inlet, painted over the head like the tube.
+        const pg::FilamentPath flow_path = path;
         // The hub and buffer boxes are drawn over the tube with their labels.
         pg::PathBox avoid[2];
         int n_avoid = 0;
@@ -786,9 +753,9 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Heat glow halo around the nozzle tip.
     if (data->anim.heat_active && data->feeds_toolhead) {
-        int32_t tip_y = toolhead_tip_y(nozzle_y, data->theme.extruder_scale);
+        int32_t tip_y = toolhead_tip_y(nozzle_y, data->path_cache.tool_scale);
         const int32_t head_x =
-            center_x + path_toolhead_inlet(nozzle_y, data->theme.extruder_scale).dx;
+            center_x + path_toolhead_inlet(nozzle_y, data->path_cache.tool_scale).dx;
         draw_heat_glow(layer, head_x, tip_y, sensor_r, data->anim.heat_pulse_opa);
     }
 

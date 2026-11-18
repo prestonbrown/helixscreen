@@ -437,11 +437,8 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
         const char* value = attrs[i + 1];
 
         if (strcmp(name, "topology") == 0) {
-            if (strcmp(value, "linear") == 0 || strcmp(value, "0") == 0) {
-                data->topology = 0;
-            } else {
-                data->topology = 1; // default to hub
-            }
+            // Anything but linear is a hub.
+            data->topology = strcmp(value, "linear") == 0 || strcmp(value, "0") == 0 ? 0 : 1;
             needs_redraw = true;
         } else if (strcmp(name, "slot_count") == 0) {
             data->slot_count = LV_CLAMP(1, atoi(value), FilamentPathData::kMaxSlots);
@@ -522,26 +519,18 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
 }
 
 // NAMESPACE_OK: one of the canvas's C-style setters
-void ui_filament_path_canvas_set_lane_join(lv_obj_t* obj, helix::ui::tray::LaneJoin join) {
-    using helix::ui::tray::LaneJoin;
+void ui_filament_path_canvas_set_port_block(lv_obj_t* obj, bool port_block) {
     auto* data = get_data(obj);
-    if (!data)
+    if (!data || data->fixed_selector == port_block)
         return;
-    const bool inside = join == LaneJoin::Inside;
-    const bool built_in = inside || join == LaneJoin::Junction;
-    const bool fixed = join == LaneJoin::FixedBlock;
-    if (data->built_in_hub == built_in && data->lanes_merge_inside == inside &&
-        data->fixed_selector == fixed)
-        return;
-    data->built_in_hub = built_in;
-    data->lanes_merge_inside = inside;
-    data->fixed_selector = fixed;
+    data->fixed_selector = port_block;
     layered_mark_dirty(obj);
 }
 
 // NAMESPACE_OK: one of the canvas C-style setters
 void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
-                                               const helix::ui::tray::RailFaceArt* art) {
+                                               const helix::ui::tray::RailFaceArt* art,
+                                               bool has_carriage) {
     auto* data = get_data(obj);
 #if defined(HELIX_PLATFORM_ESP32)
     // The firmware image carries no unit art.
@@ -549,10 +538,12 @@ void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_i
 #endif
     if (!art)
         unit_id = nullptr;
-    if (!data || (data->rail_art == art && data->rail_unit == unit_id))
+    if (!data || (data->rail_art == art && data->rail_unit == unit_id &&
+                  data->rail_carriage == has_carriage))
         return;
     data->rail_art = art;
     data->rail_unit = unit_id;
+    data->rail_carriage = has_carriage;
     data->rail_art_failed = false;
     layered_mark_dirty(obj);
 }
@@ -1260,8 +1251,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
-    const helix::ui::GlyphBounds b =
-        toolhead_glyph_bounds(f.head_x, f.nozzle_y, data->theme.extruder_scale);
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
 }
