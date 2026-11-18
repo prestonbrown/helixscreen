@@ -311,7 +311,8 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
             NOTIFY_ERROR(lv_tr("WiFi initialization failed: {}"), msg);
         });
     } else {
-        spdlog::debug("[WiFiManager] WiFi init failed (silent): {}", msg);
+        spdlog::debug("[WiFiManager] WiFi init failed (silent): {}",
+                      helix::redact::names_in_text(msg));
     }
 }
 
@@ -618,7 +619,8 @@ void WiFiManager::apply_scan_trigger_result(const WiFiError& result, bool user_r
     // Keep the backend's own account of the failure: NOTIFY_WARNING logs only
     // the user-facing string, which cannot tell FAIL-BUSY from a wedged
     // control socket.
-    spdlog::warn("[WiFiManager] Scan trigger failed: {}", result.technical_msg);
+    spdlog::warn("[WiFiManager] Scan trigger failed: {}",
+                 helix::redact::names_in_text(result.technical_msg));
     // If the OS reports the wireless link is actually up, the managed backend
     // simply can't reach its control socket (the link is system-managed and
     // live). Nagging the user with a failure toast is wrong (helixscreen#1059).

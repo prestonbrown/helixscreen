@@ -314,7 +314,8 @@ WiFiError WifiBackendNetworkManager::check_system_prerequisites() {
     if (result.stdout_output.empty() && result.exit_code != 0) {
         // Check stderr for polkit/permission errors before returning generic failure
         if (is_polkit_permission_error(result.stderr_output)) {
-            spdlog::warn("[WifiBackend] NM: Polkit permission denied: {}", result.stderr_output);
+            spdlog::warn("[WifiBackend] NM: Polkit permission denied: {}",
+                         helix::redact::names_in_text(result.stderr_output));
             return WiFiError(WiFiResult::PERMISSION_DENIED,
                              "nmcli blocked by polkit: " + result.stderr_output,
                              "Permission denied - unable to manage WiFi",

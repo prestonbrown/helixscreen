@@ -527,3 +527,39 @@ TEST_CASE("redact::telemetry_text caps the length without splitting a character"
     CHECK(telemetry_text("need <100MB free", {}, 9) == "need <100");
     CHECK(telemetry_text("", {}, 10).empty());
 }
+
+TEST_CASE("redact::names_in_text scrubs the network name and keeps the error readable",
+          "[redact][privacy][wifi]") {
+    const std::string line =
+        "wpa_supplicant: CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid=\"My Home WiFi\" "
+        "auth_failures=1 duration=10 reason=WRONG_KEY";
+    const std::string out = helix::redact::names_in_text(line);
+    CHECK(out.find("My Home WiFi") == std::string::npos);
+    CHECK(out.find("Home") == std::string::npos);
+    CHECK(out.find("ssid=\"net#") != std::string::npos);
+    CHECK(out.find("reason=WRONG_KEY") != std::string::npos);
+    CHECK(out.find("auth_failures=1 duration=10") != std::string::npos);
+
+    // Same network, same token as ssid().
+    CHECK(out.find(helix::redact::ssid("My Home WiFi")) != std::string::npos);
+}
+
+TEST_CASE("redact::names_in_text handles bare values, repeats and lookalike keys",
+          "[redact][privacy][wifi]") {
+    const std::string bare =
+        helix::redact::names_in_text("assoc failed ssid=Neighbor5G, bssid=aa:bb:cc:dd:ee:ff");
+    CHECK(bare.find("Neighbor5G") == std::string::npos);
+    CHECK(bare.find(", bssid=aa:bb:cc:dd:ee:ff") != std::string::npos);
+
+    const std::string twice = helix::redact::names_in_text("ssid=\"A b\" then ssid=\"C d\"");
+    CHECK(twice.find("A b") == std::string::npos);
+    CHECK(twice.find("C d") == std::string::npos);
+    CHECK(twice.find(" then ") != std::string::npos);
+
+    CHECK(helix::redact::names_in_text("scan_ssid=1 key_mgmt=WPA-PSK") ==
+          "scan_ssid=1 key_mgmt=WPA-PSK");
+    CHECK(helix::redact::names_in_text("no network name here") == "no network name here");
+    CHECK(helix::redact::names_in_text("").empty());
+    CHECK(helix::redact::names_in_text("ssid=\"unterminated").find("unterminated") ==
+          std::string::npos);
+}

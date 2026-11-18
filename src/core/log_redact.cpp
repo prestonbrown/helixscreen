@@ -700,4 +700,48 @@ std::string ips_in_text(std::string_view text) {
     return redact_v4(redact_v6(text, salt), salt);
 }
 
+std::string names_in_text(std::string_view text) {
+    constexpr std::string_view kKey = "ssid=";
+    std::string out;
+    out.reserve(text.size());
+    size_t i = 0;
+    while (i < text.size()) {
+        const size_t hit = text.find(kKey, i);
+        if (hit == std::string_view::npos) {
+            out.append(text.substr(i));
+            break;
+        }
+        // `bssid=` and `scan_ssid=` end in the same characters.
+        const size_t value_at = hit + kKey.size();
+        if (hit > 0 && is_word_char(text[hit - 1])) {
+            out.append(text.substr(i, value_at - i));
+            i = value_at;
+            continue;
+        }
+        out.append(text.substr(i, value_at - i));
+        const bool quoted = value_at < text.size() && text[value_at] == '"';
+        const size_t begin = quoted ? value_at + 1 : value_at;
+        size_t end = begin;
+        if (quoted) {
+            const size_t close = text.find('"', begin);
+            end = close == std::string_view::npos ? text.size() : close;
+        } else {
+            while (end < text.size() && text[end] != ' ' && text[end] != '\t' && text[end] != ',' &&
+                   text[end] != ')' && text[end] != ']' && text[end] != '\n' && text[end] != '\r')
+                ++end;
+        }
+        if (end == begin) {
+            i = begin;
+            continue;
+        }
+        if (quoted)
+            out.push_back('"');
+        out.append(ssid(text.substr(begin, end - begin)));
+        if (quoted && end < text.size())
+            out.push_back('"');
+        i = quoted && end < text.size() ? end + 1 : end;
+    }
+    return out;
+}
+
 } // namespace helix::redact
