@@ -1584,7 +1584,7 @@ attached and remote screens.
   rest of the session instead of stalling.
 - **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on
   the print file screen and on Print Status, is a button: tapping it puts the model back at
-  its starting angle and zoom.
+  its starting angle and zoom. The button is hidden whenever the preview shows the 2D view.
 - **The 3D preview sits on the same background as the 2D one** - both use the shaded
   backdrop, so flipping between them changes only the picture.
 - **Controls fits portrait screens** - on tall screens the Position card opens Motion when

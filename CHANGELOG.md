@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Snapmaker U1: Auto loading per toolhead** (#1982) - each toolhead's Auto loading switch is in the filament system's Settings under Print Behavior.
 
 ### Changed
-- **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on the print file screen and on Print Status, is a button: tapping it puts the model back at its starting angle and zoom.
+- **Rotate icon resets the 3D preview** - the rotate icon in the corner of the 3D preview, on the print file screen and on Print Status, is a button: tapping it puts the model back at its starting angle and zoom. The button is hidden whenever the preview shows the 2D view.
 
 ### Fixed
 - **Smoother 3D preview on slower boards** - rotating the 3D G-code preview no longer freezes the rest of the screen, because the preview draws on its own thread. A drag draws each frame once instead of up to three times, and on faster boards the simplified model shown while rotating keeps more of its detail. On a board where rotating still cannot reach about 7 frames a second, the preview switches to the 2D view for the rest of the session instead of stalling.
