@@ -509,7 +509,7 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
  * up at startup since we know the new version launched successfully.
  */
 void cleanup_stale_old_install() {
-    std::string install_root = app_get_install_root();
+    std::string install_root = app_get_writable_install_root();
     if (install_root.empty()) {
         return;
     }
@@ -883,7 +883,7 @@ void UpdateChecker::init() {
     // ask Moonraker to update us. Self-healing is the point: an install with a
     // bad asset_name cannot receive the fix through the channel it breaks
     // (prestonbrown/helixscreen#993).
-    repair_release_info(app_get_install_root());
+    repair_release_info(app_get_writable_install_root());
 
     spdlog::debug("[UpdateChecker] Initialized");
     initialized_ = true;
@@ -1288,7 +1288,7 @@ std::string UpdateChecker::get_download_path(DownloadPathDiag* diag,
     // We add both the install dir and its parent — both yield the same
     // f_bavail (same filesystem) but the parent helps when an installer
     // tightens permissions on the install dir itself.
-    const std::string install_root = app_get_install_root();
+    const std::string install_root = app_get_writable_install_root();
     if (!install_root.empty()) {
         candidates.emplace_back(install_root);
         const auto last_slash = install_root.find_last_of('/');
