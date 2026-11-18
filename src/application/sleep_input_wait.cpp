@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <poll.h>
+#include <utility>
 
 namespace helix {
 
@@ -72,10 +73,31 @@ bool SleepInputWait::wait(uint32_t timeout_ms) {
     if (n <= 0) {
         return false;
     }
+    // A source whose fd is closed or failed would answer every poll at once, so it is
+    // dropped and its device handed back to its read timer, which sees the failure.
+    std::vector<lv_indev_t*> readable;
+    std::vector<InputWakeSource> kept;
+    kept.reserve(m_paused.size());
     for (size_t i = 0; i < m_paused.size(); ++i) {
-        if (fds[i].revents != 0) {
-            lv_indev_read(m_paused[i].indev);
+        const InputWakeSource& s = m_paused[i];
+        if ((fds[i].revents & (POLLNVAL | POLLERR | POLLHUP)) != 0) {
+            if (lv_timer_t* timer = lv_indev_get_read_timer(s.indev)) {
+                lv_timer_resume(timer);
+            }
+            continue;
         }
+        kept.push_back(s);
+        if (fds[i].revents != 0) {
+            readable.push_back(s.indev);
+        }
+    }
+    m_paused = std::move(kept);
+    // A read can wake the display, whose callback ends this wait and resumes every timer.
+    for (lv_indev_t* indev : readable) {
+        if (!m_active) {
+            break;
+        }
+        lv_indev_read(indev);
     }
     if (loop_fd >= 0 && fds.back().revents != 0) {
         main_loop_wake::drain();

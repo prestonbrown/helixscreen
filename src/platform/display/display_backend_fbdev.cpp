@@ -244,7 +244,7 @@ lv_indev_t* DisplayBackendFbdev::open_evdev(lv_indev_type_t type, const char* pa
     }
     lv_indev_t* indev = lv_evdev_create_fd(type, fd); // closes fd on failure
     if (indev) {
-        input_wake_sources_.push_back({indev, fd});
+        input_wake_sources_.add(indev, fd);
     }
     return indev;
 }
