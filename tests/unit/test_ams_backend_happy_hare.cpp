@@ -3977,6 +3977,64 @@ TEST_CASE("Happy Hare classify_error: a runout pause is a CRITICAL fault resumed
     CHECK(ev->detail.find("Runout detected on gate 0") != std::string::npos);
 }
 
+TEST_CASE("Happy Hare classify_error: the pause hint follows the reason",
+          "[ams][happy_hare][error-center][pause_hint]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    nlohmann::json mmu;
+    mmu["print_state"] = "pause_locked";
+    mmu["reason_for_pause"] = "Gate 2 is empty!";
+    helix::ClassifyContext ctx;
+    ctx.is_paused = true;
+    const std::string line =
+        "!! MMU issue detected. Print will be paused\nReason: Gate 2 is empty!";
+
+    SECTION("v4.2 names what to do next") {
+        mmu["pause_hint"] = "Load filament into gate 2\nthen RESUME";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!\nLoad filament into gate 2. then RESUME");
+        // The dedup identity stays the reason the console line carries.
+        CHECK(ev->raw_detail == "Gate 2 is empty!");
+    }
+    SECTION("an empty hint adds nothing") {
+        mmu["pause_hint"] = "";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+    }
+    SECTION("before v4.2 there is no hint") {
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+        CHECK(ev->raw_detail.empty());
+    }
+    SECTION("a later fault's reason does not take the first fault's hint") {
+        mmu["pause_hint"] = "Load filament into gate 2";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(
+            "!! MMU issue detected whilst printer is paused\nReason: Encoder not detecting", ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Encoder not detecting");
+    }
+    SECTION("the hint ends with the pause") {
+        mmu["pause_hint"] = "Load filament into gate 2";
+        hh.test_parse_mmu_state(mmu);
+        // Resume: reason_for_pause goes empty in a frame that leaves pause_hint out.
+        hh.test_parse_mmu_state({{"print_state", "printing"}, {"reason_for_pause", ""}});
+        hh.test_parse_mmu_state(
+            {{"print_state", "pause_locked"}, {"reason_for_pause", "Gate 2 is empty!"}});
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+    }
+}
+
 TEST_CASE("Happy Hare pause_locked marks the slot and path, and cancel clears them",
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;

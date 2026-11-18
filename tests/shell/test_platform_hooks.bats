@@ -634,3 +634,49 @@ INIT_SCRIPT="config/helixscreen.init"
     [[ "$output" != *"Could not enable backlight"* ]] || fail "warned from inside the chroot: $output"
     [ "$(cat "$T/called" 2>/dev/null)" = "100" ] || fail "backlight script not run"
 }
+
+# A payload install runs the init script inside the mod's chroot, where the
+# host's chroot path does not exist. The Moonraker wait still has to happen
+# there: it is what keeps the AD5M's ~107MB from both starting at once.
+_forgex_wait_in_chroot() {
+    local T="$BATS_TEST_TMPDIR/wait"
+    mkdir -p "$T/bin"
+    printf '#!/bin/sh\necho "$*" >> "%s/wget.calls"\nexit 0\n' "$T" > "$T/bin/wget"
+    printf '#!/bin/sh\necho "%s"\n' "$1" > "$T/zconf.sh"
+    chmod +x "$T/bin/wget" "$T/zconf.sh"
+    run sh -c '
+        . "$1/hooks-ad5m-forgex.sh"
+        FORGEX_CHROOT="$2/no-such-chroot"
+        FORGEX_ZCONF="$2/zconf.sh"
+        HELIX_SPLASH_STATUS_FILE="$2/status"
+        PATH="$2/bin:$PATH"
+        platform_wait_for_services
+    ' _ "$HOOKS_DIR" "$T"
+}
+
+@test "ad5m-forgex waits for Moonraker from inside the chroot" {
+    _forgex_wait_in_chroot 0
+    [ "$status" -eq 0 ] || fail "wait failed: $output"
+    contains "Moonraker ready" "$output"
+    grep -q 'localhost:7125/server/info' "$BATS_TEST_TMPDIR/wait/wget.calls" || fail "Moonraker never polled"
+}
+
+@test "ad5m-forgex inside the chroot honors Forge-X's disable_moonraker" {
+    _forgex_wait_in_chroot 1
+    [ "$status" -eq 0 ] || fail "wait failed: $output"
+    contains "Moonraker disabled" "$output"
+    [ ! -e "$BATS_TEST_TMPDIR/wait/wget.calls" ] || fail "polled a disabled Moonraker"
+}
+
+@test "ad5m-forgex skips the wait on a host with neither the chroot nor zconf" {
+    local T="$BATS_TEST_TMPDIR/none"
+    mkdir -p "$T"
+    run sh -c '
+        . "$1/hooks-ad5m-forgex.sh"
+        FORGEX_CHROOT="$2/no-such-chroot"
+        FORGEX_ZCONF="$2/no-such-zconf.sh"
+        platform_wait_for_services
+    ' _ "$HOOKS_DIR" "$T"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ] || fail "unexpected output: $output"
+}

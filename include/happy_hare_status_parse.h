@@ -34,6 +34,8 @@ struct MmuCoreDelta {
     std::optional<int> tool;
     std::optional<bool> filament_loaded; ///< from `filament`: "Loaded" / "Unloaded"
     std::optional<std::string> reason_for_pause;
+    /// What to do next about the pause (v4.2+); "" outside a pause, absent before v4.2.
+    std::optional<std::string> pause_hint;
     std::optional<std::string> action;
     std::optional<int> filament_pos;
     std::optional<int> bowden_progress; ///< clamped to [-1, 100]
