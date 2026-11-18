@@ -153,14 +153,17 @@ struct AmsLabelRow {
     int row = 0;
 };
 
+/// Most rows the labels over a drawn unit stagger into.
+inline constexpr int kAmsOverLaneMaxRows = 3;
+
 /**
- * @brief A label row that alternates lane by lane over @p rows rows (1 or 2): even
- * lanes nearest the spools, odd lanes above.
+ * @brief A label row that cycles lane by lane over @p rows rows (1 to kAmsOverLaneMaxRows):
+ * the first lane nearest the spools, each next one a row higher.
  */
 inline AmsLabelRow ams_alternate_row(int slot_index, int rows) {
     AmsLabelRow r;
-    r.rows = rows > 1 ? 2 : 1;
-    r.row = r.rows > 1 ? slot_index % 2 : 0;
+    r.rows = std::clamp(rows, 1, kAmsOverLaneMaxRows);
+    r.row = slot_index % r.rows;
     return r;
 }
 
@@ -198,6 +201,105 @@ inline int32_t ams_stagger_row_height(int32_t line_height, UiBreakpoint bp) {
     if (bp >= UiBreakpoint::Medium)
         return line_height * 3 / 2;
     return line_height;
+}
+
+/// Where a label over a drawn unit stands about its lane: how far it reaches left and right of
+/// the lane's center (its tick).
+struct AmsLabelSpan {
+    int32_t left = 0;
+    int32_t right = 0;
+    int32_t room_left = 0; ///< how far it could reach left, its neighbours and the row allowing
+    int32_t room_right = 0;
+};
+
+/**
+ * @brief Spans for labels over lanes at @p x (ascending), in rows @p row (0 nearest the unit),
+ * each asking @p need wide. Centered on its lane where the room allows; where a neighbour
+ * crowds one side, it slides toward the other, its own tick still under it. A label stops
+ * @p gap short of halfway to a neighbour in its own row, and @p gap short of the tick of any
+ * neighbour in a higher row, which rises past it; a neighbour in a lower row ticks down from
+ * under it and takes nothing. No label reaches past @p lo or @p hi.
+ */
+inline void ams_over_lane_label_spans(const float x[], const int row[], const int32_t need[], int n,
+                                      int32_t gap, float lo, float hi, AmsLabelSpan out[]) {
+    for (int k = 0; k < n; ++k) {
+        float room[2] = {x[k] - lo, hi - x[k]}; // left, right
+        for (int j = 0; j < n; ++j) {
+            if (j == k)
+                continue;
+            const int side = x[j] > x[k] ? 1 : 0;
+            const float d = side ? x[j] - x[k] : x[k] - x[j];
+            if (row[j] == row[k])
+                room[side] = std::min(room[side], d / 2 - (float)gap / 2);
+            else if (row[j] > row[k])
+                room[side] = std::min(room[side], d - (float)gap);
+        }
+        const int32_t want = need[k];
+        const int32_t room_l = (int32_t)std::max(0.0f, std::min(room[0], (float)want));
+        const int32_t room_r = (int32_t)std::max(0.0f, std::min(room[1], (float)want));
+        // Centered where both sides allow; else as far as the tighter side lets it, the rest
+        // on the other.
+        int32_t left = std::min(room_l, want / 2);
+        const int32_t right = std::min(room_r, want - left);
+        left = std::min(room_l, want - right);
+        out[k] = {left, right, (int32_t)std::max(0.0f, std::min(room[0], 1e6f)),
+                  (int32_t)std::max(0.0f, std::min(room[1], 1e6f))};
+    }
+}
+
+/**
+ * @brief The rows (1 to kAmsOverLaneMaxRows) the labels over lanes at @p x take, rows cycling
+ * label by label (k % rows): the fewest that give every label its whole text (@p whole), else
+ * the fewest that give each at least a few readable characters (@p readable), else
+ * kAmsOverLaneMaxRows. No label reaches past @p lo or @p hi.
+ */
+inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
+                                    const int32_t readable[], int n, int32_t gap, float lo,
+                                    float hi) {
+    int row[64];
+    AmsLabelSpan span[64];
+    n = std::min(n, 64);
+    for (const int32_t* need : {whole, readable}) {
+        for (int rows = 1; rows <= kAmsOverLaneMaxRows; ++rows) {
+            for (int k = 0; k < n; ++k)
+                row[k] = k % rows;
+            ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
+            bool fits = true;
+            for (int k = 0; k < n && fits; ++k)
+                fits = span[k].left + span[k].right >= need[k];
+            if (fits)
+                return rows;
+        }
+    }
+    return kAmsOverLaneMaxRows;
+}
+
+/// How the lane numbers under a drawn unit stand: in one row or alternating between two (odd
+/// lanes a number lower), and whether an empty lane's number keeps its "+".
+struct AmsLaneBadgeLayout {
+    int rows = 1;
+    bool plus = true;
+};
+
+/**
+ * @brief Lane numbers whose left edges stand at @p left (ascending), @p number wide with the
+ * number alone and @p with_plus wide carrying an empty lane's "+": one row while neighbours
+ * stand @p gap apart; else alternating rows; and where even that crowds them, no "+" (the
+ * number's own tap state says it).
+ */
+inline AmsLaneBadgeLayout ams_lane_badge_layout(const float left[], const int32_t number[],
+                                                const int32_t with_plus[], int n, int32_t gap) {
+    const auto fits = [&](int rows, const int32_t w[]) {
+        for (int i = 0; i + rows < n; ++i)
+            if (left[i + rows] - (left[i] + (float)w[i]) < (float)gap)
+                return false;
+        return true;
+    };
+    if (fits(1, with_plus))
+        return {1, true};
+    if (fits(2, with_plus))
+        return {2, true};
+    return {2, false};
 }
 
 /**

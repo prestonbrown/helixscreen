@@ -40,6 +40,12 @@ void AmsBackendMock::set_ace_identity() {
     system_info_.type_name = "ACE";
 }
 
+void AmsBackendMock::set_openams_identity() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    system_info_.type = AmsType::OPENAMS;
+    system_info_.type_name = "OpenAMS";
+}
+
 void AmsBackendMock::set_endless_spool_supported(bool supported) {
     std::lock_guard<std::mutex> lock(mutex_);
     endless_spool_supported_ = supported;

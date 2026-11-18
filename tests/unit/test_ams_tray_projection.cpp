@@ -434,6 +434,95 @@ TEST_CASE("stagger labels: below medium a label keeps to its two-lane span",
     CHECK(ams_stagger_label_width(0, UiBreakpoint::Micro, 4) == 0);
 }
 
+TEST_CASE("labels over a drawn unit: the fewest rows that give every label its room",
+          "[ams][tray][stagger][over-lane]") {
+    using helix::ui::ams_over_lane_label_rows;
+    const float x[4] = {0, 40, 80, 120};
+    const int32_t fit[4] = {36, 36, 36, 36};
+    CHECK(ams_over_lane_label_rows(x, fit, fit, 4, 4, -40, 160) == 1);
+    const int32_t wide[4] = {60, 60, 60, 60};
+    CHECK(ams_over_lane_label_rows(x, wide, wide, 4, 4, -40, 160) == 2);
+    const int32_t wider[4] = {100, 100, 100, 100};
+    CHECK(ams_over_lane_label_rows(x, wider, wider, 4, 4, -40, 160) == 3);
+    // Whole text first: two rows show it all though one row would keep a few characters.
+    CHECK(ams_over_lane_label_rows(x, wide, fit, 4, 4, -40, 160) == 2);
+    // Too long for any rows whole: the fewest rows that keep a few characters.
+    const int32_t huge[4] = {500, 500, 500, 500};
+    CHECK(ams_over_lane_label_rows(x, huge, fit, 4, 4, -40, 160) == 1);
+}
+
+TEST_CASE("labels over a drawn unit: spans clear neighbours and the ticks rising past them",
+          "[ams][tray][stagger][over-lane]") {
+    using helix::ui::ams_over_lane_label_spans;
+    using helix::ui::AmsLabelSpan;
+    const int32_t gap = 4;
+    SECTION("same row: each stops a gap short of halfway") {
+        const float x[2] = {0, 40};
+        const int row[2] = {0, 0};
+        const int32_t need[2] = {100, 100};
+        AmsLabelSpan s[2];
+        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
+        CHECK(s[0].right == 18);
+        CHECK(s[1].left == 18);
+        CHECK(0 + s[0].right < 40 - s[1].left);
+    }
+    SECTION("a higher neighbour's tick: the label stops a gap short of it") {
+        const float x[2] = {0, 40};
+        const int row[2] = {0, 1};
+        const int32_t need[2] = {100, 100};
+        AmsLabelSpan s[2];
+        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
+        CHECK(s[0].right == 36);
+        // The higher label has no tick under it to clear.
+        CHECK(s[1].left == 50);
+        CHECK(s[1].right == 50);
+    }
+    SECTION("crowded on one side, it slides to the other, its own tick still under it") {
+        const float x[2] = {0, 20};
+        const int row[2] = {0, 1};
+        const int32_t need[2] = {40, 10};
+        AmsLabelSpan s[2];
+        ams_over_lane_label_spans(x, row, need, 2, gap, -1000, 1000, s);
+        CHECK(s[0].right == 16);
+        CHECK(s[0].left == 24);
+        CHECK(s[0].left + s[0].right == 40);
+    }
+    SECTION("never past the row's ends") {
+        const float x[1] = {10};
+        const int row[1] = {0};
+        const int32_t need[1] = {40};
+        AmsLabelSpan s[1];
+        ams_over_lane_label_spans(x, row, need, 1, gap, 0, 100, s);
+        CHECK(s[0].left == 10);
+        CHECK(s[0].right == 30);
+    }
+    SECTION("centered where both sides allow") {
+        const float x[1] = {0};
+        const int row[1] = {0};
+        const int32_t need[1] = {30};
+        AmsLabelSpan s[1];
+        ams_over_lane_label_spans(x, row, need, 1, gap, -1000, 1000, s);
+        CHECK(s[0].left == 15);
+        CHECK(s[0].right == 15);
+    }
+}
+
+TEST_CASE("lane numbers under a drawn unit: one row, then two, then no \"+\"",
+          "[ams][tray][lane-badges]") {
+    using helix::ui::ams_lane_badge_layout;
+    const int32_t number[4] = {16, 16, 16, 16};
+    const int32_t plus[4] = {26, 26, 26, 26};
+    const float roomy[4] = {0, 40, 80, 120};
+    CHECK(ams_lane_badge_layout(roomy, number, plus, 4, 4).rows == 1);
+    CHECK(ams_lane_badge_layout(roomy, number, plus, 4, 4).plus);
+    const float close[4] = {0, 20, 40, 60};
+    CHECK(ams_lane_badge_layout(close, number, plus, 4, 4).rows == 2);
+    CHECK(ams_lane_badge_layout(close, number, plus, 4, 4).plus);
+    const float tight[4] = {0, 12, 24, 36};
+    CHECK(ams_lane_badge_layout(tight, number, plus, 4, 4).rows == 2);
+    CHECK_FALSE(ams_lane_badge_layout(tight, number, plus, 4, 4).plus);
+}
+
 TEST_CASE("lane badge: on the front face, inside the lane's bay", "[ams][tray][badge]") {
     const TrayBox b = reference_box(); // front face y 101..126
     SECTION("a wide pitch puts it at the lane's front bottom-right") {

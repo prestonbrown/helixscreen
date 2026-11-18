@@ -114,17 +114,6 @@ float inlet_y(const HubCanvas& c) {
     return (float)path_toolhead_inlet(c.data->path_cache.nozzle_y, c.data->path_cache.tool_scale).y;
 }
 
-// The buffer hangs just under the hub, nearer it than the toolhead.
-void check_buffer_under_hub(const HubCanvas& c) {
-    const lv_area_t& hub = c.data->hits.hub;
-    const lv_area_t& buf = c.data->hits.buffer;
-    const int32_t glyph_top =
-        toolhead_top_y(c.data->path_cache.nozzle_y, c.data->theme.extruder_scale);
-    CHECK((buf.y1 > hub.y2 &&
-           buf.y1 - hub.y2 <= 2 * c.data->theme.sensor_radius + (buf.y2 - buf.y1) / 2 + 1));
-    CHECK(buf.y1 - hub.y2 < glyph_top - buf.y2);
-}
-
 // The plan the canvas painted, rebuilt from its own state.
 const PathPlan& plan_of(const HubCanvas& c, LinearHubFrame* frame_out) {
     static PathPlan plan;
@@ -143,6 +132,40 @@ int32_t ratio_y(const HubCanvas& c, float ratio) {
 
 int32_t center_y(const lv_area_t& a) {
     return (a.y1 + a.y2) / 2;
+}
+
+// The buffer stands on the trunk's final vertical drop: every piece of the active route across
+// its control's height is a straight vertical line on the center, with at least r clear above
+// it, below the unit's outlet, and below it, above the room over the head.
+void check_buffer_on_drop(const LinearHubFrame& f, const PathPlan& plan, int32_t glyph_top) {
+    REQUIRE(f.has_buffer);
+    REQUIRE(plan.active_route >= 0);
+    const int32_t r = f.sensor_r;
+    const int32_t half = buffer_control_height(f.hub_h) / 2;
+    const float top = (float)(f.buffer_y - half);
+    const float bottom = (float)(f.buffer_y + half);
+    CAPTURE(f.output_y, f.buffer_y, half, glyph_top, r);
+    // The gap above is never smaller than the gap below (they are equal under a hub; a
+    // selector's jog can only push the buffer lower), and the one below holds the room over
+    // the head where the bypass merges and the toolhead band sits.
+    const int32_t above = f.buffer_y - half - f.output_y;
+    const int32_t below = glyph_top - (f.buffer_y + half);
+    CHECK(above >= below - 2);
+    CHECK(below >= 3 * r);
+    const pg::FilamentPath& path = plan.routes[plan.active_route].path;
+    int covering = 0;
+    for (int i = 0; i < path.count; ++i) {
+        const pg::PathPoint a = seg_start(path.segs[i]);
+        const pg::PathPoint b = seg_end(path.segs[i]);
+        if (std::max(a.y, b.y) <= top || std::min(a.y, b.y) >= bottom)
+            continue;
+        CAPTURE(i, a.x, a.y, b.x, b.y);
+        CHECK(path.segs[i].type == pg::PathSeg::LINE);
+        CHECK(a.x == Catch::Approx((float)f.center_x).margin(0.01));
+        CHECK(b.x == Catch::Approx((float)f.center_x).margin(0.01));
+        ++covering;
+    }
+    CHECK(covering > 0);
 }
 
 } // namespace
@@ -210,13 +233,20 @@ TEST_CASE_METHOD(HubStackFixture,
     ScopedToolheadStyle scoped(style);
     CAPTURE(static_cast<int>(style));
 
-    SECTION("with a buffer, which keeps the hub at its place") {
+    SECTION("with a buffer, which keeps the hub at its place and stands centered under it") {
         auto c = make(true, false);
         load(c, static_cast<int>(helix::PathSegment::NOZZLE));
         render(c);
         REQUIRE((c.data->hits.hub_valid && c.data->hits.buffer_valid));
         CHECK(center_y(c.data->hits.hub) == Catch::Approx(ratio_y(c, kHubYRatio)).margin(1));
-        check_buffer_under_hub(c);
+        LinearHubFrame f;
+        const PathPlan& plan = plan_of(c, &f);
+        const int32_t glyph_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+        check_buffer_on_drop(f, plan, glyph_top);
+        // Even gaps: the hub's outlet to the buffer, the buffer to the head.
+        const int32_t half = buffer_control_height(f.hub_h) / 2;
+        CHECK((f.buffer_y - half - f.output_y) ==
+              Catch::Approx(glyph_top - (f.buffer_y + half)).margin(2));
     }
     SECTION("without a buffer") {
         auto c = make(false, false);
@@ -272,13 +302,13 @@ TEST_CASE_METHOD(HubStackFixture,
     const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
     const int32_t inlet = path_toolhead_inlet(f.nozzle_y, f.tool_scale).y;
     const int32_t hub_bottom = f.hub_y + f.hub_h / 2;
-    const int32_t buf_h = std::max<int32_t>(16, f.hub_h);
+    const int32_t buf_h = buffer_control_height(f.hub_h);
     CAPTURE(f.hub_y, f.hub_h, f.buffer_y, f.bypass_merge_y, f.toolhead_y, f.tool_scale, head_top,
             inlet);
     // The tube ends at the head's filament inlet.
     CHECK(f.inlet_y == inlet);
-    // The buffer keeps its box, with a clear gap above and below it; the head keeps a clear gap
-    // above it for the toolhead band.
+    // The buffer keeps its control's height, with a clear gap above and below it; the head
+    // keeps a clear gap above it for the toolhead band.
     CHECK(f.has_buffer == buffer);
     CHECK(hub_bottom + (buffer ? r + buf_h : 0) + r + 2 * r <= inlet);
     if (buffer) {
@@ -431,18 +461,13 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     // The selected filament leaves under the carriage, standing at gate 2, clear of the art.
     CHECK((f.output_x == rail_outlet_x(*art, f.rail, 2) &&
            f.output_y >= f.rail.y + f.rail.h * 9 / 10));
-    // A rail's sync sensor is at its outlet: no buffer box, the outlet band shows its state.
+    // A rail's buffer stands on the drop below the jog from its outlet to the center.
     ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
-    ui_filament_path_canvas_set_buffer_fault_state(c.obj, 2);
     render(c);
-    const PathPlan& synced = plan_of(c, &f);
-    const SensorBand* sync = nullptr;
-    for (int b = 0; b < synced.band_count; ++b)
-        if (synced.bands[b].state == BandState::Sync && synced.bands[b].at.y == (float)f.output_y)
-            sync = &synced.bands[b];
-    REQUIRE(sync != nullptr);
-    CHECK((!f.has_buffer && center_y(c.data->hits.buffer) == f.output_y &&
-           lv_color_eq(band_color(*sync, tube_palette(*c.data)), c.data->theme.color_buffer[2])));
+    const PathPlan& buffered = plan_of(c, &f);
+    REQUIRE(c.data->hits.buffer_valid);
+    check_buffer_on_drop(f, buffered, toolhead_top_y(f.nozzle_y, f.tool_scale));
+    CHECK(center_y(c.data->hits.buffer) == Catch::Approx(f.buffer_y).margin(2));
     // A new selection slides the exit toward that gate's outlet, before any repaint.
     ui_filament_path_canvas_set_active_slot(c.obj, 3);
     CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));
@@ -457,6 +482,76 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     plan_of(c, &f);
     CHECK((!c.data->rail_drawn && f.rail.w == 0 && f.has_buffer));
     CHECK((c.data->hits.hub.y1 == bar.y1 && c.data->hits.hub.y2 == bar.y2));
+}
+
+TEST_CASE("The required height is the least that lays the path out at full size",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    d.topology = static_cast<int>(helix::PathTopology::HUB);
+    d.slot_count = 4;
+    d.theme.tube_gauge = 5;
+    d.theme.sensor_radius = 4;
+    d.theme.hub_width = 50;
+    d.theme.extruder_scale = 8;
+    for (int i = 0; i < 4; i++) {
+        d.slot_has_prep_sensor[i] = true;
+        d.lane_band_drop[i] = 10;
+    }
+    d.has_hub_sensor = true;
+    d.has_toolhead_sensor = true;
+    d.buffer_present = true;
+    BaseGeometry g;
+    g.x_off = 330;
+    g.y_off = 194;
+    g.width = 285;
+    g.slot_count = 4;
+    for (int i = 0; i < 4; i++)
+        g.slot_x[i] = 384 + 58 * i;
+    g.center_x = 471;
+    g.lane_entry_y = 196;
+    const auto full_size = [&](int32_t height) {
+        BaseGeometry h = g;
+        h.height = height;
+        const LinearHubFrame f = compute_linear_hub_frame(
+            d, h, toolhead_top_y(linear_hub_nozzle_y(d, h), d.theme.extruder_scale));
+        return f.tool_scale == d.theme.extruder_scale && f.has_buffer;
+    };
+    g.height = 66; // the 480x272 unit view's canvas
+    REQUIRE_FALSE(full_size(g.height));
+    const int32_t need = linear_hub_required_height(d, g);
+    CAPTURE(need);
+    CHECK(need > g.height);
+    CHECK(full_size(need));
+    CHECK_FALSE(full_size(need - 1));
+    // A canvas that already fits needs nothing more.
+    g.height = need + 40;
+    CHECK(linear_hub_required_height(d, g) == need + 40);
+}
+
+TEST_CASE_METHOD(HubStackFixture,
+                 "The buffer stands on the final vertical drop, never on a sideways run",
+                 "[filament-path][buffer-drop]") {
+    const int topology = GENERATE(0, 1); // a LINEAR selector bar, a HUB
+    const bool bypass = GENERATE(false, true);
+    const int32_t height = GENERATE(420, 260);
+    CAPTURE(topology, bypass, height);
+    auto c = make(/*buffer=*/true, bypass, /*slots=*/4);
+    ui_filament_path_canvas_set_topology(c.obj, topology);
+    lv_obj_set_size(c.obj, kCanvasW, height);
+    load(c, static_cast<int>(helix::PathSegment::NOZZLE));
+    render(c);
+    REQUIRE(c.data->hits.buffer_valid);
+    LinearHubFrame f;
+    const PathPlan& plan = plan_of(c, &f);
+    // The first lane's exit stands off the center, so a selector's filament jogs sideways.
+    if (topology == 0)
+        REQUIRE(f.output_x != f.center_x);
+    check_buffer_on_drop(f, plan, toolhead_top_y(f.nozzle_y, f.tool_scale));
+    // The selector rises to make the room; the head keeps its size.
+    CHECK(f.tool_scale == c.data->theme.extruder_scale);
+    if (bypass)
+        CHECK(f.bypass_merge_y >= f.buffer_y + buffer_control_height(f.hub_h) / 2 + f.sensor_r);
+    CHECK(center_y(c.data->hits.buffer) == Catch::Approx(f.buffer_y).margin(2));
 }
 
 TEST_CASE_METHOD(HubStackFixture,
@@ -513,15 +608,16 @@ TEST_CASE_METHOD(HubStackFixture,
                unit_art_drawn(PathTopology::MIXED, carriage) != carriage &&
                !unit_art_drawn(PathTopology::PARALLEL, carriage)));
     // Beside a buffer and the bypass the face takes the selector's slot, its outlets fan into a
-    // hub below it, and the hub's outlet band carries the buffer's reading.
+    // hub below it, and the buffer stands on the drop under the hub.
     ui_filament_path_canvas_set_topology(c.obj, static_cast<int>(PathTopology::HUB));
     ui_filament_path_canvas_set_buffer_info(c.obj, true, 0);
     ui_filament_path_canvas_set_show_bypass(c.obj, true);
     render(c);
-    plan_of(c, &f);
+    const PathPlan& faced = plan_of(c, &f);
     REQUIRE((f.through.w > 0 && !c.data->rail_drawn));
-    CHECK((f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
+    CHECK((!f.sync_on_output && f.through.y + f.through.h < f.hub_y - f.hub_h / 2 &&
            f.output_y < f.bypass_merge_y));
+    check_buffer_on_drop(f, faced, toolhead_top_y(f.nozzle_y, f.tool_scale));
     CHECK(f.hub_fan[0].pts[0].x == (float)rail_outlet_x(*art, f.through, 0));
     // No room for the face: the hub alone.
     lv_obj_set_height(c.obj, 160);
@@ -567,12 +663,14 @@ TEST_CASE_METHOD(HubStackFixture, "LINEAR never stacks its selector or buffer",
     render(c);
     REQUIRE(c.data->hits.hub_valid);
     REQUIRE(c.data->hits.buffer_valid);
-    // The selector butts against the prep sensors; the buffer hangs under it.
+    // The selector butts against the prep sensors; the buffer stands on the drop under it.
     const int32_t hub_h = c.data->hits.hub.y2 - c.data->hits.hub.y1;
     CHECK(
         center_y(c.data->hits.hub) ==
         Catch::Approx(ratio_y(c, kPrepYRatio) + c.data->theme.sensor_radius + hub_h / 2).margin(1));
-    check_buffer_under_hub(c);
+    LinearHubFrame f;
+    const PathPlan& plan = plan_of(c, &f);
+    check_buffer_on_drop(f, plan, toolhead_top_y(f.nozzle_y, f.tool_scale));
 }
 
 TEST_CASE_METHOD(HubStackFixture,
@@ -583,7 +681,9 @@ TEST_CASE_METHOD(HubStackFixture,
     render(shown);
     REQUIRE((shown.data->hits.hub_valid && shown.data->hits.buffer_valid));
     CHECK(center_y(shown.data->hits.hub) == Catch::Approx(ratio_y(shown, kHubYRatio)).margin(1));
-    check_buffer_under_hub(shown);
+    LinearHubFrame sf;
+    const PathPlan& splan = plan_of(shown, &sf);
+    check_buffer_on_drop(sf, splan, toolhead_top_y(sf.nozzle_y, sf.tool_scale));
 
     auto c = make(false, false);
     lv_obj_set_size(c.obj, kCanvasW, 100);

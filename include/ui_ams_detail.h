@@ -150,15 +150,22 @@ bool ams_detail_error_in_view(const AmsSystemInfo& info, int unit_index);
 /// Tell the path canvas where the spool box's front edge is, so its lanes enter
 /// there. Call after ams_detail_update_tray(); no box leaves the canvas's own
 /// entry row.
-void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
+///
+/// Under a drawn unit the path needs its full-size height
+/// (ui_filament_path_canvas_required_height()). A path of fixed height (portrait) grows to it;
+/// where the diagram then runs past what is on screen, or a path that fills the column is
+/// short of it, the unit must shrink: the spool size that fits is recorded for this unit and
+/// screen, and true asks the caller to lay the unit out again. False when it fits.
+bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 
 /// Slot sizing for the detail view: in a box, spools stand at the tray pitch
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
 
 /// Spool size for the detail view. A drawn unit's spools grow until the unit fills
-/// @p available_width, up to a fifth of the screen's height so the filament path
-/// keeps its room below; flat spools keep the ams_slot_spool_size token.
+/// @p available_width, up to a fifth of the screen's shorter side so the filament path
+/// keeps its room below (in portrait the diagram shares the height with the sidebar);
+/// flat spools keep the ams_slot_spool_size token.
 int32_t ams_detail_spool_size(int32_t available_width, int slot_count);
 
 /// Whether a unit reports temperature, humidity or a dryer, which means it is closed up.

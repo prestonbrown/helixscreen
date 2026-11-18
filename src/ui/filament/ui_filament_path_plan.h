@@ -54,6 +54,32 @@ struct RailArtRect {
 
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
+/// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
+/// under 14 px so its end marks stay legible.
+inline int32_t buffer_capsule_height(int32_t hub_h) {
+    return LV_MAX(14, hub_h * 3 / 4);
+}
+
+/// The height the trunk keeps for the buffer's control: the capsule. Its thumb stands 3 px
+/// proud of it at each end, into the gaps kept above and below it.
+inline int32_t buffer_control_height(int32_t hub_h) {
+    return buffer_capsule_height(hub_h);
+}
+
+/// The buffer control's parts for a capsule @p cap_h tall: the track either side of the tube,
+/// the detail button's cell at the capsule's right end, and the thumb.
+struct BufferControlGeometry {
+    int32_t half = 0;    ///< the track's reach either side of the tube
+    int32_t cell = 0;    ///< the detail button's cell, right of the track
+    int32_t thumb_w = 0; ///< the thumb, cap_h + 6 tall
+    int32_t thumb_h = 0;
+};
+BufferControlGeometry buffer_control_geometry(int32_t cap_h);
+
+/// What a tap on the control at (@p cx, @p cy) opens the detail from: the capsule, its
+/// button and the thumb's glow, with 4 px to spare.
+lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h);
+
 struct LinearHubFrame {
     // Vertical layout (absolute display coords)
     int32_t entry_y = 0;
@@ -79,7 +105,7 @@ struct LinearHubFrame {
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
-    // The buffer box gave way to the art: the selector's or hub's outlet band shows its reading.
+    // No room on the trunk for the buffer: the selector's or hub's outlet band shows its reading.
     bool sync_on_output = false;
 
     lv_color_t idle_color, active_color, hub_bg, hub_border;
@@ -214,6 +240,11 @@ int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
 /// @p glyph_top is the full-size toolhead glyph's topmost drawn Y (toolhead_top_y()):
 /// a HUB with the bypass hidden stacks its hub and buffer above it. A HUB canvas too
 /// short for its hub above that glyph draws a smaller head (LinearHubFrame::tool_scale).
+/// The least height @p g (its top where it is) needs for compute_linear_hub_frame() to lay the
+/// path out at full size: a full-size head, and the buffer kept on the trunk when the unit
+/// reports one. @p g's own height when that already fits.
+int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g);
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top);
 

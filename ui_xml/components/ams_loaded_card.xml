@@ -167,7 +167,8 @@
            operation. From medium up the slider shows when there is a set point to
            centre on; below medium the buffer icon stands in for it. The number is
            the short form, so the meter stays narrow. -->
-      <lv_obj name="buffer_mini" scrollable="false" clickable="false">
+      <lv_obj name="buffer_mini" scrollable="false" clickable="true">
+        <event_cb trigger="clicked" callback="ams_sidebar_buffer_clicked"/>
         <bind_flag_if cond="buffer_present eq 0 or ams_action ne 0" flag="hidden"/>
         <bind_style_if name="meter_column" cond="ui_breakpoint ge 3 and ui_is_portrait eq 1"/>
         <bind_style_if name="meter_row" cond="ui_breakpoint lt 3"/>

@@ -300,6 +300,7 @@ translations:
   Adjustments stay active until restart. Save after print completes.: 调整在重启前保持有效。打印完成后保存。
   Adjusts individual characteristics of your heaters for optimal control: 调整加热器的各项参数以实现最佳控制
   Advanced: 高级
+  Advancing: ''
   After an error: 发生错误后
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '连接{}后，建议重新校准输入整形，以确保打印质量。'
   After running the commands, tap Check Again below.: 执行命令后，点击下方的重新检查。
@@ -871,6 +872,7 @@ translations:
   Completed {}d ago: '{} 天前完成'
   Completed {}h ago: '{} 小时前完成'
   Completed {}m ago: '{} 分钟前完成'
+  Compressed: ''
   Computing calibration...: 正在计算校准...
   Config Dir: 配置目录
   Config Edit Failed: '配置编辑失败'
@@ -1426,6 +1428,7 @@ translations:
   Exhaust fan speed: '排气风扇速度'
   'Exhaust: keep chamber at or below': '排气：将腔体保持在不高于'
   Exit Code: 退出代码
+  Expanded: ''
   Expected boolean: '需要布尔值'
   Expected float: '需要小数值'
   Explore how the selected palette shapes text, controls, and status colors.: 探索所选调色板如何影响文本、控件和状态颜色。
@@ -4554,6 +4557,7 @@ translations:
   TouchCalibration: 触摸校准
   Trace: 跟踪
   Trigger: 触发器
+  Trailing: ''
   'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件

@@ -1206,13 +1206,39 @@ drawing is `src/ui/filament/ui_ams_detail.cpp`.
   toolhead whole at 480x272 with eight lanes: the path canvas reports the glyph's drawn
   box (`ui_filament_path_canvas_get_toolhead_box()`), and `[ams][tray]` pins it inside
   the canvas there.
+- **Labels over a drawn unit** (a unit's art or the drawn tray, labels on `labels_layer`).
+  Each label stands over its own spool and drops a short straight dotted tick to the spool
+  top (`src/ui/filament/ui_ams_detail.cpp#place_unit_labels`). An empty lane shows no label and no tick: its
+  "+" badge says it, and the backend's slot status decides, so the label comes or goes the
+  moment a lane fills or empties (the lane spool's listener, `unit_view_lane_changed`,
+  lays the labels out again without placing the tray). Labels take the fewest rows, up to
+  three (`ams_over_lane_label_rows`), that show every name whole, else at least three
+  characters before the ellipsis, cycling label by label. Each keeps clear of its same-row
+  neighbours and of the ticks of labels in higher rows, and stays inside the unit's row
+  (`ams_over_lane_label_spans`); centered where the room allows, it slides off a crowded side
+  with its tick still under it.
 - **Badges.** Each lane's number badge stands on the box's front face
   (`tray::lane_badge_origin`): its right edge inside the lane's lid edge, or centred on
   the lane when the pitch is too tight, never below the box. The per-slot tool badges
   (T0, T1, ...) show only when they add something to the lane numbers
   (`include/display_numbering.h#tool_badges_add_information`): an identity map in index
   space (tool N feeds slot N, which displays as lane N+1) hides them; a remap, a tool
-  with no lane, or an empty map shows them.
+  with no lane, or an empty map shows them. Under a unit's art each number stands right of
+  its lane's tube, level with the lane's sensor band under the drawing's slanted foot.
+  Where neighbouring numbers would stand closer than a number and a gap they alternate
+  rows, odd lanes a number lower less what the foot's slant already gives them
+  (`art_lane_band_drop`); where even that crowds them, empty lanes drop their "+" and the
+  number's own tap state says it (`include/ui_ams_slot_layout.h#ams_lane_badge_layout`).
+- **A drawing too tall for its path.** Under a unit's art the path keeps the height it
+  needs at full size (a full-size head, the buffer on the trunk), found by the planner
+  itself (`ui_filament_path_canvas_required_height()`). Where the path falls short, or the
+  diagram runs past the screen, the unit's spools are capped for that unit, slot count,
+  width and screen, and the panel lays it out again (`ams_detail_sync_lane_entry()` returns
+  true); a unit that fits is untouched. The drawing keeps at least half the size its width
+  gives it; past that the head gives up the rest (OpenAMS at 480x272). In portrait both
+  AMS panels scroll, the diagram whole on screen and the sidebar's actions below it at
+  their own height (`ams_sidebar.xml` binds its height: full in landscape, content in
+  portrait).
 - **Environment pill.** `ams_env_pill.xml` (instance `env_indicator` in
   `ams_unit_detail.xml`) is a flex sibling of the slot container, so it takes its width
   from the unit's row: the box narrows to make room and box and pill centre as one.
@@ -1847,30 +1873,34 @@ or neither.
 | Surfaces | Filament Buffer widget, loaded card slider, path box, Buffer Status modal | Clog Detection widget, loaded card arc, the modal's top bar |
 
 OpenAMS has a buffer reading and no clog detection (klipper_openams publishes none). A
-switched AFC buffer (TurtleNeck) has clog detection through its fault distance and no
-reading. An `FPS_PSF` buffer has both. Happy Hare has the reading and, with its encoder
+switched AFC buffer (TurtleNeck) has clog detection through its fault distance and a
+three-place reading (neutral, compressed, expanded). An `FPS_PSF` buffer has both. Happy Hare has the reading and, with its encoder
 or FlowGuard, clog detection.
 
 | Piece | Where |
 |---|---|
 | FPS to bias | `BufferHealth::fps_to_bias()` (`include/ams_types.h`): AFC `FPS_PSF` carries its sensor as `AmsUnit::buffer_health` and nothing else; no backend writes `sync_feedback_bias` for it. A sensor with `BufferHealth::compression_only` (OpenAMS: 0 none .. 1 full, never tension) never goes through it: `buffer_reading()` makes it a fill reading |
 | Gauge kind | `BufferReading::gauge`: `BufferGauge::Bias` (two-ended, tight/loose: Happy Hare, AFC `FPS_PSF`) or `BufferGauge::Fill` (one-sided pressure, `compression_only`). A fill reading has `bias` 0, a `value_pct`, a `target_pct` (or -1) and a rail-based `status`; every consumer branches on `gauge`, never on a backend |
-| Which sensor | `buffer_reading(info, unit)` (`include/buffer_reading.h`): a unit's own pressure sensor; a unit with a switched buffer reads nothing; any other unit, and -1, reads the system: the sensor feeding the toolhead (`AmsSystemInfo::feeding_pressure_unit()`), else Happy Hare's `sync_feedback_bias` (only Happy Hare writes it) |
+| Which sensor | `buffer_reading(info, unit)` (`include/buffer_reading.h`): a unit's own pressure sensor; a unit with a switched buffer reads it as `BufferSource::Switch`, its bias snapped to 0 or `kSwitchedBufferBias` (0.8) either way; any other unit, and -1, reads the system: the sensor feeding the toolhead (`AmsSystemInfo::feeding_pressure_unit()`), else Happy Hare's `sync_feedback_bias` (only Happy Hare writes it), else the first switched buffer |
 | Which unit's rows | `buffer_view_unit(info, unit)`: the unit itself, else the unit the system reading came from, else 0. The path box and the modal both use it, so they name the same unit's AFC rows |
-| Bands and color | `pressure_status()`, `pressure_status_of_bias()` and `buffer_status_token()` in `include/clog_meter_geometry.h`; `buffer_lean()` for the words. A fill reading uses `fill_pressure_status()` (`kPressureFullWarningPct` 85, `kPressureFullFaultPct` 95, `kPressureEmptyWarningPct` 5 while loaded) and `pressure_target_side()` (`kPressureTargetDeadbandPct` 5) for "At / Above / Below target" |
+| Bands and color | `pressure_status()`, `pressure_status_of_bias()` and `buffer_status_token()` in `include/clog_meter_geometry.h`, all by `kBufferEndStopPct` (90); `buffer_lean()` for the words. A fill reading uses `fill_pressure_status()` (the same end stop at either rail, the empty one only while loaded) and `pressure_target_side()` (`kPressureTargetDeadbandPct` 5) for "At / Above / Below target" |
+| Position | `buffer_position(reading)`: where the buffer sits, -1 fully expanded .. +1 fully compressed. A bias reading's bias; a fill reading's pressure against its set point. The path canvas's tension thumb stands there |
 | Subjects | `AmsState` publishes the system-level reading as `buffer_present`, `buffer_slider`, `buffer_bias_pct`, `buffer_status`, `buffer_gauge` (0 bias, 1 fill), `buffer_value_pct` and `buffer_target_pct` (a fill reading's pressure and set point; -1 target without one), `buffer_label`, `buffer_value_text`, `buffer_short_text`, `buffer_target_text`, `buffer_lean_text` (`src/printer/ams_state_buffer.cpp`). `buffer_bias_pct` is 0 for a fill reading |
-| Text | `buffer_label()` ("FPS" for a pressure sensor, "Sync" for Happy Hare), `buffer_value_text()` / `buffer_short_text()` / `buffer_target_text()` ("target N%"), `buffer_lean_text()` |
+| Text | `buffer_label()` ("FPS" for a pressure sensor, "Sync" for Happy Hare, "Buffer" for a switched one, whose short text is "Neutral", "Compressed" or "Expanded"), `buffer_value_text()` / `buffer_short_text()` / `buffer_target_text()` ("target N%"), `buffer_lean_text()` |
 | History | `AmsState::buffer_trace(unit)`: a `BufferTrace` per unit and for -1, about 60 s stamped on `buffer_clock_ms()` (monotonic). Readings arrive on change, so each point holds until the next (a step line); a reading that never changes still draws across the window. A sensorless unit records the system reading, or a gap when there is none. Main thread only; dropped with the unit |
 | Renderer | `UiBufferSlider` (`include/ui_buffer_slider.h`) paints the slider (a bias reading) or the fill gauge (a fill reading), and optionally the trace, into XML-authored objects. Layout is pure: `buffer_slider_geometry()`, `buffer_fill_geometry()`, `buffer_fill_trace_y()`, `buffer_trace_polylines()` and `buffer_trace_unrecorded_x()` in `include/buffer_slider_geometry.h`, tested without LVGL. The trace redraws once a second so it scrolls with no new reading |
 
-**Colour rule.** From the bias (-1 tight .. +1 loose around the set point), one rule on
-every surface: below 0.3 neutral grey (`text_muted`), 0.3 up to 0.7 `warning`, 0.7 and
-above `danger`. A switched AFC buffer keeps its own two states, drawn in the `warning` and `success` tokens. A pressure reading
+**Colour rule.** A buffer away from its center is normal operation, so one rule holds on
+every surface, the path canvas and the loaded card alike: neutral grey (`text_muted`) until
+the reading is at or near an end stop, a bias of 0.9 either way, then `warning`. Where a
+reading sits never makes it `danger`; only a fault the backend reports does (AFC's fault
+distance, `buffer_fault_status()`). A switched AFC buffer sits short of the end stops, so its
+three places are neutral. A pressure reading
 with no set point has nothing to center on: a bias reading shows the pressure as text
 ("Pressure: N%"), with no slider, no trace and no tint. The rule above is the **bias**
 rule. A **fill** reading (OpenAMS, `compression_only`) is not judged against its target at
-all: it is neutral until the pressure nears a rail (85% warning, 95% danger, 5% or under
-warning while the lane has filament loaded), and the words are "At target" (within 5
+all: it is neutral until the pressure reaches 90% or more, or 10% or less while the lane has
+filament loaded, which warns, and the words are "At target" (within 5
 points), "Above target" or "Below target"; with no set point it keeps the gauge and the
 rail colors and shows "Pressure: N%" with no word.
 
@@ -1908,8 +1938,8 @@ with no history yet is a dotted baseline.
 | Surface | Content |
 |---|---|
 | **Filament Buffer** home widget (`filament_buffer`, `src/ui/panel_widgets/filament_buffer_widget.cpp`) | 1x1: the slider beside a big status-coloured number over its label. 2x1: the number with "target N%", the trace, then the label and the lean in words ("Running tight", "Running loose", "Balanced"; a compression-only fill reads "At target", "Above target" or "Below target"). No set point: 1x1 keeps the number over the label, 2x1 says "Pressure: N%". Tap opens the modal. Padding is the `buffer_tile_pad` token, so the tile keeps its padding at 480x320 |
-| Loaded strip (`ams_loaded_card.xml`) | Under the strip's two lines, while idle. From the medium breakpoint up a small slider (`buffer_mini_h`) over the short number and the FPS/Sync label; below medium the `swap_vertical` icon beside the short number, slider and label hidden. Hidden during any operation. The colour bar is `loaded_swatch_narrow_w` wide |
-| Path canvas buffer box (`ams_detail_buffer_box()`) | The existing labeled FPS/BUF box, tinted live by the color rule as the reading moves; a pressure with no set point is untinted. A fill reading passes no bias and tints only at a rail. Tap opens the modal on the buffer feeding the toolhead |
+| Loaded strip (`ams_loaded_card.xml`) | Under the strip's two lines, while idle, for every backend with a buffer. From the medium breakpoint up a small slider (`buffer_mini_h`) over the short number and the FPS/Sync/Buffer label; below medium the `swap_vertical` icon beside the short number, slider and label hidden. Hidden during any operation. A tap on the meter opens the modal. The colour bar is `loaded_swatch_narrow_w` wide |
+| Path canvas tension control (`ams_detail_buffer_box()`, `draw_buffer_tension()`) | A capsule across the tube on the trunk's final vertical drop, the tube passing through it, with a thumb at `buffer_position()`: centered at neutral, toward the left (compressed) end or the right (expanded) end, which carry inward and outward chevrons. The thumb is the accent, a lighter tint off center, and the warning or danger token only by the color rule. The detail button, a spring, sits in the capsule's right end; a tap anywhere on it opens the modal on the buffer feeding the toolhead. Where the trunk has no room for it, the hub's or selector's outlet band carries the reading and the tap |
 | Buffer Status modal (`BufferStatusModal::show_for`, `buffer_status_modal.xml`) | The clog bar (hidden with no detector), then the tall slider with the reading, target and lean in words beside it, the trace and its caption ("last 60 s"), and the backend's own rows (Happy Hare spool motor, gear sync, flow; AFC state, distance to fault). Live while open; closes only with its X |
 
 A fill reading's tall gauge in the modal and the mini gauge on the card and widget share the slider's footprint; the modal's trace caption becomes "last 60 s · pressure, target dashed".

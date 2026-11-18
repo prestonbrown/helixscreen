@@ -310,26 +310,27 @@ TEST_CASE("clog_bar_geometry: out-of-range values are clamped, not wrapped", "[c
 // Buffer reading bands
 // ===========================================================================
 
-TEST_CASE("pressure_status: the bands, by magnitude", "[clog][status][pressure]") {
+TEST_CASE("pressure_status: off center is normal; only an end stop warns, nothing faults",
+          "[clog][status][pressure]") {
     CHECK(pressure_status(0) == ClogMeterStatus::Ok);
-    CHECK(pressure_status(kPressureWarningPct - 1) == ClogMeterStatus::Ok);
-    CHECK(pressure_status(kPressureWarningPct) == ClogMeterStatus::Warning);
-    CHECK(pressure_status(-kPressureWarningPct) == ClogMeterStatus::Warning);
-    CHECK(pressure_status(kPressureFaultPct - 1) == ClogMeterStatus::Warning);
-    CHECK(pressure_status(kPressureFaultPct) == ClogMeterStatus::Fault);
-    CHECK(pressure_status(-100) == ClogMeterStatus::Fault);
+    CHECK(pressure_status(45) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(-45) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(89) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(-89) == ClogMeterStatus::Ok);
+    CHECK(pressure_status(90) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(-90) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(100) == ClogMeterStatus::Warning);
+    CHECK(pressure_status(-100) == ClogMeterStatus::Warning);
 }
 
-TEST_CASE("pressure_status_of_bias: the bands at their edges", "[clog][status][pressure]") {
-    CHECK(pressure_status_of_bias(-0.71f) == ClogMeterStatus::Fault);
-    CHECK(pressure_status_of_bias(-0.70f) == ClogMeterStatus::Fault);
-    CHECK(pressure_status_of_bias(-0.30f) == ClogMeterStatus::Warning);
-    CHECK(pressure_status_of_bias(-0.29f) == ClogMeterStatus::Ok);
+TEST_CASE("pressure_status_of_bias: the end-stop band at its edges", "[clog][status][pressure]") {
+    CHECK(pressure_status_of_bias(-0.89f) == ClogMeterStatus::Ok);
+    CHECK(pressure_status_of_bias(-0.90f) == ClogMeterStatus::Warning);
+    CHECK(pressure_status_of_bias(-0.45f) == ClogMeterStatus::Ok);
     CHECK(pressure_status_of_bias(0.0f) == ClogMeterStatus::Ok);
-    CHECK(pressure_status_of_bias(0.29f) == ClogMeterStatus::Ok);
-    CHECK(pressure_status_of_bias(0.30f) == ClogMeterStatus::Warning);
-    CHECK(pressure_status_of_bias(0.70f) == ClogMeterStatus::Fault);
-    CHECK(pressure_status_of_bias(5.0f) == ClogMeterStatus::Fault);
+    CHECK(pressure_status_of_bias(0.89f) == ClogMeterStatus::Ok);
+    CHECK(pressure_status_of_bias(0.90f) == ClogMeterStatus::Warning);
+    CHECK(pressure_status_of_bias(5.0f) == ClogMeterStatus::Warning);
     CHECK(pressure_status_of_bias(std::nanf("")) == ClogMeterStatus::Ok);
 }
 
@@ -342,7 +343,7 @@ TEST_CASE("buffer_lean: tension is tight, compression loose, a deadband between"
     CHECK(buffer_lean(0.15f) == BufferLean::Loose);
 }
 
-TEST_CASE("buffer_status_token: neutral on target, warning off it, danger at an end stop",
+TEST_CASE("buffer_status_token: neutral in use, warning at an end stop, danger on a fault",
           "[clog][status][buffer]") {
     CHECK(std::string(buffer_status_token(ClogMeterStatus::Ok)) == "text_muted");
     CHECK(std::string(buffer_status_token(ClogMeterStatus::Warning)) == "warning");
@@ -359,22 +360,17 @@ TEST_CASE("clog_meter_note: a trip reason outranks tangle prevention, which outr
     CHECK(clog_meter_note(false, false, false, false) == ClogNote::None);
 }
 
-TEST_CASE("fill_pressure_status: only the rails color a compression-only reading",
+TEST_CASE("fill_pressure_status: only a reading at either rail warns, and none faults",
           "[clog-meter][buffer][fill]") {
     using helix::ui::ClogMeterStatus;
     using helix::ui::fill_pressure_status;
-    using namespace helix::ui;
-    CHECK(kPressureFullWarningPct == 85);
-    CHECK(kPressureFullFaultPct == 95);
-    CHECK(kPressureEmptyWarningPct == 5);
     CHECK(fill_pressure_status(50, true) == ClogMeterStatus::Ok);
-    CHECK(fill_pressure_status(84, true) == ClogMeterStatus::Ok);
-    CHECK(fill_pressure_status(85, false) == ClogMeterStatus::Warning);
-    CHECK(fill_pressure_status(94, false) == ClogMeterStatus::Warning);
-    CHECK(fill_pressure_status(95, false) == ClogMeterStatus::Fault);
-    CHECK(fill_pressure_status(5, true) == ClogMeterStatus::Warning);
-    CHECK(fill_pressure_status(6, true) == ClogMeterStatus::Ok);
-    CHECK(fill_pressure_status(5, false) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(89, true) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(90, false) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(100, false) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(10, true) == ClogMeterStatus::Warning);
+    CHECK(fill_pressure_status(11, true) == ClogMeterStatus::Ok);
+    CHECK(fill_pressure_status(10, false) == ClogMeterStatus::Ok);
 }
 
 TEST_CASE("pressure_target_side: a deadband of five points either way",

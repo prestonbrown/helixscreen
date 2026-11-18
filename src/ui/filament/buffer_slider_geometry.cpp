@@ -68,9 +68,9 @@ BufferSliderGeometry buffer_slider_geometry(float bias, int width, int height) {
     const int top = inner_top(height);
     const int bottom = top + inner_height(height);
     const int pad_x = std::max(2, width / 10);
-    const float fault = kPressureFaultPct / 100.0f;
-    g.danger_top = span(pad_x, width - 2 * pad_x, top, buffer_slider_y(fault, height));
-    g.danger_bottom = span(pad_x, width - 2 * pad_x, buffer_slider_y(-fault, height), bottom);
+    const float end_stop = kBufferEndStopPct / 100.0f;
+    g.danger_top = span(pad_x, width - 2 * pad_x, top, buffer_slider_y(end_stop, height));
+    g.danger_bottom = span(pad_x, width - 2 * pad_x, buffer_slider_y(-end_stop, height), bottom);
 
     const int block_h = block_height(height);
     const int block_x = std::max(2, width / 8);
@@ -78,7 +78,7 @@ BufferSliderGeometry buffer_slider_geometry(float bias, int width, int height) {
 
     // One pixel clear of the block at either edge of the band, so the dashed
     // line never runs under it.
-    const float warning = kPressureWarningPct / 100.0f;
+    const float warning = kBufferTargetWindowPct / 100.0f;
     const int window_x = std::max(1, width / 12);
     g.target =
         span(window_x, width - 2 * window_x, buffer_slider_y(warning, height) - block_h / 2 - 1,

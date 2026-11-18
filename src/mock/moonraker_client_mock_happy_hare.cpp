@@ -110,6 +110,14 @@ int HappyHareSim::tool_for_gate(int gate) const {
     return it == ttg_map_.end() ? -1 : static_cast<int>(it - ttg_map_.begin());
 }
 
+namespace {
+// The sync feedback bias the mock reports (-1..1): HELIX_MOCK_SYNC_BIAS, else @p fallback.
+double mock_sync_bias(double fallback) {
+    const char* env = std::getenv("HELIX_MOCK_SYNC_BIAS");
+    return env ? std::atof(env) : fallback;
+}
+} // namespace
+
 json HappyHareSim::status() const {
     const size_t n = gates_.size();
     json status = json::array(), rgb = json::array(), color = json::array(),
@@ -184,7 +192,7 @@ json HappyHareSim::status() const {
           {"min_headroom", 4.2}}},
         {"sync_drive", feeding},
         {"sync_feedback_state", feeding ? "compressed" : "neutral"},
-        {"sync_feedback_bias_modelled", feeding ? 0.15 : 0.0},
+        {"sync_feedback_bias_modelled", mock_sync_bias(feeding ? 0.15 : 0.0)},
         {"sync_feedback_bias_raw", feeding ? 0.18 : 0.0},
         {"sync_feedback_flow_rate", 98.5},
         {"sync_feedback_enabled", sync_feedback_enabled_},

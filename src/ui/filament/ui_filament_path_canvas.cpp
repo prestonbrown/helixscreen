@@ -287,14 +287,12 @@ static void filament_path_click_cb(lv_event_t* e) {
         }
     }
 
-    // Check if buffer coil was clicked. The renderer records the exact drawn
-    // box in data->hits.buffer; reading it avoids
-    // re-deriving the clamped box dimensions and slot-midpoint center_x.
-    // buffer_valid is set only when the box was actually drawn this pass.
+    // The buffer's tension control, or the outlet band standing in for it. The renderer
+    // records the drawn area in data->hits.buffer, valid only when drawn this pass.
     if (data->buffer_present && data->buffer_callback && data->hits.buffer_valid) {
         if (helix::ui::recorded_box_hit(point, data->hits.buffer, data->hits.origin, {x_off, y_off},
                                         4)) {
-            spdlog::debug("[FilamentPath] Buffer coil clicked");
+            spdlog::debug("[FilamentPath] Buffer control clicked");
             data->buffer_callback(data->buffer_user_data);
             return;
         }
@@ -1281,6 +1279,15 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead)
+        return 0;
+    // Sizes are read at creation; the colors do not enter into it.
+    return linear_hub_required_height(*data, compute_base_geometry(obj, data));
 }
 
 // NAMESPACE_OK: the widget's C getter API, beside its siblings

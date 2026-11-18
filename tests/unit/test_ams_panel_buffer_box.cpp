@@ -60,11 +60,14 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel buffer box follows the reading while 
     lv_obj_t* canvas = lv_obj_find_by_name(panel.get_panel(), "path_canvas");
     REQUIRE(canvas != nullptr);
 
-    SECTION("a reading that drifts tight turns the box to a fault") {
+    SECTION("a reading that runs tight to the end stop warns") {
         CHECK(ui::filament_path_canvas_buffer_fault_state(canvas) == 0);
-        set_pressure(*mock, 0.08f);
+        set_pressure(*mock, 0.30f); // off center: normal operation
         process_lvgl(50);
-        CHECK(ui::filament_path_canvas_buffer_fault_state(canvas) == 2);
+        CHECK(ui::filament_path_canvas_buffer_fault_state(canvas) == 0);
+        set_pressure(*mock, 0.04f);
+        process_lvgl(50);
+        CHECK(ui::filament_path_canvas_buffer_fault_state(canvas) == 1);
     }
 
     SECTION("a pressure with no set point draws untinted") {

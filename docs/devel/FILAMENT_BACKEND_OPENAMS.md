@@ -82,15 +82,16 @@ kind, never which backend produced it. So:
   0..100 axis with the set point as a dashed line;
 - it is worded against the target: "At target" within 5 points either way
   (`kPressureTargetDeadbandPct`), otherwise "Above target" or "Below target";
-- color appears only near the rails (`include/clog_meter_geometry.h`): 85% and up
-  warning, 95% and up danger, 5% and under warning while the lane has filament loaded
-  (the feed is not engaging). Regulating anywhere else, however far from the target, is
-  neutral;
+- color appears only at the rails (`include/clog_meter_geometry.h`): 90% and up warns,
+  as does 10% and under while the lane has filament loaded (the feed is not engaging).
+  Regulating anywhere else, however far from the target, is neutral, and the reading
+  alone never shows danger;
 - the Filament Buffer widget, the loaded-spool card and the Buffer Status modal read
   the lane feeding the current slot, else the first unit with a sensor (with several
   lanes loaded there is no current slot); the path canvas draws the unit's own lane;
-- the path canvas draws the buffer box labelled **FPS** because the buffer reports
-  pressure (`ui_ams_detail.cpp`), tinted only by the rail status and passing no bias;
+- the path canvas draws the buffer's tension control on the trunk, its thumb placing the
+  pressure against the set point (`buffer_position()`): empty fully expanded, the set point
+  centered, full fully compressed;
 - tapping it opens the Buffer Status modal: the gauge, "FPS 62%" and "target 50%",
   the word against the target and the last minute as a trace line.
 
@@ -100,7 +101,7 @@ the Clog Detection widget has nothing to show. See
 
 A lane with no `set_point` has no target to place the reading against, so the gauge
 draws with no tick, the pressure reads "Pressure: N%" with no word beside it, and only
-the rails tint. A manager that publishes no `pressure` gets no buffer box.
+the rails tint. A manager that publishes no `pressure` gets no tension control.
 
 ## Operations
 

@@ -104,40 +104,38 @@ enum class ClogNote : int {
 /// a trip with no reason falls through, since there is nothing to show for it.
 ClogNote clog_meter_note(bool tripped, bool has_reason, bool tangle_active, bool tangle_boosted);
 
-/// Bands a filament buffer reading (`|bias| * 100`) is judged against: from
-/// kPressureWarningPct it has drifted off its target, from kPressureFaultPct
-/// the buffer is close to an end stop.
-constexpr int kPressureWarningPct = 30;
-constexpr int kPressureFaultPct = 70;
+/// How far a buffer may sit from a rail and still be worked normally. A buffer away from
+/// its center is normal operation, so where a reading sits only ever warns, and only once it
+/// is at or near an end stop: a bias of kBufferEndStopPct either way (`|bias| * 100`), or a
+/// compression-only pressure at kBufferEndStopPct or more, or at 100 - kBufferEndStopPct or
+/// less with filament loaded. Danger comes from a fault the backend reports, never from where
+/// the reading sits.
+constexpr int kBufferEndStopPct = 90;
 
-/// Bands a compression-only pressure reading (0..100) is judged against.
-/// Regulating around the set point is never colored: only a reading near the
-/// full rail warns (kPressureFullWarningPct) or faults (kPressureFullFaultPct),
-/// and one at or under kPressureEmptyWarningPct warns while filament is loaded.
-constexpr int kPressureFullWarningPct = 85;
-constexpr int kPressureFullFaultPct = 95;
-constexpr int kPressureEmptyWarningPct = 5;
+/// The buffer slider's dashed window around center, `|bias| * 100` either way: where the
+/// thumb sits while the buffer is near its target. Drawn only; it judges nothing.
+constexpr int kBufferTargetWindowPct = 30;
 
 /// How far a compression-only reading may sit from its set point, in points
 /// either way, and still read as on target.
 constexpr int kPressureTargetDeadbandPct = 5;
 
-/// Severity of a compression-only reading (0..100). @p loaded is whether the
-/// lane has filament, which is what makes an empty gauge a problem.
+/// Severity of a compression-only reading (0..100) by kBufferEndStopPct. @p loaded is
+/// whether the lane has filament, which is what makes an empty gauge a problem.
 ClogMeterStatus fill_pressure_status(int pct, bool loaded);
 
 /// Where a compression-only reading sits against its set point.
 enum class PressureTargetSide : int { At, Above, Below };
 PressureTargetSide pressure_target_side(int pct, int target_pct);
 
-/// Severity of a buffer reading, `bias * 100` (-100..+100), by magnitude.
+/// Severity of a buffer reading, `bias * 100` (-100..+100), by kBufferEndStopPct.
 ClogMeterStatus pressure_status(int pct);
 
 /// pressure_status() of a buffer bias (-1..+1, clamped; NaN reads as 0).
 ClogMeterStatus pressure_status_of_bias(float bias);
 
-/// The design token a buffer reading of this severity is drawn in: neutral on
-/// target, warning off it, danger near an end stop.
+/// The design token a buffer reading of this severity is drawn in: neutral in normal
+/// operation, warning at an end stop, danger on a reported fault.
 const char* buffer_status_token(ClogMeterStatus s);
 
 /// Which way a buffer bias (-1..+1) leans. Negative is tension (the extruder

@@ -2049,6 +2049,36 @@ HELIX_MOCK_AMS=afc HELIX_MOCK_BUFFER_STATE=fault ./build/bin/helix-screen --test
 
 Note that `fault` does not report a distinct state string — it reports `Trailing` with a distance deep inside the threshold, which is what a real imminent fault looks like.
 
+The AFC mock hardware with the real backend (`HELIX_MOCK_AMS=afc`) reads the knob too, for the TurtleNeck's `state` alone: `neutral`, `advancing`, and `trailing` (the default there, and the fallback for any other value). Its fault detection stays off. This is the way to see the buffer's tension control on the unit view and the loaded card's buffer meter in each of its three places.
+
+### `HELIX_MOCK_FPS_PRESSURE`
+
+The pressure the OpenAMS mock's FPS reports, as a fraction from `0` to `1` (set point `0.5`), so the buffer's tension control and meter can be checked at any reading. Read on every status the mock builds.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `0`..`1` |
+| **Default** | `0.79` for the shared-lane shapes, `0.5` for the single hub unit |
+| **File** | `src/mock/moonraker_client_mock_openams.cpp` |
+
+```bash
+HELIX_MOCK_AMS=openams HELIX_MOCK_FPS_PRESSURE=0.35 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_SYNC_BIAS`
+
+The Happy Hare mock's `sync_feedback_bias_modelled`, from `-1` (tight) to `1` (loose), so the sync buffer's tension control and meter can be checked at any reading. Read on every status the mock builds.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `-1`..`1` |
+| **Default** | `0.15` while feeding, `0` otherwise |
+| **File** | `src/mock/moonraker_client_mock_happy_hare.cpp` |
+
+```bash
+HELIX_MOCK_SYNC_BIAS=-0.45 ./build/bin/helix-screen --test -vv
+```
+
 ### Buffer reading scenarios
 
 Mock scenarios that put a filament buffer reading on the Filament Buffer widget, the loaded-spool card, the path box and the Buffer Status modal. Apply one with `helix-screen ctl scenario <name>` (they drive the mock AMS backend, so the whole reading chain runs). `buffer_fps*` set the pressure sensor on the mock AMS units, so they work with any `HELIX_MOCK_AMS` type but Happy Hare; `sync_feedback_tight` is Happy Hare's. The set point is 50% unless noted.

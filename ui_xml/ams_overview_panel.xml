@@ -8,8 +8,8 @@
     <style name="page_dot_idle" bg_color="#text"/>
     <style name="page_dot_current" bg_color="#primary"/>
     <!-- One tree, restyled for portrait (ui_is_portrait), as ams_panel.xml: the
-         content full width on top with its path canvases capped
-         (ams_portrait_path_h), the right column's sidebar filling the rest below. -->
+         content full width on top with its path canvases at least
+         ams_portrait_path_h tall, the right column's sidebar below, reached by scrolling. -->
     <style name="panel_row" layout="flex" flex_flow="row"/>
     <style name="panel_column" layout="flex" flex_flow="column"/>
     <style name="content_landscape" height="100%" flex_grow="3"/>
@@ -32,7 +32,8 @@
     <style name="dots_portrait" width="50%" flex_main_place="start" align="bottom_left"/>
     <style name="right_landscape" width="#ams_right_col_w" height="100%" flex_grow="0" pad_all="#space_sm"/>
     <style name="right_portrait"
-           width="100%" height="0" flex_grow="1" pad_left="#space_sm" pad_right="#space_sm" pad_top="0" pad_bottom="0"/>
+           width="100%" height="content" flex_grow="0" pad_left="#space_sm" pad_right="#space_sm" pad_top="0"
+           pad_bottom="0"/>
   </styles>
   <!-- Right sidebar width comes from `#ams_right_col_w` (defined in
        ams_panel.xml). theme_manager scans every ui_xml file for responsive
@@ -45,6 +46,8 @@
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" style_pad_gap="0">
     <bind_style_if_eq name="panel_row" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="panel_column" subject="ui_is_portrait" ref_value="1"/>
+    <!-- Portrait scrolls: the diagram stands whole on screen, the sidebar's actions below it. -->
+    <bind_flag_if_eq subject="ui_is_portrait" flag="scrollable" ref_value="1"/>
     <!-- Left section: header + content (column) -->
     <lv_obj name="overview_content" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
       <bind_style_if_eq name="content_landscape" subject="ui_is_portrait" ref_value="0"/>

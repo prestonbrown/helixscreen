@@ -26,12 +26,12 @@ TEST_CASE("buffer box: the whole-backend view reads the lane feeding the toolhea
     CHECK(box.present);
     CHECK(std::string(box.label) == "FPS");
     CHECK(box.bias == Catch::Approx(-0.4f));
-    CHECK(box.fault == 1);
+    CHECK(box.fault == 0); // off center is normal operation
 
     SECTION("a unit's own view reads its own lane") {
         const auto own = ams_detail_buffer_box(info, 0);
         CHECK(own.bias == Catch::Approx(0.8f));
-        CHECK(own.fault == 2);
+        CHECK(own.fault == 0);
     }
 }
 
@@ -97,7 +97,12 @@ TEST_CASE("buffer box: Happy Hare sync feedback", "[ams][buffer][path]") {
     CHECK(box.present);
     CHECK(box.state == 2);
     CHECK(std::string(box.label) == "BUF");
-    CHECK(box.fault == 2);
+    CHECK(box.fault == 0);
+
+    SECTION("at the end stop it warns") {
+        info.sync_feedback_bias = -0.95f;
+        CHECK(ams_detail_buffer_box(info, -1).fault == 1);
+    }
 }
 
 // A multi-unit AFC whose only sensor is on unit 1: the all-units box takes its
@@ -118,31 +123,31 @@ TEST_CASE("buffer box: the all-units view describes the sensor's unit", "[ams][b
     CHECK(ams_detail_buffer_box(info, -1).state == 1);
 }
 
-TEST_CASE("buffer box: a one-sided pressure passes no bias", "[ams][buffer][path][fill]") {
+TEST_CASE("buffer box: a one-sided pressure places against its set point",
+          "[ams][buffer][path][fill]") {
     auto box_of = [](float pressure, bool loaded = true, float set_point = 0.5f) {
         return ams_detail_buffer_box(
             test::fps_units({pressure}, set_point, -1, /*compression_only=*/true, loaded), -1);
     };
 
-    SECTION("far from the set point, inside the rails: no bias, untinted") {
+    SECTION("inside the rails: placed against the set point, untinted") {
         for (float pressure : {0.2f, 0.5f, 0.8f}) {
             const auto box = box_of(pressure);
             CHECK(box.present);
             CHECK(std::string(box.label) == "FPS");
-            CHECK(box.bias == -2.0f);
+            CHECK(box.bias == Catch::Approx((pressure - 0.5f) / 0.5f));
             CHECK(box.fault == -1);
         }
     }
-    SECTION("the rails tint by status alone") {
-        CHECK(box_of(0.90f).bias == -2.0f);
+    SECTION("the rails warn, and nothing faults") {
+        CHECK(box_of(0.90f).bias == Catch::Approx(0.8f));
         CHECK(box_of(0.90f).fault == 1);
-        CHECK(box_of(0.97f).bias == -2.0f);
-        CHECK(box_of(0.97f).fault == 2);
+        CHECK(box_of(0.97f).fault == 1);
         CHECK(box_of(0.03f).fault == 1);
         CHECK(box_of(0.03f, /*loaded=*/false).fault == -1);
     }
-    SECTION("no set point still tints at a rail") {
-        CHECK(box_of(0.97f, true, -1.0f).fault == 2);
+    SECTION("no set point still warns at a rail") {
+        CHECK(box_of(0.97f, true, -1.0f).fault == 1);
         CHECK(box_of(0.60f, true, -1.0f).fault == -1);
     }
     SECTION("a two-ended sensor still passes its bias") {

@@ -379,12 +379,12 @@ struct FilamentPathData {
     bool eject_mode = false;         // true = allow segment to drop below LANE (past slot sensor)
     bool has_toolhead_sensor = true; // the unit reports a toolhead filament sensor
 
-    // Buffer element (TurtleNeck / eSpooler visualization)
-    int buffer_fault_state = 0;  // -1=untinted, 0=healthy, 1=warning/approaching, 2=fault
-    bool buffer_present = false; // true = draw buffer box between hub and toolhead
-    int buffer_state = 0;        // 0=neutral, 1=compressed, 2=tension (coil icon spacing)
-    float buffer_bias = -2.0f;   ///< Proportional bias [-1.0,1.0], -2=unavailable (use discrete)
-    const char* buffer_label = "BUF"; ///< Box text; a static string, never translated
+    // The buffer's tension control on the trunk
+    int buffer_fault_state = 0;       // -1=untinted, 0=healthy, 1=warning/approaching, 2=fault
+    bool buffer_present = false;      // true = draw the control between hub and toolhead
+    int buffer_state = 0;             // 0=neutral, 1=compressed, 2=expanded (switched buffers)
+    float buffer_bias = -2.0f;        ///< Position [-1.0,1.0], -2=unavailable (use buffer_state)
+    const char* buffer_label = "BUF"; ///< The reading's name; a static string, never translated
 
     // Callbacks
     filament_path_slot_cb_t slot_callback = nullptr;
@@ -509,10 +509,23 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
                      lv_opa_t bg_opa = LV_OPA_COVER, bool interactive = false);
 
-/// Buffer box element ("BUF"), border colored by fault state / proportional bias.
-/// Box width derives from the theme hub_width; height from hub_h (both clamped).
-void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_h,
-                      bool has_filament, lv_color_t filament_color);
+/// Thumb positions further than this from center are drawn in the off-center tint.
+inline constexpr float kBufferOffCenter = 0.4f;
+
+/// Where the buffer sits on its travel, +1 fully compressed .. -1 fully expanded: the
+/// proportional bias when there is one, else the switched state snapped like the card's.
+float buffer_tension_position(const FilamentPathData& data);
+
+/// The thumb's color: the buffer bands' warning or danger token on a fault, else the
+/// accent, tinted lighter off center (normal operation).
+lv_color_t buffer_thumb_color(const FilamentPathData& data);
+
+/// The buffer's tension control across the tube at (@p cx, @p cy): a capsule @p cap_h tall
+/// the tube passes through, a thumb at buffer_tension_position(), chevrons marking the
+/// compressed (left) and expanded (right) ends, and the detail button in the capsule's
+/// right end. Writes the area a tap opens the detail from into @p hit.
+void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
+                         lv_area_t* hit);
 
 /// Animated filament tip: a glowing dot that moves along the path.
 void draw_filament_tip(lv_layer_t* layer, int32_t x, int32_t y, lv_color_t color, int32_t radius);

@@ -263,6 +263,22 @@ RailArtRect selector_slot_rect(const FilamentPathData& data, const BaseGeometry&
 }
 } // namespace
 
+BufferControlGeometry buffer_control_geometry(int32_t cap_h) {
+    BufferControlGeometry b;
+    b.half = LV_MAX(cap_h * 2 + cap_h / 2, 22);
+    b.cell = cap_h + 2;
+    b.thumb_w = LV_MAX(6, cap_h * 2 / 5);
+    b.thumb_h = cap_h + 6;
+    return b;
+}
+
+lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h) {
+    const BufferControlGeometry b = buffer_control_geometry(cap_h);
+    // The thumb's glow reaches 3 px past it.
+    const int32_t reach = LV_MAX(cap_h / 2, b.thumb_h / 2 + 3) + 4;
+    return {cx - b.half - 4, cy - reach, cx + b.half + b.cell + 4, cy + reach};
+}
+
 RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g) {
     if (!data.rail_art || data.rail_art_failed || !data.rail_carriage ||
         data.topology != static_cast<int>(PathTopology::LINEAR) || data.hub_on_toolhead ||
@@ -318,6 +334,29 @@ int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int l
                       std::max(start, f.prep_y - kBandThickness));
 }
 
+int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g) {
+    const auto fits = [&](int32_t height) {
+        g.height = height;
+        const int32_t nozzle = linear_hub_nozzle_y(g, data.theme.extruder_scale);
+        const LinearHubFrame f =
+            compute_linear_hub_frame(data, g, toolhead_top_y(nozzle, data.theme.extruder_scale));
+        return f.tool_scale == data.theme.extruder_scale && (!data.buffer_present || f.has_buffer);
+    };
+    if (g.height <= 0 || fits(g.height))
+        return g.height;
+    int32_t lo = g.height + 1, hi = g.height * 4;
+    if (!fits(hi))
+        return hi;
+    while (lo < hi) {
+        const int32_t mid = lo + (hi - lo) / 2;
+        if (fits(mid))
+            hi = mid;
+        else
+            lo = mid + 1;
+    }
+    return lo;
+}
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top) {
     LinearHubFrame f;
@@ -339,23 +378,62 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         f.selector_y = f.prep_y + (int32_t)(g.height * (kHubHeightRatio / 2 + 0.02f));
     f.sensor_r = theme.sensor_radius;
     const int32_t r = f.sensor_r;
-    const int32_t buf_box_h = LV_MAX(16, f.hub_h);
+    const int32_t buf_box_h = buffer_control_height(f.hub_h);
     const bool hub_unit = !linear && !data.hub_on_toolhead;
     // The lanes' fan needs a band's room between where they leave the spools and the hub top.
-    const int32_t lanes_top = (f.prep_on_box_edge ? f.prep_band_y : f.prep_y + r) + 2 * r;
-    // Under a hub, top to bottom: a gap, the buffer and a gap when the unit reports one, then a
-    // band's clear room above the head, where the bypass merges and the toolhead band sits.
+    // Under a drawn unit each lane's number stands centered on its band, the band dropped
+    // below the lane's start by at least half a number (the least drop): the hub stays a radius
+    // clear of the lowest number.
+    int32_t badges_bottom = INT32_MIN;
+    int32_t least_drop = INT32_MAX;
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i)
+        if (data.lane_band_drop[i] > 0)
+            least_drop = std::min(least_drop, data.lane_band_drop[i]);
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
+        if (data.lane_band_drop[i] > 0)
+            badges_bottom = std::max(badges_bottom, lane_band_y(data, f, i) + least_drop + r);
+    }
+    const int32_t lanes_top =
+        std::max((f.prep_on_box_edge ? f.prep_band_y : f.prep_y + r) + 2 * r, badges_bottom);
+    // Under a hub, top to bottom: a gap, the buffer and an equal gap when the unit reports
+    // one, each at least buf_gap plus the band's clear room above the head where the bypass
+    // merges and the toolhead band sit; with no buffer, a gap of r and that room.
+    const int32_t buf_gap = r;
     const auto room_under_hub = [&](bool buffer) {
-        return r + (buffer ? buf_box_h + r : 0) + 2 * r;
+        return buffer ? 2 * (buf_gap + 2 * r) + buf_box_h : r + 2 * r;
     };
     const int32_t under_hub = room_under_hub(data.buffer_present);
     f.tool_scale = theme.extruder_scale;
     f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
-    if (hub_unit) {
-        // The hub rises toward the lanes to make that room. Only a canvas too short for the
-        // lanes, the hub and that room above a full-size head draws a smaller head.
+    // A selector (a bar, or its rail art) with a buffer: the filament leaves under the active
+    // lane and jogs to the center, and the buffer stands on the final drop below that jog. The
+    // selector rises toward the lanes to make the room, as a hub does.
+    const bool selector_buffer = linear && !data.hub_on_toolhead && data.buffer_present;
+    const int32_t jog_room = 2 * r;
+    f.rail = rail_art_rect(data, g);
+    const auto selector_bottom = [&] {
+        return f.rail.w > 0 ? rail_outlet_y(*data.rail_art, f.rail) : f.prep_y + r + f.hub_h;
+    };
+    if (selector_buffer) {
+        const int32_t deficit = selector_bottom() - (glyph_top - under_hub - jog_room);
+        if (deficit > 0 && f.rail.w > 0) {
+            const int32_t min_top = lanes_leave_y(data, g) + art_fan_room(data, g);
+            f.rail.y -= LV_MIN(deficit, LV_MAX(0, f.rail.y - min_top));
+        } else if (deficit > 0 && f.prep_on_box_edge) {
+            // The bar stays butted against the prep sensors; they rise toward the box edge,
+            // keeping a band's room under it.
+            f.prep_y -= LV_MIN(deficit, LV_MAX(0, f.prep_y - (f.prep_band_y + 2 * r)));
+        }
+    }
+    if (hub_unit || selector_buffer) {
+        // Only a canvas too short for the risen unit and that room above a full-size head
+        // draws a smaller head.
         const int32_t min_scale = LV_MAX(3, theme.extruder_scale / 3);
-        while (f.tool_scale > min_scale && glyph_top < lanes_top + f.hub_h + under_hub) {
+        const auto need = [&] {
+            return hub_unit ? lanes_top + f.hub_h + under_hub
+                            : selector_bottom() + under_hub + jog_room;
+        };
+        while (f.tool_scale > min_scale && glyph_top < need()) {
             --f.tool_scale;
             f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
             glyph_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
@@ -399,6 +477,32 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         }
     };
 
+    // Places the buffer evenly between the unit's outlet (f.output_y) and the head: the gap
+    // above it equals the gap below, and the one below holds the bypass merge and the toolhead
+    // band in the clear room over the head. @p top is the highest its gap may start (a
+    // selector's jog to the center ends there), which only ever pushes it lower. A room too
+    // short for even gaps keeps that room below and at least buf_gap above; shorter still, the
+    // buffer's reading moves to the unit's outlet band. Returns whether it fit.
+    const auto place_under_unit = [&](int32_t top) {
+        roomy = true;
+        f.toolhead_y = glyph_top - r;
+        if (data.show_bypass)
+            f.bypass_merge_y = glyph_top - 2 * r;
+        if (!f.has_buffer)
+            return false;
+        const int32_t below = buf_gap + 2 * r;
+        int32_t y = LV_MAX((f.output_y + glyph_top) / 2, top + below + buf_box_h / 2);
+        y = LV_MIN(y, glyph_top - below - buf_box_h / 2);
+        if (y - buf_box_h / 2 < LV_MAX(f.output_y, top) + buf_gap) {
+            f.has_buffer = false;
+            f.sync_on_output = true;
+            return false;
+        }
+        f.buffer_y = y;
+        f.buf_fil_top = LV_MAX(LV_MAX(f.output_y, top), y - buf_box_h / 2 - below);
+        return true;
+    };
+
     // HUB with no bypass lane and no buffer: the hub hangs above the toolhead glyph, giving the
     // lane fan the height it would otherwise occupy. The stack only ever moves it down; a
     // canvas too short for it keeps the ratio layout.
@@ -418,13 +522,13 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         f.hub_y = f.prep_y + f.sensor_r + f.hub_h / 2;
     // Output sensor butted against the hub bottom (mirrors the hub-top entries)
     f.output_y = f.hub_y + f.hub_h / 2;
-    f.rail = rail_art_rect(data, g);
     if (f.rail.w > 0) {
-        // The art stands in for the bar; the filament leaves at the selected gate's outlet. A
-        // rail has no buffer: its sync sensor is that outlet's band.
+        // The art stands in for the bar: the filament leaves at the selected gate's outlet.
         f.output_y = rail_outlet_y(*data.rail_art, f.rail);
-        f.has_buffer = false;
-        f.sync_on_output = data.buffer_present;
+    }
+    if (selector_buffer && f.has_buffer) {
+        // The buffer stands on the drop below the jog from the outlet to the center.
+        place_under_unit(f.output_y + jog_room);
     }
 
     f.idle_color = theme.color_idle;
@@ -464,20 +568,26 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t bottom =
         LV_MIN(lowest_hub_top - 2 * fan, top + (int32_t)(g.height * kThroughMaxHRatio));
     f.through = through_art_rect(data, g, top, bottom, f.center_x);
+    // The highest the hub may stand: clear of the art's outlets by the lanes' fan room.
+    int32_t art_floor = INT32_MIN;
     if (f.through.w > 0) {
-        hub_top = LV_MAX(hub_top, f.through.y + f.through.h + 2 * fan);
+        art_floor = f.through.y + f.through.h + 2 * fan;
+        hub_top = LV_MAX(hub_top, art_floor);
     } else if (has_through_art(data)) {
         // No room above the hub's place: the art takes the selector's slot and the hub
-        // hangs below it, clear of the bypass merge. The buffer box gives way, and its
-        // sync reading moves to the hub's outlet band.
+        // hangs below it, clear of the bypass merge. The buffer keeps its place under the hub
+        // where the room is there; otherwise its sync reading moves to the hub's outlet band.
         const RailArtRect slot = selector_slot_rect(data, g);
         const int32_t below = slot.y + slot.h + fan;
         const int32_t limit = (data.show_bypass ? f.bypass_merge_y : glyph_top) - 2 * f.sensor_r;
         if (slot.w > 0 && below + f.hub_h <= limit) {
             f.through = slot;
             hub_top = below;
-            f.has_buffer = false;
-            f.sync_on_output = data.buffer_present;
+            art_floor = below;
+            if (below + f.hub_h + buf_gap + buf_box_h + buf_gap + 2 * r > glyph_top) {
+                f.has_buffer = false;
+                f.sync_on_output = data.buffer_present;
+            }
         }
     }
     f.hub_y = hub_top + f.hub_h / 2;
@@ -547,6 +657,12 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
     }
+    // Never over the lanes' numbers.
+    if (!data.hub_on_toolhead && hub_top < badges_bottom) {
+        hub_top = badges_bottom;
+        f.hub_y = hub_top + f.hub_h / 2;
+        f.output_y = f.hub_y + f.hub_h / 2;
+    }
     // A hub whose ratio place leaves too little room under it rises toward the lanes, which
     // start their fan above it. Under it the buffer sits centered with even gaps, and below
     // that the bypass merges and the toolhead band sits in the clear room above the head.
@@ -554,21 +670,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // has already taken it away.
     const int32_t roomy_top = glyph_top - room_under_hub(f.has_buffer) - f.hub_h;
     if (!data.hub_on_toolhead && hub_top > roomy_top) {
-        roomy = true;
-        hub_top = LV_MAX(roomy_top, lanes_top);
+        hub_top = LV_MAX(LV_MAX(roomy_top, lanes_top), art_floor);
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
-        const int32_t room_bottom = glyph_top - 2 * r;
-        f.toolhead_y = glyph_top - r;
-        if (data.show_bypass)
-            f.bypass_merge_y = room_bottom;
-        if (f.has_buffer && room_bottom - f.output_y >= buf_box_h + 2 * r) {
-            f.buffer_y = (f.output_y + room_bottom) / 2;
-            f.buf_fil_top = f.buffer_y - buf_box_h;
-        } else if (f.has_buffer) {
-            f.has_buffer = false;
-            f.sync_on_output = true;
-        }
+        place_under_unit(f.output_y);
         const float fan_start = (float)LV_MAX(f.prep_band_y, hub_top - 2 * r);
         if (f.prep_on_box_edge)
             f.prep_y = LV_MAX(f.prep_band_y, LV_MIN(f.prep_y, hub_top - 2 * r));
@@ -616,7 +721,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             layout_offpage_stub(f.stubs[1], 1, data.offpage_after, data.offpage_after_drying, data,
                                 g, stub_info, hub_top, gap, rise);
     }
-    hang_buffer();
+    // The buffer stands centered on the trunk between the hub and the head.
+    if (f.has_buffer && !roomy)
+        place_under_unit(f.output_y);
     return f;
 }
 

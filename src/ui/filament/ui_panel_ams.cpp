@@ -330,7 +330,7 @@ void AmsPanel::init_subjects() {
         observe<int>(AmsState::instance().get_path_topology_subject(), this, path_handler,
                      AmsState::instance().get_subjects_lifetime());
 
-    // The path canvas's buffer box follows the buffer reading while the panel is open.
+    // The path canvas's buffer control follows the buffer reading while the panel is open.
     auto& ams_state = AmsState::instance();
     buffer_present_observer_ = observe<int>(ams_state.get_buffer_present_subject(), this,
                                             path_handler, ams_state.get_subjects_lifetime());
@@ -816,7 +816,14 @@ void AmsPanel::create_slots(int count) {
 
     // Update tray
     ams_detail_update_tray(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits);
-    helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_);
+    // A unit too tall for its path is laid out again at the size that fits; the drawing
+    // scales with its spools only roughly, so it may take a second pass.
+    if (helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_) &&
+        relayout_passes_ < kMaxRelayoutPasses) {
+        ++relayout_passes_;
+        create_slots(count);
+        --relayout_passes_;
+    }
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {

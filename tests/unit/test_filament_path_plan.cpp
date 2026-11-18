@@ -98,15 +98,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: HUB hit rects match the drawn b
     CHECK(area_eq(d->hits.hub,
                   {cx - hub_w / 2, hub_y - hub_h / 2, cx + hub_w / 2, hub_y + hub_h / 2}));
 
-    const int32_t buf_w = LV_MAX(36, hw * 4 / 5);
-    const int32_t buf_h = LV_MAX(16, hub_h);
-    const int32_t buf_y = hub_y + hub_h / 2 + 2 * r + buf_h; // hung just under the hub
-    REQUIRE(d->hits.buffer_valid);
-    CHECK(area_eq(d->hits.buffer,
-                  {cx - buf_w / 2, buf_y - buf_h / 2, cx + buf_w / 2, buf_y + buf_h / 2}));
+    // The buffer's control, centered on the trunk under the hub.
+    REQUIRE((f.has_buffer && d->hits.buffer_valid));
+    CHECK(
+        area_eq(d->hits.buffer, buffer_control_hit(cx, f.buffer_y, buffer_capsule_height(hub_h))));
 
     const int32_t bx = c.x1 + (int32_t)(W * kBypassXRatio);
-    const int32_t my = c.y1 + (int32_t)(H * kBypassMergeYRatio);
+    const int32_t my = f.bypass_merge_y;
     REQUIRE(d->hits.bypass_valid);
     CHECK(area_eq(d->hits.bypass, {bx - r * 3, my - r * 4, bx + r * 3, my + r * 4}));
     CHECK(d->hits.origin.x == c.x1);
@@ -452,7 +450,8 @@ TEST_CASE("FilamentPath plan: an active bypass owns the trunk below the merge",
     REQUIRE(plan.trunk_route >= 0);
     const Route& t = plan.routes[plan.trunk_route];
     REQUIRE(t.path.count > 0);
-    CHECK(near(seg_end(t.path.segs[t.path.count - 1]), 200, 232));
+    // Under a buffer the bypass merges in the clear room over the head: glyph top less 2r.
+    CHECK(near(seg_end(t.path.segs[t.path.count - 1]), 200, kGlyphTop - 8));
     for (int i = 0; i < t.path.count; i++) {
         CHECK(t.style[i].wall == TubeWall::Plain);
         CHECK_FALSE(t.style[i].filled);
@@ -462,7 +461,7 @@ TEST_CASE("FilamentPath plan: an active bypass owns the trunk below the merge",
     const Route& b = plan.routes[plan.bypass_route];
     REQUIRE(b.path.count > 0);
     CHECK(near(seg_start(b.path.segs[0]), 400 * kBypassXRatio, // the spool's bottom
-               232.0f - helix::ui::bypass_spool_bottom_above_merge(), 1.0f));
+               (float)(kGlyphTop - 8) - helix::ui::bypass_spool_bottom_above_merge(), 1.0f));
     CHECK(near(seg_end(b.path.segs[b.path.count - 1]), 200, kInletY));
     CHECK(contiguous(b.path));
     for (int i = 0; i < b.path.count; i++) {
@@ -1973,7 +1972,7 @@ TEST_CASE("FilamentPath plan: a hub that feeds no toolhead ends at the hub",
         const PathPlan& plan = plan_for(*d);
         CHECK(deepest_route_y(plan) > 140.5f);
         CHECK(plan.bypass_route >= 0);
-        CHECK(band_at(plan, 200, 272) != nullptr);
+        CHECK(band_at(plan, 200, kGlyphTop - 4) != nullptr); // the toolhead band, over the head
     }
 
     SECTION("feeding none, nothing is drawn below the hub output") {

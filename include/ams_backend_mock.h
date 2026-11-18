@@ -252,6 +252,10 @@ class AmsBackendMock : public AmsBackend,
     /// Report as an Anycubic ACE, so screens that draw that unit can be exercised.
     void set_ace_identity();
 
+    /// Report as OpenAMS, so screens that draw its units (named by family, e.g. "AMS2") can be
+    /// exercised.
+    void set_openams_identity();
+
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     /// Runs the same simulated cycle as start_drying(); the target is logged, not simulated.

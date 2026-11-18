@@ -85,7 +85,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes the system-level buffer re
         CHECK(subject_int(ams.get_buffer_slider_subject()) == 1);
         CHECK(subject_int(ams.get_buffer_bias_pct_subject()) == -45);
         CHECK(subject_int(ams.get_buffer_status_subject()) ==
-              static_cast<int>(ui::ClogMeterStatus::Warning));
+              static_cast<int>(ui::ClogMeterStatus::Ok));
         CHECK(text_of(ams.get_buffer_label_subject()) == "Sync");
         CHECK(text_of(ams.get_buffer_value_text_subject()) == "-45%");
     }
@@ -187,7 +187,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes a fill reading with no bia
         info.units[0].buffer_health->smoothed_fps = 0.97f;
         AmsStateTestAccess::sync_buffer(ams, info, 2000);
         CHECK(subject_int(ams.get_buffer_status_subject()) ==
-              static_cast<int>(ui::ClogMeterStatus::Fault));
+              static_cast<int>(ui::ClogMeterStatus::Warning));
         CHECK(subject_int(ams.get_buffer_value_pct_subject()) == 97);
     }
 

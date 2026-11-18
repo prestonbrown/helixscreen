@@ -312,6 +312,7 @@ translations:
   Adjustments stay active until restart. Save after print completes.: Les ajustements restent actifs jusqu'au redémarrage. Enregistrez après la fin de l'impression.
   Adjusts individual characteristics of your heaters for optimal control: Ajuste les caractéristiques individuelles de vos chauffages pour un contrôle optimal
   Advanced: Avancé
+  Advancing: ''
   After an error: Après une erreur
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Après avoir branché {}, nous recommandons de recalibrer l''Input Shaping pour garantir la qualité d''impression.'
   After running the commands, tap Check Again below.: Après avoir exécuté les commandes, appuyez sur Revérifier ci-dessous.
@@ -883,6 +884,7 @@ translations:
   Completed {}d ago: 'Terminé il y a {} j'
   Completed {}h ago: 'Terminé il y a {} h'
   Completed {}m ago: 'Terminé il y a {} min'
+  Compressed: ''
   Computing calibration...: Calcul de la calibration...
   Config Dir: Dossier de configuration
   Config Edit Failed: 'Échec de la modification de la configuration'
@@ -1438,6 +1440,7 @@ translations:
   Exhaust fan speed: 'Vitesse du ventilateur d''extraction'
   'Exhaust: keep chamber at or below': 'Extraction : garder la chambre au plus à'
   Exit Code: Code de sortie
+  Expanded: ''
   Expected boolean: 'Valeur booléenne attendue'
   Expected float: 'Nombre décimal attendu'
   Explore how the selected palette shapes text, controls, and status colors.: Explorez comment la palette sélectionnée façonne les couleurs du texte, des contrôles et des statuts.
@@ -4566,6 +4569,7 @@ translations:
   TouchCalibration: Calibration tactile
   Trace: Trace
   Trigger: Déclencheur
+  Trailing: ''
   'Tried ports {} and {}.': "Ports {} et {} essayés."
   'Troubleshooting:': 'Dépannage :'
   Try adjusting your search or filters: Essayez d'ajuster votre recherche ou vos filtres

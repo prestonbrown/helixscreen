@@ -51,7 +51,11 @@ struct TrayState {
     TrayOpacities opa = kDarkOpa;
     const tray::UnitShell* shell = nullptr; // nullptr draws the generic box
     float spool_size = 0;
-    bool art = false; // the unit's baked art stands in for the tray, which draws nothing
+    bool art = false;        // the unit's baked art stands in for the tray, which draws nothing
+    int32_t art_drawn_h = 0; // the art's drawn height, while it is shown
+    int badge_rows = 1;      // lane numbers under the art: one row, or alternating two
+    bool badge_plus = true;  // an empty lane's number carries its "+"
+    int32_t badge_slant = 0; // how much higher an odd lane starts than its neighbours, at most
     helix::ui::WidgetRef art_obj;                  // the drawing, while it is shown
     helix::ui::WidgetRef slot[kAmsDetailMaxSlots]; // the slots it stands under
     int unit_index = -1;
@@ -59,6 +63,14 @@ struct TrayState {
     bool lane_loaded[kAmsDetailMaxSlots] = {};
     uint32_t lane_color[kAmsDetailMaxSlots] = {};
     int active_lane = -1;
+    // Where the labels over the unit stand, kept so they can be laid out again when a lane
+    // fills or empties: each lane's spool column and tick end (relative to the container),
+    // the nearest row's bottom (absolute), and which lanes show a label.
+    helix::ui::WidgetRef labels_layer;
+    float label_x[kAmsDetailMaxSlots] = {};
+    float tick_end_y[kAmsDetailMaxSlots] = {};
+    int32_t label_bottom = 0;
+    bool label_shown[kAmsDetailMaxSlots] = {};
     // Leaders from the labels above the unit to their spools: label, knee, spool top.
     tray::PointF leader[kAmsDetailMaxSlots][3] = {};
     int leader_count = 0;
