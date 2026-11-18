@@ -1,0 +1,1 @@
+Safety and stability fixes. E-Stop keeps working after you dismiss its confirmation, and Reset or dismissing a filament error on a Creality CFS or Anycubic ACE no longer cancels the print or unloads a lane. A print that ends on Print Status wakes the display, a failed Pause no longer crashes the screen, and the jog pad survives rotating the screen.

@@ -5,7 +5,7 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.10] - UNRELEASED
+## [1.0.10] - 2026-11-18
 
 ### Fixed
 
@@ -19,7 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Printing**
 
+- **A failed Pause no longer crashes the screen** - when a macro such as PAUSE failed, for example after the printer's MCU shut down, HelixScreen redrew the screen from the network thread and could crash. Macro results are now handled on the screen's own thread.
 - **A print that ends on Print Status wakes the display** - a sleeping screen stayed asleep, and a panel that keeps its last frame lit went on showing the print as running until touched.
+
+**Motion**
+
+- **The jog pad survives rotating the screen** - turning the screen between portrait and landscape with the Motion panel already open left an empty space where the jog pad belongs. The jog pad is now rebuilt in place.
 
 **Updates**
 
@@ -7334,6 +7339,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.10]: https://github.com/prestonbrown/helixscreen/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/prestonbrown/helixscreen/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/prestonbrown/helixscreen/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/prestonbrown/helixscreen/compare/v1.0.6...v1.0.7
