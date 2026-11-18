@@ -227,12 +227,12 @@ def _fixture(tmp_path, makefile=FAST_MAKEFILE, other=False):
     return work
 
 
-def _mutate(work, *args, timeout=120):
+def _mutate(work, *args, timeout=120, env=ENV):
     return subprocess.run(
         [sys.executable, "scripts/mutate_diff.py", "--shards", "1",
          "--log", str(work / "mutate.log"), *args],
         cwd=work, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        timeout=timeout, env=ENV)
+        timeout=timeout, env=env)
 
 
 def _wait_for(path: Path, secs=60.0):
@@ -2363,6 +2363,24 @@ def test_survivors_in_two_groups_are_counted_together(tmp_path):
     assert r.returncode == 1, r.stdout
     verdict = r.stdout[r.stdout.rindex("VERDICT:"):]
     assert verdict.startswith("VERDICT: SURVIVED - 2 hunk(s)"), verdict
+
+
+def test_a_stale_survivor_file_is_not_counted_for_a_child_that_stops_early(tmp_path):
+    work, base = _two_hunk_fixture(tmp_path, FAST_MAKEFILE)
+    # Left by an earlier run killed before its parent read them.
+    for i in (1, 2):
+        (work / f"mutate.log.g{i}.survived").write_text("src/stale.cpp:1\n")
+    # Every group child exits 2 at startup, before it could clear its own file.
+    hook = tmp_path / "hook"
+    hook.mkdir()
+    (hook / "sitecustomize.py").write_text(
+        "import os, sys\nif '--group-child' in sys.argv:\n    os._exit(2)\n")
+    env = {**ENV, "PYTHONPATH": str(hook)}
+    r = _mutate(work, "--base", base, "--tests-for", "src/feature.cpp=[feat]",
+                "--tests-for", "src/other.cpp=[oth]", env=env)
+    assert r.returncode == 2, r.stdout
+    assert "exit 2  [feat]" in r.stdout and "exit 2  [oth]" in r.stdout, r.stdout
+    assert "SURVIVED" not in r.stdout, r.stdout
 
 
 @pytest.mark.parametrize("other_detected, code, says", [

@@ -4672,6 +4672,9 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         for path in paths:
             guard.capture(path)
             guard.mark(path)
+        # A child that stops before clearing its own file would leave an earlier
+        # run's survivors to be counted as this run's.
+        Path(f'{args.log}.g{i}.survived').unlink(missing_ok=True)
         sys.stdout.flush()
         p = tracked_proc(cmd, root, stdout=sys.stdout)
         try:
