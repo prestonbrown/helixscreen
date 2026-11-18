@@ -258,10 +258,15 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
             names = {"color": f"{tier}_lane{lane}.png", "shade": f"{tier}_lane{lane}_shade.png"}
             render(scene.lane_color_svg(lane, width), width, target / names["color"])
             render(scene.lane_shade_svg(lane, width), width, target / names["shade"])
-            # Only the unit view marks lanes, and it draws the full tier.
-            if tier == "full" and lane in scene.spools:
-                names["spool"] = f"{tier}_lane{lane}_spool.png"
-                render(scene.lane_spool_svg(lane, width), width, target / names["spool"])
+            if lane in scene.spools:
+                names["body"] = f"{tier}_lane{lane}_body.png"
+                render(scene.lane_body_svg(lane, width), width, target / names["body"])
+                # Only the unit view marks lanes, and it draws the full tier.
+                if tier == "full":
+                    names["glow"] = f"{tier}_lane{lane}_glow.png"
+                    names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
+                    render(scene.lane_glow_svg(lane, width), width, target / names["glow"])
+                    render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
         if tier == "full":
@@ -500,6 +505,8 @@ def contact_sheet(out_dir, sheet_path):
                 cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / t["back"])}"/>')
                 for lane, names in enumerate(t["lanes"]):
                     mask_id = f"m{bg[1:]}{m['id']}{m['lanes']}{tier}{lane}"
+                    if "body" in names:
+                        cells.append(f'<image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["body"])}"/>')
                     cells.append(
                         f'<mask id="{mask_id}"><image x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" preserveAspectRatio="xMidYMin" href="{_png_uri(root / names["color"])}"/></mask>'
                         f'<rect x="{x + ox}" y="{y + 10}" width="{w}" height="{h}" fill="{SAMPLE[lane % len(SAMPLE)]}" mask="url(#{mask_id})"/>'

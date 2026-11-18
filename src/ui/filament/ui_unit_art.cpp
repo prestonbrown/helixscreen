@@ -44,7 +44,10 @@ struct LaneImages {
     lv_obj_t* shade;
     lv_draw_buf_t* mask = nullptr; ///< the wound filament's outline at mask_fill, A8
     int mask_pct = 100;
-    lv_obj_t* spool = nullptr; ///< where the lane's whole spool shows, baked; never drawn
+    lv_obj_t* body = nullptr; ///< the lane's spool stack less its filament, when baked so
+    lv_obj_t* glow = nullptr; ///< its spool's soft light, just behind it; hidden unless marked
+    lv_obj_t* dim = nullptr;  ///< its spool's silhouette in the card's color; hidden unless marked
+    UnitArtLaneMark mark;
 };
 
 struct ArtData {
@@ -64,9 +67,7 @@ struct ArtData {
 
     const tray::UnitArtGeom* geom = nullptr; ///< where the drawing's spools stand
     int32_t mask_w = 0, mask_h = 0;
-    lv_obj_t* marks = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
-    lv_draw_buf_t* marks_buf = nullptr;
-    uint64_t marks_key = 0;
+    uint64_t lane_key = 0; ///< the lanes' colors and fills the flat image was last built for
 
     const tray::CarriageTrack* track = nullptr;
     lv_obj_t* carriage = nullptr;      // WIDGET_PTR_OK: child of this widget, gone with it
@@ -97,36 +98,6 @@ void box_blur(std::vector<uint8_t>& px, int line_len, int lines, int step, int l
     }
 }
 
-/// Each pixel the least of the (2 @p radius + 1)-square around it: erodes a mask.
-void min_filter(std::vector<uint8_t>& px, int w, int h, int radius) {
-    std::vector<uint8_t> tmp(px.size());
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            uint8_t m = 255;
-            for (int dx = -radius; dx <= radius; ++dx)
-                m = std::min(m, px[static_cast<size_t>(y) * w + std::clamp(x + dx, 0, w - 1)]);
-            tmp[static_cast<size_t>(y) * w + x] = m;
-        }
-    }
-    for (int y = 0; y < h; ++y) {
-        for (int x = 0; x < w; ++x) {
-            uint8_t m = 255;
-            for (int dy = -radius; dy <= radius; ++dy)
-                m = std::min(m, tmp[static_cast<size_t>(std::clamp(y + dy, 0, h - 1)) * w + x]);
-            px[static_cast<size_t>(y) * w + x] = m;
-        }
-    }
-}
-
-/// Each pixel the greatest of the (2 @p radius + 1)-square around it: dilates a mask.
-void max_filter(std::vector<uint8_t>& px, int w, int h, int radius) {
-    for (uint8_t& v : px)
-        v = static_cast<uint8_t>(255 - v);
-    min_filter(px, w, h, radius);
-    for (uint8_t& v : px)
-        v = static_cast<uint8_t>(255 - v);
-}
-
 ArtData* data_of(lv_obj_t* art) {
     return static_cast<ArtData*>(lv_obj_get_user_data(art));
 }
@@ -139,6 +110,14 @@ lv_obj_t* add_layer(lv_obj_t* art, const std::string& path) {
     lv_image_set_src(image, path.c_str());
     lv_obj_set_clickable(image, false);
     return image;
+}
+
+void set_lane_visible(lv_obj_t* image, bool visible) {
+    // DECLARATIVE_OK: per-lane state with no subject behind it.
+    if (visible)
+        lv_obj_set_hidden(image, false);
+    else
+        lv_obj_set_hidden(image, true);
 }
 
 void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
@@ -164,12 +143,6 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         if (lane.mask)
             data->retired.push_back(lane.mask);
     }
-    if (data->marks_buf) {
-        data->retired.push_back(data->marks_buf);
-        data->marks_buf = nullptr;
-    }
-    data->marks = nullptr;
-    data->marks_key = 0;
     data->carriage = nullptr;
     data->carriage_flat = nullptr;
     data->carriage_gate = 0;
@@ -192,26 +165,41 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->geom = shell->has_stub_art && look == FeederLook::Stubs
                      ? nullptr
                      : tray::unit_art_geometry(shell->id, lane_count);
-    add_layer(data->layers, base + "_back.png");
+    // Back to front, left to right: the back layer, then each lane's stack from the leftmost,
+    // which the camera sees farthest, to the rightmost, then the front layer. A lane's glow
+    // stands just behind its spool and its dim just in front of it, so whatever stands nearer
+    // covers both as it covers the spool.
+    lv_obj_set_name(add_layer(data->layers, base + "_back.png"), "back");
+    const bool stacks = data->geom != nullptr; // a drawing with spools bakes a stack per lane
+    const bool marked = stacks && data->tier == UnitArtTier::Full;
     for (int lane = 0; lane < lane_count; ++lane) {
         const std::string stem = base + "_lane" + std::to_string(lane);
-        LaneImages images{add_layer(data->layers, stem + ".png"),
-                          add_layer(data->layers, stem + "_shade.png")};
+        const std::string name = "lane" + std::to_string(lane);
+        LaneImages images{};
+        if (marked) {
+            images.glow = add_layer(data->layers, stem + "_glow.png");
+            lv_obj_set_name(images.glow, (name + "_glow").c_str());
+            set_lane_visible(images.glow, false);
+        }
+        if (stacks) {
+            images.body = add_layer(data->layers, stem + "_body.png");
+            lv_obj_set_name(images.body, (name + "_body").c_str());
+        }
+        images.color = add_layer(data->layers, stem + ".png");
+        lv_obj_set_name(images.color, (name + "_tint").c_str());
+        images.shade = add_layer(data->layers, stem + "_shade.png");
+        lv_obj_set_name(images.shade, (name + "_shade").c_str());
+        if (marked) {
+            images.dim = add_layer(data->layers, stem + "_silhouette.png");
+            lv_obj_set_name(images.dim, (name + "_dim").c_str());
+            set_lane_visible(images.dim, false);
+        }
         // DECLARATIVE_OK: each lane's colour is per-widget live data.
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
         data->lanes.push_back(images);
     }
     data->front = add_layer(data->layers, base + "_front.png");
-    // Where each lane's whole spool shows, as baked: read for the lane marks, never drawn.
-    // Only the full tier is marked, so only it carries them.
-    if (data->geom && data->tier == UnitArtTier::Full) {
-        for (int lane = 0; lane < lane_count; ++lane) {
-            lv_obj_t* spool =
-                add_layer(data->layers, base + "_lane" + std::to_string(lane) + "_spool.png");
-            lv_obj_set_hidden(spool, true); // DECLARATIVE_OK: a mask, read only by snapshot
-            data->lanes[static_cast<size_t>(lane)].spool = spool;
-        }
-    }
+    lv_obj_set_name(data->front, "front");
     if (data->track) {
         data->carriage = add_layer(data->layers, base + "_carriage.png");
         data->carriage_flat = lv_image_create(art);
@@ -223,12 +211,17 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->built_lanes = lane_count;
 }
 
-void set_lane_visible(lv_obj_t* image, bool visible) {
-    // DECLARATIVE_OK: per-lane state with no subject behind it.
-    if (visible)
-        lv_obj_set_hidden(image, false);
-    else
-        lv_obj_set_hidden(image, true);
+constexpr lv_opa_t kDimOpa = 150; ///< how far a missing bay's spool fades into the card
+
+/// The lanes' marks, folded into the flat image's key so a new mark builds a new image.
+uint64_t marks_key(const ArtData* data) {
+    uint64_t key = 0x9e3779b97f4a7c15ull;
+    for (const LaneImages& lane : data->lanes) {
+        key = (key ^ (lane.mark.glow ? lv_color_to_u32(lane.mark.color) + 1u : 0u)) * kFnvPrime;
+        key = (key ^ (lane.mark.dim ? 1u : 0u)) * kFnvPrime;
+    }
+    key = (key ^ lv_color_to_u32(theme_manager_get_color("card_bg"))) * kFnvPrime;
+    return key;
 }
 
 void destroy_buf(lv_draw_buf_t* buf) {
@@ -372,9 +365,6 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     const bool glow_shown = data->glow && !lv_obj_is_hidden(data->glow);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, true); // the glow must not bake into the drawing
-    const bool marks_shown = data->marks && !lv_obj_is_hidden(data->marks);
-    if (marks_shown)
-        lv_obj_set_hidden(data->marks, true); // nor the lane marks, which change on their own
     // The carriage moves on its own, so it stays out of the flat image.
     if (data->carriage) {
         lv_obj_set_hidden(data->carriage, true);
@@ -383,8 +373,6 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, false);
-    if (marks_shown)
-        lv_obj_set_hidden(data->marks, false);
     if (!snap) {
         if (data->carriage)
             lv_obj_set_hidden(live_carriage(data), false);
@@ -417,20 +405,15 @@ std::vector<uint8_t> layer_alpha(lv_obj_t* art, ArtData* data, const std::vector
     const bool layers_hidden = lv_obj_is_hidden(data->layers);
     const bool flat_hidden = lv_obj_is_hidden(data->flat);
     const bool glow_hidden = !data->glow || lv_obj_is_hidden(data->glow);
-    const bool marks_hidden = !data->marks || lv_obj_is_hidden(data->marks);
     lv_obj_set_hidden(data->layers, false);
     lv_obj_set_hidden(data->flat, true);
     if (data->glow)
         lv_obj_set_hidden(data->glow, true);
-    if (data->marks)
-        lv_obj_set_hidden(data->marks, true);
 
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
 
     if (data->glow)
         lv_obj_set_hidden(data->glow, glow_hidden);
-    if (data->marks)
-        lv_obj_set_hidden(data->marks, marks_hidden);
     lv_obj_set_hidden(data->flat, flat_hidden);
     lv_obj_set_hidden(data->layers, layers_hidden);
     for (uint32_t i = 0; i < count; ++i)
@@ -508,8 +491,6 @@ void delete_cb(lv_event_t* e) {
             lv_draw_buf_destroy(data->glow_buf);
         if (data->carriage_buf)
             lv_draw_buf_destroy(data->carriage_buf);
-        if (data->marks_buf)
-            lv_draw_buf_destroy(data->marks_buf);
         for (const LaneImages& lane : data->lanes) {
             if (lane.mask)
                 lv_draw_buf_destroy(lane.mask);
@@ -618,7 +599,8 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
     }
     data->mask_w = w;
     data->mask_h = h;
-    flatten(art, data, key);
+    data->lane_key = key;
+    flatten(art, data, key ^ marks_key(data));
 
     if (data->track) {
         const int gate = info.current_slot - unit.first_slot_global_index;
@@ -724,192 +706,48 @@ void unit_art_set_glow(lv_obj_t* art, UnitArtGlow glow) {
     set_image_opa_pulse(data->glow, glow == UnitArtGlow::Pulsing, kGlowPulse);
 }
 
-namespace {
-constexpr lv_opa_t kDimOpa = 150;    ///< how far a missing bay's spool fades into the card
-constexpr int kLaneHaloDivisor = 30; ///< glow spread per pass: the drawing's width over this
-constexpr int kLaneHaloPasses = 3;   ///< box blurs that soften the spread toward a Gaussian
-constexpr int kLaneHaloGain = 4;     ///< lifts the falloff so the glow reads at the outline
-constexpr int kLaneHaloPeak = 210;   ///< the glow's strongest alpha
-constexpr int kLaneRimDivisor = 110; ///< rim width: the drawing's width over this
-constexpr int kLaneRimPeak = 245;    ///< the rim's alpha on the spool's visible edges
-constexpr uint8_t kMaskOwn = 96;     ///< below this coverage a pixel belongs to its neighbor
-constexpr uint8_t kFrontSolid = 200; ///< the front's alpha from which it is solid, not glass
-} // namespace
-
-namespace {
-
-/// Where each lane's spool shows in the drawing, from the bake, one byte per pixel of a widget
-/// @p w by @p h: its flanges, core and filament less everything drawn in front of them, the
-/// unit's front included and translucent glass in part.
-struct SpoolMasks {
-    std::vector<std::vector<uint8_t>> visible;
-    std::vector<uint8_t> front, open;
-};
-
-SpoolMasks spool_masks(lv_obj_t* art, ArtData* data, int32_t w, int32_t h) {
-    SpoolMasks sm;
-    const size_t pixels = static_cast<size_t>(w) * static_cast<size_t>(h);
-    for (const LaneImages& lane : data->lanes) {
-        std::vector<uint8_t> mask;
-        if (lane.spool)
-            mask = layer_alpha(art, data, {lane.spool}, w, h);
-        if (mask.size() != pixels)
-            mask.assign(pixels, 0);
-        sm.visible.push_back(std::move(mask));
-    }
-    sm.front = data->front ? layer_alpha(art, data, {data->front}, w, h) : std::vector<uint8_t>{};
-    if (sm.front.size() != pixels)
-        sm.front.assign(pixels, 0);
-    // Glass in front lets a mark show through; only the front's solid parts hide one.
-    for (uint8_t& a : sm.front)
-        a = a >= kFrontSolid ? 255 : 0;
-    // Open space: no spool showing and nothing solid of the unit's front.
-    sm.open.assign(pixels, 0);
-    for (size_t idx = 0; idx < pixels; ++idx) {
-        uint8_t any = 0;
-        for (const std::vector<uint8_t>& v : sm.visible)
-            any = std::max(any, v[idx]);
-        sm.open[idx] = static_cast<uint8_t>((255 - any) * (255 - sm.front[idx]) / 255);
-    }
-    return sm;
-}
-
-} // namespace
-
-std::vector<uint8_t> unit_art_lane_visible_mask(lv_obj_t* art, int lane) {
-    ArtData* data = art ? data_of(art) : nullptr;
-    if (!data || !data->geom || lane < 0 || lane >= data->geom->lanes)
-        return {};
-    lv_obj_update_layout(art);
-    const int32_t w = lv_obj_get_width(art), h = lv_obj_get_height(art);
-    if (w <= 0 || h <= 0)
-        return {};
-    SpoolMasks sm = spool_masks(art, data, w, h);
-    return lane < static_cast<int>(sm.visible.size()) ? sm.visible[static_cast<size_t>(lane)]
-                                                      : std::vector<uint8_t>{};
-}
-
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks) {
     ArtData* data = art ? data_of(art) : nullptr;
     if (!data)
         return;
-    lv_obj_update_layout(art);
-    const int32_t w = lv_obj_get_width(art);
-    const int32_t h = lv_obj_get_height(art);
     const lv_color_t dim_color = theme_manager_get_color("card_bg");
-    uint64_t key = 1469598103934665603ull;
-    bool any = false;
-    for (const UnitArtLaneMark& m : marks) {
-        key = (key ^ (m.glow ? lv_color_to_u32(m.color) + 1u : 0u)) * kFnvPrime;
-        key = (key ^ (m.dim ? 1u : 0u)) * kFnvPrime;
-        any = any || m.glow || m.dim;
-    }
-    key = (key ^ static_cast<uint64_t>(w)) * kFnvPrime;
-    key = (key ^ static_cast<uint64_t>(h)) * kFnvPrime;
-    key = (key ^ lv_color_to_u32(dim_color)) * kFnvPrime;
-    if (!any || !data->geom || w <= 0 || h <= 0) {
-        if (data->marks)
-            lv_obj_set_hidden(data->marks, true); // DECLARATIVE_OK: per-lane state
-        return;
-    }
-    if (data->marks && key == data->marks_key) {
-        lv_obj_set_hidden(data->marks, false); // DECLARATIVE_OK: per-lane state
-        return;
-    }
-    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
-    if (!buf)
-        return;
-    lv_draw_buf_clear(buf, nullptr);
-    const Content c = content_of(data, w, h);
-    const size_t pixels = static_cast<size_t>(w) * static_cast<size_t>(h);
-    auto blend = [&](int32_t x, int32_t y, lv_color_t color, uint8_t a) {
-        if (a == 0)
-            return;
-        auto* px = static_cast<uint8_t*>(lv_draw_buf_goto_xy(buf, x, y));
-        const uint8_t da = px[3];
-        const int oa = a + da * (255 - a) / 255;
-        auto mix = [&](uint8_t dst, uint8_t src) {
-            return static_cast<uint8_t>(oa ? (src * a + dst * da * (255 - a) / 255) / oa : 0);
-        };
-        px[0] = mix(px[0], color.blue);
-        px[1] = mix(px[1], color.green);
-        px[2] = mix(px[2], color.red);
-        px[3] = static_cast<uint8_t>(oa);
-    };
-    const int lanes = std::min<int>(static_cast<int>(marks.size()), data->geom->lanes);
-    const SpoolMasks sm = spool_masks(art, data, w, h);
-    for (int i = 0; i < lanes && i < static_cast<int>(sm.visible.size()); ++i) {
-        const UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
-        if (!m.glow && !m.dim)
-            continue;
-        const std::vector<uint8_t>& visible = sm.visible[static_cast<size_t>(i)];
-        // A pixel only a sliver of the spool covers is its neighbor's: marks keep off it.
-        auto own = [&](size_t idx) { return visible[idx] >= kMaskOwn ? 255 : 0; };
-        if (m.dim) {
-            for (int32_t y = 0; y < h; ++y)
-                for (int32_t x = 0; x < w; ++x)
-                    blend(
-                        x, y, dim_color,
-                        static_cast<uint8_t>(own(static_cast<size_t>(y) * w + x) * kDimOpa / 255));
+    for (size_t i = 0; i < data->lanes.size(); ++i) {
+        LaneImages& lane = data->lanes[i];
+        lane.mark = i < marks.size() ? marks[i] : UnitArtLaneMark{};
+        if (lane.glow) {
+            set_lane_visible(lane.glow, lane.mark.glow);
+            // DECLARATIVE_OK: the glow takes the live lane state's color.
+            lv_obj_set_style_image_recolor(lane.glow, lane.mark.color, LV_PART_MAIN);
+            lv_obj_set_style_image_recolor_opa(lane.glow, LV_OPA_COVER, LV_PART_MAIN);
         }
-        if (!m.glow)
-            continue;
-        // A crisp rim just inside the edge of what shows of the spool. Small seams in the mask
-        // are closed first, so only its outline is stroked; where the unit's front cuts the
-        // spool off, the edge is the front part's outline and gets none.
-        const int rim = std::max(1, (int)c.w / kLaneRimDivisor);
-        std::vector<uint8_t> closed = visible;
-        max_filter(closed, w, h, 1);
-        min_filter(closed, w, h, 1);
-        std::vector<uint8_t> inner = closed;
-        min_filter(inner, w, h, rim);
-        std::vector<uint8_t> front_near = sm.front;
-        max_filter(front_near, w, h, rim + 1);
-        // Soft light falling off from what shows into the open space around it.
-        std::vector<uint8_t> bloom = visible;
-        const int radius = std::max(1, (int)c.w / kLaneHaloDivisor);
-        for (int pass = 0; pass < kLaneHaloPasses; ++pass) {
-            box_blur(bloom, w, h, 1, w, radius);
-            box_blur(bloom, h, w, w, 1, radius);
-        }
-        for (int32_t y = 0; y < h; ++y) {
-            for (int32_t x = 0; x < w; ++x) {
-                const size_t idx = static_cast<size_t>(y) * w + x;
-                const int edge = std::max(0, (int)closed[idx] - (int)inner[idx]) * own(idx) / 255 *
-                                 (255 - front_near[idx]) / 255;
-                const int rim_a = edge * kLaneRimPeak / 255;
-                const int open = sm.open[idx] >= kMaskOwn ? sm.open[idx] : 0;
-                const int bloom_a =
-                    std::min(255, bloom[idx] * kLaneHaloGain) * kLaneHaloPeak / 255 * open / 255;
-                blend(x, y, m.color, static_cast<uint8_t>(std::max(rim_a, bloom_a)));
-            }
+        if (lane.dim) {
+            set_lane_visible(lane.dim, lane.mark.dim);
+            // DECLARATIVE_OK: a missing bay fades into the card it stands on.
+            lv_obj_set_style_image_recolor(lane.dim, dim_color, LV_PART_MAIN);
+            lv_obj_set_style_image_recolor_opa(lane.dim, LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_set_style_image_opa(lane.dim, kDimOpa, LV_PART_MAIN);
         }
     }
-    if (!data->marks) {
-        data->marks = lv_image_create(art);
-        lv_obj_set_size(data->marks, lv_pct(100), lv_pct(100));
-        lv_obj_set_clickable(data->marks, false);
-    }
-    lv_obj_move_to_index(data->marks, -1);
-    lv_image_set_src(data->marks, buf);
-    if (data->marks_buf)
-        data->retired.push_back(data->marks_buf);
-    data->marks_buf = buf;
-    data->marks_key = key;
-    lv_obj_set_hidden(data->marks, false); // DECLARATIVE_OK: per-lane state
+    flatten(art, data, data->lane_key ^ marks_key(data));
 }
 
-lv_obj_t* unit_art_marks_obj(lv_obj_t* art) {
+UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane) {
     ArtData* data = art ? data_of(art) : nullptr;
-    return data && data->marks && !lv_obj_is_hidden(data->marks) ? data->marks : nullptr;
+    if (!data || lane < 0 || lane >= static_cast<int>(data->lanes.size()))
+        return {};
+    return data->lanes[static_cast<size_t>(lane)].mark;
 }
 
-uint8_t unit_art_marks_alpha(lv_obj_t* art, int32_t x, int32_t y) {
+std::vector<std::string> unit_art_compose_order(lv_obj_t* art) {
+    std::vector<std::string> names;
     ArtData* data = art ? data_of(art) : nullptr;
-    if (!data || !data->marks_buf || lv_obj_is_hidden(data->marks) || x < 0 || y < 0 ||
-        x >= (int32_t)data->marks_buf->header.w || y >= (int32_t)data->marks_buf->header.h)
-        return 0;
-    return static_cast<const uint8_t*>(lv_draw_buf_goto_xy(data->marks_buf, x, y))[3];
+    if (!data || !data->layers)
+        return names;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(data->layers); ++i) {
+        const char* name = lv_obj_get_name(lv_obj_get_child(data->layers, static_cast<int32_t>(i)));
+        names.emplace_back(name ? name : "");
+    }
+    return names;
 }
 
 int unit_art_lane_fill_pct(lv_obj_t* art, int lane) {

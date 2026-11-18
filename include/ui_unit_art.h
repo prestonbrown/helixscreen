@@ -99,26 +99,25 @@ bool unit_art_bottom_edge(lv_obj_t* art, lv_point_t& a, lv_point_t& b);
 /// What the drawing covers at @p art's current size, relative to the widget.
 bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 
-/// How one lane of the drawing is marked over the art.
+/// How one lane of the drawing is marked.
 struct UnitArtLaneMark {
-    bool glow = false; ///< a halo round the spool's outline, in @p color
+    bool glow = false; ///< soft light just behind the spool, in @p color
     lv_color_t color{};
-    bool dim = false; ///< the spool dimmed, as a bay that is not there
+    bool dim = false; ///< the spool faded into the card, as a bay that is not there
 };
 
-/// Marks each lane of @p art; lanes past @p marks keep none.
+/// Marks each lane of @p art, in its own place in the drawing's depth: a glow just behind
+/// the lane's spool and a dim just in front of it, so whatever stands nearer covers both.
+/// Lanes past @p marks keep none.
 void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& marks);
 
-/// Lane @p lane's own pixels that show in @p art at its current size, one byte each, row by
-/// row: its two flanges and the filament wound between them, less every nearer spool and the
-/// drawing's front. Empty without geometry.
-std::vector<uint8_t> unit_art_lane_visible_mask(lv_obj_t* art, int lane);
+/// The mark lane @p lane shows.
+UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane);
 
-/// The image showing the lane marks, or nullptr when none has been shown.
-lv_obj_t* unit_art_marks_obj(lv_obj_t* art);
-
-/// A lane's alpha in the marks image at (@p x, @p y), widget-relative; for tests.
-uint8_t unit_art_marks_alpha(lv_obj_t* art, int32_t x, int32_t y);
+/// The drawing's layers in the order they are composed, back to front: "back", each lane's
+/// stack left to right ("lane<N>_glow", "lane<N>_body", "lane<N>_tint", "lane<N>_shade",
+/// "lane<N>_dim", as the drawing has them), then "front".
+std::vector<std::string> unit_art_compose_order(lv_obj_t* art);
 
 /// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.
 int unit_art_lane_fill_pct(lv_obj_t* art, int lane);

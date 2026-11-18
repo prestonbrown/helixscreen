@@ -447,28 +447,66 @@ class Scene:
         """Everything drawn in any of layers, filament included."""
         return self._wrap(width, "".join(i.svg() for i in self.items if i.layer in layers))
 
+    # A drawing with spools composes back to front, left to right: the back layer, then each
+    # lane's stack from the farthest (leftmost) to the nearest, then the front layer.
+
+    def _spool_starts(self):
+        """Where each lane's spool starts in the drawing order, by lane."""
+        starts = {}
+        for k, item in enumerate(self.items):
+            if item.spool is not None and item.spool not in starts:
+                starts[item.spool] = k
+        return starts
+
+    def back_items(self):
+        """The back layer's items drawn before any spool: what stands behind every lane."""
+        starts = self._spool_starts()
+        first = min(starts.values()) if starts else len(self.items)
+        return [i for k, i in enumerate(self.items) if i.layer == "back" and k < first]
+
+    def lane_items(self, lane):
+        """Lane's stack: its spool and every back-layer item drawn after it and before the next
+        lane's spool, such as a box per lane."""
+        starts = self._spool_starts()
+        if lane not in starts:
+            return []
+        later = [k for k in starts.values() if k > starts[lane]]
+        end = min(later) if later else len(self.items)
+        return [i for i in self.items[starts[lane] : end] if i.layer == "back"]
+
     def layer_svg(self, layer, width):
-        """A shell layer, without any tintable filament."""
-        return self._wrap(width, "".join(i.svg() for i in self.items if i.layer == layer and i.lane is None))
+        """A shell layer, without any tintable filament; with spools, the back holds only what
+        stands behind them."""
+        items = self.back_items() if layer == "back" and self.spools else [i for i in self.items if i.layer == layer]
+        return self._wrap(width, "".join(i.svg() for i in items if i.lane is None))
+
+    def lane_body_svg(self, lane, width):
+        """Lane's stack without its tintable filament: flanges, core, and what is drawn with them."""
+        return self._wrap(width, "".join(i.svg() for i in self.lane_items(lane) if i.lane is None))
+
+    def _silhouette(self, lane):
+        return "".join(i.svg(fill="#fff", opacity=1.0) for i in self.items if i.spool == lane and not i.blur)
+
+    def lane_silhouette_svg(self, lane, width):
+        """White over all of lane's spool, as if nothing stood in front of it."""
+        return self._wrap(width, self._silhouette(lane))
+
+    def lane_glow_svg(self, lane, width):
+        """Lane's silhouette blurred into a soft light spreading past its outline."""
+        sd = (self.spool_radius or 0.25) * 0.16
+        glow = (
+            f'<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">'
+            f'<feGaussianBlur stdDeviation="{sd:.4f}"/>'
+            '<feComponentTransfer><feFuncA type="linear" slope="1.8"/></feComponentTransfer></filter>'
+        )
+        return self._wrap(width, f'<g filter="url(#glow)">{self._silhouette(lane)}</g>', glow)
 
     def _coverage_mask(self, lane):
-        body = "".join(
-            i.svg(fill="#fff" if i.lane == lane else "#000", opacity=1.0)
-            for i in self.items
-            if i.layer == "back" and not i.blur
-        )
+        # With spools, the tint is cut only by its own stack: the lanes in front cover it
+        # by being composed after it.
+        items = self.lane_items(lane) if lane in self.spools else [i for i in self.items if i.layer == "back"]
+        body = "".join(i.svg(fill="#fff" if i.lane == lane else "#000", opacity=1.0) for i in items if not i.blur)
         return f'<mask id="cover" maskUnits="userSpaceOnUse" {self._frame()}>{body}</mask>'
-
-    def lane_spool_svg(self, lane, width):
-        """White where lane's whole spool shows (flanges, core, filament), as everything drawn
-        after it covers it; translucent parts in front, such as a lid's glass, cover it in part."""
-        body = "".join(
-            i.svg(fill="#fff" if i.spool == lane else "#000", opacity=1.0 if i.layer == "back" else i.opacity)
-            for i in self.items
-            if i.layer in ("back", "front") and not i.blur
-        )
-        mask = f'<mask id="spool" maskUnits="userSpaceOnUse" {self._frame()}><rect {self._frame()} fill="#000"/>{body}</mask>'
-        return self._wrap(width, f'<rect {self._frame()} fill="#fff" mask="url(#spool)"/>', mask)
 
     def _frame(self):
         vx, vy, vw, vh = self._viewbox()

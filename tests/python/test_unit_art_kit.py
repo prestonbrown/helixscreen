@@ -584,20 +584,37 @@ def test_every_item_of_a_spool_belongs_to_its_lane():
     assert all(i.spool is None for i in scene.items if i.layer == "front")
 
 
-def test_a_lanes_spool_mask_covers_its_flanges_where_they_show(tmp_path):
-    rendered = {}
+@pytest.mark.parametrize("unit", SPOOL_UNITS, ids=lambda u: u.id)
+def test_the_back_layer_and_each_lanes_stack_split_the_drawing_in_painter_order(unit):
+    scene = _art_scene(unit)
+    if not scene.spools:
+        pytest.skip("draws no spools")
+    back = scene.back_items()
+    stacks = [scene.lane_items(lane) for lane in range(unit.lanes)]
+    # Every back-layer item lands in exactly one place, in its drawing order.
+    painted = back + [i for stack in stacks for i in stack]
+    assert painted == [i for i in scene.items if i.layer == "back"]
+    # The back holds no part of any spool; a lane's stack holds its whole spool, and lanes run
+    # left to right, the farthest first.
+    assert all(i.spool is None for i in back)
+    for lane, stack in enumerate(stacks):
+        assert stack and stack[0].spool == lane
+        assert all(i.spool in (None, lane) for i in stack)
+    centers = [scene.spools[lane]["far"][0] for lane in range(unit.lanes)]
+    assert centers == sorted(centers)
 
+
+def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
     def fake_render(svg_text, width, png_path):
-        rendered[png_path.name] = svg_text
         png_path.write_bytes(b"png")
 
     build.bake_unit(box_turtle.UNIT, tmp_path, render=fake_render)
     manifest = json.loads((tmp_path / "box_turtle" / "manifest.json").read_text())
+    for tier in ("full", "thumb"):
+        for lane, names in enumerate(manifest["tiers"][tier]["lanes"]):
+            assert names["body"] == f"{tier}_lane{lane}_body.png"
+            assert (tmp_path / "box_turtle" / names["body"]).is_file()
     for lane, names in enumerate(manifest["tiers"]["full"]["lanes"]):
-        assert names["spool"] == f"full_lane{lane}_spool.png"
-        assert (tmp_path / "box_turtle" / names["spool"]).is_file()
-    # The thumbnails never mark a lane, so they carry none.
-    assert all("spool" not in names for names in manifest["tiers"]["thumb"]["lanes"])
-    svg = rendered["full_lane1_spool.png"]
-    # White where lane 1's items show, black where any later item covers them.
-    assert 'fill="#fff"' in svg and 'fill="#000"' in svg
+        assert names["glow"] == f"full_lane{lane}_glow.png"
+        assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
+    assert all("glow" not in n for n in manifest["tiers"]["thumb"]["lanes"])

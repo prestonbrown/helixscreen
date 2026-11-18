@@ -1032,6 +1032,14 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
         CHECK(ba.x1 > aa.x1 + outlet.x);
         CHECK(std::abs((ba.y1 + ba.y2) / 2 - band) <= 1);
+        // The lane's number sits centered in its circle.
+        lv_obj_t* number =
+            lv_obj_find_by_name(ui_ams_slot_get_status_badge(slot(i)), "slot_badge_label");
+        REQUIRE(number != nullptr);
+        lv_area_t na;
+        lv_obj_get_coords(number, &na);
+        CHECK(std::abs((na.x1 + na.x2) - (ba.x1 + ba.x2)) <= 2);
+        CHECK(std::abs((na.y1 + na.y2) - (ba.y1 + ba.y2)) <= 2);
     }
     for (int i = 1; i < 4; ++i)
         CHECK(band_minus_start[i] == band_minus_start[0]);
@@ -1155,9 +1163,5 @@ TEST_CASE_METHOD(
     AmsSystemInfo info = *AmsState::instance().system_info();
     info.units[0].absent = true;
     helix::ui::ams_detail_sync_slot_states(slots, 4, info);
-    lv_area_t spool;
-    lv_point_t outlet;
-    REQUIRE(helix::ui::unit_art_lane_place(art, 1, spool, outlet));
-    CHECK(helix::ui::unit_art_marks_alpha(art, (spool.x1 + spool.x2) / 2,
-                                          (spool.y1 + spool.y2) / 2) > 0);
+    CHECK(helix::ui::unit_art_lane_mark(art, 1).dim);
 }

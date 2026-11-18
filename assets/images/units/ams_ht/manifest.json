@@ -10,7 +10,9 @@
         {
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
-          "spool": "full_lane0_spool.png"
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png",
+          "silhouette": "full_lane0_silhouette.png"
         }
       ]
     },
@@ -21,7 +23,8 @@
       "lanes": [
         {
           "color": "thumb_lane0.png",
-          "shade": "thumb_lane0_shade.png"
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
         }
       ]
     }

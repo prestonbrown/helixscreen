@@ -94,7 +94,8 @@
               style_border_color="#card_bg" style_pad_left="#ams_slot_badge_pad_h"
               style_pad_right="#ams_slot_badge_pad_h" style_pad_top="0" style_pad_bottom="0" scrollable="false"
               clickable="false" event_bubble="true" flex_flow="row" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_column="0" overflow_visible="true">
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_column="0"
+              overflow_visible="true">
         <!-- Slot number label (1, 2, 3, etc.) — text set in C++, no translation -->
         <text_small name="slot_badge_label" text="?" style_text_color="#text" clickable="false" event_bubble="true"/>
         <!-- Over a unit's drawing the spool's own "+" and error dot are not drawn, so an empty
