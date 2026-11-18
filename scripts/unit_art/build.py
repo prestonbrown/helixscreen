@@ -265,7 +265,9 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                 if tier == "full":
                     names["glow"] = f"{tier}_lane{lane}_glow.png"
                     names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
+                    names["edge"] = f"{tier}_lane{lane}_edge.png"
                     render(scene.lane_glow_svg(lane, width), width, target / names["glow"])
+                    render(scene.lane_edge_svg(lane, width), width, target / names["edge"])
                     render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}

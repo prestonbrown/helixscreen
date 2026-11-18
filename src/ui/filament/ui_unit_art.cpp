@@ -45,7 +45,8 @@ struct LaneImages {
     lv_draw_buf_t* mask = nullptr; ///< the wound filament's outline at mask_fill, A8
     int mask_pct = 100;
     lv_obj_t* body = nullptr; ///< the lane's spool stack less its filament, when baked so
-    lv_obj_t* glow = nullptr; ///< its spool's soft light, just behind it; hidden unless marked
+    lv_obj_t* glow = nullptr; ///< its spool's soft light, behind every spool; hidden unless marked
+    lv_obj_t* edge = nullptr; ///< its own flange rims, over its spool; hidden unless marked
     lv_obj_t* dim = nullptr;  ///< its spool's silhouette in the card's color; hidden unless marked
     UnitArtLaneMark mark;
 };
@@ -165,22 +166,27 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->geom = shell->has_stub_art && look == FeederLook::Stubs
                      ? nullptr
                      : tray::unit_art_geometry(shell->id, lane_count);
-    // Back to front, left to right: the back layer, then each lane's stack from the leftmost,
-    // which the camera sees farthest, to the rightmost, then the front layer. A lane's glow
-    // stands just behind its spool and its dim just in front of it, so whatever stands nearer
-    // covers both as it covers the spool.
+    // Back to front, left to right: the back layer, every lane's glow, then each lane's stack
+    // from the leftmost, which the camera sees farthest, to the rightmost, then the front layer.
+    // Every spool covers every glow, so a glow lights only the air around its spool. A lane's
+    // edge and dim stand just in front of its spool, so whatever stands nearer covers both as it
+    // covers the spool.
     lv_obj_set_name(add_layer(data->layers, base + "_back.png"), "back");
     const bool stacks = data->geom != nullptr; // a drawing with spools bakes a stack per lane
     const bool marked = stacks && data->tier == UnitArtTier::Full;
+    auto lane_stem = [&](int lane) { return base + "_lane" + std::to_string(lane); };
+    auto lane_name = [](int lane) { return "lane" + std::to_string(lane); };
+    data->lanes.resize(static_cast<size_t>(lane_count));
+    for (int lane = 0; marked && lane < lane_count; ++lane) {
+        lv_obj_t* glow = add_layer(data->layers, lane_stem(lane) + "_glow.png");
+        lv_obj_set_name(glow, (lane_name(lane) + "_glow").c_str());
+        set_lane_visible(glow, false);
+        data->lanes[static_cast<size_t>(lane)].glow = glow;
+    }
     for (int lane = 0; lane < lane_count; ++lane) {
-        const std::string stem = base + "_lane" + std::to_string(lane);
-        const std::string name = "lane" + std::to_string(lane);
-        LaneImages images{};
-        if (marked) {
-            images.glow = add_layer(data->layers, stem + "_glow.png");
-            lv_obj_set_name(images.glow, (name + "_glow").c_str());
-            set_lane_visible(images.glow, false);
-        }
+        const std::string stem = lane_stem(lane);
+        const std::string name = lane_name(lane);
+        LaneImages& images = data->lanes[static_cast<size_t>(lane)];
         if (stacks) {
             images.body = add_layer(data->layers, stem + "_body.png");
             lv_obj_set_name(images.body, (name + "_body").c_str());
@@ -190,13 +196,15 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         images.shade = add_layer(data->layers, stem + "_shade.png");
         lv_obj_set_name(images.shade, (name + "_shade").c_str());
         if (marked) {
+            images.edge = add_layer(data->layers, stem + "_edge.png");
+            lv_obj_set_name(images.edge, (name + "_edge").c_str());
+            set_lane_visible(images.edge, false);
             images.dim = add_layer(data->layers, stem + "_silhouette.png");
             lv_obj_set_name(images.dim, (name + "_dim").c_str());
             set_lane_visible(images.dim, false);
         }
         // DECLARATIVE_OK: each lane's colour is per-widget live data.
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
-        data->lanes.push_back(images);
     }
     data->front = add_layer(data->layers, base + "_front.png");
     lv_obj_set_name(data->front, "front");
@@ -719,6 +727,12 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             // DECLARATIVE_OK: the glow takes the live lane state's color.
             lv_obj_set_style_image_recolor(lane.glow, lane.mark.color, LV_PART_MAIN);
             lv_obj_set_style_image_recolor_opa(lane.glow, LV_OPA_COVER, LV_PART_MAIN);
+        }
+        if (lane.edge) {
+            set_lane_visible(lane.edge, lane.mark.glow);
+            // DECLARATIVE_OK: the rims take the live lane state's color.
+            lv_obj_set_style_image_recolor(lane.edge, lane.mark.color, LV_PART_MAIN);
+            lv_obj_set_style_image_recolor_opa(lane.edge, LV_OPA_COVER, LV_PART_MAIN);
         }
         if (lane.dim) {
             set_lane_visible(lane.dim, lane.mark.dim);

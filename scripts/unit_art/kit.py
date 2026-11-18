@@ -325,6 +325,11 @@ class Item:
     blur: bool = False
     spool: object = None  # the lane whose spool this item is part of, flanges and core included
 
+    def outline_svg(self, color, width):
+        """The item's outline alone, stroked @p width wide in @p color."""
+        d = " ".join(f"{x:.4f},{y:.4f}" for x, y in self.points)
+        return f'<polygon points="{d}" fill="none" stroke="{color}" stroke-width="{width:.4f}" stroke-linejoin="round"/>'
+
     def svg(self, fill=None, opacity=None):
         d = " ".join(f"{x:.4f},{y:.4f}" for x, y in self.points)
         f = self.fill if fill is None else fill
@@ -500,6 +505,24 @@ class Scene:
             '<feComponentTransfer><feFuncA type="linear" slope="1.8"/></feComponentTransfer></filter>'
         )
         return self._wrap(width, f'<g filter="url(#glow)">{self._silhouette(lane)}</g>', glow)
+
+    def lane_edge_svg(self, lane, width):
+        """White along lane's flange rims where its own stack leaves them in view.
+
+        Each item of the stack covers in drawing order and each flange then rims its outline,
+        so a rim the lane's own filament or nearer flange hides stays hidden, and nothing
+        between the flanges is rimmed. Lanes nearer the camera cover it by being composed after.
+        """
+        rim = (self.spool_radius or 0.25) * 0.07
+        body = []
+        for i in self.lane_items(lane):
+            if i.blur:
+                continue
+            body.append(i.svg(fill="#000", opacity=1.0))
+            if i.tag == "flange" and i.spool == lane:
+                body.append(i.outline_svg("#fff", rim))
+        mask = f'<mask id="edge" maskUnits="userSpaceOnUse" {self._frame()}>{"".join(body)}</mask>'
+        return self._wrap(width, f'<rect {self._frame()} fill="#fff" mask="url(#edge)"/>', mask)
 
     def _coverage_mask(self, lane):
         # With spools, the tint is cut only by its own stack: the lanes in front cover it

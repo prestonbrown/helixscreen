@@ -96,6 +96,7 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
         1.0,
         stroke="#2a2a2a",
         sw=0.001,
+        tag="flange",
     )
     # The bare core stands behind the filament, so it shows when a bay is empty.
     _cylinder(scene, x_far, x_near, yc, zc, hub, lambda n: shade(cam, _FLANGE, n, amb=0.8, dif=0.5, spec=0))
@@ -113,7 +114,7 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
                 scene.line(arc, "#000000", 0.0016, 0.22, lane=lane, tag="wrap")
 
     face = scene.grad(shift(_FLANGE, lift), shift(_FLANGE, -drop), zc + R, zc - R, x_near, yc)
-    scene.poly(_circle(x_near, yc, zc, R), face, 1.0, stroke=shift(_FLANGE, 100), sw=0.002)
+    scene.poly(_circle(x_near, yc, zc, R), face, 1.0, stroke=shift(_FLANGE, 100), sw=0.002, tag="flange")
     if detail:
         hollow = scene.grad(
             shift(_FLANGE_BACK, -c["hollow_shade_top"]), shift(_FLANGE_BACK, -c["hollow_shade_bottom"]), zc + R, zc - R, x_near, yc
