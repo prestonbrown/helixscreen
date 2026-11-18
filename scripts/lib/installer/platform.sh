@@ -1419,6 +1419,16 @@ HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_s
 #   printer_database.d  writable_path("printer_database.d")  (user DB extensions)
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
 
+# Whether a name under config/ is the user's (HELIX_USER_CONFIG_FILES or
+# HELIX_USER_CONFIG_DIRS) rather than a file the release ships and owns.
+helix_is_user_config_name() { # name
+    local _n
+    for _n in $HELIX_USER_CONFIG_FILES $HELIX_USER_CONFIG_DIRS; do
+        [ "$_n" = "$1" ] && return 0
+    done
+    return 1
+}
+
 # Default content for runtime-created state files that have no packaged default.
 #
 # The file loop below refuses to create a symlink when the file exists in neither

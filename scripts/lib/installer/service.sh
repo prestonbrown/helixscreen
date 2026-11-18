@@ -781,20 +781,25 @@ start_service_mod_chroot() {
     log_info "Starting HelixScreen inside the mod's chroot..."
 
     # The init script's start returns before the UI launches: its forked
-    # supervisor first waits for the framebuffer (up to 10s on the AD5X).
-    if [ -x "$INIT_SCRIPT_DEST" ] && _mod_chroot_init "$action"; then
+    # supervisor first waits for the framebuffer (up to 10s on the AD5X). Its
+    # exit status is no verdict either way: a script that cannot write its pid
+    # file exits non-zero after the supervisor is already running.
+    if [ ! -x "$INIT_SCRIPT_DEST" ]; then
+        log_warn "HelixScreen did not start: $INIT_SCRIPT_DEST is not executable."
+    else
+        _mod_chroot_init "$action" || log_info "The init script's $action reported a failure; waiting for the UI anyway"
         local _waited=0
         while [ "$_waited" -lt 20 ]; do
             sleep 1
             _waited=$((_waited + 1))
             if pidof helix-screen >/dev/null 2>&1; then
+                # shellcheck disable=SC2034  # consumed by plan.sh (print_reboot_note)
+                HELIX_UI_CONFIRMED=1
                 log_success "HelixScreen is running!"
                 return 0
             fi
         done
         log_warn "HelixScreen did not appear within ${_waited}s of its start in the mod's chroot."
-    else
-        log_warn "HelixScreen did not start from the mod's chroot."
     fi
     # shellcheck disable=SC2034  # consumed by plan.sh (print_summary)
     HELIX_UI_START_FAILED=1
@@ -939,6 +944,8 @@ start_service_sysv() {
     for _ in 1 2 3 4 5; do
         sleep 1
         if $SUDO "$INIT_SCRIPT_DEST" status >/dev/null 2>&1; then
+            # shellcheck disable=SC2034  # consumed by plan.sh (print_reboot_note)
+            HELIX_UI_CONFIRMED=1
             log_success "HelixScreen is running!"
             return
         fi
