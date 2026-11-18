@@ -22,7 +22,9 @@ int PrintEtaEstimator::remaining_seconds(const PrintEtaInputs& in) {
     const double pct = fraction * 100.0;
 
     // Still preparing: what is left is the rest of the prep plus the whole job.
-    if (pct <= 0.0 && in.preprint_remaining_s > 0 && in.slicer_estimate_s > 0) {
+    // Below 1% is still preparing: the file's header and thumbnails put byte
+    // progress a little above zero before the first move prints.
+    if (pct < 1.0 && in.preprint_remaining_s > 0 && in.slicer_estimate_s > 0) {
         return in.preprint_remaining_s + in.slicer_estimate_s;
     }
 
