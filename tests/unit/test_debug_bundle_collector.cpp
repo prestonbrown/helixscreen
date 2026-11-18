@@ -471,6 +471,18 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
         {"203.0.113.5", {"203.0.113.5"}, {}},
         {"2001:db8:85a3::8a2e:370:7334", {"2001:db8:85a3::8a2e:370:7334", "8a2e:370:7334"}, {}},
         {"[WS] handshake with 198.51.100.7:7125 timed out", {"198.51.100.7"}, {":7125 timed out"}},
+        // A sensitive key's value goes, quoted or bare, whatever the separator
+        {"PASSWORD=Hunter2", {"Hunter2"}, {"PASSWORD=[REDACTED]"}},
+        {"mqtt_password: 'two words'", {"two words"}, {"mqtt_password: [REDACTED]"}},
+        {"psk=\"my home wifi\" key_mgmt=WPA-PSK", {"my home wifi"}, {"psk=[REDACTED] key_mgmt"}},
+        {"wpa_passphrase=Sunny1", {"Sunny1"}, {"wpa_passphrase=[REDACTED]"}},
+        {"passwd = 1234", {"1234"}, {"passwd = [REDACTED]"}},
+        {"client_secret: s3cr3t", {"s3cr3t"}, {"client_secret: [REDACTED]"}},
+        {"{\"api_key\": \"f00dcafe\", \"x\": 1}",
+         {"f00dcafe"},
+         {"\"api_key\": [REDACTED], \"x\": 1"}},
+        {"GET /api/files?apikey=F00D&path=a", {"F00D"}, {"apikey=[REDACTED]&path=a"}},
+        {"auth: Basic dXNlcjpwYXNz", {"dXNlcjpwYXNz"}, {"auth: [REDACTED]"}},
     };
     for (const Inline& r : inline_rows) {
         const auto result = helix::DebugBundleCollector::sanitize_value(r.input);
@@ -515,6 +527,16 @@ TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
         // An SSID is arbitrary user text no regex can tell from log content, so
         // the call sites redact it; the sanitizer must leave it alone
         "Status: connected=true ssid='Pretzel Logic Cafe' signal=66%",
+        // Settings that only name a credential carry no secret
+        "enable_api_key = True",
+        "force_logins: false",
+        "[authorization]",
+        "secrets_path = /home/pi/printer_data/moonraker.secrets",
+        "max_token_count = 5",
+        "Token expired, re-authenticating",
+        // Local socket and file URLs name a path, never a credential
+        "Klippy UDS: unix:///home/pi/printer_data/comms/klippy.sock",
+        "Loading file:///home/pi/printer_data/config/printer.cfg",
     };
     for (const char* v : keep) {
         INFO(v);
