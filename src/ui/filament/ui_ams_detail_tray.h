@@ -53,6 +53,9 @@ struct TrayState {
     float spool_size = 0;
     bool art = false;        // the unit's baked art stands in for the tray, which draws nothing
     int32_t art_drawn_h = 0; // the art's drawn height, while it is shown
+    int badge_rows = 1;      // lane numbers under the art: one row, or alternating two
+    bool badge_plus = true;  // an empty lane's number carries its "+"
+    int32_t badge_slant = 0; // how much higher an odd lane starts than its neighbours, at most
     helix::ui::WidgetRef art_obj;                  // the drawing, while it is shown
     helix::ui::WidgetRef slot[kAmsDetailMaxSlots]; // the slots it stands under
     int unit_index = -1;

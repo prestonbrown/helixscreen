@@ -381,13 +381,17 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t buf_box_h = buffer_control_height(f.hub_h);
     const bool hub_unit = !linear && !data.hub_on_toolhead;
     // The lanes' fan needs a band's room between where they leave the spools and the hub top.
-    // Under a drawn unit each lane's number stands centered on its band, dropped by half its
-    // height: the hub stays a radius clear of the lowest one.
+    // Under a drawn unit each lane's number stands centered on its band, the band dropped
+    // below the lane's start by at least half a number (the least drop): the hub stays a radius
+    // clear of the lowest number.
     int32_t badges_bottom = INT32_MIN;
+    int32_t least_drop = INT32_MAX;
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i)
+        if (data.lane_band_drop[i] > 0)
+            least_drop = std::min(least_drop, data.lane_band_drop[i]);
     for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
         if (data.lane_band_drop[i] > 0)
-            badges_bottom =
-                std::max(badges_bottom, lane_band_y(data, f, i) + data.lane_band_drop[i] + r);
+            badges_bottom = std::max(badges_bottom, lane_band_y(data, f, i) + least_drop + r);
     }
     const int32_t lanes_top =
         std::max((f.prep_on_box_edge ? f.prep_band_y : f.prep_y + r) + 2 * r, badges_bottom);

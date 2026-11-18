@@ -248,6 +248,51 @@ bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
 }
 } // namespace
 
+namespace {
+/// The width a label's whole text takes.
+int32_t label_whole(lv_obj_t* label) {
+    return helix::ui::text_width(lv_label_get_text(label),
+                                 lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                                 lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)) +
+           1;
+}
+
+/// Characters a label over a drawn unit keeps before its ellipsis, at the least.
+constexpr int kLabelReadableChars = 3;
+
+/// The width a label over a drawn unit asks for: its whole text, or at least its first
+/// kLabelReadableChars characters and an ellipsis.
+int32_t label_need(lv_obj_t* label) {
+    const char* text = lv_label_get_text(label);
+    const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
+    const int32_t space = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
+    const int32_t whole = helix::ui::text_width(text, font, space);
+    std::string head;
+    int chars = 0;
+    for (const char* p = text; *p && chars <= kLabelReadableChars; ++p) {
+        if ((static_cast<unsigned char>(*p) & 0xC0) != 0x80 && ++chars > kLabelReadableChars)
+            break;
+        head += *p;
+    }
+    if (chars <= kLabelReadableChars)
+        return whole;
+    return std::min(whole, helix::ui::text_width((head + "...").c_str(), font, space));
+}
+
+/// Whether a lane over a drawn unit shows its label: an empty lane's "+" badge says it. Read
+/// from the backend, which the spool's own drawing may not have caught up with yet.
+bool lane_shows_label(lv_obj_t* slot) {
+    if (!slot)
+        return false;
+    const int global = (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot));
+    helix::AmsBackend* backend = helix::AmsState::instance().get_backend();
+    if (backend && global >= 0 && global < backend->get_system_info().total_slots)
+        return backend->get_slot_info(global).status != helix::SlotStatus::EMPTY;
+    lv_obj_t* spool = lv_obj_find_by_name(slot, "lane_spool");
+    return !(spool && helix::ui::ams_lane_spool_empty(spool));
+}
+} // namespace
+
 AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                                             helix::ui::WidgetRef slot_widgets[], int max_slots,
                                             int unit_index, lv_event_cb_t click_cb,
@@ -322,19 +367,24 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                 ui_ams_slot_set_spool_size(slot_widgets[i], spool);
         }
         const int32_t gap = theme_manager_get_spacing("space_xs");
-        int32_t widest = 0;
-        for (int i = 0; i < count; ++i) {
+        // Rows estimated at the slots' pitch, to reserve their height; the tray places them
+        // over the drawn spools.
+        float x[kAmsDetailMaxSlots];
+        int32_t whole[kAmsDetailMaxSlots], need[kAmsDetailMaxSlots];
+        int shown = 0;
+        for (int i = 0; i < count && shown < kAmsDetailMaxSlots; ++i) {
             lv_obj_t* label =
                 slot_widgets[i] ? ui_ams_slot_get_material_label(slot_widgets[i]) : nullptr;
-            if (!label)
+            if (!label || !lane_shows_label(slot_widgets[i]))
                 continue;
-            widest = std::max(widest, helix::ui::text_width(
-                                          lv_label_get_text(label),
-                                          lv_obj_get_style_text_font(label, LV_PART_MAIN),
-                                          lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)));
+            x[shown] = (float)(i * (result.layout.slot_width - result.layout.overlap));
+            whole[shown] = label_whole(label);
+            need[shown++] = label_need(label);
         }
-        result.layout.label_rows = helix::ui::ams_over_lane_label_rows(
-            widest, result.layout.slot_width - result.layout.overlap, gap);
+        const float row_w = (float)lv_obj_get_content_width(lv_obj_get_parent(w.slot_grid));
+        const float start = (float)(result.layout.centering_offset + result.layout.slot_width / 2);
+        result.layout.label_rows =
+            helix::ui::ams_over_lane_label_rows(x, whole, need, shown, gap, -start, row_w - start);
         for (int i = 0; i < count; ++i) {
             if (slot_widgets[i])
                 ui_ams_slot_set_layout_info(slot_widgets[i], i, count, result.layout.label_rows);
@@ -362,11 +412,18 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
 namespace {
 void refresh_unit_view_marks();
 
-/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band and
-/// number stand: on a line parallel to the edge, a half number and a gap under it.
-int32_t art_lane_band_drop() {
-    return theme_manager_get_spacing("ams_slot_status_badge_size") / 2 +
-           theme_manager_get_spacing("space_xxs");
+/// How far below where lane @p lane's tube leaves a drawn unit's bottom edge its sensor band
+/// and number stand: on a line parallel to the edge, a half number and a gap under it; where
+/// the numbers alternate rows (s_tray.badge_rows), odd lanes a number and a gap lower.
+int32_t art_lane_band_drop(int lane) {
+    const int32_t badge_h = theme_manager_get_spacing("ams_slot_status_badge_size");
+    const int32_t gap = theme_manager_get_spacing("space_xxs");
+    const int32_t first = badge_h / 2 + gap;
+    // The bands follow the drawing's slanted foot, so an odd lane already stands lower or
+    // higher than its neighbours by the slant (s_tray.badge_slant); it drops only what is left.
+    if (s_tray.badge_rows > 1 && lane % 2)
+        return std::max(first, first + badge_h + gap + s_tray.badge_slant);
+    return first;
 }
 
 /// Where a drawn unit's bottom edge crosses screen column @p x, from its two ends.
@@ -615,12 +672,21 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     }
     if (n <= 0)
         return false;
+    // How much higher an odd lane starts than its even neighbours on the slanted foot (negative
+    // where it already stands lower).
+    float slant = -INFINITY;
+    for (int i = 1; i < n; i += 2) {
+        slant = std::max(slant, start[i - 1] - start[i]);
+        if (i + 1 < n)
+            slant = std::max(slant, start[i + 1] - start[i]);
+    }
+    s_tray.badge_slant = n > 1 ? (int32_t)std::ceil(slant) : 0;
     const int32_t entry = (int32_t)std::lround(lowest);
     ui_filament_path_canvas_set_lane_entry(canvas, entry - g.y1);
     for (int i = 0; i < kAmsDetailMaxSlots; ++i) {
         ui_filament_path_canvas_set_lane_entry_rise(
             canvas, i, i < n ? entry - (int32_t)std::lround(start[i]) : 0);
-        ui_filament_path_canvas_set_lane_band_drop(canvas, i, i < n ? art_lane_band_drop() : 0);
+        ui_filament_path_canvas_set_lane_band_drop(canvas, i, i < n ? art_lane_band_drop(i) : 0);
     }
     // The canvas reaches up to the edge's highest crossing, so it draws every lane from there.
     // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
@@ -762,8 +828,9 @@ void refresh_unit_view_marks() {
         m.glow = spool && helix::ui::ams_lane_spool_glow(spool, m.color);
         helix::SlotError::Severity severity = helix::SlotError::Severity::INFO;
         const bool error = spool && helix::ui::ams_lane_spool_error_dot(spool, severity);
-        ui_ams_slot_set_badge_marks(slot, spool && helix::ui::ams_lane_spool_empty(spool), error,
-                                    severity);
+        ui_ams_slot_set_badge_marks(
+            slot, s_tray.badge_plus && spool && helix::ui::ams_lane_spool_empty(spool), error,
+            severity);
     }
     helix::ui::unit_art_set_lane_marks(art, marks);
 }
@@ -1047,48 +1114,62 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         }
     } else if (w.labels_layer) {
         lv_obj_set_style_translate_y(w.labels_layer, 0, LV_PART_MAIN);
-        // Each label stands centered over its own spool, the art's lane or the drawn tray's:
-        // in one row when every label fits the spools' pitch, else alternating lane by lane
-        // between two, the lower row clear of the ticks that rise past it.
-        float spool_x[kAmsDetailMaxSlots] = {};
-        float pitch = 0;
-        int32_t widest = 0;
-        for (int i = 0; i < n; ++i) {
-            spool_x[i] = s_tray.art ? (art.lane[i].x1 + art.lane[i].x2 + 1) / 2.0f : cx[i];
-            if (i > 0)
-                pitch =
-                    i == 1 ? spool_x[1] - spool_x[0] : std::min(pitch, spool_x[i] - spool_x[i - 1]);
-            if (lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]))
-                widest = std::max(
-                    widest,
-                    helix::ui::text_width(lv_label_get_text(label),
-                                          lv_obj_get_style_text_font(label, LV_PART_MAIN),
-                                          lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)));
-        }
-        const int32_t label_gap = theme_manager_get_spacing("space_xs");
-        const int32_t lane_pitch = (int32_t)std::lround(pitch);
-        const int rows =
-            n > 1 ? helix::ui::ams_over_lane_label_rows(widest, lane_pitch, label_gap) : 1;
+        // Each label stands over its own spool, the art's lane or the drawn tray's, centered
+        // where the room allows, in the fewest rows (cycling label by label) that give every
+        // label its text or at least a few readable characters, each clear of the ticks
+        // rising past it. An empty lane shows none: its "+" badge says it.
+        float shown_x[kAmsDetailMaxSlots];
+        int32_t need[kAmsDetailMaxSlots], text_w[kAmsDetailMaxSlots];
+        int lane_of[kAmsDetailMaxSlots];
+        int shown = 0;
         for (int i = 0; i < n; ++i) {
             lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]);
             if (!label || lv_obj_get_parent(label) != w.labels_layer)
                 continue;
+            const bool show = lane_shows_label(slot_widgets[i]);
+            // DECLARATIVE_OK: measured layout; an empty lane's badge stands in for its label
+            lv_obj_set_hidden(label, !show);
+            if (!show)
+                continue;
+            shown_x[shown] = s_tray.art ? (art.lane[i].x1 + art.lane[i].x2 + 1) / 2.0f : cx[i];
+            need[shown] = label_need(label);
+            text_w[shown] = label_whole(label);
+            lane_of[shown++] = i;
+        }
+        const int32_t label_gap = theme_manager_get_spacing("space_xs");
+        // Labels keep inside the unit's row.
+        const float row_w = (float)lv_obj_get_width(container);
+        const int rows = helix::ui::ams_over_lane_label_rows(shown_x, text_w, need, shown,
+                                                             label_gap, 0.0f, row_w);
+        int row_of[kAmsDetailMaxSlots];
+        helix::ui::AmsLabelSpan span[kAmsDetailMaxSlots];
+        for (int k = 0; k < shown; ++k)
+            row_of[k] = helix::ui::ams_alternate_row(k, rows).row;
+        // Each label takes the room its whole text asks, as far as its neighbours allow.
+        helix::ui::ams_over_lane_label_spans(shown_x, row_of, text_w, shown, label_gap, 0.0f, row_w,
+                                             span);
+        for (int k = 0; k < shown; ++k) {
+            lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[lane_of[k]]);
+            // A centered label takes all the room either side allows evenly, so a longer name
+            // that fits needs no new layout; a slid one keeps to its span.
+            const bool centered = span[k].left == span[k].right;
+            const int32_t even = 2 * std::min(span[k].room_left, span[k].room_right);
             // DECLARATIVE_OK: measured layout; the label's width and place follow its drawn spool
-            if (n > 1)
-                lv_obj_set_width(label,
-                                 helix::ui::ams_over_lane_label_width(lane_pitch, rows, label_gap));
+            lv_obj_set_width(
+                label, std::max<int32_t>(1, centered ? std::max(even, span[k].left + span[k].right)
+                                                     : span[k].left + span[k].right));
             clear_translate(label);
             lv_obj_update_layout(label);
             lv_area_t la;
             lv_obj_get_coords(label, &la);
-            const int row = helix::ui::ams_alternate_row(i, rows).row;
             const int32_t row_step =
                 lv_area_get_height(&la) + theme_manager_get_spacing("space_xxs");
+            // Its middle over the spool, or slid toward the side with room.
+            const float middle = shown_x[k] + (float)(span[k].right - span[k].left) / 2.0f;
             lv_obj_set_style_translate_x(
-                label, origin.x + (int32_t)std::lround(spool_x[i]) - (la.x1 + la.x2) / 2,
-                LV_PART_MAIN);
-            // The nearer row stands space_md over the unit, the other a row above it.
-            lv_obj_set_style_translate_y(label, label_bottom - row * row_step - la.y2,
+                label, origin.x + (int32_t)std::lround(middle) - (la.x1 + la.x2) / 2, LV_PART_MAIN);
+            // The nearest row stands space_md over the unit, each other a row above.
+            lv_obj_set_style_translate_y(label, label_bottom - row_of[k] * row_step - la.y2,
                                          LV_PART_MAIN);
         }
         // Labels that would rise past the container's top push the row down instead:
@@ -1136,11 +1217,12 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         for (int i = 0; i < n; ++i) {
             ui_ams_slot_hide_leader(slot_widgets[i]);
             lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]);
-            if (!label || lv_obj_get_parent(label) != w.labels_layer)
+            if (!label || lv_obj_get_parent(label) != w.labels_layer || lv_obj_is_hidden(label))
                 continue;
             lv_area_t la;
             lv_obj_get_coords(label, &la);
-            const float x = (float)((la.x1 + la.x2) / 2 - origin.x);
+            // Straight down from over its own spool, which its label stands over.
+            const float x = s_tray.art ? (art.lane[i].x1 + art.lane[i].x2 + 1) / 2.0f : cx[i];
             const float y = (float)(la.y2 + 2 - origin.y);
             const float end_y = s_tray.art ? (float)art.lane[i].y1 - 2 : spool_top_y;
             tray::PointF* leader = s_tray.leader[s_tray.leader_count++];
@@ -1184,6 +1266,36 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
         const float inset = (float)theme_manager_get_spacing("space_xxs");
+        const float tube_half =
+            (float)helix::ui::fpath::tube_gauge_for_spacing(theme_manager_get_spacing("space_xs")) /
+            2;
+        if (s_tray.art) {
+            // Neighbouring numbers never touch: they alternate rows where the outlets stand
+            // closer than a number and a gap, and drop an empty lane's "+" where even that
+            // crowds them.
+            float left[kAmsDetailMaxSlots] = {};
+            int32_t number[kAmsDetailMaxSlots] = {}, with_plus[kAmsDetailMaxSlots] = {};
+            for (int i = 0; i < n; ++i) {
+                lv_obj_t* badge = ui_ams_slot_get_status_badge(slot_widgets[i]);
+                left[i] = (float)art.outlet[i].x + tube_half + inset;
+                if (!badge)
+                    continue;
+                lv_obj_update_layout(badge);
+                lv_obj_t* plus = lv_obj_find_by_name(badge, "badge_plus");
+                const int32_t plus_w = plus ? lv_obj_get_width(plus) : 0;
+                const bool plus_shown = plus && !lv_obj_is_hidden(plus);
+                number[i] = lv_obj_get_width(badge) - (plus_shown ? plus_w : 0);
+                with_plus[i] = number[i] + (lane_shows_label(slot_widgets[i]) ? 0 : plus_w);
+            }
+            const helix::ui::AmsLaneBadgeLayout layout = helix::ui::ams_lane_badge_layout(
+                left, number, with_plus, n, theme_manager_get_spacing("space_xs"));
+            s_tray.badge_rows = layout.rows;
+            s_tray.badge_plus = layout.plus;
+            refresh_unit_view_marks();
+        } else {
+            s_tray.badge_rows = 1;
+            s_tray.badge_plus = true;
+        }
         for (int i = 0; i < n; ++i) {
             lv_obj_t* badge = ui_ams_slot_get_status_badge(slot_widgets[i]);
             if (!badge || lv_obj_get_parent(badge) != w.badge_layer)
@@ -1193,13 +1305,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const float bh = (float)lv_obj_get_height(badge);
             // On art the number stands just right of its lane's column, level with the lane's
             // sensor band under the drawing's foot.
-            const float tube_half = (float)helix::ui::fpath::tube_gauge_for_spacing(
-                                        theme_manager_get_spacing("space_xs")) /
-                                    2;
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x + tube_half + inset,
-                                   (float)(art.drawn.y2 + art_lane_band_drop()) - bh / 2}
+                                   (float)(art.drawn.y2 + art_lane_band_drop(i)) - bh / 2}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);
@@ -1274,7 +1383,7 @@ void ams_detail_update_labels(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
     // A drawn unit's labels stand over their own lanes (ams_detail_update_tray() centers
     // each over its spool), keeping to what their row leaves them.
     if (layout.label_rows > 0)
-        label_width = helix::ui::ams_over_lane_label_width(slot_spacing, layout.label_rows, gap);
+        label_width = layout.label_rows * slot_spacing - gap;
 
     for (int i = 0; i < slot_count; ++i) {
         if (slot_widgets[i]) {
