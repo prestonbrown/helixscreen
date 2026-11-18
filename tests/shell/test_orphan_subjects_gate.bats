@@ -162,6 +162,18 @@ EOF
     contains "0 of 1 registered" "$output"
 }
 
+@test "a subject past the first operand of a component's condition prop is not an orphan" {
+    cat > "$ROOT/src/demo.cpp" <<'EOF'
+void init_subjects() {
+    lv_xml_register_subject(nullptr, "preview_drawn_2d", &drawn_2d_);
+}
+EOF
+    printf '<view><preview hint_hidden="viewer_mode ne 1 or preview_drawn_2d eq 1"/></view>\n' \
+        > "$ROOT/ui_xml/panel.xml"
+    run_gate
+    contains "0 of 1 registered" "$output"
+}
+
 @test "a subject a layout file requires is not an orphan" {
     cat > "$ROOT/src/demo.cpp" <<'EOF'
 void init_subjects() {

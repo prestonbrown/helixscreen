@@ -118,6 +118,9 @@ XML_REF_RE = re.compile(r'(?:bind_[a-z_]+|subject)="([^"]+)"')
 # Expression attributes name subjects as bare identifiers: cond="a or b gt c".
 # A component prop that forwards a condition is named *_when (hidden_when=).
 XML_EXPR_RE = re.compile(r'(?:cond|expr|[a-z_]*_when)="([^"]+)"')
+# A component prop under any other name (hint_hidden=) carries the same
+# expression; its value starts with a subject and a comparison operator.
+EXPR_VALUE_RE = re.compile(r'[a-z_][a-z_0-9]* (?:eq|ne|gt|ge|lt|le) ')
 IDENT_RE = re.compile(r'[a-z_][a-z_0-9]*')
 # A C++ observer on the same literal name.
 # Any site that observes or reads a subject value. lv_label_bind_text() and the
@@ -298,6 +301,8 @@ def collect_xml_refs(root: pathlib.Path) -> set[str]:
                 val = val[1:]
             if IDENT_RE.fullmatch(val):
                 refs.add(val)
+            elif EXPR_VALUE_RE.match(val):
+                refs.update(IDENT_RE.findall(val))
         # Expressions name subjects as bare identifiers: cond="a or b gt c".
         for m in XML_EXPR_RE.finditer(text):
             refs.update(IDENT_RE.findall(m.group(1)))
