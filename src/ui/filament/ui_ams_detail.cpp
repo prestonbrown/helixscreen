@@ -552,7 +552,7 @@ void pick_lane_cb(lv_event_t* e) {
     // Never destroyed: its destructor deletes LVGL objects, after lv_deinit() at exit.
     static helix::ui::FilamentSlotPicker* picker = new helix::ui::FilamentSlotPicker();
     helix::ui::FilamentSlotPicker::Options options;
-    options.title = lv_tr("Choose a lane");
+    // No heading: each row names its lane in the backend's own word.
     options.highlight_trigger = false;
     options.cancel_choice = lv_tr("Cancel");
     picker->show(
