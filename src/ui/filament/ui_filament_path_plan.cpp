@@ -1027,20 +1027,26 @@ lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
 void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, lv_color_t color) {
     pg::PathPoint p0, p1;
     band_segment(band, gauge, p0, p1);
+    if (band.dot) {
+        // A small dot on the tube, ringed dark so it reads on whatever art it stands on, and
+        // small enough to leave the art round it.
+        const int32_t r = LV_MAX(3, gauge / 2 + 1);
+        const int32_t x = (int32_t)std::lround(band.at.x), y = (int32_t)std::lround(band.at.y);
+        lv_draw_fill_dsc_t fill;
+        lv_draw_fill_dsc_init(&fill);
+        fill.radius = LV_RADIUS_CIRCLE;
+        fill.color = lv_color_black();
+        fill.opa = LV_OPA_80;
+        const lv_area_t ring = {x - r - 2, y - r - 2, x + r + 2, y + r + 2};
+        lv_draw_fill(layer, &fill, &ring);
+        fill.color = color;
+        fill.opa = LV_OPA_COVER;
+        const lv_area_t dot = {x - r, y - r, x + r, y + r};
+        lv_draw_fill(layer, &fill, &dot);
+        return;
+    }
     lv_draw_line_dsc_t dsc;
     lv_draw_line_dsc_init(&dsc);
-    if (band.outlined) {
-        // A dark ring first, so the mark reads on whatever art it stands on.
-        lv_draw_line_dsc_t ring;
-        lv_draw_line_dsc_init(&ring);
-        ring.color = lv_color_black();
-        ring.width = kBandThickness + 3;
-        ring.opa = LV_OPA_80;
-        ring.p1 = {p0.x, p0.y};
-        ring.p2 = {p1.x, p1.y};
-        ring.round_start = ring.round_end = true;
-        lv_draw_line(layer, &ring);
-    }
     dsc.color = color;
     dsc.width = kBandThickness;
     dsc.opa = LV_OPA_COVER;
@@ -1124,8 +1130,12 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
+    const int before = plan.band_count;
     add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
              only_faults(data, state), fill, /*on_box_edge=*/true);
+    // Under a view scale the hub's sensor is a dot on its outlet edge, like the head's.
+    if (data.view_hub_h > 0 && plan.band_count > before)
+        plan.bands[plan.band_count - 1].dot = true;
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1177,7 +1187,7 @@ void append_trunk(PathPlan& plan, Route& r, const Lane& lane, const LinearHubFra
         add_band_at_end(plan, BandKind::Trunk, r,
                         only_faults(data, lane.band(PathSegment::TOOLHEAD)), lane.color);
         if (plan.band_count > before)
-            plan.bands[plan.band_count - 1].outlined = true;
+            plan.bands[plan.band_count - 1].dot = true;
     }
 }
 

@@ -323,7 +323,7 @@ struct SensorBand {
     BandState state;
     lv_color_t fill;          // the lane's filament color (Loaded)
     bool on_box_edge = false; // straddles a hub/selector edge: painted over the box
-    bool outlined = false;    // ringed in the background color, to read on art behind it
+    bool dot = false;         // a round dot, ringed dark, instead of a band across the tube
 };
 
 inline constexpr int kMaxRoutes = FilamentPathData::kMaxSlots + 2; // lanes + trunk + bypass
