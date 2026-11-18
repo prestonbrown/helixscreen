@@ -486,6 +486,12 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
         lv_obj_t* slot = slot_widgets[i];
         if (!slot)
             continue;
+        // The measured remaining length stands on a tray's front, which the art has not got:
+        // over the drawing it would fall on the lane numbers.
+        if (lv_obj_t* remaining = lv_obj_find_by_name(slot, "lane_remaining")) {
+            // DECLARATIVE_OK: as the spool below, per drawn lane
+            lv_obj_set_style_opa(remaining, geom ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
+        }
         if (lv_obj_t* spool = lv_obj_find_by_name(slot, "lane_spool")) {
             // DECLARATIVE_OK: the art draws this lane's spool; the slot stays its tap target
             lv_obj_set_style_opa(spool, geom ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
@@ -931,11 +937,17 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_obj_update_layout(w.env_indicator);
         lv_area_t a;
         lv_obj_get_coords(w.env_indicator, &a);
-        const int32_t left = origin.x + std::max<int32_t>(art.drawn.x2 - tuck,
-                                                          (int32_t)std::lround(badge_end) + tuck);
+        int32_t left = origin.x + std::max<int32_t>(art.drawn.x2 - tuck,
+                                                    (int32_t)std::lround(badge_end) + tuck);
+        int32_t bottom = origin.y + art.drawn.y2 + tuck;
+        // Where the row has no room beside the drawing the pill stands over its right end
+        // instead, whole, rather than running off the view's edge.
+        lv_area_t view;
+        lv_obj_get_coords(lv_obj_get_parent(w.env_indicator), &view);
+        left = std::max(view.x1, std::min(left, view.x2 - lv_area_get_width(&a)));
+        bottom = std::min(bottom, view.y2);
         lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
-        lv_obj_set_style_translate_y(w.env_indicator, origin.y + art.drawn.y2 + tuck - a.y2,
-                                     LV_PART_MAIN);
+        lv_obj_set_style_translate_y(w.env_indicator, bottom - a.y2, LV_PART_MAIN);
     } else if (shell && w.env_indicator && !lv_obj_is_hidden(w.env_indicator)) {
         const int32_t tuck = theme_manager_get_spacing("space_sm");
         // DECLARATIVE_OK: measured layout; the pill's place depends on the drawn unit
