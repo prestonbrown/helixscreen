@@ -161,6 +161,7 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
         return std::string(shell ? shell->id : "none");
     };
     CHECK(id(AmsType::AD5X_IFS, "IFS") == "ad5x_ifs");
+    CHECK(id(AmsType::AFC, "BMCU BMCU_1") == "bmcu");
     CHECK(id(AmsType::AFC, "HTLF HTLF_1") == "htlf");
     CHECK(id(AmsType::AFC, "HTLF Turtle_1") == "htlf");
     // AFC names read "<type> <instance>": only the type token identifies an HTLF, and the

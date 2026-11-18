@@ -666,6 +666,26 @@ const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
     return nullptr;
 }
 
+/// The AFC unit name a HELIX_MOCK_AMS value that shows one AFC unit we have art for runs as
+/// ("<type> <instance>", as AFC names them), or nullptr for any other value.
+const char* mock_afc_unit_name(std::string_view mock_value) {
+    struct Row {
+        std::string_view mock_value;
+        const char* unit_name;
+    };
+    static constexpr Row kRows[] = {
+        {"quattro_box", "Quattro_Box QuattroBox_1"},
+        {"quattrobox", "Quattro_Box QuattroBox_1"},
+        {"afc_bmcu", "BMCU BMCU_1"},
+        {"afc-bmcu", "BMCU BMCU_1"},
+    };
+    for (const Row& row : kRows) {
+        if (row.mock_value == mock_value)
+            return row.unit_name;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 // Helper to create mock backend with optional features.
@@ -678,7 +698,7 @@ static std::unique_ptr<AmsBackendMock>
 create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullptr) {
     const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
                                                                  std::getenv("HELIX_MOCK_PRINTER"));
-    const bool quattro_box = ams_type == "quattro_box" || ams_type == "quattrobox";
+    const char* afc_unit = mock_afc_unit_name(ams_type);
     if (const int real = helix::mock::mock_real_lane_count(ams_type, gate_count);
         real != gate_count) {
         spdlog::info("[AMS Backend] Mock {} is built with {} lanes; ignoring {} gates", ams_type,
@@ -715,10 +735,10 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     // HELIX_MOCK_AMS — topology/type selection
     // ========================================================================
     if (!ams_type.empty()) {
-        if (quattro_box) {
+        if (afc_unit) {
             mock->set_afc_mode(true);
-            mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
-            spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
+            mock->set_afc_unit_name(afc_unit);
+            spdlog::info("[AMS Backend] Mock AFC unit {}", afc_unit);
         } else if (ams_type == "ercf" || ams_type == "tradrack") {
             mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
             spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
