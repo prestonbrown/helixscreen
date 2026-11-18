@@ -518,6 +518,10 @@ void SettingsManager::set_jog_distance(JogMode mode, bool outer, float mm) {
                                                         std::to_string(mm));
 }
 
+float SettingsManager::get_jog_distance_default(JogMode mode, bool outer) {
+    return jog_distance_default(mode, outer);
+}
+
 void SettingsManager::reset_jog_distances() {
     for (int m = 0; m < kJogModeCount; ++m) {
         const JogMode mode = static_cast<JogMode>(m);

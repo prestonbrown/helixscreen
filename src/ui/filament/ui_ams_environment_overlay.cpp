@@ -378,6 +378,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     const char* title = lv_tr("Hours");
     const char* unit = "h";
     bool allow_decimal = true;
+    std::optional<float> default_value;
     switch (field) {
     case DryerField::Temperature:
         allow_decimal = false;
@@ -394,6 +395,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
         max_value = DryerInfo::kMaxHumidityTargetPct;
         title = lv_tr("Target humidity");
         unit = "%";
+        default_value = dryer.default_humidity_target;
         break;
     }
 
@@ -407,6 +409,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
                                  .callback = on_dryer_keypad_confirmed,
                                  .user_data = this,
                                  .temperature = field == DryerField::Temperature};
+    config.default_value = default_value;
 
     ui_keypad_show(&config);
 }

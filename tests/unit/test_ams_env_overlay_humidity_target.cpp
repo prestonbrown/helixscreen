@@ -14,6 +14,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/keypad_reset_key.h"
 #include "ams_backend_mock.h"
 #include "ams_dryer.h"
 #include "ams_state.h"
@@ -332,6 +333,16 @@ TEST_CASE_METHOD(DryerKeypadFixture, "The whole-number dryer fields refuse a dec
     const char* input = GENERATE("temp_input", "humidity_target_input");
     CAPTURE(input);
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(open_keypad(input), "btn_dot")));
+}
+
+TEST_CASE_METHOD(DryerKeypadFixture, "The humidity keypad resets to the target the dryer applies",
+                 "[ams][dryer][dryer_humidity][overlay][keypad]") {
+    show_overlay_with(true, 25.0f);
+    open_keypad("humidity_target_input");
+    CHECK(helix::test::keypad_press_reset() == "25");
+    ui_keypad_hide();
+    open_keypad("temp_input");
+    CHECK_FALSE(helix::test::keypad_reset_key_shown());
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "The duration field opens in hours when no preset picks a value",

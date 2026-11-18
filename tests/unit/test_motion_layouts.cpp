@@ -20,6 +20,7 @@
 #include "ui_settings_motion.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/keypad_reset_key.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
@@ -482,6 +483,26 @@ TEST_CASE_METHOD(LayoutFixture, "motion layout: the settings dropdown picks the 
     helix::SettingsManager::instance().set_motion_layout(MotionLayout::AxisRows);
     drain();
     CHECK(lv_dropdown_get_selected(dropdown) == 3);
+}
+
+TEST_CASE_METHOD(LayoutFixture, "motion settings: each field's keypad resets to its shipped value",
+                 "[motion-layout][keypad]") {
+    ui_keypad_init(lv_screen_active());
+    helix::settings::show_motion_settings_overlay();
+    drain();
+    helix::test::keypad_open_from("jog_speed_z_field");
+    CHECK(helix::test::keypad_press_reset() == "10");
+    helix::test::keypad_open_from("fine_inner_row");
+    CHECK(helix::test::keypad_press_reset() == "0.1");
+    helix::test::keypad_open_from("bed_map_clearance_row");
+    CHECK(helix::test::keypad_press_reset() == "5");
+
+    // An inner step stays below its outer one, so a shipped inner past it cannot be set.
+    helix::SettingsManager::instance().set_jog_distance(helix::JogMode::Fine, true, 0.05f);
+    helix::test::keypad_open_from("fine_inner_row");
+    CHECK_FALSE(helix::test::keypad_reset_key_shown());
+    ui_keypad_hide();
+    NavigationManager::instance().shutdown();
 }
 
 namespace {
