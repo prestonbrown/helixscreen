@@ -36,19 +36,17 @@ int view_unit(const helix::AmsSystemInfo& info, int unit_index);
 // Defined in ui_ams_detail_labels.cpp.
 
 /// The unit ams_detail_create_slots() lays out, which a spool size cap is kept for.
-void set_layout_unit(int unit_index);
+void set_layout_unit(int unit_index, lv_obj_t* view);
+/// The spools are drawn at @p size: a cap within a pixel of it becomes it.
+void note_drawn_spool_size(int32_t size);
 /// The rows the labels over a drawn unit's @p count slots take, estimated at the slots' pitch
 /// in @p layout across @p slot_area, to reserve their height.
 int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
                          const AmsSlotLayout& layout, lv_obj_t* slot_area);
-/// How far below where lane @p lane's tube leaves a drawn unit's bottom edge its sensor band
-/// and number stand.
-int32_t art_lane_band_drop(int lane);
+/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands.
+int32_t art_lane_band_drop();
 /// Marks each lane of the unit view's art as its slot shows it.
 void refresh_unit_view_marks();
-/// How the lane numbers under the art stand, their left edges at @p left.
-helix::ui::AmsLaneBadgeLayout art_badge_layout(const helix::ui::WidgetRef slots[],
-                                               const float left[], int n);
 /// Lays the labels over the unit out from s_tray; returns the highest top any reaches,
 /// INT32_MAX with none.
 int32_t place_unit_labels();

@@ -131,6 +131,9 @@ bool ams_lane_spool_glow(lv_obj_t* spool, lv_color_t& color);
 /// Whether the lane shows as empty.
 bool ams_lane_spool_empty(lv_obj_t* spool);
 
+/// Whether the lane shows a ghost: no filament confirmed, but an identity or weight kept.
+bool ams_lane_spool_ghosted(lv_obj_t* spool);
+
 /// Whether the lane shows its error as a dot (an empty lane in error), and how severe.
 bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity);
 

@@ -242,6 +242,15 @@ def outlet(scene, lane, point):
     scene.outlets[lane] = point
 
 
+def sensor_region(scene, lane, kind, points):
+    """The part of the drawing lane's sensor of kind ("prep") stands in, as world points: the
+    app draws it red when that sensor reports a fault. Only "prep" is baked; the load sensor
+    stands at the lane's outlet. A ScaledScene's points are in its own units."""
+    if isinstance(scene, ScaledScene):
+        points, scene = scene._pts(points), scene.scene
+    scene.sensors.setdefault(lane, {})[kind] = list(points)
+
+
 class ScaledScene:
     """Draws into a scene with every length multiplied by k, so a body keeps its own units."""
 
@@ -368,6 +377,8 @@ class Scene:
         # Per lane, the spool spool.draw_spool drew there and where its filament leaves the unit.
         self.spools = {}
         self.outlets = {}
+        # Per lane, the drawn parts its own sensors stand in: {"prep": [world points]}.
+        self.sensors = {}
         # The lane whose spool is being drawn: spool.draw_spool sets it around its items.
         self.current_spool = None
 

@@ -123,7 +123,29 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
         afc_lanes_.push_back(
             {s.name, s.material, s.color, s.spool_id, s.weight, i, true, "", 0, 0});
     }
-    afc_loaded_ = 0;
+    // HELIX_MOCK_AMS_FILL's "empty" and "ghost" lanes: no spool and nothing known about one,
+    // or the spool taken out with its identity kept; a "loadfault" lane stands in error short of
+    // its load sensor, named on its own line of AFC's message; a "toolfault" lane stops short of
+    // the toolhead's post-gear sensor.
+    int tooled_fault = -1;
+    if (const char* fill = std::getenv("HELIX_MOCK_AMS_FILL")) {
+        std::string_view rest(fill);
+        for (size_t i = 0; !rest.empty() && i < afc_lanes_.size(); ++i) {
+            const size_t comma = rest.find(',');
+            const std::string_view item = rest.substr(0, comma);
+            rest = comma == std::string_view::npos ? std::string_view{} : rest.substr(comma + 1);
+            if (item == "empty")
+                afc_lanes_[i] = {"", "", "", 0, -1.0, -1, false, "", 0, 0};
+            else if (item == "ghost")
+                afc_lanes_[i].present = false;
+            else if (item == "loadfault")
+                afc_lanes_[i].fault = 2;
+            else if (item == "toolfault")
+                afc_lanes_[i].fault = 3, tooled_fault = static_cast<int>(i);
+        }
+    }
+    // A lane stopped short of the toolhead is the loaded one.
+    afc_loaded_ = tooled_fault >= 0 ? tooled_fault : 0;
 }
 
 void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) const {
@@ -175,6 +197,23 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
     }
     const nlohmann::json loaded_lane =
         loaded >= 0 ? nlohmann::json(lane_name(loaded)) : nlohmann::json(nullptr);
+    // A faulted lane's sentence, as AFC words it, one line per lane. A toolhead fault stops
+    // the loaded lane short of the post-gear sensor and puts AFC in error.
+    std::string fault_message;
+    bool tool_fault = false;
+    for (size_t i = 0; i < lanes.size(); ++i) {
+        if (lanes[i].fault == 3) {
+            tool_fault = true;
+            fault_message += (fault_message.empty() ? "" : "\n") + lane_name(static_cast<int>(i)) +
+                             " filament failed to trigger post extruder gear toolhead sensor, "
+                             "CHECK FILAMENT PATH";
+            continue;
+        }
+        if (!lanes[i].fault)
+            continue;
+        fault_message += (fault_message.empty() ? "" : "\n") + lane_name(static_cast<int>(i)) +
+                         " FAILED TO LOAD, CHECK FILAMENT AT TRIGGER";
+    }
 
     nlohmann::json out;
     out["AFC"] = {
@@ -188,7 +227,7 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         {"spoolman", nullptr},
         {"td1_present", false},
         {"lane_data_enabled", false},
-        {"error_state", false},
+        {"error_state", tool_fault},
         {"bypass_state", false},
         {"quiet_mode", false},
         {"position_saved", false},
@@ -197,7 +236,7 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         {"extruders", {"extruder"}},
         {"hubs", {kUnit}},
         {"buffers", unit.has_buffer ? nlohmann::json::array({kUnit}) : nlohmann::json::array()},
-        {"message", {{"message", ""}, {"type", ""}}},
+        {"message", {{"message", fault_message}, {"type", fault_message.empty() ? "" : "error"}}},
         {"led_state", true}};
     nlohmann::json unit_object = {{"lanes", names},
                                   {"extruders", {"extruder"}},
@@ -264,7 +303,7 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
                                     {"tool_start", "EBBCan:gpio6"},
                                     {"tool_start_status", loaded >= 0},
                                     {"tool_end", "EBBCan:gpio24"},
-                                    {"tool_end_status", loaded >= 0},
+                                    {"tool_end_status", loaded >= 0 && !tool_fault},
                                     {"tool_stn", 42.0},
                                     {"tool_stn_unload", 90.0}};
 
@@ -296,7 +335,9 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
             {"bed_temp", l.bed_temp > 0 ? nlohmann::json(l.bed_temp) : nlohmann::json(nullptr)},
             {"runout_lane", nullptr},
             {"filament_status", tooled ? "In Tool" : (l.present ? "Ready" : "Not Ready")},
-            {"status", tooled ? "Tooled" : (l.present ? "Loaded" : "None")},
+            {"status", l.fault == 2 ? "Error"
+                       : tooled     ? "Tooled"
+                                    : (l.present ? "Loaded" : "None")},
             {"dist_hub", 194.57},
             {"td1_color", ""},
             {"td1_td", ""},

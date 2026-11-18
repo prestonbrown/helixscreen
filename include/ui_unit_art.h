@@ -101,6 +101,9 @@ bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& 
 /// widget, from the bake. False without geometry.
 bool unit_art_bottom_edge(lv_obj_t* art, lv_point_t& a, lv_point_t& b);
 
+/// Whether the drawing shows its lanes' prep sensors (they redden on a fault).
+bool unit_art_draws_prep(lv_obj_t* art);
+
 /// What the drawing covers at @p art's current size, relative to the widget.
 bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 
@@ -108,7 +111,10 @@ bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 struct UnitArtLaneMark {
     bool glow = false; ///< soft light just behind the spool, in @p color
     lv_color_t color{};
-    bool dim = false; ///< the spool faded into the card, as a bay that is not there
+    bool dim = false;    ///< the spool faded into the card, as a bay that is not there
+    bool absent = false; ///< no spool in the bay: its spool is not drawn at all
+    bool ghost = false;  ///< a remembered spool, not confirmed there: see-through, grayed, dashed
+    bool prep_fault = false; ///< its prep sensor reports a fault: the drawn sensor turns red
 };
 
 /// Marks each lane of @p art, in its own place in the drawing's depth: a glow just behind
@@ -121,7 +127,8 @@ UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane);
 
 /// The drawing's layers in the order they are composed, back to front: "back", each lane's
 /// stack left to right ("lane<N>_glow", "lane<N>_body", "lane<N>_tint", "lane<N>_shade",
-/// "lane<N>_dim", as the drawing has them), then "front".
+/// "lane<N>_dim", "lane<N>_rim", as the drawing has them), then "front" and, on a full
+/// drawing, "sensor_faults".
 std::vector<std::string> unit_art_compose_order(lv_obj_t* art);
 
 /// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.

@@ -587,16 +587,28 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
         data->hits.hub_valid = true;
     }
 
+    // Under a view scale the gear stands outside the box's right edge, so the box keeps to the
+    // lanes it gathers; a buffer riding in the hub shows its state in a slot at the box's right
+    // end, and a tap there opens the buffer's detail.
+    const bool hub_interactive =
+        data->hub_callback != nullptr && data->hub_has_actions && !data->fixed_selector;
+    HubBoxExtras extras;
+    extras.gear_outside = data->view_hub_h > 0;
+    extras.slot_w = f.buffer_in_hub ? hub_buffer_glyph_width(f.hub_h) : 0;
     hub_w = draw_hub_box(ctx, f.center_x, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
-                         hub_label, hub_opa,
-                         /*interactive=*/data->hub_callback != nullptr && !data->fixed_selector);
+                         hub_label, hub_opa, /*interactive=*/hub_interactive, &extras);
+    if (f.buffer_in_hub && lv_area_get_width(&extras.slot) > 0) {
+        draw_hub_buffer_glyph(ctx, extras.slot);
+        data->hits.buffer = extras.slot;
+        data->hits.buffer_valid = true;
+    }
 
     // Single source of truth for the selector/hub hit-test: record the exact
     // box we just drew (absolute display coords), gear included. On-toolhead
     // mode recorded the SELECTOR box above; the head hub is not a control.
     if (!data->hub_on_toolhead) {
-        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2, f.center_x + hub_w / 2,
-                          f.hub_y + f.hub_h / 2};
+        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
+                          LV_MAX(f.center_x + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
         data->hits.hub_valid = true;
     }
 }
@@ -615,7 +627,11 @@ void record_outlet_buffer_hit(FilamentPathData* data, const LinearHubFrame& f) {
 // from the hub chip so the two read as one family.
 void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     lv_area_t hit{};
-    draw_buffer_tension(ctx, f.center_x, f.buffer_y, buffer_capsule_height(f.hub_h), &hit);
+    const int32_t cap_h = f.cap_h > 0 ? f.cap_h : buffer_capsule_height(f.hub_h);
+    // Under a view scale the capsule stays narrower than the hub over it.
+    const int32_t max_w =
+        ctx.data->view_hub_h > 0 ? hub_box_width(*ctx.data, ctx.geo, f) * 4 / 5 : 0;
+    draw_buffer_tension(ctx, f.center_x, f.buffer_y, cap_h, &hit, max_w);
     ctx.data->hits.buffer = hit;
     ctx.data->hits.buffer_valid = true;
 }

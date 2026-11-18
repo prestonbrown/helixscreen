@@ -571,6 +571,17 @@ costs only the DRAW_POST repaint, not a topology re-render.
 
 ---
 
+## The view scale
+
+Under a unit's drawing (the AMS panel's column, or the overview's unit page) the canvas takes one scale for every size it draws (`ui_filament_path_canvas_set_view_scale`, from `include/path_view_scale.h`): one unit is the column's height over 44, and the tube (0.6 units, held between 4 and 8 px), the sensors, the hub (2.3 units, never shorter than its label), the head (1.1 units, never narrower than three tubes) and the linked-lanes bracket are fixed shares of it, the same on every unit at one screen size. Under it:
+
+- The head keeps its size at every height; the path asks for the least height that holds it (`linear_hub_required_height`), and the drawing above takes the rest.
+- The hub stands over the head, as wide as the lanes it gathers and centered on them. Each lane drops straight in or runs one diagonal no flatter than 0.75; the hub carries a gear only when a tap on it has actions (`ui_filament_path_canvas_set_hub_actions`, a selector's).
+- The buffer rides in the hub: a small meter on its side, the slot card's turned clockwise (compressed to the right), filled in the state's color, red on a fault. A tap on it opens the buffer's detail. A selector drawn as its rail art has no box, so its buffer keeps the capsule on the trunk.
+- Sensor marks show only faults. Leaving a drawn unit, a lane's load sensor is a short marker at its tube's start, along the unit's bottom edge (`ui_filament_path_canvas_set_art_sensors`); its prep sensor is drawn in the art. The hub sensor stands on the hub's outlet edge and the toolhead sensor on the head's inlet, outlined.
+
+A lane fault names its sensor in `SlotError::sensor`, read from the firmware's sentence by the fault-path providers (`include/fault_path_position.h`).
+
 ## Off-page stubs
 
 The overview's unit view shows one unit of a hub at a time; the other units of that hub

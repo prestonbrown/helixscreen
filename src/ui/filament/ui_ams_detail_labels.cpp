@@ -12,14 +12,18 @@
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_filament_path_canvas.h"
+#include "ui_toolhead_view.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
 
+#include "ams_lane_state.h"
 #include "ams_state.h"
 #include "ams_tray_projection.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
 #include "panel_widget_size.h"
+#include "path_view_scale.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -27,6 +31,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -46,10 +51,73 @@ struct SpoolHeightCap {
 };
 SpoolHeightCap s_spool_cap;
 int s_layout_unit = -2; // the unit ams_detail_create_slots() lays out
+// A widget of the view it lays out; it lets go when the view is deleted.
+helix::ui::WidgetRef s_layout_view;
+// Under a view scale: the size a unit settled at for its row and screen, and the smallest seen
+// too tall for it (fit_scaled_unit()). A new view starts them afresh.
+SpoolHeightCap s_settled, s_too_big;
+helix::ui::PathViewScale s_view_scale;
+
+/// The column the unit view and its path stand in, or null where they have none: the AMS
+/// panel's column (a single unit), or the overview's page for one unit.
+lv_obj_t* view_column(lv_obj_t* from) {
+    for (lv_obj_t* o = from; o; o = lv_obj_get_parent(o)) {
+        const char* name = lv_obj_get_name(o);
+        if (name && (std::strcmp(name, "left_column") == 0 ||
+                     std::strcmp(name, "unit_detail_container") == 0))
+            return o;
+    }
+    return nullptr;
+}
+
+/// A column sized to its content (portrait, the sidebar below it) takes this share of the
+/// viewport it scrolls in.
+constexpr float kStackedColumnShare = 0.7f;
+
+/// The height the column may take: its own where the screen sizes it (landscape); where it is
+/// sized to its content (portrait), a fixed share of the viewport it scrolls in, so what the
+/// sidebar shows for one unit or another never changes the scale.
+int32_t view_column_height(lv_obj_t* column) {
+    if (lv_obj_get_style_height(column, LV_PART_MAIN) != LV_SIZE_CONTENT ||
+        lv_obj_get_style_flex_grow(column, LV_PART_MAIN) > 0)
+        return lv_obj_get_content_height(column);
+    for (lv_obj_t* o = lv_obj_get_parent(column); o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_get_style_height(o, LV_PART_MAIN) != LV_SIZE_CONTENT)
+            return (int32_t)std::lround((float)lv_obj_get_content_height(o) * kStackedColumnShare);
+    }
+    return lv_obj_get_content_height(column);
+}
+
+int32_t head_glyph_width(int32_t scale) {
+    const helix::ui::GlyphBounds b = helix::ui::toolhead_glyph_bounds(0, 0, scale);
+    return b.right - b.left;
+}
+
+/// Recomputes the view scale from the column the view stands in.
+/// Recomputes the view scale from the column @p from (a live widget of the view) stands in.
+const helix::ui::PathViewScale& refresh_view_scale(lv_obj_t* from) {
+    s_view_scale = {};
+    lv_obj_t* column = from ? view_column(from) : nullptr;
+    if (!column)
+        return s_view_scale;
+    const int32_t h = view_column_height(column);
+    const char* font_name = lv_xml_get_const(nullptr, "font_small");
+    const lv_font_t* font = font_name ? lv_xml_get_font(nullptr, font_name) : nullptr;
+    s_view_scale = helix::ui::path_view_scale(h, helix::ui::kPathTubeLimits, head_glyph_width,
+                                              font ? lv_font_get_line_height(font) : 0);
+    spdlog::debug("[AmsDetail] View scale: column {} unit {:.2f} tube {} sensor_r {} hub_h {} "
+                  "cap_h {} head {} (w {}) bracket {} hub_min_w {} spool_max {} in_hub {}",
+                  h, s_view_scale.unit, s_view_scale.tube_gauge, s_view_scale.sensor_r,
+                  s_view_scale.hub_h, s_view_scale.cap_h, s_view_scale.head_scale,
+                  head_glyph_width(s_view_scale.head_scale), s_view_scale.bracket_h,
+                  s_view_scale.hub_min_w, s_view_scale.spool_max, s_view_scale.buffer_in_hub);
+    return s_view_scale;
+}
 
 /// What @p unit's spools in a row @p available_width wide of @p slot_count slots size to on
 /// this screen with no cap: the key a cap is kept under, and the size it caps.
-SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_count) {
+SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_count,
+                                    lv_obj_t* view) {
     SpoolHeightCap k;
     k.unit = unit;
     k.slot_count = slot_count;
@@ -60,8 +128,20 @@ SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_
         k.screen_h = lv_display_get_vertical_resolution(disp);
     }
     const int32_t shorter = std::min(k.screen_w, k.screen_h);
-    const int32_t cap = shorter > 0 ? shorter / 5 : helix::ui::ams_slot_spool_size();
+    const helix::ui::PathViewScale& scale = refresh_view_scale(view);
+    const int32_t cap = scale.spool_max > 0 ? scale.spool_max
+                        : shorter > 0       ? shorter / 5
+                                            : helix::ui::ams_slot_spool_size();
     k.spool = tray::fit_spool_size((float)available_width, slot_count, cap);
+    // Under a view scale a unit already drawn takes the width its drawing allows: the drawing
+    // scales with its spools, often narrower than the generic tray the fit above measures.
+    lv_area_t drawn;
+    if (scale.unit > 0 && s_tray.art && s_tray.art_obj && s_tray.unit_index == unit &&
+        s_tray.lane_count == slot_count && s_tray.spool_size > 0 &&
+        helix::ui::unit_art_drawn_area(s_tray.art_obj, drawn) && lv_area_get_width(&drawn) > 0) {
+        const float per_spool = (float)lv_area_get_width(&drawn) / s_tray.spool_size;
+        k.spool = std::min<int32_t>(cap, (int32_t)((float)available_width / per_spool));
+    }
     return k;
 }
 
@@ -105,22 +185,46 @@ int32_t label_need(lv_obj_t* slot) {
     return std::min(whole, helix::ui::text_width((head + "...").c_str(), font, space));
 }
 
-/// Whether a lane over a drawn unit shows its label: an empty lane's "+" badge says it. Read
-/// from the backend, which the spool's own drawing may not have caught up with yet.
+/// Which of @p slot's lane sensors its backend reports a fault at.
+helix::LaneSensor lane_sensor_fault(lv_obj_t* slot) {
+    const int global = slot ? (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)) : -1;
+    helix::AmsBackend* backend = helix::AmsState::instance().get_backend();
+    if (!backend || global < 0)
+        return helix::LaneSensor::NONE;
+    const helix::SlotInfo info = backend->get_slot_info(global);
+    return info.error ? info.error->sensor : helix::LaneSensor::NONE;
+}
+
+/// Whether a lane over a drawn unit shows its label: a lane with no spool shows a "+" in its
+/// bay instead; a ghost keeps the name it remembers. Read from the backend, which the spool's
+/// own drawing may not have caught up with yet.
 bool lane_shows_label(lv_obj_t* slot) {
     if (!slot)
         return false;
     const int global = (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot));
     helix::AmsBackend* backend = helix::AmsState::instance().get_backend();
     if (backend && global >= 0)
-        return backend->get_slot_info(global).status != helix::SlotStatus::EMPTY;
+        return helix::ui::classify_lane(backend->get_slot_info(global)) !=
+               helix::ui::LaneState::Empty;
     lv_obj_t* spool = lv_obj_find_by_name(slot, "lane_spool");
     return !(spool && helix::ui::ams_lane_spool_empty(spool));
 }
 } // namespace
 
-void set_layout_unit(int unit_index) {
+void note_drawn_spool_size(int32_t size) {
+    // A cap the row draws a pixel short of (its rounding) is the size it shows.
+    if (s_spool_cap.spool > 0 && std::abs(s_spool_cap.spool - size) <= 1)
+        s_spool_cap.spool = size;
+}
+
+void set_layout_unit(int unit_index, lv_obj_t* view) {
     s_layout_unit = unit_index;
+    if (!s_layout_view.get() || view != s_layout_view.get()) {
+        s_settled = {};
+        s_too_big = {};
+        s_spool_cap = {};
+    }
+    s_layout_view = view;
 }
 
 int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
@@ -145,18 +249,10 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
     return helix::ui::ams_over_lane_label_rows(x, whole, need, shown, gap, -start, row_w - start);
 }
 
-/// How far below where lane @p lane's tube leaves a drawn unit's bottom edge its sensor band
-/// and number stand: on a line parallel to the edge, a half number and a gap under it; where
-/// the numbers alternate rows (s_tray.badge_rows), odd lanes a number and a gap lower.
-int32_t art_lane_band_drop(int lane) {
-    const int32_t badge_h = theme_manager_get_spacing("ams_slot_status_badge_size");
-    const int32_t gap = theme_manager_get_spacing("space_xxs");
-    const int32_t first = badge_h / 2 + gap;
-    // The bands follow the drawing's slanted foot, so an odd lane already stands lower or
-    // higher than its neighbours by the slant (s_tray.badge_slant); it drops only what is left.
-    if (s_tray.badge_rows > 1 && lane % 2)
-        return std::max(first, first + badge_h + gap + s_tray.badge_slant);
-    return first;
+/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands:
+/// just under the foot, the lane's number standing on the unit's face above it.
+int32_t art_lane_band_drop() {
+    return std::max<int32_t>(2, theme_manager_get_spacing("space_xs"));
 }
 
 namespace {
@@ -218,6 +314,57 @@ int32_t on_screen_bottom(lv_obj_t* obj) {
     return a.y2 - below;
 }
 
+/// Under a view scale the drawing takes what its row and the column leave: as wide as its row
+/// allows (@p layout), as tall as the path at its least height leaves, growing as well as
+/// shrinking, solved in one step. @p overflow is how far the path at its least height runs
+/// past the column's foot, negative where it leaves room; @p fan_growth is how much taller
+/// the path grows as the unit grows by a fraction (ui_filament_path_canvas_fan_growth()).
+/// True when the unit must be laid out again at a new size.
+bool fit_scaled_unit(int32_t overflow, float fan_growth, const SpoolHeightCap& layout) {
+    // A path a pixel or two past the foot still shows whole.
+    constexpr int32_t kOverflowSlack = 2;
+    const int32_t art_h = s_tray.art_drawn_h;
+    const int32_t now = (int32_t)s_tray.spool_size;
+    if (art_h <= 0 || now <= 0)
+        return false;
+    // Once a unit has settled at a size for its row and screen, later passes (a lane filling,
+    // a label changing) leave it there unless the path no longer fits: it does not hunt.
+    if (same_key(s_settled, layout) && overflow <= kOverflowSlack) {
+        s_spool_cap = layout;
+        s_spool_cap.spool = now;
+        return false;
+    }
+    // Growing the unit by a fraction e moves the path's foot down by its own height times e
+    // and by what its lanes' wider spread asks of the fan: the size whose overflow is zero.
+    const float e = -(float)overflow / ((float)art_h + fan_growth);
+    // The drawing scales with its spools only roughly: a size seen too tall for this row is
+    // never grown back to, so the size settles instead of trading a pixel back and forth.
+    if (!same_key(s_too_big, layout))
+        s_too_big = layout, s_too_big.spool = INT32_MAX;
+    if (overflow > kOverflowSlack)
+        s_too_big.spool = std::min(s_too_big.spool, now);
+    // It never shrinks below a third of its row's size, and never grows to get there.
+    const bool over = overflow > kOverflowSlack;
+    const int32_t floor_spool = over ? std::min(layout.spool / 3, now) : layout.spool / 3;
+    const int32_t spool =
+        std::clamp<int32_t>((int32_t)std::floor((float)now * (1.0f + e)), floor_spool,
+                            std::max(floor_spool, std::min(layout.spool, s_too_big.spool - 1)));
+    if (spool == now || (over && spool > now) || (!over && spool <= now + 1)) {
+        // Settled: the cap is the size it shows.
+        s_settled = layout;
+        s_spool_cap = layout;
+        s_spool_cap.spool = now;
+        return false;
+    }
+    s_settled = {};
+    s_spool_cap = layout;
+    s_spool_cap.spool = spool;
+    spdlog::debug("[AmsDetail] Unit {} drawn at {} for a path {} px {} (fan {:.0f}): spools at {}",
+                  layout.unit, now, std::abs(overflow), overflow > 0 ? "over" : "under", fan_growth,
+                  spool);
+    return true;
+}
+
 /// The path under a drawn unit gets its full-size height; see ams_detail_sync_lane_entry().
 /// @p layout is the shown unit's row at its natural size, which a cap is kept under.
 bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHeightCap& layout) {
@@ -229,7 +376,8 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
     if (!fills_column) {
         // DECLARATIVE_OK: measured layout; a fixed-height path grows to what its stack needs
         const int32_t token = theme_manager_get_spacing("ams_portrait_path_h");
-        const int32_t want = std::max(token, need - reach);
+        // Under a view scale the path is exactly as tall as it needs: the unit takes the rest.
+        const int32_t want = s_view_scale.unit > 0 ? need - reach : std::max(token, need - reach);
         if (lv_obj_get_height(box) != want) {
             lv_obj_set_height(box, want);
             lv_obj_update_layout(lv_obj_get_parent(box));
@@ -247,6 +395,12 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
     if (fills_column)
         limit = std::min(limit, bc.y2);
     const int32_t overflow = bottom - limit;
+    // Under a view scale the unit is sized from the path once the path is set up for this
+    // unit's slots: a path still laid out for the slots before them would size it wrongly.
+    if (s_view_scale.unit > 0)
+        return ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
+               fit_scaled_unit(cc.y1 + need - 1 - limit, ui_filament_path_canvas_fan_growth(canvas),
+                               layout);
     if (overflow <= 0)
         return false;
     // The drawing scales with its spools: shrinking it by the overflow gives the path that room.
@@ -284,33 +438,29 @@ void refresh_unit_view_marks() {
         helix::ui::UnitArtLaneMark& m = marks[static_cast<size_t>(i)];
         m.dim = lv_obj_has_state(slot, LV_STATE_DISABLED);
         m.glow = spool && helix::ui::ams_lane_spool_glow(spool, m.color);
+        // A bay with no spool draws none (a "+" stands in it); a remembered one is a ghost.
+        m.ghost = spool && helix::ui::ams_lane_spool_ghosted(spool);
+        m.absent = spool && helix::ui::ams_lane_spool_empty(spool);
+        m.prep_fault = lane_sensor_fault(slot) == helix::LaneSensor::PREP;
+        // A lane a finger is down on lights whole: its spool's glow and a ring on its number.
+        const bool pressed = i == s_tray.pressed_lane;
+        if (pressed) {
+            m.glow = true;
+            m.color = theme_manager_get_color("primary");
+        }
+        if (lv_obj_t* badge = ui_ams_slot_get_status_badge(slot)) {
+            // DECLARATIVE_OK: per-lane press state with no subject behind it
+            lv_obj_set_style_outline_width(badge, pressed ? 2 : 0, LV_PART_MAIN);
+            lv_obj_set_style_outline_color(badge, theme_manager_get_color("text"), LV_PART_MAIN);
+            lv_obj_set_style_outline_pad(badge, 1, LV_PART_MAIN);
+        }
         helix::SlotError::Severity severity = helix::SlotError::Severity::INFO;
         const bool error = spool && helix::ui::ams_lane_spool_error_dot(spool, severity);
         ui_ams_slot_set_badge_marks(
             slot, s_tray.badge_plus && spool && helix::ui::ams_lane_spool_empty(spool), error,
-            severity);
+            severity, m.absent);
     }
     helix::ui::unit_art_set_lane_marks(art, marks);
-}
-
-/// How the lane numbers under the art stand, their left edges at @p left: the numbers of
-/// @p slots as they show now, and an empty lane's "+" (lane_shows_label) beside its number.
-helix::ui::AmsLaneBadgeLayout art_badge_layout(const helix::ui::WidgetRef slots[],
-                                               const float left[], int n) {
-    int32_t number[kAmsDetailMaxSlots] = {}, with_plus[kAmsDetailMaxSlots] = {};
-    for (int i = 0; i < n; ++i) {
-        lv_obj_t* badge = slots[i] ? ui_ams_slot_get_status_badge(slots[i]) : nullptr;
-        if (!badge)
-            continue;
-        lv_obj_update_layout(badge);
-        lv_obj_t* plus = lv_obj_find_by_name(badge, "badge_plus");
-        const int32_t plus_w = plus ? lv_obj_get_width(plus) : 0;
-        const bool plus_shown = plus && !lv_obj_is_hidden(plus);
-        number[i] = lv_obj_get_width(badge) - (plus_shown ? plus_w : 0);
-        with_plus[i] = number[i] + (lane_shows_label(slots[i]) ? 0 : plus_w);
-    }
-    return helix::ui::ams_lane_badge_layout(left, number, with_plus, n,
-                                            theme_manager_get_spacing("space_xs"));
 }
 
 /// Lays the labels over the unit out from s_tray: which lanes show one (an empty lane's "+"
@@ -483,11 +633,6 @@ void relabel_if_lanes_changed() {
     lv_area_t c;
     lv_obj_get_coords(s_tray.container, &c);
     bool relayout = highest != INT32_MAX && highest < c.y1;
-    if (s_tray.art && s_tray.badge_layer) {
-        const helix::ui::AmsLaneBadgeLayout badges =
-            art_badge_layout(s_tray.slot, s_tray.badge_left, n);
-        relayout |= badges.rows != s_tray.badge_rows || badges.plus != s_tray.badge_plus;
-    }
     if (relayout && s_tray.slot_grid && s_tray.slot_tray) {
         AmsDetailWidgets w;
         w.slot_grid = s_tray.slot_grid;
@@ -538,6 +683,17 @@ using namespace helix::ui::ams_detail_layout;
 bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
     if (!canvas)
         return false;
+    {
+        // The path and the linked-lanes bracket take the view's scale.
+        const helix::ui::PathViewScale& scale = refresh_view_scale(canvas);
+        ui_filament_path_canvas_set_view_scale(canvas, scale);
+        lv_obj_t* column = view_column(canvas);
+        lv_obj_t* bracket = column ? lv_obj_find_by_name(column, "endless_arrows") : nullptr;
+        if (bracket && scale.bracket_h > 0 && lv_obj_get_height(bracket) != scale.bracket_h) {
+            // DECLARATIVE_OK: measured layout; the bracket's height is a share of the column
+            lv_obj_set_height(bracket, scale.bracket_h);
+        }
+    }
     int32_t offset = INT32_MIN;
     if (slot_grid && s_tray.valid && s_tray.container == lv_obj_get_parent(slot_grid)) {
         lv_area_t c, g;
@@ -574,6 +730,7 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
             lv_obj_set_height(canvas, h);
     };
     if (!art || !helix::ui::unit_art_bottom_edge(s_tray.art_obj, edge_a, edge_b)) {
+        ui_filament_path_canvas_set_art_sensors(canvas, false, false, 0.0f, nullptr, 0);
         fill_container(0);
         // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
         lv_obj_set_style_margin_top(canvas, 0, LV_PART_MAIN);
@@ -605,21 +762,24 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     }
     if (n <= 0)
         return false;
-    // How much higher an odd lane starts than its even neighbours on the slanted foot (negative
-    // where it already stands lower).
-    float slant = -INFINITY;
-    for (int i = 1; i < n; i += 2) {
-        slant = std::max(slant, start[i - 1] - start[i]);
-        if (i + 1 < n)
-            slant = std::max(slant, start[i + 1] - start[i]);
-    }
-    s_tray.badge_slant = n > 1 ? (int32_t)std::ceil(slant) : 0;
     const int32_t entry = (int32_t)std::lround(lowest);
     ui_filament_path_canvas_set_lane_entry(canvas, entry - g.y1);
+    {
+        // Each lane's load sensor marks where its tube leaves the drawing, along its foot.
+        bool load_fault[kAmsDetailMaxSlots] = {};
+        for (int i = 0; i < n; ++i)
+            load_fault[i] =
+                lane_sensor_fault(lv_obj_get_child(slot_grid, i)) == helix::LaneSensor::LOAD;
+        const float slope = edge_b.x != edge_a.x
+                                ? (float)(edge_b.y - edge_a.y) / (float)(edge_b.x - edge_a.x)
+                                : 0.0f;
+        ui_filament_path_canvas_set_art_sensors(
+            canvas, true, helix::ui::unit_art_draws_prep(s_tray.art_obj), slope, load_fault, n);
+    }
     for (int i = 0; i < kAmsDetailMaxSlots; ++i) {
         ui_filament_path_canvas_set_lane_entry_rise(
             canvas, i, i < n ? entry - (int32_t)std::lround(start[i]) : 0);
-        ui_filament_path_canvas_set_lane_band_drop(canvas, i, i < n ? art_lane_band_drop(i) : 0);
+        ui_filament_path_canvas_set_lane_band_drop(canvas, i, i < n ? art_lane_band_drop() : 0);
     }
     // The canvas reaches up to the edge's highest crossing, so it draws every lane from there.
     // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
@@ -632,28 +792,18 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     lv_obj_set_style_margin_top(canvas, -reach, LV_PART_MAIN);
     fill_container(reach);
     lv_obj_update_layout(lv_obj_get_parent(canvas));
-    // Each number stands level with its lane's band, as the canvas lays the band out.
-    for (int i = 0; i < n; ++i) {
-        lv_obj_t* badge = ui_ams_slot_get_status_badge(lv_obj_get_child(slot_grid, i));
-        int32_t band_y = 0;
-        if (!badge || !ui_filament_path_canvas_get_lane_rows(canvas, i, nullptr, &band_y))
-            continue;
-        lv_area_t ba;
-        lv_obj_get_coords(badge, &ba);
-        // DECLARATIVE_OK: measured layout; the badge's row is the canvas's band row
-        lv_obj_set_y(badge, lv_obj_get_style_y(badge, LV_PART_MAIN) + band_y - (ba.y1 + ba.y2) / 2);
-    }
     lv_obj_update_layout(s_tray.container);
     return ams_detail_fit_unit_to_path(
         canvas, reach,
         natural_spool_layout(s_tray.unit_index, lv_obj_get_content_width(s_tray.container),
-                             s_tray.lane_count));
+                             s_tray.lane_count, canvas));
 }
 
 int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count) {
     if (!draws_tray() || slot_count <= 0 || available_width <= 0)
         return helix::ui::ams_slot_spool_size();
-    const SpoolHeightCap natural = natural_spool_layout(s_layout_unit, available_width, slot_count);
+    const SpoolHeightCap natural =
+        natural_spool_layout(s_layout_unit, available_width, slot_count, s_layout_view.get());
     if (s_spool_cap.spool > 0 && same_key(s_spool_cap, natural))
         return std::min(natural.spool, s_spool_cap.spool);
     return natural.spool;

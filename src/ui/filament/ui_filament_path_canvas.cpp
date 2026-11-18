@@ -23,6 +23,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "path_view_scale.h"
 #include "theme_manager.h"
 #include "widget_data_registry.h"
 
@@ -608,6 +609,12 @@ void ui_filament_path_canvas_set_slot_width(lv_obj_t* obj, int32_t width) {
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+lv_obj_t* ui_filament_path_canvas_get_slot_grid(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    return data ? data->slot_grid : nullptr;
+}
+
 void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid) {
     auto* data = get_data(obj);
     if (!data)
@@ -768,6 +775,15 @@ void helix::ui::filament_path_canvas_set_toolhead_callback(lv_obj_t* obj,
     if (data) {
         data->toolhead_callback = cb;
         data->toolhead_user_data = user_data;
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_hub_actions(lv_obj_t* obj, bool has_actions) {
+    auto* data = get_data(obj);
+    if (data && data->hub_has_actions != has_actions) {
+        data->hub_has_actions = has_actions;
+        layered_mark_dirty(obj);
     }
 }
 
@@ -1248,6 +1264,36 @@ void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lan
 }
 
 // NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::PathViewScale& scale) {
+    auto* data = get_data(obj);
+    if (!data)
+        return;
+    const ThemeCache before = data->theme;
+    const int32_t hub_h = data->view_hub_h, cap_h = data->view_cap_h;
+    const bool in_hub = data->buffer_in_hub;
+    load_theme_sizes(data);
+    data->view_hub_h = 0;
+    data->view_cap_h = 0;
+    data->buffer_in_hub = false;
+    if (scale.unit > 0.0f) {
+        ThemeCache& theme = data->theme;
+        theme.tube_gauge = scale.tube_gauge;
+        theme.sensor_radius = scale.sensor_r;
+        theme.extruder_scale = scale.head_scale;
+        theme.hub_width = scale.hub_min_w;
+        data->view_hub_h = scale.hub_h;
+        data->view_cap_h = scale.cap_h;
+        data->buffer_in_hub = scale.buffer_in_hub;
+    }
+    // The same scale again changes nothing, so it paints nothing.
+    const ThemeCache& t = data->theme;
+    if (t.tube_gauge != before.tube_gauge || t.sensor_radius != before.sensor_radius ||
+        t.extruder_scale != before.extruder_scale || t.hub_width != before.hub_width ||
+        data->view_hub_h != hub_h || data->view_cap_h != cap_h || data->buffer_in_hub != in_hub)
+        layered_mark_dirty(obj);
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_edge_reserve(lv_obj_t* obj, int32_t px, int32_t y_top,
                                               int32_t y_bottom) {
     auto* data = get_data(obj);
@@ -1279,6 +1325,51 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_art_sensors(lv_obj_t* obj, bool on, bool draws_prep,
+                                             float edge_slope, const bool* load_fault, int n) {
+    auto* data = get_data(obj);
+    if (!data)
+        return;
+    bool changed = data->art_sensors != on || data->art_draws_prep != draws_prep ||
+                   data->art_edge_slope != edge_slope;
+    data->art_sensors = on;
+    data->art_draws_prep = draws_prep;
+    data->art_edge_slope = edge_slope;
+    for (int i = 0; i < FilamentPathData::kMaxSlots; ++i) {
+        const bool fault = on && load_fault && i < n && load_fault[i];
+        changed |= data->lane_load_fault[i] != fault;
+        data->lane_load_fault[i] = fault;
+    }
+    if (changed)
+        layered_mark_dirty(obj);
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead || data->view_hub_h <= 0)
+        return 0.0f;
+    BaseGeometry g = compute_base_geometry(obj, data);
+    g.height = linear_hub_required_height(*data, g);
+    if (g.height <= 0)
+        return 0.0f;
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
+    const LinearHubFrame f =
+        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    // A lane's outlet moves out from the hub with the unit, its entry stays: a lane that runs
+    // sideways grows its run by its distance from the hub times e, and its drop by that over
+    // the flattest slope.
+    float growth = 0.0f;
+    for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
+        const float from_hub = std::fabs(f.hub_fan[i].pts[0].x - (float)f.center_x);
+        const float run = std::fabs(f.hub_fan[i].pts[3].x - f.hub_fan[i].pts[0].x);
+        if (run > 2.5f)
+            growth = std::max(growth, from_hub / kFanMinSlope);
+    }
+    return growth;
 }
 
 // NAMESPACE_OK: the widget's C getter API, beside its siblings

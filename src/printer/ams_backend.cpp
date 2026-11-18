@@ -847,7 +847,7 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     }
 
     // HELIX_MOCK_AMS_FILL=<pct>,<pct>,...: each lane's remaining weight as a share of its spool;
-    // "empty" clears that lane to a bare bay.
+    // "empty" clears that lane to a bare bay, "ghost" takes its spool out and keeps its name.
     if (const char* fill_env = std::getenv("HELIX_MOCK_AMS_FILL")) {
         std::string_view rest(fill_env);
         for (int slot = 0; !rest.empty(); ++slot) {
@@ -856,6 +856,11 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
             rest = comma == std::string_view::npos ? std::string_view{} : rest.substr(comma + 1);
             if (item == "empty") {
                 mock->force_slot_cleared(slot);
+                continue;
+            }
+            // A lane whose spool was taken out but whose identity is kept: a ghost.
+            if (item == "ghost") {
+                mock->force_slot_status(slot, SlotStatus::EMPTY);
                 continue;
             }
             const auto pct = helix::text_io::parse_leading<float>(std::string(item));

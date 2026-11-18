@@ -54,6 +54,9 @@ struct RailArtRect {
 
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
+/// The flattest a hub fan's diagonal leans under a view scale, as its drop over its run.
+inline constexpr float kFanMinSlope = 0.75f;
+
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
 /// under 14 px so its end marks stay legible.
 inline int32_t buffer_capsule_height(int32_t hub_h) {
@@ -74,11 +77,12 @@ struct BufferControlGeometry {
     int32_t thumb_w = 0; ///< the thumb, cap_h + 6 tall
     int32_t thumb_h = 0;
 };
-BufferControlGeometry buffer_control_geometry(int32_t cap_h);
+/// A @p max_w > 0 caps the whole control's width, the track taking the cut.
+BufferControlGeometry buffer_control_geometry(int32_t cap_h, int32_t max_w = 0);
 
 /// What a tap on the control at (@p cx, @p cy) opens the detail from: the capsule, its
 /// button and the thumb's glow, with 4 px to spare.
-lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h);
+lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h, int32_t max_w = 0);
 
 struct LinearHubFrame {
     // Vertical layout (absolute display coords)
@@ -91,8 +95,8 @@ struct LinearHubFrame {
     int32_t output_y = 0;
     int32_t toolhead_y = 0;
     int32_t nozzle_y = 0;
-    // The toolhead glyph's scale: the theme's, or smaller on a canvas too short to fit the hub
-    // between the lanes and a full-size head.
+    // The toolhead glyph's scale: the view scale's, or with none the theme's, smaller on a
+    // canvas too short to fit the hub between the lanes and a full-size head.
     int32_t tool_scale = 0;
     int32_t inlet_y = 0; // the head's filament inlet, where the tube ends
     int32_t head_x = 0;  // the toolhead glyph's column, its inlet on center_x
@@ -105,6 +109,9 @@ struct LinearHubFrame {
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
+    int32_t cap_h = 0; // the buffer capsule's height
+    // The buffer's state is drawn inside the hub box: no capsule on the trunk.
+    bool buffer_in_hub = false;
     // No room on the trunk for the buffer: the selector's or hub's outlet band shows its reading.
     bool sync_on_output = false;
 
@@ -316,6 +323,7 @@ struct SensorBand {
     BandState state;
     lv_color_t fill;          // the lane's filament color (Loaded)
     bool on_box_edge = false; // straddles a hub/selector edge: painted over the box
+    bool outlined = false;    // ringed in the background color, to read on art behind it
 };
 
 inline constexpr int kMaxRoutes = FilamentPathData::kMaxSlots + 2; // lanes + trunk + bypass

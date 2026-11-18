@@ -159,6 +159,21 @@ void ui_filament_path_canvas_set_slot_width(lv_obj_t* obj, int32_t width);
  */
 void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid);
 
+/// The slot grid the canvas lays its lanes out from, or nullptr before one is set.
+lv_obj_t* ui_filament_path_canvas_get_slot_grid(lv_obj_t* obj);
+
+/// Lanes that leave a unit's drawing: @p on, whether the drawing shows the lanes' prep sensors
+/// (@p draws_prep: no prep band on the tubes then), the slope of the unit's bottom edge (dy
+/// over dx) each load sensor's marker lies along, and which lanes' load sensors report a
+/// fault (@p load_fault, @p n lanes). Only faults show.
+void ui_filament_path_canvas_set_art_sensors(lv_obj_t* obj, bool on, bool draws_prep,
+                                             float edge_slope, const bool* load_fault, int n);
+
+/// How much taller the path at its least height grows, in pixels, as the unit above it (and so
+/// its lanes' spread from the hub) grows by a fraction e: this times e. What the hub fan's
+/// flattest allowed slope asks of the lanes that run sideways into the hub; 0 when none do.
+float ui_filament_path_canvas_fan_growth(lv_obj_t* obj);
+
 /**
  * @brief Set the active slot (whose path is highlighted)
  *
@@ -401,6 +416,18 @@ void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool b
  * and sizes it for the unit.
  */
 void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch = 0);
+
+namespace helix::ui {
+struct PathViewScale;
+}
+/**
+ * @brief Size the hub, buffer, tube, sensors and head from one view scale
+ *
+ * The head keeps the scale's size at every canvas height (it never shrinks to make room), and
+ * a scale with buffer_in_hub draws the buffer's state inside the hub box. A scale with unit 0
+ * returns the widget to its theme sizes.
+ */
+void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::PathViewScale& scale);
 
 /**
  * @brief Keep @p px columns clear at both ends of the widget, over a band of rows
@@ -659,6 +686,10 @@ void ui_filament_path_canvas_set_toolhead_sensor(lv_obj_t* obj, bool has_sensor)
  */
 typedef void (*hub_callback_t)(lv_point_t click_pt, void* user_data);
 void ui_filament_path_canvas_set_hub_callback(lv_obj_t* obj, hub_callback_t cb, void* user_data);
+
+/// Whether a tap on the hub has actions to offer (a selector's menu): only then does the hub
+/// carry its gear. True until set.
+void ui_filament_path_canvas_set_hub_actions(lv_obj_t* obj, bool has_actions);
 
 #ifdef __cplusplus
 }

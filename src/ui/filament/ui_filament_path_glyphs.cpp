@@ -66,35 +66,55 @@ void draw_shaded_dot(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t color
 
 } // namespace
 
+namespace {
+constexpr int32_t kGearPad = 2;
+
+// The gear for a hub box @p height tall: a short box takes the smaller one, so the gear stays
+// about as tall as the box.
+const lv_font_t* hub_gear_font(int32_t height) {
+    const lv_font_t* font = theme_manager_get_font("icon_font_sm");
+    if (font && lv_font_get_line_height(font) > height + 4) {
+        if (const lv_font_t* xs = theme_manager_get_font("icon_font_xs"))
+            font = xs;
+    }
+    return font;
+}
+} // namespace
+
 int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width, int32_t height,
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
-                     lv_opa_t bg_opa, bool interactive) {
+                     lv_opa_t bg_opa, bool interactive, HubBoxExtras* extras) {
     lv_layer_t* layer = ctx.layer;
     lv_color_t text_color = ctx.data->theme.color_text;
     const lv_font_t* font = ctx.data->theme.label_font;
     int32_t radius = ctx.data->theme.border_radius;
+    const bool gear_outside = extras && extras->gear_outside;
+    const int32_t slot_w = extras ? extras->slot_w : 0;
+    constexpr int32_t kLabelPad = 4;
 
-    // Tappable affordance: a small gear glyph inside the box's right edge,
-    // vertically centered with the label, signals that the box opens a context
-    // menu. The box grows, about its center, until the centered label and the
-    // gear both fit inside.
-    const lv_font_t* icon_font = interactive ? theme_manager_get_font("icon_font_sm") : nullptr;
-    constexpr int32_t kGearPad = 2;
+    // Tappable affordance: a small gear glyph, vertically centered with the label, signals
+    // that the box opens a context menu. Inside the box's right edge the box grows, about its
+    // center, until the centered label and the gear both fit; outside it, the box holds only
+    // the label and the slot.
+    const lv_font_t* icon_font = interactive ? hub_gear_font(height) : nullptr;
     int32_t gear_w = 0;
     int32_t gear_h = 0;
+    int32_t label_w = 0;
+    if (label && label[0] && font) {
+        lv_point_t lbl_sz;
+        lv_text_get_size(&lbl_sz, label, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        label_w = lbl_sz.x;
+    }
     if (icon_font) {
         gear_h = lv_font_get_line_height(icon_font);
         lv_point_t gear_sz;
         lv_text_get_size(&gear_sz, ICON_SETTINGS, icon_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
         gear_w = gear_sz.x > 0 ? gear_sz.x : gear_h; // defensive fallback
-        int32_t label_w = 0;
-        if (label && label[0] && font) {
-            lv_point_t lbl_sz;
-            lv_text_get_size(&lbl_sz, label, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-            label_w = lbl_sz.x;
-        }
-        width = LV_MAX(width, label_w + 2 * (gear_w + 2 * kGearPad));
     }
+    const int32_t gear_in = icon_font && !gear_outside ? gear_w + 2 * kGearPad : 0;
+    width = gear_outside ? LV_MAX(width, label_w + 2 * kLabelPad + slot_w)
+            : icon_font  ? LV_MAX(width, label_w + 2 * gear_in + slot_w)
+                         : width;
 
     // Background
     lv_draw_fill_dsc_t fill_dsc;
@@ -114,7 +134,13 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     border_dsc.radius = radius;
     lv_draw_border(layer, &border_dsc, &box_area);
 
-    // Label
+    // The slot stands at the box's right end, left of a gear inside it.
+    const int32_t slot_right = box_area.x2 - gear_in;
+    if (extras)
+        extras->slot = {slot_right - slot_w, box_area.y1, slot_right, box_area.y2};
+
+    // Label: centered in what the slot and a gear inside the box leave on their left; with
+    // neither, in the box.
     if (label && label[0] && font) {
         lv_draw_label_dsc_t label_dsc;
         lv_draw_label_dsc_init(&label_dsc);
@@ -124,10 +150,13 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         label_dsc.text = label;
 
         int32_t font_h = lv_font_get_line_height(font);
-        lv_area_t label_area = {cx - width / 2, cy - font_h / 2, cx + width / 2, cy + font_h / 2};
+        const int32_t right = slot_w > 0 ? slot_right - slot_w : box_area.x2;
+        const int32_t left = slot_w > 0 ? box_area.x1 + gear_in : box_area.x1;
+        lv_area_t label_area = {left, cy - font_h / 2, right, cy + font_h / 2};
         lv_draw_label(layer, &label_dsc, &label_area);
     }
 
+    int32_t gear_right = box_area.x2;
     if (icon_font) {
         lv_draw_label_dsc_t gear_dsc;
         lv_draw_label_dsc_init(&gear_dsc);
@@ -136,10 +165,14 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         gear_dsc.opa = LV_OPA_COVER;
         gear_dsc.text = ICON_SETTINGS;
         gear_dsc.align = LV_TEXT_ALIGN_RIGHT;
-        lv_area_t gear_area = {box_area.x1, cy - gear_h / 2, box_area.x2 - kGearPad,
-                               cy + gear_h / 2};
+        if (gear_outside)
+            gear_right = box_area.x2 + 2 * kGearPad + gear_w;
+        lv_area_t gear_area = {box_area.x1, cy - gear_h / 2,
+                               gear_outside ? gear_right : box_area.x2 - kGearPad, cy + gear_h / 2};
         lv_draw_label(layer, &gear_dsc, &gear_area);
     }
+    if (extras)
+        extras->gear_right = gear_right;
     return width;
 }
 
@@ -335,7 +368,7 @@ lv_color_t buffer_thumb_color(const FilamentPathData& d) {
 }
 
 void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
-                         lv_area_t* hit) {
+                         lv_area_t* hit, int32_t max_w) {
     const FilamentPathData& d = *ctx.data;
     const ThemeCache& t = d.theme;
     lv_layer_t* layer = ctx.layer;
@@ -343,7 +376,7 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
     const lv_color_t thumb_color = buffer_thumb_color(d);
 
     const int32_t stroke = cap_h >= 16 ? 2 : 1;
-    const BufferControlGeometry geo = buffer_control_geometry(cap_h);
+    const BufferControlGeometry geo = buffer_control_geometry(cap_h, max_w);
     const int32_t half = geo.half;
     const int32_t cell = geo.cell;
     const int32_t radius = cap_h / 2;
@@ -388,7 +421,50 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
     tension_spring(layer, bx - glyph_w / 2 + 1, bx + glyph_w / 2 - 1, cy, LV_MAX(2, glyph_w / 4), 3,
                    t.color_text, stroke);
 
-    *hit = buffer_control_hit(cx, cy, cap_h);
+    *hit = buffer_control_hit(cx, cy, cap_h, max_w);
+}
+
+namespace {
+// The hub's buffer meter: a short track lying on its side, a sensor band tall.
+int32_t hub_meter_length(int32_t hub_h) {
+    return LV_MAX(16, hub_h * 6 / 5);
+}
+constexpr int32_t kHubMarkPad = 6;
+
+// The meter's fill for the buffer's state: a fault red, compressed the accent, expanded the
+// warning color, centered the success color.
+lv_color_t hub_meter_color(const FilamentPathData& d) {
+    if (d.buffer_fault_state >= 1)
+        return d.theme.color_error;
+    const float pos = buffer_tension_position(d);
+    return pos > kBufferOffCenter    ? d.theme.color_accent
+           : pos < -kBufferOffCenter ? d.theme.color_warning
+                                     : d.theme.color_success;
+}
+} // namespace
+
+int32_t hub_buffer_glyph_width(int32_t hub_h) {
+    return hub_meter_length(hub_h) + 2 * kHubMarkPad;
+}
+
+void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot) {
+    const FilamentPathData& d = *ctx.data;
+    // The slot card's meter on its side: filled from the left up to the thumb, the thumb to the
+    // right when compressed, to the left when expanded, centered when neutral.
+    const int32_t h = lv_area_get_height(&slot);
+    const int32_t len = hub_meter_length(h);
+    const int32_t t = LV_MAX(6, h / 3);
+    const int32_t cx = (slot.x1 + slot.x2) / 2;
+    const int32_t cy = (slot.y1 + slot.y2) / 2;
+    const lv_area_t track = {cx - len / 2, cy - t / 2, cx - len / 2 + len - 1, cy - t / 2 + t - 1};
+    const float pos = buffer_tension_position(d);
+    const int32_t thumb_x = cx + (int32_t)std::lround(pos * (float)(len - 4) / 2.0f);
+    tension_fill(ctx.layer, track, d.theme.color_bg, 2, LV_OPA_COVER);
+    tension_fill(ctx.layer, {track.x1, track.y1, thumb_x, track.y2}, hub_meter_color(d), 2,
+                 LV_OPA_COVER);
+    tension_border(ctx.layer, track, d.theme.color_hub_border, 2);
+    tension_fill(ctx.layer, {thumb_x - 1, track.y1 - 2, thumb_x + 1, track.y2 + 2},
+                 d.theme.color_text, 1, LV_OPA_COVER);
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)

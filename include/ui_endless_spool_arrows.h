@@ -87,6 +87,18 @@ void ui_endless_spool_arrows_set_slot_overlap(lv_obj_t* obj, int32_t overlap);
 void ui_endless_spool_arrows_set_slot_offset(lv_obj_t* obj, int32_t offset);
 
 /**
+ * @brief Anchor each lane to a drawing of the unit below the widget
+ *
+ * Lane i's marks stand in screen column @p x[i] and its ticks run down to screen row
+ * @p y[i] (its label's top, or its spool's), reaching below the widget. Both are read against
+ * where the widget stands now and kept relative to it, so they move with the panel. A count of 0
+ * returns every lane to the slot row's columns, the ticks ending at the widget's foot.
+ */
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_endless_spool_arrows_set_lane_anchors(lv_obj_t* obj, const int32_t* x, const int32_t* y,
+                                              int count);
+
+/**
  * @brief Clear all endless spool connections, hiding the widget
  *
  * @param obj The endless_spool_arrows widget

@@ -78,7 +78,13 @@ Each unit resolves on its own, so a rig of mixed units mixes tiles. A unit that 
 
 ## The unit view
 
-A unit with art and lane geometry for its lane count is drawn from its art in the AMS unit view too (`src/ui/filament/ui_ams_detail.cpp#place_unit_view_art`). The art is scaled so its first and last spools stand over the first and last slots, which stay as tap targets with their own spool drawing transparent. Each lane's tube starts at the drawing's foot, in its baked outlet's column, so no tube runs over the unit, with the lane's number just right of it on that edge. Labels and their dotted leaders end at each spool's top, the readout tucks over the drawing's right end, and a tool badge stands beside its label, off the drawing. The art shows each lane's color, fill, glow and dim; an empty lane's "+" and its error dot ride on its number badge. Any other unit keeps the drawn tray below.
+A unit with art and lane geometry for its lane count is drawn from its art in the AMS unit view too (`src/ui/filament/ui_ams_detail.cpp#place_unit_view_art`). The art is scaled so its first and last spools stand over the first and last slots, which stay as tap targets with their own spool drawing transparent. Each lane's tube starts at the drawing's foot, in its baked outlet's column, so no tube runs over the unit. Labels and their dotted leaders end at each spool's top, the readout tucks over the drawing's right end, and a tool badge stands beside its label, off the drawing. Any other unit keeps the drawn tray below.
+
+The drawing's size comes from the view scale (`include/path_view_scale.h`): it takes the width its row allows and the height the path below leaves (`src/ui/filament/ui_ams_detail_labels.cpp#fit_scaled_unit`).
+
+Each lane's number stands alone, in one row, on the unit's face over its outlet, shrunk to the outlets' pitch where it is wider. A lane with no spool draws none in its bay, and its number is outlined: the badges' dark fill with a ring round it. A ghost lane (a spool taken out with its identity kept) draws its spool see-through and grayed, with dashed rims on both flanges (`laneN_rim`, in the lane's own place in the depth). A lane a finger is down on lights whole: its spool's glow and a ring on its number.
+
+A unit def declares where each lane's prep sensor stands with `kit.sensor_region(scene, lane, "prep", points)`; the build bakes its outline into `ArtLaneGeom::prep`, and the art draws it red only when that sensor reports a fault (`sensor_faults`, over the front layer). Box Turtle (its drive blocks), QuattroBox (its feeder blocks) and Night Owl (its pods) declare one.
 
 ## The live tray
 

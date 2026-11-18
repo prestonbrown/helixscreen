@@ -735,6 +735,11 @@ bool ams_lane_spool_empty(lv_obj_t* spool) {
     return data && data->lane_state == helix::ui::LaneState::Empty;
 }
 
+bool ams_lane_spool_ghosted(lv_obj_t* spool) {
+    const LaneSpoolData* data = get_lane_spool_data(spool);
+    return data && data->lane_state == helix::ui::LaneState::Ghosted;
+}
+
 bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity) {
     const LaneSpoolData* data = get_lane_spool_data(spool);
     if (!data || !data->has_error || data->lane_state != helix::ui::LaneState::Empty)

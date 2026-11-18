@@ -10,6 +10,7 @@
 #include "ui_ams_slot.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_effects.h"
+#include "ui_endless_spool_arrows.h"
 #include "ui_error_reporting.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toast_manager.h"
@@ -196,8 +197,21 @@ AmsDetailWidgets ams_detail_find_widgets(lv_obj_t* root) {
 /// Dim spool on press, restore on release — visual feedback for slot taps.
 /// LVGL canvas widgets don't support transform_scale (raw pixel buffers),
 /// so we use opacity for the flash effect.
+/// The lane over a drawn unit that @p slot is, or -1.
+static int art_lane_of(lv_obj_t* slot) {
+    for (int i = 0; s_tray.art && i < s_tray.lane_count; ++i)
+        if (s_tray.slot[i].get() == slot)
+            return i;
+    return -1;
+}
+
 static void slot_pressed_cb(lv_event_t* e) {
     lv_obj_t* slot = lv_event_get_current_target_obj(e);
+    // Over a drawn unit the whole lane lights while the finger is down: what will open.
+    if (const int lane = art_lane_of(slot); lane >= 0) {
+        s_tray.pressed_lane = lane;
+        refresh_unit_view_marks();
+    }
     lv_obj_t* spool = lv_obj_find_by_name(slot, "spool_container");
     if (spool) {
         // The press lands on whichever child was hit, so a pressed-state
@@ -208,6 +222,10 @@ static void slot_pressed_cb(lv_event_t* e) {
 
 static void slot_released_cb(lv_event_t* e) {
     lv_obj_t* slot = lv_event_get_current_target_obj(e);
+    if (s_tray.pressed_lane >= 0) {
+        s_tray.pressed_lane = -1;
+        refresh_unit_view_marks();
+    }
     lv_obj_t* spool = lv_obj_find_by_name(slot, "spool_container");
     if (spool) {
         lv_obj_set_style_opa(spool, LV_OPA_COVER, 0); // DECLARATIVE_OK: see slot_pressed_cb
@@ -276,7 +294,7 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     helix::ui::ams_detail_sync_slot_states(slot_widgets, count);
 
     // Calculate and apply slot sizing
-    set_layout_unit(unit_index);
+    set_layout_unit(unit_index, w.slot_grid);
     lv_obj_t* slot_area = lv_obj_get_parent(w.slot_grid);
     lv_obj_update_layout(slot_area);
     int32_t available_width = lv_obj_get_content_width(slot_area);
@@ -510,6 +528,39 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     return true;
 }
 
+/// Anchors the linked-lanes bracket over the unit to its drawing: each lane's tick drops to its
+/// label's top, or to its spool's where it shows no label. With no drawing, or a unit whose
+/// lanes are not the system's first, the bracket keeps the slot row.
+void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_widgets[], int n,
+                         lv_point_t origin, const UnitViewArt* art) {
+    lv_obj_t* column = container;
+    while (column && !lv_obj_find_by_name(column, "endless_arrows"))
+        column = lv_obj_get_parent(column);
+    lv_obj_t* bracket = column ? lv_obj_find_by_name(column, "endless_arrows") : nullptr;
+    if (!bracket)
+        return;
+    int32_t x[kAmsDetailMaxSlots] = {}, y[kAmsDetailMaxSlots] = {};
+    int count = art ? n : 0;
+    for (int i = 0; i < count; ++i) {
+        const int global =
+            slot_widgets[i] ? (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot_widgets[i]))
+                            : -1;
+        if (global != i) {
+            count = 0;
+            break;
+        }
+        x[i] = origin.x + (int32_t)std::lround(s_tray.label_x[i]);
+        y[i] = origin.y + art->lane[i].y1;
+        lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]);
+        if (label && s_tray.label_shown[i] && !lv_obj_is_hidden(label)) {
+            lv_area_t la;
+            lv_obj_get_coords(label, &la);
+            y[i] = la.y1 - 1;
+        }
+    }
+    ui_endless_spool_arrows_set_lane_anchors(bracket, x, y, count);
+}
+
 } // namespace
 
 void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot_widgets[],
@@ -627,6 +678,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     }
     s_tray.shell = shell;
     s_tray.spool_size = size;
+    note_drawn_spool_size((int32_t)size);
     s_tray.lane_half = half;
     s_tray.lane_count = n;
     s_tray.box = box;
@@ -669,6 +721,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             helix::ui::ams_slot_set_hit_band(
                 slot_widgets[i],
                 helix::ui::ams_slot_lane_hit_band(lines, i, n, sa.x1, sa.y1, sa.x2));
+            // Over the drawing a press lights the lane itself (slot_pressed_cb), not the slot's
+            // box, which is wider than the lane.
+            // DECLARATIVE_OK: measured layout; the drawn lane stands in for the slot's box
+            lv_obj_set_style_bg_opa(slot_widgets[i], LV_OPA_TRANSP,
+                                    LV_PART_MAIN | LV_STATE_PRESSED);
         }
     }
 
@@ -725,6 +782,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             return;
         }
     }
+    anchor_linked_lanes(container, slot_widgets, n, origin, s_tray.art ? &art : nullptr);
     place_tool_badges();
     // A lane that fills or empties lays the labels out again (unit_view_lane_changed).
     for (int i = 0; i < n; ++i) {
@@ -739,24 +797,15 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_area_t layer;
         lv_obj_get_coords(w.badge_layer, &layer);
         const float inset = (float)theme_manager_get_spacing("space_xxs");
-        const float tube_half =
-            (float)helix::ui::fpath::tube_gauge_for_spacing(theme_manager_get_spacing("space_xs")) /
-            2;
-        if (s_tray.art) {
-            // Neighbouring numbers never touch: they alternate rows where the outlets stand
-            // closer than a number and a gap, and drop an empty lane's "+" where even that
-            // crowds them.
-            for (int i = 0; i < n; ++i)
-                s_tray.badge_left[i] = (float)art.outlet[i].x + tube_half + inset;
-            const helix::ui::AmsLaneBadgeLayout layout =
-                art_badge_layout(slot_widgets, s_tray.badge_left, n);
-            s_tray.badge_rows = layout.rows;
-            s_tray.badge_plus = layout.plus;
+        // On art each lane's number alone stands on the unit's front face, centered over its
+        // outlet just above the foot, in one row: a number wider than the outlets' pitch
+        // shrinks to fit it.
+        float pitch = INFINITY;
+        for (int i = 1; s_tray.art && i < n; ++i)
+            pitch = std::min(pitch, (float)std::abs(art.outlet[i].x - art.outlet[i - 1].x));
+        s_tray.badge_plus = !s_tray.art;
+        if (s_tray.art)
             refresh_unit_view_marks();
-        } else {
-            s_tray.badge_rows = 1;
-            s_tray.badge_plus = true;
-        }
         for (int i = 0; i < n; ++i) {
             lv_obj_t* badge = ui_ams_slot_get_status_badge(slot_widgets[i]);
             if (!badge || lv_obj_get_parent(badge) != w.badge_layer)
@@ -764,12 +813,16 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             lv_obj_update_layout(badge);
             const float bw = (float)lv_obj_get_width(badge);
             const float bh = (float)lv_obj_get_height(badge);
-            // On art the number stands just right of its lane's column, level with the lane's
-            // sensor band under the drawing's foot.
+            const float fit = s_tray.art && bw > 0 ? std::min(1.0f, (pitch - inset) / bw) : 1.0f;
+            // DECLARATIVE_OK: measured layout; the number shrinks to the drawn outlets' pitch
+            lv_obj_set_style_transform_pivot_x(badge, (int32_t)(bw / 2), LV_PART_MAIN);
+            lv_obj_set_style_transform_pivot_y(badge, (int32_t)(bh / 2), LV_PART_MAIN);
+            lv_obj_set_style_transform_scale(badge, (int32_t)std::lround(fit * LV_SCALE_NONE),
+                                             LV_PART_MAIN);
             const tray::PointF p =
                 s_tray.art
-                    ? tray::PointF{(float)art.outlet[i].x + tube_half + inset,
-                                   (float)(art.drawn.y2 + art_lane_band_drop(i)) - bh / 2}
+                    ? tray::PointF{(float)art.outlet[i].x - bw / 2,
+                                   (float)art.outlet[i].y - (0.5f + 0.75f * fit) * bh}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);
@@ -868,6 +921,8 @@ bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     // virtual bypass whether or not one is wired (#1229).
     ui_filament_path_canvas_set_show_bypass(canvas,
                                             helix::ui::bypass_node_visible_for(backend, info));
+    // Only a selector's hub has actions behind a tap; the others are a plain box.
+    ui_filament_path_canvas_set_hub_actions(canvas, backend->supports_gate_select());
 
     // Determine slot count and offset for this unit
     int slot_count = info.total_slots;
@@ -1076,6 +1131,14 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
     // reserves its width; ams_env_ind_detail_visible takes over from the next
     // reading on.
     auto* backend = helix::AmsState::instance().get_backend();
+    // Beside a drawn unit the pill stands at the drawing's foot (ams_detail_update_tray()), out
+    // of the row, so the unit centers over the path's hub instead of beside the pill.
+    const auto info = helix::AmsState::instance().system_info();
+    bool art = false;
+    for (size_t i = 0; info && i < info->units.size(); ++i)
+        art |= info->units[i].unit_index == u && helix::ui::unit_art_available(*info, (int)i);
+    // DECLARATIVE_OK: measured layout; the pill leaves the row beside a drawn unit
+    lv_obj_set_floating(w.env_indicator, art);
     if (backend && backend->has_environment_sensors()) {
         lv_obj_set_hidden(w.env_indicator, false); // DECLARATIVE_OK: layout
         spdlog::debug("[AmsDetail] Pre-showed env indicator for unit {}", u);

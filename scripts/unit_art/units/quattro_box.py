@@ -244,8 +244,12 @@ def draw_art(sc, colors, tier):
     sc.layer = "front"
     for xc in centers():
         _front_rollers(sc, xc, detail)
-    for xc in centers():
+    for lane, xc in enumerate(centers()):
         _feeder(sc, xc, detail)
+        # The feeder block holds the lane's entry (prep) sensor.
+        kit.sensor_region(sc, lane, "prep", [(a, b, z) for a in (xc - 0.046, xc + 0.046)
+                                             for b in (FEEDER_Y0, FEEDER_Y1)
+                                             for z in (FEEDER_Z0, FEEDER_Z1)])
     # The base's slanted front under the feeder row, inside the lid.
     sc.poly([(0.02, 16 * MM, 56 * MM + FOOT), (W - 0.02, 16 * MM, 56 * MM + FOOT), (W - 0.02, 42 * MM, 95 * MM + FOOT), (0.02, 42 * MM, 95 * MM + FOOT)], "#242221")
 

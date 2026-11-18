@@ -1148,10 +1148,26 @@ void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size) {
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
-                                 helix::SlotError::Severity severity) {
+                                 helix::SlotError::Severity severity, bool hollow) {
     auto* data = get_slot_data(obj);
     if (!data || !data->status_badge_bg)
         return;
+    // DECLARATIVE_OK: per-lane state with no subject; an empty bay's badge is outlined: the
+    // badges' dark fill, a ring in the text color round it, the number at full contrast.
+    if (hollow)
+        lv_obj_set_style_bg_color(data->status_badge_bg, theme_manager_get_color("ams_badge_bg"),
+                                  LV_PART_MAIN);
+    lv_obj_set_style_border_color(
+        data->status_badge_bg, theme_manager_get_color(hollow ? "text" : "card_bg"), LV_PART_MAIN);
+    lv_obj_set_style_border_width(data->status_badge_bg,
+                                  hollow ? 2 : theme_manager_get_spacing("ams_slot_badge_border_w"),
+                                  LV_PART_MAIN);
+    if (hollow && data->slot_badge)
+        lv_obj_set_style_text_color(
+            data->slot_badge,
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                     theme_manager_get_color("ams_badge_bg")),
+            LV_PART_MAIN);
     if (lv_obj_t* icon = lv_obj_find_by_name(data->status_badge_bg, "badge_plus"))
         lv_obj_set_hidden(icon, !plus); // DECLARATIVE_OK: per-lane state with no subject
     if (lv_obj_t* dot = lv_obj_find_by_name(data->status_badge_bg, "badge_error_dot"))

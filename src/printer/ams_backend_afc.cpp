@@ -14,6 +14,7 @@
 #include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "fault_path_position.h"
 #include "filament_variants.h"
 #include "gcode_help.h"
 #include "gcode_response_lines.h"
@@ -2201,8 +2202,11 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
             rearm_acknowledged_lanes_locked(std::string());
         }
         if (error_state_) {
-            // Use unlocked helper since we're already holding mutex_
-            error_segment_ = compute_filament_segment_unlocked();
+            // Where AFC's own sentence places the stop, when it names one: the toolhead
+            // sensors arrive in a later object of the same frame, so the sensors read here can
+            // lag the fault. Otherwise the furthest sensor reached (mutex_ already held).
+            const auto said = faultpath::fault_position(last_seen_message_);
+            error_segment_ = said ? *said : compute_filament_segment_unlocked();
         } else {
             error_segment_ = PathSegment::NONE;
         }
@@ -2483,6 +2487,11 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
         if (*data.status == "Error") {
             if (acknowledged_lane_errors_.count(lane_name) == 0) {
                 slot.error = lane_error_locked();
+                std::vector<std::string> lanes;
+                for (int i = 0; i < slots_.slot_count(); ++i)
+                    lanes.push_back(slots_.name_of(i));
+                slot.error->sensor = faultpath::lane_sensor_at(
+                    slot.error->message, lane_name, lane_name == current_lane_name_, lanes);
                 spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name,
                               slot_index, slot.error->message);
             }

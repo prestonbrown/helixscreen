@@ -592,10 +592,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     for (int lane = 0; lane < 4; ++lane) {
         const std::string n = "lane" + std::to_string(lane);
         // A spool-only stack dims by recoloring itself, with no layer of its own.
-        for (const char* part : {"_glow", "_body", "_tint", "_shade"})
+        // Its ghost rim stands in its own place in the depth, so nearer lanes cover it.
+        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_rim"})
             want.push_back(n + part);
     }
     want.push_back("front");
+    // A faulted sensor shows over everything it is drawn in.
+    want.push_back("sensor_faults");
     CHECK(unit_art_compose_order(art) == want);
 
     // A thumbnail carries each lane's stack but no marks.
