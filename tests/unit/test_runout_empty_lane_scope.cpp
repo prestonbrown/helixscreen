@@ -390,6 +390,74 @@ TEST_CASE("has_real_runout: the head being fed runs dry mid-print though its lan
 
 namespace {
 
+// A print_stats frame for a job paused on a structured cause.
+json paused_with_cause(int id, int index, int code, const char* message) {
+    return json{{"print_stats", json{{"state", "paused"},
+                                     {"exception", json{{"id", id},
+                                                        {"index", index},
+                                                        {"code", code},
+                                                        {"level", 2},
+                                                        {"message", message}}}}}};
+}
+
+// A U1 that comes up into a print the firmware already paused: heads 0, 1 and
+// 3 fed through, head 2's spool gone and its channel waiting for a new one,
+// and head 1 picked. The head that ran out is not the current one.
+void setup_u1_started_into_head_2_runout(ScopedSnapmakerBackend& backend,
+                                         FilamentSensorManager& fsm) {
+    setup_four_lane_sensors(fsm);
+    auto head = [](bool detected, const char* channel_state) {
+        return json{{"filament_detected", detected},
+                    {"channel_state", channel_state},
+                    {"channel_error", "ok"}};
+    };
+    RunoutScopeTestAccess::handle_status(
+        *backend.backend,
+        json{{"filament_feed left", json{{"extruder0", head(true, "load_finish")},
+                                         {"extruder1", head(true, "load_finish")}}},
+             {"filament_feed right", json{{"extruder2", head(false, "wait_insert")},
+                                          {"extruder3", head(true, "load_finish")}}}});
+    RunoutScopeTestAccess::handle_status(*backend.backend, u1_picked(1));
+    for (int lane : {0, 1, 3}) {
+        feed_switch(backend, fsm, lane, true);
+    }
+    feed_switch(backend, fsm, 2, false);
+    get_printer_state().init_subjects(false);
+}
+
+} // namespace
+
+TEST_CASE("has_real_runout: a paused job whose cause names an idle head's sensor is a runout",
+          "[runout][scope]") {
+    HelixTestFixture fx;
+    ScopedSnapmakerBackend backend;
+    auto& fsm = FilamentSensorManager::instance();
+    setup_u1_started_into_head_2_runout(backend, fsm);
+    AmsBackend* be = AmsState::instance().get_backend();
+    REQUIRE(be->get_current_slot() == 1);
+    REQUIRE_FALSE(be->get_slot_info(2).is_present());
+
+    SECTION("the firmware paused on head 2's runout") {
+        get_printer_state().update_from_status(paused_with_cause(523, 2, 0, "e2_filament runout"));
+        REQUIRE(fsm.real_runout_lane().has_value());
+        CHECK(*fsm.real_runout_lane() == 2);
+
+        // Leaving the pause ends its cause; idle, the empty head is set aside.
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
+        CHECK_FALSE(fsm.has_real_runout());
+    }
+    SECTION("a pause for another cause leaves the idle empty head alone") {
+        get_printer_state().update_from_status(paused_with_cause(532, 0, 1, "detected dirty bed"));
+        CHECK_FALSE(fsm.has_real_runout());
+    }
+    SECTION("a runout cause naming another head does not adopt this one") {
+        get_printer_state().update_from_status(paused_with_cause(523, 3, 0, "e3_filament runout"));
+        CHECK_FALSE(fsm.has_real_runout());
+    }
+}
+
+namespace {
+
 // The shape of a multi-extruder lane system (AFC feeding several toolheads):
 // eight lanes, four toolheads with their own e<N>_filament switch. The
 // current slot counts lanes (lane 4 feeds tool 1), while each toolhead

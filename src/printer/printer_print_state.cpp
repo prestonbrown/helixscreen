@@ -479,6 +479,7 @@ void PrinterPrintState::clear_print_exception() {
     print_exception_id_ = -1;
     print_exception_code_ = -1;
     print_exception_message_.clear();
+    print_exception_runout_lane_ = -1;
     if (lv_subject_get_int(&print_exception_) != -1) {
         lv_subject_set_int(&print_exception_, -1);
     }
@@ -745,6 +746,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status, bool wh
             print_exception_id_ = cause->id;
             print_exception_code_ = cause->code;
             print_exception_message_ = std::move(cause->message);
+            print_exception_runout_lane_ = cause->runout_lane;
         }
         if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
             lv_subject_set_int(&print_exception_, print_exception_code_);
