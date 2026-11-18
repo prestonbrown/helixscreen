@@ -2116,35 +2116,21 @@ void AmsBackendSnapmaker::apply_feed_channel_locked(const snapmaker::FeedChannel
 }
 
 void AmsBackendSnapmaker::apply_port_presence_locked(int i, bool detected, FrameEffects& fx) {
-    // The port flag mirrors into port_sensor_filament_present_ so
-    // is_stuck_motion_sensor_runout can distinguish a real runout (both sensors
-    // false) from a stale motion-sensor false positive (motion=false,
-    // port=true).
-    // Mirror into port_sensor_filament_present_ so
-    // is_stuck_motion_sensor_runout can distinguish a real
-    // runout (both sensors false) from a stale motion-sensor
-    // false positive (motion=false, port=true). Tracked
-    // independent of slot->status because slot status flips
-    // to AVAILABLE/LOADED based on extruder pin state which
-    // is orthogonal to the port sensor reading.
+    // Mirror into port_sensor_filament_present_ so is_stuck_motion_sensor_runout can
+    // distinguish a real runout (both sensors false) from a stale motion-sensor false
+    // positive (motion=false, port=true). Tracked independent of slot->status, which
+    // flips to AVAILABLE/LOADED on the extruder pin, orthogonal to the port sensor.
     if (i >= 0 && i < kNumTools) {
-        // The port flag's false -> true edge is an
-        // insert into the channel; the first sighting
-        // is the baseline, not an edge. The tag
-        // reader's answer lands a frame or two later,
-        // so the edge holds a pending verdict for the
-        // info loop to judge (#1710). A drop cancels
-        // one: the spool left before any read.
+        // The port flag's false -> true edge is an insert into the channel; the first
+        // sighting is the baseline, not an edge. The tag reader's answer lands a frame
+        // or two later, so the edge holds a pending verdict for the info loop to judge
+        // (#1710). A drop cancels one: the spool left before any read.
         //
-        // A feed the firmware itself drives - its own
-        // tool-change unload/load, or one of our
-        // batch ops - drops and raises this flag too,
-        // and no spool changed hands, so it arms
-        // nothing. The edge runs before this frame's
-        // channel_state parse, so the gate reads the
-        // channel's last reported state; the state
-        // parse below cancels anything the ordering
-        // missed.
+        // A feed the firmware itself drives - its own tool-change unload/load, or one
+        // of our batch ops - drops and raises this flag too, and no spool changed
+        // hands, so it arms nothing. The edge runs before this frame's channel_state
+        // parse, so the gate reads the channel's last reported state; the state parse
+        // below cancels anything the ordering missed.
         const bool firmware_driven = batch_.active || helix::snapmaker::channel_state_in_progress(
                                                           channel_snapshots_[i].state);
         if (detected && feed_presence_seen_[i] && !port_sensor_filament_present_[i] &&
