@@ -85,6 +85,15 @@ std::optional<std::string> firmware_package_root(Board board,
                                                  const std::string& running_exe = "/proc/self/exe",
                                                  const std::string& probe_root = "/");
 
+/// The install tree the running binary belongs to: resolve_data_root_from_exe(@p running_exe)
+/// when the binary's own path leads to one, otherwise current()'s firmware_package_root for
+/// @p running_exe when that is a valid data root. A firmware can launch the package binary
+/// through a bind mount over another path, which names no install tree. Every caller that
+/// needs "where is my install" asks this, never /proc/self/exe's directory. Empty when
+/// neither finds one; the package directory is probed under @p probe_root.
+std::string resolve_install_root(const std::string& running_exe,
+                                 const std::string& probe_root = "/");
+
 /// Test-only, main-thread-only: make current() answer @p board until reset with
 /// std::nullopt. HelixTestFixture::reset_all() resets it.
 void set_current_override(std::optional<Board> board);

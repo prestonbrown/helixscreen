@@ -173,7 +173,7 @@ class HelixPluginInstaller {
     /**
      * @brief Get path to bundled install.sh script
      *
-     * Looks in moonraker-plugin/ under the install root (resolve_install_root),
+     * Looks in moonraker-plugin/ under the install root (board::resolve_install_root),
      * then beside the executable and in the system share dir.
      *
      * @return Path to script, or empty if not found

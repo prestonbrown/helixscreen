@@ -105,7 +105,7 @@ toward "managed", because self-updating a firmware's package is the worse mistak
    than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
    `/proc/self/exe` names `/usr/bin/gui`, a path that leads to no install tree.
    `board::firmware_package_root()` makes the same identity match and names the package
-   through `latest` when `latest` is what runs, and `helix::resolve_install_root()` falls back
+   through `latest` when `latest` is what runs, and `helix::board::resolve_install_root()` falls back
    to it, so `app_get_install_root()` and the HelixPrint plugin installer find the package tree
    there. The plugin's Moonraker link goes through `latest` and survives a package upgrade.
    Writes into the install root (the release info repair, the stale `.old` cleanup, update

@@ -15,6 +15,7 @@
 #include "../../test_helpers/install_tree_fixture.h"
 #include "../../test_helpers/scoped_board.h"
 #include "../../test_helpers/scoped_env.h"
+#include "board_identity.h"
 #include "core/data_root_resolver.h"
 
 #include <cstdlib>
@@ -401,7 +402,7 @@ TEST_CASE("resolve_install_root finds a PAXX package launched through its bind m
     const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
 
     // /usr/bin/gui strips to /usr, which is no install tree; the package dir is.
-    CHECK(helix::resolve_install_root(gui.string(), tree.root) ==
+    CHECK(helix::board::resolve_install_root(gui.string(), tree.root) ==
           tree.root + "/oem/apps/helixscreen/latest");
 }
 
@@ -412,7 +413,7 @@ TEST_CASE("resolve_install_root keeps an install found from the exe path",
     tree.make_paxx_bind_mount("1.1.0");
     const fs::path ours = tree.make_tree("userdata/helixscreen");
 
-    CHECK(helix::resolve_install_root(ours.string(), tree.root) ==
+    CHECK(helix::board::resolve_install_root(ours.string(), tree.root) ==
           tree.root + "/userdata/helixscreen");
 }
 
@@ -423,5 +424,5 @@ TEST_CASE("resolve_install_root finds nothing for a bind-mounted binary on a boa
     helix::test::ScopedBoard generic(helix::board::Board::Generic);
     const fs::path gui = tree.make_paxx_bind_mount("1.1.0");
 
-    CHECK(helix::resolve_install_root(gui.string(), tree.root).empty());
+    CHECK(helix::board::resolve_install_root(gui.string(), tree.root).empty());
 }

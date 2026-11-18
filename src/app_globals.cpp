@@ -20,6 +20,7 @@
 
 #include "ui_modal.h"
 
+#include "board_identity.h"
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "i_moonraker_api.h"
@@ -473,7 +474,7 @@ std::function<void()> get_wizard_cancel_callback() {
 
 std::string app_get_install_root() {
     static const std::string cached = []() {
-        return helix::resolve_install_root(g_executable_path);
+        return helix::board::resolve_install_root(g_executable_path);
     }();
     return cached;
 }

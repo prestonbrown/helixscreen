@@ -3,8 +3,8 @@
 
 #include "helix_plugin_installer.h"
 
+#include "board_identity.h"
 #include "config.h"
-#include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "helix_fs.h"
 #include "helix_version.h"
@@ -783,7 +783,7 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         }
         exe_dir = std::string(hfs::parent_path(exe));
 
-        const std::string install_root = resolve_install_root(exe, probe_root_);
+        const std::string install_root = board::resolve_install_root(exe, probe_root_);
         if (!install_root.empty()) {
             search_paths.push_back(install_root + "/moonraker-plugin/install.sh");
         }

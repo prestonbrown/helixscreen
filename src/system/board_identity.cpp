@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "board_identity.h"
 
+#include "core/data_root_resolver.h"
 #include "helix_fs.h"
 #include "platform_info.h"
 #include "platform_table.h"
@@ -132,6 +133,18 @@ std::optional<std::string> firmware_package_root(Board board, const std::string&
             real_dir = entry.path;
     }
     return real_dir;
+}
+
+std::string resolve_install_root(const std::string& running_exe, const std::string& probe_root) {
+    std::string root = resolve_data_root_from_exe(running_exe);
+    if (!root.empty() || running_exe.empty()) {
+        return root;
+    }
+    const auto package = firmware_package_root(current(), running_exe, probe_root);
+    if (package && is_valid_data_root(*package)) {
+        return *package;
+    }
+    return {};
 }
 
 bool firmware_manages_updates(Board board, const std::string& running_exe,
