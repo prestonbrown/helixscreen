@@ -587,18 +587,7 @@ void AmsPanel::hand_off_if_multi_unit(const helix::AmsSystemInfo& info) {
     overview_handoff_queued_ = true;
     spdlog::info("[{}] Backend now reports {} units - handing over to the overview", get_name(),
                  info.unit_count());
-    hand_to_overview_(*this);
-}
-
-void AmsPanel::close_and_open_overview(AmsPanel& panel) {
-    // Navigation runs outside the observer that noticed the change.
-    lv_obj_t* root = panel.panel_;
-    helix::ui::queue_update("AmsPanel::hand_to_overview", [root]() {
-        if (!root || !helix::nav::is_in_stack(root))
-            return;
-        helix::nav::close_overlay(root);
-        navigate_to_ams_panel();
-    });
+    hand_ams_panel_to_overview(panel_);
 }
 
 void AmsPanel::on_closed() {

@@ -5,9 +5,6 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 
-#include <functional>
-#include <utility>
-
 namespace helix {
 
 /// What a closed AMS panel keeps running, for the keep-alive tests.
@@ -15,10 +12,6 @@ class AmsPanelTestAccess {
   public:
     static bool is_open(const AmsPanel& p) {
         return p.open_;
-    }
-    /// Replaces the swap to the overview, which needs the navigation stack.
-    static void set_overview_handoff(AmsPanel& p, std::function<void(AmsPanel&)> fn) {
-        p.hand_to_overview_ = std::move(fn);
     }
     static bool has_sidebar(const AmsPanel& p) {
         return p.sidebar_ != nullptr;

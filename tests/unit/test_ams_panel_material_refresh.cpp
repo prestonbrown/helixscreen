@@ -30,7 +30,6 @@
 #include "ui_spool_canvas.h"
 
 #include "../test_fixtures.h"
-#include "../test_helpers/ams_panel_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -252,50 +251,6 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel activation builds its slots once",
     lv_subject_set_int(count, 4);
     process_lvgl(50);
     CHECK_FALSE(rebuilt);
-
-    panel.on_deactivate(DeactivateReason::NavigateAway);
-    panel.clear_panel_reference();
-    lv_obj_delete(panel_obj);
-    process_lvgl(10);
-    AmsState::instance().set_backend(nullptr);
-}
-
-TEST_CASE_METHOD(XMLTestFixture,
-                 "AmsPanel opened on one unit hands over to the overview when a second arrives",
-                 "[ui_integration][ams]") {
-    // multiACE reports the SnapSwap first and its ACEs a moment later: a panel opened in that
-    // moment must not go on drawing every unit's lanes as one.
-    auto mock = std::make_unique<AmsBackendMock>(4);
-    mock->set_afc_mode(true);
-    REQUIRE(mock->start().success());
-    auto* backend = mock.get();
-    AmsState::instance().set_backend(std::move(mock));
-    AmsState::instance().init_subjects(true);
-    AmsState::instance().sync_from_backend();
-    register_ams_widgets_and_xml_once();
-
-    AmsPanel panel(state(), &api());
-    panel.init_subjects();
-    lv_obj_t* panel_obj =
-        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
-    REQUIRE(panel_obj != nullptr);
-    panel.setup(panel_obj, test_screen());
-    int handoffs = 0;
-    AmsPanelTestAccess::set_overview_handoff(panel, [&](AmsPanel&) { ++handoffs; });
-    panel.on_activate();
-    process_lvgl(20);
-
-    AmsState::instance().sync_from_backend();
-    process_lvgl(20);
-    CHECK(handoffs == 0);
-
-    backend->set_multi_unit_mode(true);
-    AmsState::instance().sync_from_backend();
-    process_lvgl(20);
-    CHECK(handoffs == 1);
-    AmsState::instance().sync_from_backend();
-    process_lvgl(20);
-    CHECK(handoffs == 1);
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
     panel.clear_panel_reference();

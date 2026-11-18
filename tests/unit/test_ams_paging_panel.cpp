@@ -822,6 +822,26 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a change in the system keeps the sho
     }
 }
 
+TEST_CASE_METHOD(PagingFixture, "A panel opened on one unit makes way for the overview",
+                 "[ams][pages][panel][overview]") {
+    // multiACE reports the SnapSwap first and its ACEs a moment later.
+    PagedFleet* fleet = install([](PagedFleet& f) {
+        f.specs.resize(1);
+        f.own_number_base = 0;
+    });
+    open();
+    AmsPanel* single = get_existing_ams_panel();
+    REQUIRE(single != nullptr);
+    REQUIRE(helix::nav::is_showing(single->get_panel()));
+
+    fleet->specs.push_back({"unit_1", "fps", false});
+    AmsState::instance().sync_from_backend();
+    settle();
+    process_lvgl(80);
+    CHECK(helix::nav::is_showing(root()));
+    CHECK_FALSE(helix::nav::is_in_stack(single->get_panel()));
+}
+
 TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Back again leaves",
                  "[ams][pages][panel][overview]") {
     install([](PagedFleet& f) { f.specs[2].connected = false; });

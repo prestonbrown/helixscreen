@@ -1382,6 +1382,15 @@ void helix::ui::open_ams_detail_panel() {
     });
 }
 
+void hand_ams_panel_to_overview(lv_obj_t* panel_root) {
+    helix::ui::queue_update("AMS::hand_to_overview", [panel_root]() {
+        if (!panel_root || !helix::nav::is_in_stack(panel_root))
+            return;
+        helix::nav::close_overlay(panel_root);
+        navigate_to_ams_panel();
+    });
+}
+
 void navigate_to_ams_panel() {
     auto* backend = AmsState::instance().get_backend();
     if (!backend) {

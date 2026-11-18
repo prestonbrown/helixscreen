@@ -794,6 +794,7 @@ src/ui/components/ui_search_debounce.cpp
 src/core/coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
 src/ui/components/ui_switch.cpp
+src/ui/filament/hub_buffer_meter.cpp
 src/ui/filament/ui_system_path_canvas.cpp
 src/ui/filament/ui_system_path_plan.cpp
 src/ui/filament/ui_toolhead_badge.cpp

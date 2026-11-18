@@ -105,11 +105,13 @@ static void load_theme_sizes(SystemPathData* data) {
 // Drawing Helpers
 // ============================================================================
 
+namespace {
 // A buffer shown in a box: where it sits on its travel and whether it is faulted.
 struct BoxMeter {
     float position = 0.0f;
     int fault = 0; // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
 };
+} // namespace
 
 static lv_color_t meter_fill(const SystemPathData* data, const BoxMeter& m) {
     switch (helix::ui::buffer_meter_tone(m.fault >= 1, m.position)) {

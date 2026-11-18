@@ -384,6 +384,12 @@ void destroy_ams_overview_panel_ui();
 void navigate_to_ams_panel();
 
 /**
+ * @brief Swap the single-unit AMS panel @p panel_root for the overview, once the backend
+ *        reports several units; deferred out of the observer that noticed it
+ */
+void hand_ams_panel_to_overview(lv_obj_t* panel_root);
+
+/**
  * @brief Open the single-unit AMS panel: drop a hidden overview, build under the
  *        loading pill when there is no cached panel, register and push
  *
