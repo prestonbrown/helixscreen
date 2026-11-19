@@ -583,13 +583,6 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
 
     const char* hub_label = (data->topology == 0) ? "SELECTOR" : "HUB";
 
-    // For LINEAR topology, hub box spans the full slot area width.
-    // slot_x values are slot centers, so we add half a slot width on each
-    // side to cover the full visual extent of the outermost slots.
-    // For HUB topology, use the widened entry-spread width from the frame so
-    // the merge tubes land cleanly on the box.
-    int32_t hub_w = hub_box_width(*data, g, f);
-
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
 
     // On-toolhead mode draws the passthrough selector first, in its classic
@@ -639,10 +632,16 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     // end, and a tap there opens the buffer's detail.
     const bool hub_interactive =
         data->hub_callback != nullptr && data->hub_has_actions && !data->fixed_selector;
+    // A selector bar whose bypass spool stands at its level ends short of it, its gear inside
+    // its right end where outside it would reach the spool.
+    const lv_area_t box = hub_box_area(*data, g, f);
+    const int32_t box_cx = (box.x1 + box.x2) / 2;
+    int32_t hub_w = box.x2 - box.x1;
     HubBoxExtras extras;
     extras.gear_outside = data->view_hub_h > 0;
+    extras.max_right = hub_box_right_limit(*data, g, f);
     extras.slot_w = f.buffer_in_hub ? hub_buffer_glyph_width(f.hub_h) : 0;
-    hub_w = draw_hub_box(ctx, f.center_x, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
+    hub_w = draw_hub_box(ctx, box_cx, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
                          hub_label, hub_opa, /*interactive=*/hub_interactive, &extras);
     if (f.buffer_in_hub && lv_area_get_width(&extras.slot) > 0) {
         draw_hub_buffer_glyph(ctx, extras.slot);
@@ -655,8 +654,8 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     // mode recorded the SELECTOR box above; the head hub is a control only where no selector
     // is drawn (a unit drawing its own).
     if (!data->hub_on_toolhead || data->art_sensors) {
-        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
-                          LV_MAX(f.center_x + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
+        data->hits.hub = {box_cx - hub_w / 2, f.hub_y - f.hub_h / 2,
+                          LV_MAX(box_cx + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
         data->hits.hub_valid = true;
         data->hits.hub_anchor = data->hits.hub;
         data->hits.hub_anchor_valid = true;

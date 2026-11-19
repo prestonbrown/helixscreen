@@ -530,8 +530,11 @@ struct RenderCtx {
 struct HubBoxExtras {
     bool gear_outside = false; ///< the gear stands just outside the box's right edge
     int32_t slot_w = 0;        ///< a slot this wide at the box's right end, inside it
-    lv_area_t slot{};          ///< out: the slot's area
-    int32_t gear_right = 0;    ///< out: the right edge of what was drawn, the gear included
+    /// The gear stays left of this x: an outside gear that would cross it stands inside the
+    /// box's right end instead.
+    int32_t max_right = INT32_MAX;
+    lv_area_t slot{};       ///< out: the slot's area
+    int32_t gear_right = 0; ///< out: the right edge of what was drawn, the gear included
 };
 
 /// Labeled rounded box (HUB / SELECTOR / BUF). Text color, font and corner

@@ -25,6 +25,7 @@
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_display_name.h"
+#include "filament_variants.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
@@ -179,7 +180,7 @@ static void cleanup_all_slot_data() {
  * Reads both subjects rather than taking an observer's value, because either
  * one changing changes what both lines read.
  */
-static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
+static helix::SlotCardLines slot_lines(const AmsSlotData* data, bool short_form) {
     AmsState& state = AmsState::instance();
     lv_subject_t* material_subject =
         state.get_slot_material_subject(data->backend_index, data->slot_index);
@@ -193,8 +194,13 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
         name, material, helix::ui::lane_material_text(data->last_lane_state, material),
         data->label_spread ? 1 : data->total_count,
         data->last_lane_state == helix::ui::LaneState::Empty);
-    if (data->label_spread)
+    if (data->label_spread) {
         lines.name.clear();
+        // Too tight for whole names, a spread label reads the base material and the fillers it
+        // carries ("Silk PLA" reads "PLA", "PLA-CF" stays); the lane card keeps the whole name.
+        if (short_form && material[0] && lines.lower == material)
+            lines.lower = ::filament::display_grade(material);
+    }
     return lines;
 }
 
@@ -215,8 +221,8 @@ static bool card_name_fits(const AmsSlotData* data, const std::string& name) {
 
 /// What the card reads: slot_lines(), with a name too wide for the slot
 /// dropped rather than cut to its first letters.
-static helix::SlotCardLines card_lines(const AmsSlotData* data) {
-    helix::SlotCardLines lines = slot_lines(data);
+static helix::SlotCardLines card_lines(const AmsSlotData* data, bool short_form) {
+    helix::SlotCardLines lines = slot_lines(data, short_form);
     if (!card_name_fits(data, lines.name)) {
         lines.name.clear();
     }
@@ -235,7 +241,8 @@ static void apply_row_name_lines(lv_obj_t* row) {
     const uint32_t count = lv_obj_get_child_count(row);
     for (uint32_t i = 0; i < count && !any_name; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
-        any_name = d && d->slot_index >= 0 && d->name_label && !card_lines(d).name.empty();
+        any_name =
+            d && d->slot_index >= 0 && d->name_label && !card_lines(d, d->label_short).name.empty();
     }
     for (uint32_t i = 0; i < count; ++i) {
         const AmsSlotData* d = get_slot_data(lv_obj_get_child(row, (int32_t)i));
@@ -252,7 +259,7 @@ static void apply_row_name_lines(lv_obj_t* row) {
 static void apply_slot_label(AmsSlotData* data) {
     if (!data || data->slot_index < 0)
         return;
-    const helix::SlotCardLines lines = card_lines(data);
+    const helix::SlotCardLines lines = card_lines(data, data->label_short);
 
     if (data->material_label)
         lv_label_set_text(data->material_label, lines.lower.c_str());
@@ -1188,11 +1195,26 @@ lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj) {
 // NAMESPACE_OK: the widget's C API, beside its siblings
 std::string ui_ams_slot_get_material_text(lv_obj_t* obj) {
     const auto* data = get_slot_data(obj);
+    return data ? ui_ams_slot_get_material_text(obj, data->label_short) : std::string();
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+std::string ui_ams_slot_get_material_text(lv_obj_t* obj, bool short_form) {
+    const auto* data = get_slot_data(obj);
     if (!data || !data->material_label)
         return {};
     if (data->slot_index < 0)
         return lv_label_get_text(data->material_label);
-    return card_lines(data).lower;
+    return card_lines(data, short_form).lower;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_label_short(lv_obj_t* obj, bool short_form) {
+    auto* data = get_slot_data(obj);
+    if (!data || data->label_short == short_form)
+        return;
+    data->label_short = short_form;
+    apply_slot_label(data);
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings

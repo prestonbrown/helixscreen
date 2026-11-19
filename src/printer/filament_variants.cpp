@@ -494,6 +494,23 @@ bool variant_leads_with_word(const std::string& label) {
 } // namespace
 
 // NAMESPACE_OK: namespace filament, beside extract_base_material
+std::string display_grade(std::string_view type) {
+    if (helix::text_io::trim(type).empty())
+        return {};
+    std::string grade = display_family(type);
+    for (const std::string& filler : filled_affixes_of(type)) {
+        // The table's own spelling: "Wood", not the upper-cased key.
+        for (const VariantAffix& affix : kVariantAffixes) {
+            if (helix::text_io::equals_ignore_case(filler, affix.name)) {
+                grade = compose_family_type(grade, affix.name);
+                break;
+            }
+        }
+    }
+    return grade;
+}
+
+// NAMESPACE_OK: namespace filament, beside extract_base_material
 std::string variant_label(std::string_view type, std::string_view family) {
     std::string_view work = helix::text_io::trim(type);
     if (work.empty()) {

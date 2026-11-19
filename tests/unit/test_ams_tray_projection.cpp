@@ -534,6 +534,34 @@ TEST_CASE("labels over a drawn unit: spans clear neighbours and the ticks rising
     }
 }
 
+TEST_CASE("labels over a drawn unit: a wide label takes the room narrower neighbours leave",
+          "[ams][tray][stagger][over-lane]") {
+    using helix::ui::AmsLabelSpan;
+    // ASA PLA PETG PLA over a compact Box Turtle: PETG asks more than half of each gap to its
+    // neighbours, which ask less, so the row slides them apart rather than taking a second row.
+    const float x[4] = {0, 22, 44, 66};
+    const int32_t need[4] = {20, 20, 28, 20};
+    const int row[4] = {0, 0, 0, 0};
+    CHECK(helix::ui::ams_over_lane_label_rows(x, need, need, 4, 2, -40, 110, 3, true) == 1);
+    // Unpacked, halfway to each neighbour leaves PETG short: a second row.
+    CHECK(helix::ui::ams_over_lane_label_rows(x, need, need, 4, 2, -40, 110) == 2);
+    AmsLabelSpan s[4];
+    helix::ui::ams_over_lane_label_spans(x, row, need, 4, 2, -40, 110, s, true);
+    for (int k = 0; k < 4; ++k) {
+        CAPTURE(k);
+        CHECK(s[k].left + s[k].right == need[k]);
+        // Its own tick still under it, with text either side.
+        CHECK(s[k].left > 0);
+        CHECK(s[k].right > 0);
+        if (k > 0)
+            CHECK(x[k - 1] + (float)s[k - 1].right + 4 <= x[k] - (float)s[k].left);
+    }
+    // The wide one stays nearest its own lane: its neighbours give way.
+    CHECK(std::abs(s[2].left - s[2].right) <= 4);
+    // Held to the row's ends, there is no room to slide: a second row.
+    CHECK(helix::ui::ams_over_lane_label_rows(x, need, need, 4, 2, -10, 76, 3, true) == 2);
+}
+
 TEST_CASE("lane numbers under a drawn unit: one row, then two, then no \"+\"",
           "[ams][tray][lane-badges]") {
     using helix::ui::ams_lane_badge_layout;
