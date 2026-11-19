@@ -386,6 +386,7 @@
   <translation tag="Auto-Detect" zh="自动检测"/>
   <translation tag="Auto-Heat on Load" zh="加载时自动加热"/>
   <translation tag="Auto-Replenish" zh="自动补充"/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." zh="此次切换将开启自动补充，完成后再关闭。"/>
   <translation tag="Auto-detect" zh="自动检测"/>
   <translation tag="Auto-install only works on local Moonraker" zh="自动安装仅适用于本地 Moonraker"/>
   <translation tag="Auto-lock" zh="自动锁定"/>
@@ -941,6 +942,8 @@
   <translation tag="Console Settings" zh="控制台设置"/>
   <translation tag="Context" zh="上下文"/>
   <translation tag="Continue" zh="继续"/>
+  <translation tag="Continue on Another Toolhead" zh="在另一个工具头上继续"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." zh="在{}上继续打印？打印机会将剩余打印转到该工具头，加热后继续。"/>
   <translation tag="Control optional print start features" zh="控制可选的打印启动功能"/>
   <translation tag="Control power relays and smart outlets" zh="控制电源继电器和智能插座"/>
   <translation tag="Controllable Fans" zh="可控风扇"/>
@@ -1141,7 +1144,11 @@
   <translation tag="Device name is required" zh="设备名称为必填项"/>
   <translation tag="Device: " zh="设备: "/>
   <translation tag="Devices" zh="设备"/>
+  <translation tag="Different color" zh="颜色不同"/>
   <translation tag="Different filament?" zh="耗材不同？"/>
+  <translation tag="Different material" zh="材料不同"/>
+  <translation tag="Different nozzle flow type" zh="喷嘴流量类型不同"/>
+  <translation tag="Different nozzle size" zh="喷嘴尺寸不同"/>
   <translation tag="Digital Clock" zh="数字时钟"/>
   <translation tag="Direct drive" zh="近程挤出"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." zh="直驱:松开挤出机张力,一次用力拉出耗材。"/>
@@ -1598,6 +1605,7 @@
   <translation tag="Filament is dragging" zh="耗材阻力过大"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." zh="工具头上已装载耗材。启用旁通前请先卸载。"/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." zh="工具头中已装有耗材。请先卸载,以免热床加热时耗材在挤出机中变软。"/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" zh="空工具头的送料器中仍有耗材"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." zh="耗材仍处于装载状态。启用旁通前请先卸载。"/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" zh="切断后仍有耗材残留。刀片可能已钝或未对准"/>
@@ -1605,6 +1613,7 @@
   <translation tag="Filament jammed at the extruder gear" zh="耗材卡在挤出机齿轮处"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." zh="挤出机中必须已装入耗材，打印板已装好，且没有任何物体挡住工具头。"/>
   <translation tag="Filament never reached the CFS hub sensor" zh="耗材未到达 CFS 集线器传感器"/>
+  <translation tag="Filament not identified" zh="耗材未识别"/>
   <translation tag="Filament not set" zh="未设置耗材"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
@@ -2038,6 +2047,7 @@
   <translation tag="It saves the result and restarts Klipper when it finishes." zh="完成后将保存结果并重启 Klipper。"/>
   <translation tag="It starts with your {} macro." zh="使用你的{}宏开始。"/>
   <translation tag="It&apos;s a new spool" zh="这是新料盘"/>
+  <translation tag="Its filament is a different color." zh="其耗材颜色不同。"/>
   <translation tag="Its home tile" zh="其主页磁贴"/>
   <translation tag="Jammed" zh="堵塞"/>
   <translation tag="Jammed at the Toolhead" zh="工具头处堵塞"/>
@@ -2591,6 +2601,7 @@
   <translation tag="No notifications" zh="无通知"/>
   <translation tag="No objects" zh="无对象"/>
   <translation tag="No objects defined for this print" zh="此次打印未定义对象"/>
+  <translation tag="No other toolhead can take over this print." zh="没有其他工具头可以接替此次打印。"/>
   <translation tag="No output yet" zh="暂无输出"/>
   <translation tag="No pause scheduled." zh="未设置暂停。"/>
   <translation tag="No plugin actions for this file" zh="此文件没有插件操作"/>
@@ -2663,6 +2674,7 @@
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." zh="没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。"/>
   <translation tag="Not enough room to put the widget back. It stays removed." zh="没有足够的空间恢复此小组件。它仍处于移除状态。"/>
   <translation tag="Not in your spools? Set it up" zh="不在您的料盘中？立即设置"/>
+  <translation tag="Not loaded by its feeder" zh="未通过送料器装载"/>
   <translation tag="Not now" zh="暂不"/>
   <translation tag="Not saved: {}. Try again." zh="未保存：{}。请重试。"/>
   <translation tag="Not set" zh="未设置"/>
@@ -2709,6 +2721,7 @@
   <translation tag="Nozzle min cannot exceed max" zh="喷嘴最低温度不能超过最高温度"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" zh="喷嘴未更改：打印机未确认"/>
   <translation tag="Nozzle not changed: {}" zh="喷嘴未更改：{}"/>
+  <translation tag="Nozzle not reported" zh="未报告喷嘴"/>
   <translation tag="Nozzle size and flow type per head" zh="每个工具头的喷嘴尺寸和流量类型"/>
   <translation tag="Nozzle target set to {}" zh="喷嘴目标已设为 {}"/>
   <translation tag="Nozzle temp must be %d-%s" zh="喷嘴温度必须为 %d-%s"/>
@@ -3200,6 +3213,7 @@
   <translation tag="Ramming Volume" zh="填充体积"/>
   <translation tag="Ramp: band {} of {}" zh="自动: 第 {} / {} 段"/>
   <translation tag="Ramp: base layers" zh="自动: 底层"/>
+  <translation tag="Ran out" zh="已耗尽"/>
   <translation tag="Random" zh="随机"/>
   <translation tag="Raspberry Pi" zh="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" zh="Raspberry Pi (32-bit)"/>
@@ -3478,6 +3492,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." zh="安全模式已激活。由于应用程序在启动时反复崩溃，打印机连接已被禁用。请打开设置以解决问题，然后重启。"/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." zh="安全模式：由于应用程序在启动时反复崩溃，插件已禁用，小部件布局显示为默认设置。重启即可恢复正常。"/>
   <translation tag="Safety &amp; Alerts" zh="安全与警报"/>
+  <translation tag="Same filament" zh="相同耗材"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." zh="{} 是同一个料盘吗？如果是新料盘，请点击清除。"/>
   <translation tag="Sample" zh="样本"/>
   <translation tag="Sample %d/%d" zh="样本 %d/%d"/>
@@ -4030,6 +4045,7 @@
   <translation tag="That setting cannot be changed while a print is running" zh="打印进行中无法更改该设置"/>
   <translation tag="That slot cannot stand in for this one" zh="该槽位无法替代当前槽位"/>
   <translation tag="That tool is already loaded" zh="该工具已加载耗材"/>
+  <translation tag="That toolhead can no longer take over the print" zh="该工具头已无法接替此次打印"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} a little more." zh="这次转动还没有体现出来。请将 {0} 再放松一点。"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} one more full turn." zh="这次转动还没有体现出来。请将 {0} 再放松一整圈。"/>
   <translation tag="That turn didn&apos;t register yet. Tighten {0} a little more." zh="这次转动还没有体现出来。请将 {0} 再拉紧一点。"/>
@@ -4154,6 +4170,7 @@
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." zh="打印机尚未响应取消。启动流程完成后会停止。"/>
   <translation tag="The printer has not reported its axis limits yet." zh="打印机尚未报告其轴限位。"/>
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" zh="打印机未报告自动补充是否开启"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." zh="打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." zh="打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"/>
@@ -4569,6 +4586,7 @@
   <translation tag="Uptime" zh="运行时长"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" zh="请使用 AFC 的映射命令添加或移动工具"/>
   <translation tag="Use Android native keyboard for text input" zh="使用 Android 原生键盘进行文本输入"/>
+  <translation tag="Use Another Toolhead" zh="使用另一个工具头"/>
   <translation tag="Use DHCP" zh="使用 DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" zh="使用 G10/G11 固件回抽"/>
   <translation tag="Use New Address" zh="使用新地址"/>
@@ -4960,6 +4978,8 @@
   <translation tag="{} days" zh="{} 天"/>
   <translation tag="{} detected" zh="检测到{}"/>
   <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." zh="{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。"/>
+  <translation tag="{} did not switch to {}. The print is still paused." zh="{}未切换到{}。打印仍处于暂停状态。"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." zh="{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。"/>
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} disconnected" zh="{}已断开"/>
@@ -4974,6 +4994,7 @@
   <translation tag="{} h of {} h" zh="{} / {} 小时"/>
   <translation tag="{} has no hotend" zh="{} 没有热端"/>
   <translation tag="{} heater turned off" zh="{} 加热器已关闭"/>
+  <translation tag="{} holds the same filament, and the printer uses that one." zh="{}装有相同的耗材，打印机将使用它。"/>
   <translation tag="{} is asking to connect to this printer." zh="{} 请求连接到此打印机。"/>
   <translation tag="{} is blocked — manual intervention required" zh="{} 被阻塞 — 需要手动干预"/>
   <translation tag="{} is due" zh="{} 已到期"/>
@@ -5011,6 +5032,8 @@
   <translation tag="{} presets" zh="{} 个预设"/>
   <translation tag="{} prints" zh="{} 次打印"/>
   <translation tag="{} queued" zh="{} 个在队列中"/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." zh="{}的{}已耗尽。请选择一个已装载的工具头来完成打印。它沿用为原耗材切片的温度。"/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." zh="{}已耗尽，打印机未报告其正在打印的耗材。"/>
   <translation tag="{} serial" zh="{} 序列号"/>
   <translation tag="{} set to {}" zh="{} 已设为 {}"/>
   <translation tag="{} set to {} {}" zh="{} 已设为 {} {}"/>

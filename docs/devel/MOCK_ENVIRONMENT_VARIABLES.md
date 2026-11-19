@@ -775,6 +775,18 @@ it reproduces the widest firmware row:
 HELIX_MOCK_KALICO=1 HELIX_MOCK_KLIPPER_VERSION=v2026.07.00-0-g30c65e09-dirty ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_U1_EMPTY_PORTS`
+
+Snapmaker U1 mock only. The digits name heads whose spool has run out at the feeder port: their
+`filament_detected` reads false and their channel rests at `wait_insert`, as after a real runout.
+With a paused print on such a head, the firmware's Auto-Replenish looks for another head instead
+of refeeding in place, which is what the runout dialog's "Use Another Toolhead" needs.
+
+```bash
+HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_U1_EMPTY_PORTS=0 HELIX_MOCK_AUTO_PRINT=1 \
+  ./build/bin/helix-screen --test --sim-speed 6 -vv
+```
+
 ### `HELIX_MOCK_AMS`
 
 Select the mock AMS topology/type.

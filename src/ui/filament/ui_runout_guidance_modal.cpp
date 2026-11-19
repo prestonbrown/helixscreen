@@ -17,4 +17,5 @@ void RunoutGuidanceModal::on_show() {
     wire_cancel_button("btn_resume");
     wire_tertiary_button("btn_cancel_print");
     wire_senary_button("btn_ok");
+    wire_button("btn_other_head", "OtherHead", other_head_button_cb);
 }

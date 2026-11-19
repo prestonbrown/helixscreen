@@ -84,3 +84,72 @@ TEST_CASE("one preference field is enough to make the held set non-empty",
     backend.fire_status(frame({{"auto_replenish_filament", false}}));
     REQUIRE_FALSE(backend.print_preferences().empty());
 }
+
+TEST_CASE("snapmaker backend reports the facts a runout switch to another head needs",
+          "[ams][snapmaker][runout_other_head]") {
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const nlohmann::json one_red = {
+        {"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FF0000"}}};
+    const nlohmann::json two_tone = {
+        {"nums", 2}, {"alpha", 128}, {"mode", 1}, {"colors", {"00FF00", "0000FF"}}};
+    nlohmann::json status =
+        frame({{"auto_replenish_filament", false},
+               {"filament_vendor", {"Snapmaker", "Generic", "NONE", "Generic"}},
+               {"filament_type", {"PLA", "PLA", "NONE", "PETG"}},
+               {"filament_sub_type", {"Basic", "Silk", "NONE", "Basic"}},
+               {"filament_color_multi", {one_red, two_tone, one_red, one_red}}});
+    status["print_stats"] = {{"state", "paused"}};
+    status["toolhead"] = {{"extruder", "extruder"}};
+    status["extruder1"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "high_flow"}};
+    // Head 1 finished a feeder load; head 3 has filament at the port, its feeder
+    // on automatic and its runout sensor armed; head 2's feeder is manual.
+    status["filament_feed left"] = {
+        {"extruder1", {{"channel_state", "load_finish"}, {"filament_detected", true}}}};
+    status["filament_feed right"] = {{"extruder2",
+                                      {{"channel_state", "wait_insert"},
+                                       {"filament_detected", true},
+                                       {"module_exist", true},
+                                       {"disable_auto", true}}},
+                                     {"extruder3",
+                                      {{"channel_state", "wait_insert"},
+                                       {"filament_detected", true},
+                                       {"module_exist", true},
+                                       {"disable_auto", false}}}};
+    status["filament_motion_sensor e2_filament"] = {{"enabled", true}};
+    status["filament_motion_sensor e3_filament"] = {{"enabled", true}};
+    backend.fire_status(status);
+
+    const auto facts = backend.runout_other_head_facts(0);
+    REQUIRE(facts.has_value());
+    CHECK(facts->runout_head == 0);
+    CHECK(facts->paused);
+    CHECK(facts->active_head == 0);
+    CHECK(facts->auto_switch_enabled == false);
+    REQUIRE(facts->original.has_value());
+    CHECK(facts->original->colors == std::vector<std::string>{"FF0000"});
+    REQUIRE(facts->heads.size() == 4);
+    CHECK(facts->heads[1].nozzle_diameter == 0.4);
+    CHECK(facts->heads[1].nozzle_flow == "high_flow");
+    CHECK(facts->heads[1].loaded_by_feeder);
+    REQUIRE(facts->heads[1].record.has_value());
+    CHECK(facts->heads[1].record->subtype == "Silk");
+    CHECK(facts->heads[1].record->colors == std::vector<std::string>{"00FF00", "0000FF"});
+    CHECK(facts->heads[1].record->alpha == 128);
+    CHECK(facts->heads[1].record->multi_mode == 1);
+    CHECK_FALSE(facts->heads[2].loaded_by_feeder);
+    CHECK_FALSE(facts->heads[2].record.has_value()); // NONE is no filament
+    CHECK(facts->heads[3].loaded_by_feeder);
+    CHECK(facts->heads[3].feeder_can_supply);
+    CHECK_FALSE(facts->heads[1].feeder_can_supply); // finished a load; no port reading
+    CHECK_FALSE(backend.runout_other_head_facts(4).has_value());
+
+    // A spool swapped in during the pause changes the live record only: the
+    // firmware still compares against what ran out.
+    backend.fire_status(frame({{"filament_vendor", {"Generic"}}, {"filament_type", {"PETG"}}}));
+    CHECK(backend.runout_other_head_facts(0)->original->type == "PLA");
+    nlohmann::json resumed;
+    resumed["print_stats"] = {{"state", "printing"}};
+    backend.fire_status(resumed);
+    CHECK(backend.runout_other_head_facts(0)->original->type == "PETG");
+}

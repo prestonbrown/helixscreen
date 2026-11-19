@@ -402,6 +402,7 @@ translations:
   Auto-Detect: Rilevamento auto
   Auto-Heat on Load: Riscaldamento automatico al caricamento
   Auto-Replenish: Rifornimento automatico
+  Auto-Replenish is turned on for this switch and off again after.: 'Il rifornimento automatico viene attivato per questo cambio e poi disattivato.'
   Auto-detect: Rilevamento auto
   Auto-install only works on local Moonraker: L'installazione automatica funziona solo su Moonraker locale
   Auto-lock: Blocco automatico
@@ -966,6 +967,8 @@ translations:
   Console Settings: Impostazioni console
   Context: Contesto
   Continue: Continua
+  Continue on Another Toolhead: 'Continua su un''altra testina'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Continuare la stampa su {}? La stampante vi sposta il resto della stampa, la riscalda e riprende.'
   Control optional print start features: Controlla funzionalità opzionali avvio stampa
   Control power relays and smart outlets: Controlla relè e prese intelligenti
   Controllable Fans: Ventilatori controllabili
@@ -1198,7 +1201,11 @@ translations:
   Device name is required: Il nome dispositivo è obbligatorio
   'Device: ': 'Dispositivo: '
   Devices: Dispositivi
+  Different color: 'Colore diverso'
   Different filament?: Filamento diverso?
+  Different material: 'Materiale diverso'
+  Different nozzle flow type: 'Tipo di flusso dell''ugello diverso'
+  Different nozzle size: 'Dimensione dell''ugello diversa'
   Digital Clock: 'Orologio digitale'
   Direct drive: Diretto
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Direct drive: rilasciare la tensione dell'estrusore e tirare fuori il filamento con un unico gesto deciso."
@@ -1664,6 +1671,7 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Il filamento è caricato nella testina. Scaricalo prima di attivare il bypass.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: C'è filamento caricato nella testina. Scaricalo prima, così non si ammorbidisce nell'estrusore mentre il piano si scalda.
 
+  Filament is still at the empty head's feeder: 'C''è ancora filamento nell''alimentatore della testina vuota'
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Dopo lo scaricamento il filamento è ancora all'ugello. Il taglio o la retrazione potrebbe non essere completato. Libera la testina prima di caricare un'altra bobina.
   Filament is still loaded. Unload it before enabling bypass.: 'Il filamento è ancora caricato. Scaricalo prima di attivare il bypass.'
@@ -1672,6 +1680,7 @@ translations:
   Filament jammed at the extruder gear: Filamento inceppato nell'ingranaggio dell'estrusore
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'Il filamento deve essere caricato nell''estrusore e il piano montato, con nulla che ostacoli la testina.'
   Filament never reached the CFS hub sensor: Il filamento non ha mai raggiunto il sensore dell'hub CFS
+  Filament not identified: 'Filamento non identificato'
   Filament not set: 'Filamento non impostato'
   Filament operation failed: Operazione filamento fallita
   Filament operation timed out: Operazione filamento — tempo scaduto
@@ -2114,6 +2123,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: 'Al termine salva il risultato e riavvia Klipper.'
   It starts with your {} macro.: Inizia con la tua macro {}.
   It's a new spool: È una nuova bobina
+  Its filament is a different color.: 'Il suo filamento è di un altro colore.'
   Its home tile: 'Il suo riquadro della home'
   Jammed: Inceppato
   Jammed at the Toolhead: Inceppato nella testina
@@ -2664,6 +2674,7 @@ translations:
   No notifications: Nessuna notifica
   No objects: 'Nessun oggetto'
   No objects defined for this print: Nessun oggetto definito per questa stampa
+  No other toolhead can take over this print.: 'Nessun''altra testina può continuare questa stampa.'
   No output yet: Nessun output
   No pause scheduled.: 'Nessuna pausa programmata.'
   No plugin actions for this file: 'Nessuna azione plugin per questo file'
@@ -2739,6 +2750,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: Non c'è abbastanza spazio per questo widget. Riorganizza o rimuovi widget per fare spazio.
   Not enough room to put the widget back. It stays removed.: 'Non c''è abbastanza spazio per ripristinare il widget. Resta rimosso.'
   Not in your spools? Set it up: Non è tra le tue bobine? Configuralo
+  Not loaded by its feeder: 'Non caricato dal suo alimentatore'
   Not now: Non ora
   Not turned: 'Non girato'
   'Not saved: {}. Try again.': "Non salvato: {}. Riprova."
@@ -2790,6 +2802,7 @@ translations:
   Nozzle min cannot exceed max: Il minimo dell’ugello non può superare il massimo
   'Nozzle not changed: the printer did not confirm it': "Ugello non cambiato: la stampante non l'ha confermato"
   'Nozzle not changed: {}': "Ugello non cambiato: {}"
+  Nozzle not reported: 'Ugello non segnalato'
   Nozzle size and flow type per head: "Dimensione e tipo di flusso dell'ugello per testina"
   Nozzle target set to {}: Obiettivo ugello impostato a {}
   Nozzle temp must be %d-%s: La temperatura dell’ugello deve essere %d-%s
@@ -3285,6 +3298,7 @@ translations:
   Ramming Volume: 'Volume di compattazione'
   'Ramp: band {} of {}': 'Rampa: fascia {} di {}'
   'Ramp: base layers': 'Rampa: strati di base'
+  Ran out: 'Esaurito'
   Random: Casuale
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3568,6 +3582,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Modalità provvisoria: l''app continuava a bloccarsi all''avvio, quindi i plugin sono disattivati e i layout dei widget mostrano quelli predefiniti. Riavvia per tornare alla normalità.'
   Safety & Alerts: Sicurezza e avvisi
+  Same filament: 'Stesso filamento'
   Same spool in {}? Tap Clear if it is a new one.: 'Stessa bobina in {}? Tocca Cancella se è una nuova.'
   Sample: Campione
   Sample %d/%d: Campione %d/%d
@@ -4129,6 +4144,7 @@ translations:
   'That setting cannot be changed while a print is running': 'Quell''impostazione non può essere modificata durante una stampa in corso'
   That slot cannot stand in for this one: Quello slot non può sostituire questo
   That tool is already loaded: Quell'utensile è già caricato
+  That toolhead can no longer take over the print: 'Quella testina non può più continuare la stampa'
   That turn didn't register yet. Loosen {0} a little more.: "Quel giro non si è ancora visto. Allenta {0} ancora un po'."
   That turn didn't register yet. Loosen {0} one more full turn.: "Quel giro non si è ancora visto. Allenta {0} di un altro giro completo."
   That turn didn't register yet. Tighten {0} a little more.: "Quel giro non si è ancora visto. Tendi {0} ancora un po'."
@@ -4265,6 +4281,7 @@ translations:
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'La stampante non ha ancora risposto all''annullamento. Si ferma appena termina la sequenza di avvio.'
   The printer has not reported its axis limits yet.: 'La stampante non ha ancora comunicato i limiti degli assi.'
   The printer has not reported its maximum velocity yet.: 'La stampante non ha ancora comunicato la velocità massima.'
+  The printer has not reported whether Auto-Replenish is on: 'La stampante non ha indicato se il rifornimento automatico è attivo'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'La stampante riscalda l''ugello, fa alcuni brevi movimenti di prova in un angolo del piano e li misura da sola. Ripete finché le letture concordano, poi riporta un unico numero.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: La stampante si azzera e fa scorrevolare la taglierina (circa 1 minuto). Mantenere libero il percorso del filamento.
@@ -4708,6 +4725,7 @@ translations:
   Uptime: Tempo di attività
   Use AFC's mapping commands to add or move a tool: 'Usa i comandi di assegnazione di AFC per aggiungere o spostare un utensile'
   Use Android native keyboard for text input: Usa la tastiera nativa di Android per l'inserimento testo
+  Use Another Toolhead: 'Usa un''altra testina'
   Use DHCP: 'Usa DHCP'
   Use G10/G11 firmware retraction: Usa retrazione firmware G10/G11
   Use New Address: 'Usa nuovo indirizzo'
@@ -5100,6 +5118,8 @@ translations:
   '{} days': "{} giorni"
   '{} detected': '{} rilevata'
   '{} did not arrive; nothing was sent': '{} non è arrivato; non è stato inviato nulla'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} non è passata a {}. La stampa è ancora in pausa e {} ora riporta l''etichetta del filamento di {}.'
+  '{} did not switch to {}. The print is still paused.': '{} non è passata a {}. La stampa è ancora in pausa.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} non si è caricato. Verifica che il suo hotend sia ben inserito ed esegui un''estrusione di prova prima di riprendere.'
   '{} disabled': '{} disabilitato'
   '{} disconnected': '{} scollegata'
@@ -5114,6 +5134,7 @@ translations:
   '{} h of {} h': '{} h su {} h'
   '{} has no hotend': "{} non ha un hotend"
   '{} heater turned off': Riscaldatore {} spento
+  '{} holds the same filament, and the printer uses that one.': '{} contiene lo stesso filamento e la stampante usa quella.'
   '{} is asking to connect to this printer.': '{} chiede di connettersi a questa stampante.'
   '{} is blocked — manual intervention required': '{}: blocco — intervento manuale richiesto'
   '{} is due': "{} da eseguire"
@@ -5151,6 +5172,8 @@ translations:
   '{} presets': '{} preset'
   '{} prints': '{} stampe'
   '{} queued': '{} in coda'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} ha esaurito {}. Scegli una testina caricata per finire la stampa. Mantiene le temperature del sezionamento per il filamento originale.'
+  '{} ran out, and the printer has not said what it was printing.': '{} è esaurito e la stampante non ha indicato cosa stava stampando.'
   '{} serial': 'Numero di serie {}'
   '{} set to {}': '{} impostato su {}'
   '{} set to {} {}': '{} impostato su {} {}'

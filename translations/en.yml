@@ -403,6 +403,7 @@ translations:
   Auto-Detect: Auto-Detect
   Auto-Heat on Load: Auto-Heat on Load
   Auto-Replenish: Auto-Replenish
+  Auto-Replenish is turned on for this switch and off again after.: Auto-Replenish is turned on for this switch and off again after.
   Auto-detect: Auto-detect
   Auto-install only works on local Moonraker: Auto-install only works on local Moonraker
   Auto-lock: Auto-lock
@@ -965,6 +966,8 @@ translations:
   Console Settings: Console Settings
   Context: Context
   Continue: Continue
+  Continue on Another Toolhead: Continue on Another Toolhead
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.
   Control optional print start features: Control optional print start features
   Control power relays and smart outlets: Control power relays and smart outlets
   Controllable Fans: Controllable Fans
@@ -1194,7 +1197,11 @@ translations:
   Device name is required: Device name is required
   'Device: ': 'Device: '
   Devices: Devices
+  Different color: Different color
   Different filament?: Different filament?
+  Different material: Different material
+  Different nozzle flow type: Different nozzle flow type
+  Different nozzle size: Different nozzle size
   Digital Clock: Digital Clock
   Direct drive: Direct drive
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': 'Direct drive: release the extruder tension and pull the filament out in one firm motion.'
@@ -1652,6 +1659,7 @@ translations:
   Filament is dragging: Filament is dragging
   Filament is loaded at the toolhead. Unload it before enabling bypass.: Filament is loaded at the toolhead. Unload it before enabling bypass.
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.
+  Filament is still at the empty head's feeder: Filament is still at the empty head's feeder
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   Filament is still loaded. Unload it before enabling bypass.: Filament is still loaded. Unload it before enabling bypass.
@@ -1660,6 +1668,7 @@ translations:
   Filament jammed at the extruder gear: Filament jammed at the extruder gear
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.
   Filament never reached the CFS hub sensor: Filament never reached the CFS hub sensor
+  Filament not identified: Filament not identified
   Filament not set: Filament not set
   Filament operation failed: Filament operation failed
   Filament operation timed out: Filament operation timed out
@@ -2099,6 +2108,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: It saves the result and restarts Klipper when it finishes.
   It starts with your {} macro.: It starts with your {} macro.
   It's a new spool: It's a new spool
+  Its filament is a different color.: Its filament is a different color.
   Its home tile: Its home tile
   Jammed: Jammed
   Jammed at the Toolhead: Jammed at the Toolhead
@@ -2648,6 +2658,7 @@ translations:
   No notifications: No notifications
   No objects: No objects
   No objects defined for this print: No objects defined for this print
+  No other toolhead can take over this print.: No other toolhead can take over this print.
   No output yet: No output yet
   No pause scheduled.: No pause scheduled.
   No plugin actions for this file: No plugin actions for this file
@@ -2721,6 +2732,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: Not enough room for this widget. Rearrange or remove widgets to make space.
   Not enough room to put the widget back. It stays removed.: Not enough room to put the widget back. It stays removed.
   Not in your spools? Set it up: Not in your spools? Set it up
+  Not loaded by its feeder: Not loaded by its feeder
   Not now: Not now
   Not turned: Not turned
   'Not saved: {}. Try again.': 'Not saved: {}. Try again.'
@@ -2772,6 +2784,7 @@ translations:
   Nozzle min cannot exceed max: Nozzle min cannot exceed max
   'Nozzle not changed: the printer did not confirm it': 'Nozzle not changed: the printer did not confirm it'
   'Nozzle not changed: {}': 'Nozzle not changed: {}'
+  Nozzle not reported: Nozzle not reported
   Nozzle size and flow type per head: Nozzle size and flow type per head
   Nozzle target set to {}: Nozzle target set to {}
   Nozzle temp must be %d-%s: Nozzle temp must be %d-%s
@@ -3266,6 +3279,7 @@ translations:
   Ramming Volume: Ramming Volume
   'Ramp: band {} of {}': 'Ramp: band {} of {}'
   'Ramp: base layers': 'Ramp: base layers'
+  Ran out: Ran out
   Random: Random
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3547,6 +3561,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   Safety & Alerts: Safety & Alerts
+  Same filament: Same filament
   Same spool in {}? Tap Clear if it is a new one.: Same spool in {}? Tap Clear if it is a new one.
   Sample: Sample
   Sample %d/%d: Sample %d/%d
@@ -4103,6 +4118,7 @@ translations:
   'That setting cannot be changed while a print is running': 'That setting cannot be changed while a print is running'
   That slot cannot stand in for this one: That slot cannot stand in for this one
   That tool is already loaded: That tool is already loaded
+  That toolhead can no longer take over the print: That toolhead can no longer take over the print
   That turn didn't register yet. Loosen {0} a little more.: That turn didn't register yet. Loosen {0} a little more.
   That turn didn't register yet. Loosen {0} one more full turn.: That turn didn't register yet. Loosen {0} one more full turn.
   That turn didn't register yet. Tighten {0} a little more.: That turn didn't register yet. Tighten {0} a little more.
@@ -4236,6 +4252,7 @@ translations:
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: The printer has not answered the cancel yet. It stops once its start sequence finishes.
   The printer has not reported its axis limits yet.: The printer has not reported its axis limits yet.
   The printer has not reported its maximum velocity yet.: The printer has not reported its maximum velocity yet.
+  The printer has not reported whether Auto-Replenish is on: The printer has not reported whether Auto-Replenish is on
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.
@@ -4682,6 +4699,7 @@ translations:
   Uptime: Uptime
   Use AFC's mapping commands to add or move a tool: Use AFC's mapping commands to add or move a tool
   Use Android native keyboard for text input: Use Android native keyboard for text input
+  Use Another Toolhead: Use Another Toolhead
   Use DHCP: Use DHCP
   Use G10/G11 firmware retraction: Use G10/G11 firmware retraction
   Use New Address: Use New Address
@@ -5070,6 +5088,8 @@ translations:
   '{} days': '{} days'
   '{} detected': '{} detected'
   '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
+  '{} did not switch to {}. The print is still paused.': '{} did not switch to {}. The print is still paused.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'
@@ -5084,6 +5104,7 @@ translations:
   '{} h of {} h': '{} h of {} h'
   '{} has no hotend': '{} has no hotend'
   '{} heater turned off': '{} heater turned off'
+  '{} holds the same filament, and the printer uses that one.': '{} holds the same filament, and the printer uses that one.'
   '{} is asking to connect to this printer.': '{} is asking to connect to this printer.'
   '{} is blocked — manual intervention required': '{} is blocked — manual intervention required'
   '{} is due': '{} is due'
@@ -5121,6 +5142,8 @@ translations:
   '{} presets': '{} presets'
   '{} prints': '{} prints'
   '{} queued': '{} queued'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.'
+  '{} ran out, and the printer has not said what it was printing.': '{} ran out, and the printer has not said what it was printing.'
   '{} serial': '{} serial'
   '{} set to {}': '{} set to {}'
   '{} set to {} {}': '{} set to {} {}'

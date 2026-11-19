@@ -105,6 +105,14 @@ struct FeedChannelDelta {
     std::optional<bool> disable_auto;
 };
 
+/// A head's `filament_color_multi` entry: the colour record the firmware's
+/// Auto-Replenish compares, field for field, when it looks for a replacement.
+struct ColorRecord {
+    std::vector<std::string> colors; ///< "RRGGBB" each, as the firmware spells it
+    int alpha = 0xFF;
+    int mode = 0;
+};
+
 /// The `print_task_config` object: the task manager's record of the print and
 /// of what each head is configured with.
 struct PrintTaskConfigDelta {
@@ -124,6 +132,8 @@ struct PrintTaskConfigDelta {
     std::array<std::optional<bool>, kToolCount> filament_official;
     /// Hex RGBA, as the firmware spells it; see rgb_from_rgba_hex.
     std::array<std::optional<std::string>, kToolCount> filament_color_rgba;
+    /// The full colour record; nullopt where an entry is missing or malformed.
+    std::array<std::optional<ColorRecord>, kToolCount> filament_color_multi;
 };
 
 /// The RGB a `filament_color_rgba` entry names (the lane-colour grammar: bare or

@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- NOTE: Backdrop created programmatically by Modal system -->
+<!--
+  Continue a runout-paused print on another loaded toolhead (#2137).
+  One row per head, all C++-owned global subjects set by RunoutOtherHeadModal:
+    runout_other_head_row_state_<i>  0 hidden (the head that ran out, or no head),
+                                     1 eligible, 2 eligible with a different colour,
+                                     3 refused (row disabled, its reason shown)
+    runout_other_head_row_title_<i>  "Toolhead 2 · PLA Matte"
+    runout_other_head_row_note_<i>   the refusal reason or the colour warning
+    runout_other_head_row_color_<i>  the head's filament colour
+  A tap on an eligible row asks for confirmation before anything is sent.
+-->
+<component>
+  <styles>
+    <style name="runout_other_head_note" text_color="#text_muted"/>
+    <style name="runout_other_head_warn" text_color="#warning"/>
+    <style name="runout_other_head_row_off" opa="50%"/>
+  </styles>
+  <view name="runout_other_head_modal"
+        extends="ui_dialog" width="80%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
+        style_pad_gap="0">
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
+            style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
+      <icon src="swap_horizontal" size="md" variant="primary"/>
+      <text_heading text="Continue on Another Toolhead" style_text_align="left" flex_grow="1"/>
+    </lv_obj>
+    <lv_obj name="runout_other_head_content"
+            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_sm">
+      <text_body width="100%" bind_text="runout_other_head_message" style_text_align="left" long_mode="wrap"/>
+      <repeat count="4">
+        <lv_obj name="runout_other_head_row_${i}"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_hor="#space_md"
+                style_pad_ver="#space_sm" style_pad_gap="#space_md" style_radius="#space_sm"
+                style_bg_color="#elevated_bg" style_bg_opa="255" scrollable="false" clickable="true">
+          <style name="styles.press_wash" selector="pressed"/>
+          <style name="runout_other_head_row_off" selector="disabled"/>
+          <bind_flag_if_eq subject="runout_other_head_row_state_${i}" flag="hidden" ref_value="0"/>
+          <bind_state_if_eq subject="runout_other_head_row_state_${i}" state="disabled" ref_value="3"/>
+          <event_cb trigger="clicked" callback="runout_other_head_pick_cb" user_data="${i}"/>
+          <color_swatch index="${i}"
+                        color_subject="runout_other_head_row_color_${i}" clickable="false" bubble="true" reach="0"
+                        size="#space_2xl" hit="0"/>
+          <lv_obj width="content"
+                  height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="0"
+                  clickable="false" event_bubble="true">
+            <text_body bind_text="runout_other_head_row_title_${i}" clickable="false" event_bubble="true"/>
+            <text_small bind_text="runout_other_head_row_note_${i}" clickable="false" event_bubble="true">
+              <style name="runout_other_head_note"/>
+              <bind_style name="runout_other_head_warn" subject="runout_other_head_row_state_${i}" ref_value="2"/>
+            </text_small>
+          </lv_obj>
+          <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="runout_other_head_row_state_${i}" flag="hidden" ref_value="3"/>
+          </icon>
+        </lv_obj>
+      </repeat>
+      <text_small name="runout_other_head_none"
+                  width="100%" text="No other toolhead can take over this print." style_text_color="#text_muted"
+                  long_mode="wrap">
+        <bind_flag_if_eq subject="runout_other_head_any_eligible" flag="hidden" ref_value="1"/>
+      </text_small>
+    </lv_obj>
+    <modal_button_row primary_text="Back" primary_variant="secondary" hide_secondary="true"/>
+  </view>
+</component>
