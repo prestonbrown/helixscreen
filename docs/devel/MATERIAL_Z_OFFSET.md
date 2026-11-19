@@ -1,0 +1,148 @@
+# Z Offset and Bed Mesh by Material
+
+**One Z offset, and optionally one stored bed mesh, per material, applied by the
+print-start macro and saved per material from the screen** (prestonbrown/helixscreen#2142).
+
+Module: `include/material_z_offset.h` + `src/printer/material_z_offset.cpp` (the provider
+table and every pure rule), `include/material_z_offset_state.h` +
+`src/printer/material_z_offset_state.cpp` (the live table, the setting, the writes).
+Tests: `tests/unit/test_material_z_offset.cpp`, `test_material_z_offset_config_edit.cpp`,
+`test_material_z_offset_state.cpp` (tag `[material_zoffset]`).
+
+---
+
+## The signal
+
+A heated bed expands with temperature, so a first layer tuned at PLA's 60°C is wrong at
+PETG's 80°C or ABS's 110°C. People already keep one offset per material in their start
+macro: Jacobean's K2 Plus Kalico ships a `[gcode_macro _START_PRINT_VARS]` with
+`variable_offset_<MAT>` lines, and AD5M and Voron owners write the same by hand. The key
+is the material name the slicer passes, not the bed temperature; the Settings rows show
+each material's usual bed temperature only to explain its value.
+
+**The value is the gcode offset for that material.** The start macro applies it with an
+absolute `SET_GCODE_OFFSET Z=` on top of the probe's own `z_offset`. Nothing here folds it
+into the probe: no `Z_OFFSET_APPLY_PROBE`, no `SAVE_CONFIG`
+(`tests/unit/test_material_z_offset.cpp` pins it for every row). Folding it would double
+it at the next print, the hazard [Z_OFFSET_PERSISTENCE.md](Z_OFFSET_PERSISTENCE.md)
+records as #1401.
+
+---
+
+## Rows
+
+One provider row per storage scheme, in the `z_offset_persistence` shape
+(`.claude/rules/vendor-abstraction.md`). Row order is match priority.
+
+| Row | Detected by | Reads | Writes | Mesh |
+|-----|-------------|-------|--------|------|
+| `_START_PRINT_VARS` (K2 Kalico, hand-made copies) | `gcode_macro _START_PRINT_VARS` | `offset_<mat>` from the macro's status; `offset_default` is DEFAULT, `offset_probe` is not a material | `SET_GCODE_VARIABLE MACRO=_START_PRINT_VARS VARIABLE=offset_<mat>` for now, plus one line in the file that defines the section | no |
+| HelixScreen's macro | `gcode_macro HELIX_MATERIAL_OFFSET` | `helix_zoffset_<key>` from `save_variables`, `bed_mesh.profiles` named `helix_<key>`, `_HELIX_MATERIAL.applied` / `apply_count` | `SAVE_VARIABLE VARIABLE=helix_zoffset_<key>`, which persists at once | yes |
+
+No row matches on a printer a `z_offset_persistence` provider matches (ZMOD, Forge-X,
+Helper-Script): that firmware already owns the gcode offset and re-applies its own.
+
+**`_START_PRINT_VARS` first.** A printer whose own start macro keeps the table applies it
+on every print; HelixScreen's macro is in the helper pack on every printer that installs
+it, so it comes second.
+
+**Keys.** Klipper lower-cases option names, so `variable_offset_PETG` reads back as
+`offset_petg`. The vendor macro looks up `"offset_" + MATERIAL|lower` verbatim, so its key
+is the lower-cased name (letters, digits, `_ + . -`). HelixScreen's macro maps `-`, ` `,
+`+` and `.` to `_` (Jinja has no regex), so its key is `[a-z0-9_]`; `helix_key()` and the
+macro's chain of `replace` filters are the same rule. A material neither can store is
+refused, not mangled.
+
+**A material the vendor macro does not declare yet.** `SET_GCODE_VARIABLE` refuses an
+undeclared variable, so a new material is a file edit only and applies after the next
+Klipper restart; the save message says so. HelixScreen never restarts Klipper for it.
+
+---
+
+## The config edit
+
+`edit_config_text()` is the only thing that writes a user's config file, so it is pure and
+tested hard: replace the value of exactly one `variable_offset_<MAT>:` line inside exactly
+one `[gcode_macro _START_PRINT_VARS]`, keeping the key's spelling, the separator, the
+spacing and any inline comment, or insert a new line after the section's last `variable_`
+option (after any continuation lines of that option). Every other byte is kept, CRLF and a
+missing final newline included. It refuses when the section is not there exactly once,
+when the material's line appears twice, or when its value continues onto the next line.
+
+**Which file.** `locate_config_file()` walks `printer.cfg` and everything it includes
+(globs matched against the config root's file list, at most 64 files, none over 1 MB), so
+a backup copy nothing loads (`printer-20261118_101500.cfg`) never counts as a second
+definition. Exactly one holder is required. The path is cached for the session and the
+file is read fresh before every write. Absolute includes are outside the config root and
+are not followed.
+
+---
+
+## Which material a Save writes
+
+`MaterialZOffsetState::save_target()`:
+
+- **Feature off, or no row ready:** nullopt. The machine-wide save is exactly what it was.
+- **HelixScreen's macro:** what the macro last applied (`_HELIX_MATERIAL.applied`), once it
+  has run since Klipper started (`apply_count > 0`). Before then the material is unknown
+  and **no save is offered** (`save_withheld()`): with the feature on, the machine-wide
+  save is never the fallback, because the start macro would re-apply on top of the fold.
+- **`_START_PRINT_VARS`:** the first filament of the current or last print's file, which is
+  what the slicer passes as `MATERIAL=`.
+- **An empty material** (the slicer passed none) is DEFAULT, for applying and for saving.
+
+`current_save_availability()` asks the same target: with the feature on, the offset is
+dirty when the live offset differs from what the macro applies for that material, not when
+it is non-zero.
+
+**During a print.** The machine-wide Save buttons carry `moves_machine="true"` because that
+save restarts Klipper. A per-material save moves nothing and restarts nothing, so
+`header_bar.xml` and `controls_panel.xml` carry an unguarded twin shown only while
+`material_zoffset_active` is 1. The home widget's Save is still withheld during a print.
+
+**Primary material for a print the screen starts:** the tool that prints the most by
+weight (`primary_material_for_file()`, reusing `print_cost::file_tool_grams()` and the
+footer's per-tool grams), else the first filament. HelixScreen's macro takes it through
+`_HELIX_MATERIAL.next`, set just before the start and cleared by the macro (or by the
+screen when the start does not go ahead). The vendor macro has no such input, so on that
+row a multi-material file uses the slicer's first filament.
+
+---
+
+## Meshes
+
+HelixScreen's macro loads `helix_<key>` when that profile exists, before the user's own
+mesh step, so an adaptive `BED_MESH_CALIBRATE` later in PRINT_START replaces it, which is
+the right order. After a calibration on a heated bed, the Bed Mesh panel offers "Save as
+<material> mesh?" for the material whose usual bed temperature is closest to the bed's
+target (`mesh_offer()`); a cold-bed mesh is offered to none. Klipper keeps profiles in
+`printer.cfg`, so this one ends in the panel's usual SAVE_CONFIG prompt.
+
+---
+
+## Setup
+
+The helper pack (`assets/config/helix_macros.cfg`, v2.3.0) defines `HELIX_MATERIAL_OFFSET`
+and `_HELIX_MATERIAL`. `MacroManager` adds a `[save_variables]` section
+(`helix_variables.cfg` beside `printer.cfg`, path from `printer.info`) to the staged file
+on a printer that has none, and an update keeps a section the installed file carries. A
+printer with its own `[save_variables]` keeps it. User steps:
+[PRINT_START_INTEGRATION.md](PRINT_START_INTEGRATION.md#z-offset-and-bed-mesh-by-material).
+
+The Settings overlay (`ui_settings_material_z_offset.cpp`) shows the setup when no row
+matches (`material_zoffset_status` 0), an update prompt when the macro is there without
+`[save_variables]` (1), and the toggle and rows when ready (2). The setting is per printer,
+`material_z_offset/enabled` under the printer's config node.
+
+---
+
+## Adding a row
+
+One entry in `providers()` in `src/printer/material_z_offset.cpp`: detect macro, status
+objects, `ready`, the key rule, the merge, the write, and optionally the config section, a
+hint macro and a mesh prefix. Nothing else names a storage scheme.
+
+## Mock
+
+`HELIX_MOCK_MATERIAL_ZOFFSET=start_print_vars|helix_macro`
+([MOCK_ENVIRONMENT_VARIABLES.md](MOCK_ENVIRONMENT_VARIABLES.md)) runs each row end to end.

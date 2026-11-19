@@ -433,6 +433,35 @@ An adjustment made from the Tune overlay is temporary: it lasts for this print u
 
 The Save Z-Offset buttons can be turned off for a printer with **Save Z-Offset Buttons** in **Settings > Printing > Motion** (see [Motion](motion.md#motion-settings)). They start off on tool changers, and the switch is hidden on printers whose firmware saves the offset itself.
 
+### A Z offset for each material
+
+A heated bed grows a little as it heats, so a first layer dialed in for PLA at 60°C can be too high or too low for PETG at 80°C or ABS at 110°C. HelixScreen can keep a separate Z offset for each material and use the right one at the start of every print, whether you start it from the screen, Mainsail, Fluidd or your slicer.
+
+**Turning it on:** open **Settings > Printing > Z Offset by Material** and switch on **Z offset by material**. The screen lists each common material with its usual bed temperature and its offset. Tap an offset to type a new one. **Any other material** is used for a material without its own entry.
+
+**If the screen shows "One-time setup":** your printer needs three small changes first.
+
+1. Tap **Install Helper Macros** (or install them from the Advanced panel), then restart Klipper when asked.
+2. In your `PRINT_START` macro, after homing and probing and before your own bed mesh step, add this line:
+
+   ```
+   HELIX_MATERIAL_OFFSET MATERIAL={params.MATERIAL|default("")}
+   ```
+
+3. In your slicer's machine start G-code, add the material to the `PRINT_START` line. In OrcaSlicer or PrusaSlicer:
+
+   ```
+   PRINT_START BED_TEMP=[first_layer_bed_temperature] EXTRUDER_TEMP=[first_layer_temperature] MATERIAL={filament_type[initial_extruder]}
+   ```
+
+Creality K2 Plus printers running Jacobean's firmware already keep an offset for each material, so the screen goes straight to the list.
+
+**Saving while you print:** adjust the first layer with the baby steps as usual, then tap **Save**. HelixScreen asks "Save +0.040 mm for PETG?" and changes only PETG's offset; every other material keeps its own. With this setting on, saving does not restart Klipper, so you can save in the middle of a print. A print started from the screen uses the material it prints the most of; a print started elsewhere uses the first filament your slicer names.
+
+**A bed mesh for each material:** after you calibrate a bed mesh with the bed heated, the Bed Mesh screen offers to keep it for the material whose bed temperature is closest. Prints of that material load it at the start, unless your `PRINT_START` makes a fresh mesh. A grid mark beside a material in Settings means it has a stored mesh.
+
+This setting is not offered on printers whose firmware already stores the Z offset itself, such as the FlashForge AD5M and AD5X with ZMOD.
+
 **The hint under the Z-Offset controls** tells you what happens to your adjustment:
 
 - **"Temporary adjustment for this print, unless saved on Controls panel"**: the normal case. Save it from Controls to keep it.
