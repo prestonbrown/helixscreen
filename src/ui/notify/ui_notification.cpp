@@ -357,10 +357,11 @@ void ui_notification_info(const char* title, const char* message) {
     show_notification(title, message, ToastSeverity::INFO, 4000);
 }
 
-static void add_history_action_entry(ToastSeverity severity, const char* title, const char* message,
-                                     const char* action) {
-    if (!message || !action) {
-        spdlog::warn("[Notification] with_action called with null message or action");
+// A history row with no toast. @p action may be null.
+static void add_history_only_entry(ToastSeverity severity, const char* title, const char* message,
+                                   const char* action) {
+    if (!message) {
+        spdlog::warn("[Notification] History-only notification called with null message");
         return;
     }
     report_event(severity, title, message, action);
@@ -378,8 +379,10 @@ static void add_history_action_entry(ToastSeverity severity, const char* title, 
     }
     strncpy(entry.message, message, sizeof(entry.message) - 1);
     entry.message[sizeof(entry.message) - 1] = '\0';
-    strncpy(entry.action, action, sizeof(entry.action) - 1);
-    entry.action[sizeof(entry.action) - 1] = '\0';
+    if (action) {
+        strncpy(entry.action, action, sizeof(entry.action) - 1);
+        entry.action[sizeof(entry.action) - 1] = '\0';
+    }
 
     if (is_main_thread()) {
         NotificationHistory::instance().add(entry);
@@ -397,17 +400,22 @@ static void add_history_action_entry(ToastSeverity severity, const char* title, 
         });
     }
 
-    spdlog::info("[Notification] History-only notification: '{}' action='{}'", message, action);
+    spdlog::info("[Notification] History-only notification: '{}' action='{}'", message,
+                 action ? action : "");
+}
+
+void helix::ui::notification_history_only(ToastSeverity severity, const char* message) {
+    add_history_only_entry(severity, nullptr, message, nullptr);
 }
 
 void ui_notification_info_with_action(const char* title, const char* message, const char* action) {
-    add_history_action_entry(ToastSeverity::INFO, title, message, action);
+    add_history_only_entry(ToastSeverity::INFO, title, message, action);
 }
 
 // NAMESPACE_OK: matches ui_notification_info_with_action, this file's existing global-scope API
 void ui_notification_warning_with_action(const char* title, const char* message,
                                          const char* action) {
-    add_history_action_entry(ToastSeverity::WARNING, title, message, action);
+    add_history_only_entry(ToastSeverity::WARNING, title, message, action);
 }
 
 void ui_notification_success(const char* title, const char* message) {

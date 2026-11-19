@@ -11,6 +11,7 @@
  */
 
 #include "ui_nav_manager.h"
+#include "ui_notification_history.h"
 #include "ui_spoolman_overlay.h"
 
 #include "../lvgl_test_fixture.h"
@@ -93,6 +94,7 @@ class SpoolmanManagerTestAccess {
         m.cb_tripped_at_ms_ = 0;
         m.cb_open_ = false;
         m.unavailable_notified_ = false;
+        m.healthy_since_set_ = false;
         m.api_ = nullptr;
     }
 
@@ -576,6 +578,7 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
                  "[spoolman][toast]") {
     helix::test::RegisteredBackend<AmsBackendMock> backend(2);
     link(*backend, 0, 1);
+    link(*backend, 1, 0); // one fetch per poll, so one injected failure fails the poll
     lv_xml_register_subject(
         nullptr, "printer_has_spoolman",
         get_printer_state().capabilities_state().subject(helix::Capability::HasSpoolman));
@@ -589,8 +592,38 @@ TEST_CASE_METHOD(SpoolmanLaneFixture,
     drain();
 
     CHECK(TA::cb_open(mgr));
-    toasts.expect_one(ToastSeverity::WARNING,
-                      "Spoolman unavailable — filament weights may be stale", 6000);
+    const char* const kWarning = "Spoolman unavailable — filament weights may be stale";
+    toasts.expect_one(ToastSeverity::WARNING, kWarning, 6000);
+    auto history = NotificationHistory::instance().get_all();
+    REQUIRE_FALSE(history.empty());
+    CHECK(std::string(history.front().message) == kWarning); // newest first
+
+    // Three failed polls in a row, each past the breaker's backoff.
+    auto outage = [&] {
+        for (int i = 0; i < 3; ++i) {
+            lv_tick_inc(30000);
+            client.fail_next("server.spoolman.proxy");
+            poll();
+        }
+        REQUIRE(TA::cb_open(mgr));
+    };
+
+    SECTION("a server that drops out again soon after recovering does not warn again") {
+        lv_tick_inc(30000);
+        poll();
+        REQUIRE(TA::consecutive_failures(mgr) == 0);
+        outage();
+        CHECK(toasts.shown.size() == 1);
+    }
+
+    SECTION("an outage after ten minutes of answers warns again") {
+        lv_tick_inc(30000);
+        poll();
+        lv_tick_inc(10 * 60 * 1000);
+        poll();
+        outage();
+        CHECK(toasts.shown.size() == 2);
+    }
 }
 
 TEST_CASE_METHOD(SpoolmanLaneFixture,
