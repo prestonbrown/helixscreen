@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_fonts.h"
+
+#include "../lvgl_test_fixture.h"
 #include "featured_tip.h"
+
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -84,4 +90,28 @@ TEST_CASE("featured_tip: the tile shows the line, the tap shows it with its deta
     const PrintingTip bare = featured_tip::to_printing_tip({"b", "Just the joke.", "", "", 0.0});
     CHECK(bare.content == "Just the joke.");
     CHECK(bare.heading.empty()); // the dialog falls back to the title
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "featured_tip: a line takes the largest face that holds all of it",
+                 "[featured_tip]") {
+    const std::vector<const lv_font_t*> faces = {&noto_sans_20, &noto_sans_16, &noto_sans_12};
+    const int32_t line_16 = lv_font_get_line_height(&noto_sans_16);
+    const std::string line = "These go to eleven.";
+
+    SECTION("room for the largest keeps it") {
+        CHECK(featured_tip::fit_font(line, faces, 400, 200, 0, 0) == &noto_sans_20);
+    }
+    SECTION("a face whose line is too tall steps down") {
+        CHECK(featured_tip::fit_font(line, faces, 400, line_16, 0, 0) == &noto_sans_16);
+    }
+    SECTION("a face that wraps past the height steps down") {
+        lv_point_t one_line;
+        lv_text_get_size(&one_line, line.c_str(), &noto_sans_16, 0, 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        CHECK(featured_tip::fit_font(line, faces, one_line.x - 1, line_16, 0, 0) == &noto_sans_12);
+    }
+    SECTION("too long for every face ends in the smallest") {
+        CHECK(featured_tip::fit_font(line, faces, 400, 1, 0, 0) == &noto_sans_12);
+    }
 }

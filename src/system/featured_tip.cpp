@@ -52,4 +52,17 @@ bool is_featured(const PrintingTip& tip) {
     return tip.category == kCategory;
 }
 
+const lv_font_t* fit_font(const std::string& text, const std::vector<const lv_font_t*>& faces,
+                          int32_t max_w, int32_t max_h, int32_t letter_space, int32_t line_space) {
+    for (const lv_font_t* face : faces) {
+        lv_point_t size;
+        lv_text_get_size(&size, text.c_str(), face, letter_space, line_space, max_w,
+                         LV_TEXT_FLAG_NONE);
+        if (size.y <= max_h) {
+            return face;
+        }
+    }
+    return faces.empty() ? nullptr : faces.back();
+}
+
 } // namespace helix::featured_tip
