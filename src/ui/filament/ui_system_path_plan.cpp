@@ -8,6 +8,7 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_toolhead_badge.h"
 
+#include "filament_tube_stroker.h"
 #include "helix/ui/text_metrics.h"
 #include "hub_buffer_meter.h"
 #include "tube_router.h"
@@ -53,7 +54,7 @@ lv_color_t hub_fill(const SystemPathData& data, bool has_filament) {
 
 // One tube's pitch where tubes run side by side: a haloed tube and a gap.
 int32_t lane_pitch(const SystemPathData& data) {
-    return data.tube_gauge + kHaloWidthExtra + 2;
+    return haloed_tube_width(data.tube_gauge) + 2;
 }
 
 // The span a unit stem may stand in: the canvas less a small margin.
@@ -431,7 +432,7 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const Nozzl
     sp.right = L.x_off + L.width;
     sp.gap = hub_box_gap(data);
     // Rounded up: a box must clear the drawn edge, not the pixel before it.
-    const int32_t tube_half = (data.tube_gauge + kHaloWidthExtra + 1) / 2;
+    const int32_t tube_half = (haloed_tube_width(data.tube_gauge) + 1) / 2;
     for (int r = 0; r < n && sp.obstacle_count < SystemPathData::kMaxTools; ++r) {
         if (routes[r].junction)
             continue;
@@ -474,7 +475,7 @@ void sort_routes(GlobalRoute* routes, int n) {
 
 // Clear distance two tube centerlines keep: a haloed tube's width.
 int32_t route_gap(const SystemPathData& data) {
-    return data.tube_gauge + kHaloWidthExtra;
+    return haloed_tube_width(data.tube_gauge);
 }
 
 // Cable-harness route: down from (sx, sy), across at run_y, down into
