@@ -11,6 +11,7 @@
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "core/temp_unit_subject.h"
+#include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
@@ -83,11 +84,14 @@ void set_int(lv_subject_t* s, int v) {
     }
 }
 
+/// A value longer than the buffer is cut on a codepoint boundary, so a
+/// translated string never ends in half a character.
 void set_string(lv_subject_t* s, char* buf, size_t size, const std::string& v) {
-    if (v == buf) {
+    const std::string_view fit = helix::text_io::utf8_prefix(v, size - 1);
+    if (fit == buf) {
         return;
     }
-    std::snprintf(buf, size, "%s", v.c_str());
+    std::snprintf(buf, size, "%.*s", static_cast<int>(fit.size()), fit.data());
     lv_subject_set_string(s, buf);
 }
 

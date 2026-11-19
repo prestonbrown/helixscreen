@@ -151,12 +151,17 @@ class PrintStatusTiles {
             bool off_target = false;
         } painted;
     };
+    /// A step name is a translated phase label: the longest is 41 bytes
+    /// (Russian, two bytes a letter), and the rest is room for longer wording.
+    static constexpr size_t kStepNameBufSize = 96;
+    /// A step time is a translated duration: "99 ч 59 мин" is 15 bytes.
+    static constexpr size_t kStepTimeBufSize = 32;
     struct StepSubjects {
         helix::Subject name{};
         helix::Subject time{};
         helix::Subject status{};
-        char name_buf[48] = "";
-        char time_buf[16] = "";
+        char name_buf[kStepNameBufSize] = "";
+        char time_buf[kStepTimeBufSize] = "";
     };
     /// Where a heater started climbing, for its progress bar.
     struct HeatStart {
@@ -213,8 +218,8 @@ class PrintStatusTiles {
     helix::Subject step_current_name_{};
     helix::Subject step_current_time_{};
     char step_position_buf_[32] = "";
-    char step_current_name_buf_[48] = "";
-    char step_current_time_buf_[16] = "";
+    char step_current_name_buf_[kStepNameBufSize] = "";
+    char step_current_time_buf_[kStepTimeBufSize] = "";
 
     std::array<HeatStart, 3> heat_starts_{};
     /// Keyed by extruder name, for the other-tools chip's bar.
