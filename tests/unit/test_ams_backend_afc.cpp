@@ -3257,6 +3257,7 @@ TEST_CASE("AFC places a lane's fault at the sensor its later sentence names",
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+    helper.feed_afc_stepper("lane3", {{"status", "Error"}});
     REQUIRE(helper.get_slot_info(1).error.has_value());
     CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::NONE);
 
@@ -3266,8 +3267,9 @@ TEST_CASE("AFC places a lane's fault at the sensor its later sentence names",
            {"type", "error"}}}});
     REQUIRE(helper.get_slot_info(1).error.has_value());
     CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::LOAD);
-    // Another lane's sentence places nothing on this one.
-    CHECK_FALSE(helper.get_slot_info(2).error.has_value());
+    // Another faulted lane takes no sensor from lane2's sentence.
+    REQUIRE(helper.get_slot_info(2).error.has_value());
+    CHECK(helper.get_slot_info(2).error->sensor == LaneSensor::NONE);
 }
 
 TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
