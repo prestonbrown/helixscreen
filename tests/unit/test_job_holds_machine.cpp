@@ -301,13 +301,25 @@ constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
 /// carries no guard while reading like a deliberate one.
 constexpr const char* kGuardAttributeName = "moves_machine=\"";
 constexpr const char* kSocketGuard = "moves_machine=\"$";
-/// Guards published from C++ for a control whose toolhead risk depends on what
-/// a tap would do now. Each subject reads 1 only while machine_motion_blocked
-/// does and the action would command the machine, so the binding is the same
-/// guard as moves_machine for exactly those taps. Counted like it.
-constexpr const char* kDerivedGuards[] = {
-    "<bind_state_if_eq subject=\"z_offset_save_motion_blocked\" state=\"disabled\" "
-    "ref_value=\"1\"/>",
+/// A guard published from C++ for a control whose toolhead risk depends on what
+/// a tap would do now: its subject reads 1 only while machine_motion_blocked
+/// does AND the tap would command the machine, so the binding is the same guard
+/// as moves_machine for exactly those taps, and is counted like it.
+///
+/// An explicit allowlist, never a pattern: each entry is one exact binding of
+/// one named subject, and names the TEST_CASE that proves the subject follows
+/// machine_motion_blocked. The census fails an entry whose proof is missing, so
+/// a subject cannot join without a test that pins it.
+struct DerivedGuard {
+    const char* binding;
+    const char* proof; ///< The proving TEST_CASE name, as written under tests/unit/
+};
+constexpr DerivedGuard kDerivedGuards[] = {
+    // Save Z-Offset: the machine-wide save restarts Klipper and waits for the
+    // print; a per-material save moves nothing and goes through.
+    {"<bind_state_if_eq subject=\"z_offset_save_motion_blocked\" state=\"disabled\" "
+     "ref_value=\"1\"/>",
+     "material zoffset state: a Save while a print holds the machine"},
 };
 
 struct GuardedFile {
@@ -796,8 +808,8 @@ GuardScan scan_guards(const std::string& xml) {
     GuardScan scan;
     scan.spelled_true = count_occurrences(xml, kGuardAttribute);
     scan.recognized = scan.spelled_true;
-    for (const char* derived : kDerivedGuards) {
-        scan.recognized += count_occurrences(xml, derived);
+    for (const DerivedGuard& derived : kDerivedGuards) {
+        scan.recognized += count_occurrences(xml, derived.binding);
     }
     // A `moves_machine="$prop"` socket is the component plumbing that carries
     // a caller's decision, not a guard decision itself: the caller's literal
@@ -910,6 +922,26 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
                      "Move its row to kGuardedFiles with that count.");
         REQUIRE(scan.attributes == 0);
         REQUIRE(scan.recognized == 0);
+    }
+}
+
+TEST_CASE("every derived toolhead guard names the test that proves its subject",
+          "[ui][xml][job_holds_machine]") {
+    namespace fs = std::filesystem;
+    std::string tests;
+    for (const auto& entry : fs::directory_iterator("tests/unit")) {
+        // This file names every proof in the allowlist itself.
+        if (entry.path().extension() == ".cpp" &&
+            entry.path().filename() != "test_job_holds_machine.cpp") {
+            tests += read_xml(entry.path().generic_string());
+        }
+    }
+    REQUIRE_FALSE(tests.empty());
+    for (const DerivedGuard& derived : kDerivedGuards) {
+        INFO(derived.binding << " is allowlisted as a toolhead guard, but no test under "
+                                "tests/unit/ is named \""
+                             << derived.proof << "\"");
+        CHECK(tests.find(std::string("\"") + derived.proof + "\"") != std::string::npos);
     }
 }
 
