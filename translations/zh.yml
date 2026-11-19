@@ -116,6 +116,7 @@ translations:
   '1 unit': '1 个单元'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁
+  1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. 安装帮助宏。它们会添加 HELIX_MATERIAL_OFFSET 和用于存储偏移的 [save_variables]。"
   1. Printer homes all axes (~1 minute): 1. 打印机全部轴归零（约1分钟）
   1. Printer homes and probes the bed: 1. 打印机归位并探测热床
   1. Printer will home and probe each screw: 1. 打印机将归位并探测每个螺丝位置
@@ -128,6 +129,7 @@ translations:
   180° Upside Down: 180° 上下颠倒
   2 min: '2分钟'
   2 minutes: 2 分钟
+  '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. 在 PRINT_START 中，归零和探测之后、你自己的网格步骤之前，添加这一行："
   2. Jog X and Y until the nozzle is centered over the chute opening: 2. 点动 X 和 Y 轴，直到喷嘴位于排料口开口中心
   2. Jog Y until the nozzle is centered over the chute opening: 2. 点动 Y 轴，直到喷嘴位于排料口开口中心
 
@@ -144,6 +146,7 @@ translations:
   2D Layers: 2D 图层
   3. Adjust screws, then re-probe to verify: 3. 调整螺丝，然后重新探测以验证
   3. Every toolhead is probed and the offsets are saved: 3. 依次探测每个工具头并保存偏移
+  "3. Have the slicer's start G-code pass the material to PRINT_START:": "3. 让切片软件的起始 G-code 把材料传给 PRINT_START："
   3. Lower nozzle until paper drags slightly: 3. 降低喷嘴直到纸张有轻微阻力
   3. Save the position: 3. 保存位置
 
@@ -177,8 +180,12 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Delta 打印机无法在不移动 Z 轴的情况下将 X 和 Y 轴归零，因此无法恢复打印。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: '让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。'
+  A first-layer offset and bed mesh for each material: "每种材料的首层偏移和热床网格"
   A folder name in moonraker.conf is unsafe.: "moonraker.conf 中的某个文件夹名称不安全。"
+  A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "网格图标表示该材料有已保存的热床网格，在不做网格的打印开始时加载。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: '打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。'
+  ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
+  : "热床受热会膨胀，因此每种材料可以有自己的首层偏移。打印开始宏会应用它，打印中保存只会修改该打印的材料。"
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: '为腔体内空气加热的加热器。在腔体温度界面设置温度。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipper 用来补偿热床不平整的高度图。在热床网格界面查看和校准。'
   A left, B right: "A 左,B 右"
@@ -329,6 +336,7 @@ translations:
   Allwinner: Allwinner
   Already connecting — wait a moment and try again: 正在连接中 — 请稍候再试
   Already mounted: '已装上'
+  Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"
   Always Show Bypass Spool: 始终显示旁路料盘
   Always show Android navigation bar instead of using gestures: 始终显示 Android 导航栏而不使用手势
   Ambient Transfer: 环境传热
@@ -363,6 +371,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: 应用程序启动时遇到错误。某些功能可能不可用。
   Appearance: 外观
   Appearance & Region: "外观与区域"
+  'Applied for this session only: {}': "仅本次会话生效：{}"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。'
   Applies to: 适用于
@@ -485,6 +494,7 @@ translations:
   Bed warming timed out: 热床加热超时
   Bed {}: 热床 {}
   Bed {} / {}: 热床 {} / {}
+  Bed {} °C: "热床 {} °C"
   Before starting: '开始之前'
   Below target: 低于目标
   Belt Tension: 皮带张力
@@ -1029,6 +1039,7 @@ translations:
   "Setup, navigation and gestures": "设置、导航和手势"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "点击槽位可加载或卸载、选择料盘或编辑详情。您的编辑会与打印机和 Spoolman 保持同步。"
   Unload stopped: '卸载已停止'
+  Used when a material has no entry: "材料没有条目时使用"
   "User Guide": "用户指南"
   "Your filament system": "您的耗材系统"
   '{} could not be checked from Home - review it and tap Print': '无法从主页检查 {} – 请查看后点按打印'
@@ -2107,6 +2118,7 @@ translations:
   Invert: 反转
   Is the bed clear?: "热床已清空吗？"
   Issue description: 问题描述
+  It applies after the next Klipper restart.: "将在下次重启 Klipper 后生效。"
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
   It homes and heats on its own (no start macro found).: 自行归零并加热(未找到开始宏)。
@@ -2474,6 +2486,7 @@ translations:
   Memory: 内存
   Memory (MB): 内存 (MB)
   Memory Snapshot: 内存快照
+  Mesh kept for {}: "已为 {} 保存网格"
   Mesh saved as '{}': 网格已保存为 '{}'
   Method: 方法
   Min: 最小
@@ -2818,6 +2831,7 @@ translations:
   'Off: runs with these values without asking': '关: 不询问,直接以这些值运行'
   Offer to save Z-offset changes to the printer config: '提供将 Z 偏移更改保存到打印机配置的选项'
   Offset: 偏移
+  Offset per material: "按材料的偏移"
   Offsets Saved: 偏移已保存
   Offsets saved: 偏移已保存
   Old logs: '旧日志'
@@ -2832,6 +2846,7 @@ translations:
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : '每天一次，删除超过一周的打印副本和超过一个月的日志。您的文件、照片和延时摄影视频会保留。'
   One tap runs this macro. Dangerous macros still ask.: '单击即可运行此宏。危险宏仍会询问。'
+  One-time setup: "一次性设置"
   'Only on {0}: {1} Hz': "仅 {0}：{1} Hz"
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: '仅在此应用连接时生效。安装 HelixPrint 插件以覆盖所有打印。'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: '仅在此应用连接时生效。更新 HelixPrint 插件以覆盖所有打印。'
@@ -3584,6 +3599,7 @@ translations:
   Save Z-Offset: 保存 Z 偏移
   Save Z-Offset Buttons: '保存 Z 偏移按钮'
   Save Z-Offset?: 保存 Z 偏移？
+  Save as {} mesh?: "另存为 {} 网格？"
   Save calibration: 保存校准
   Save changes to persist them across restarts?: 保存更改以便在重启后保留？
   'Save failed: {}': '保存失败: {}'
@@ -3592,9 +3608,12 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: 将新的加热器参数保存到printer.cfg？Klipper将重启。
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman
+  Save writes the print's material; off, it saves one offset for every print: "保存会写入本次打印的材料；关闭时为所有打印保存同一个偏移"
+  Save {} mm for {}? Other materials keep their own offsets.: "保存 {} mm 到 {}？其他材料保持各自的偏移。"
   Saved Z-Offset: 已保存 Z 偏移
   Saved for the mounted head; other heads keep their own: '已为当前安装的工具头保存；其他工具头保留各自的值'
   "Saved {} mm": "已保存 {} mm"
+  Saved {} mm for {}: "已将 {} mm 保存到 {}"
   "Saved {} mm, {} mm after Save": "已保存 {} mm，保存后 {} mm"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: '已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。'
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
@@ -4420,6 +4439,7 @@ translations:
   'This printer has motor compensation, so the check runs twice: with it off, then on.': '此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。'
   This printer has no IFS.: "此打印机没有 IFS。"
   This printer has no INDX LOAD_FILAMENT macro: "此打印机没有 INDX LOAD_FILAMENT 宏"
+  This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
@@ -4909,6 +4929,7 @@ translations:
   Z Calibration: Z 轴校准
   Z Movement: Z 轴移动
   Z Offset: Z 偏移
+  Z Offset by Material: "按材料 Z 偏移"
   Z Probe: Z 探针
   Z Range: Z 范围
   Z Tilt Adjust...: 正在调整Z倾斜...
@@ -4916,6 +4937,7 @@ translations:
   Z is at its limit ({}mm): Z 轴已到达限位 ({}mm)
   Z jog feedrate: Z 轴移动速度
   Z motor calibration failed: Z 电机校准失败
+  Z offset by material: "按材料 Z 偏移"
   Z probes for bed leveling and mesh generation: 用于热床调平和网格生成的 Z 探针
   Z tilt: Z倾斜
   Z {:.2f} mm: Z {:.2f} mm
@@ -4944,6 +4966,7 @@ translations:
   'Z: 0.000': 'Z: 0.000'
   Zone {:.0f}-{:.0f} Hz: "区间 {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] 没有 probe_points，因此打印头没有进行稳定绕圈的安全高度。'
+  '[{}] was found {} times in the config files printer.cfg loads, expected once': "在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"
   already loaded: '已加载'
   attempt {}: '第 {} 次尝试'
   auto: 自动
@@ -5089,6 +5112,7 @@ translations:
   '{} axes homed': '{} 轴已归位'
   '{} axis homed': '{} 轴已归位'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '无法排除 {}：名称包含无法发送到打印机的字符'
+  '{} cannot be stored on this printer.': "{} 无法保存在这台打印机上。"
   '{} changed': '{} 个已更改'
   '{} command timed out': '{} 命令超时'
   '{} complete': '{} 完成'

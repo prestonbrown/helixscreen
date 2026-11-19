@@ -219,9 +219,17 @@ void MaterialZOffsetState::note_print_file(const std::string& first) {
     bump();
 }
 
-std::string MaterialZOffsetState::mesh_save_gcode(const std::string& material) const {
+std::optional<std::pair<std::string, std::string>>
+MaterialZOffsetState::mesh_offer(const std::vector<std::string>& materials, int bed_c) const {
+    if (!active() || !stores_mesh(hw())) {
+        return std::nullopt;
+    }
+    const std::string material = closest_material(materials, bed_c);
     const std::string profile = mesh_profile_name(hw(), material);
-    return profile.empty() ? std::string() : "BED_MESH_PROFILE SAVE=" + profile;
+    if (material.empty() || profile.empty()) {
+        return std::nullopt;
+    }
+    return std::make_pair(material, profile);
 }
 
 void MaterialZOffsetState::save_offset(IMoonrakerAPI* api, const std::string& material, int microns,

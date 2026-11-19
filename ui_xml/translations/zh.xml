@@ -105,6 +105,7 @@
   <translation tag="1 unit" zh="1 个单元"/>
   <translation tag="1, 2, 3" zh="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" zh="1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁"/>
+  <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." zh="1. 安装帮助宏。它们会添加 HELIX_MATERIAL_OFFSET 和用于存储偏移的 [save_variables]。"/>
   <translation tag="1. Printer homes all axes (~1 minute)" zh="1. 打印机全部轴归零（约1分钟）"/>
   <translation tag="1. Printer homes and probes the bed" zh="1. 打印机归位并探测热床"/>
   <translation tag="1. Printer will home and probe each screw" zh="1. 打印机将归位并探测每个螺丝位置"/>
@@ -117,6 +118,7 @@
   <translation tag="180° Upside Down" zh="180° 上下颠倒"/>
   <translation tag="2 min" zh="2分钟"/>
   <translation tag="2 minutes" zh="2 分钟"/>
+  <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" zh="2. 在 PRINT_START 中，归零和探测之后、你自己的网格步骤之前，添加这一行："/>
   <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" zh="2. 点动 X 和 Y 轴，直到喷嘴位于排料口开口中心"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" zh="2. 点动 Y 轴，直到喷嘴位于排料口开口中心"/>
   <translation tag="2. Place paper between nozzle and bed" zh="2. 将纸张放在喷嘴和热床之间"/>
@@ -132,6 +134,7 @@
   <translation tag="2D Layers" zh="2D 图层"/>
   <translation tag="3. Adjust screws, then re-probe to verify" zh="3. 调整螺丝，然后重新探测以验证"/>
   <translation tag="3. Every toolhead is probed and the offsets are saved" zh="3. 依次探测每个工具头并保存偏移"/>
+  <translation tag="3. Have the slicer&apos;s start G-code pass the material to PRINT_START:" zh="3. 让切片软件的起始 G-code 把材料传给 PRINT_START："/>
   <translation tag="3. Lower nozzle until paper drags slightly" zh="3. 降低喷嘴直到纸张有轻微阻力"/>
   <translation tag="3. Save the position" zh="3. 保存位置"/>
   <translation tag="30 minutes" zh="30 分钟"/>
@@ -163,8 +166,11 @@
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." zh="Delta 打印机无法在不移动 Z 轴的情况下将 X 和 Y 轴归零，因此无法恢复打印。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." zh="让腔体内空气经过滤网循环的风扇。在腔体温度界面控制。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." zh="需要几分钟，几乎全是加热时间。你无需用肉眼判断任何东西。"/>
+  <translation tag="A first-layer offset and bed mesh for each material" zh="每种材料的首层偏移和热床网格"/>
   <translation tag="A folder name in moonraker.conf is unsafe." zh="moonraker.conf 中的某个文件夹名称不安全。"/>
+  <translation tag="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh." zh="网格图标表示该材料有已保存的热床网格，在不做网格的打印开始时加载。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." zh="打印机上已设置热浸(heat soak)宏。HelixScreen 会检测到它,但不会运行。"/>
+  <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." zh="热床受热会膨胀，因此每种材料可以有自己的首层偏移。打印开始宏会应用它，打印中保存只会修改该打印的材料。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." zh="为腔体内空气加热的加热器。在腔体温度界面设置温度。"/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." zh="Klipper 用来补偿热床不平整的高度图。在热床网格界面查看和校准。"/>
   <translation tag="A left, B right" zh="A 左,B 右"/>
@@ -315,6 +321,7 @@
   <translation tag="Allwinner" zh="Allwinner"/>
   <translation tag="Already connecting — wait a moment and try again" zh="正在连接中 — 请稍候再试"/>
   <translation tag="Already mounted" zh="已装上"/>
+  <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." zh="也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"/>
   <translation tag="Always Show Bypass Spool" zh="始终显示旁路料盘"/>
   <translation tag="Always show Android navigation bar instead of using gestures" zh="始终显示 Android 导航栏而不使用手势"/>
   <translation tag="Ambient Transfer" zh="环境传热"/>
@@ -347,6 +354,7 @@
   <translation tag="App startup encountered an error. Some features may be unavailable." zh="应用程序启动时遇到错误。某些功能可能不可用。"/>
   <translation tag="Appearance" zh="外观"/>
   <translation tag="Appearance &amp; Region" zh="外观与区域"/>
+  <translation tag="Applied for this session only: {}" zh="仅本次会话生效：{}"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." zh="已应用到{}。Klipper重启后会丢失: 请在切片软件的耗材配置中将压力提前设为{},或保存到料盘。"/>
   <translation tag="Applies to" zh="适用于"/>
   <translation tag="Apply" zh="应用"/>
@@ -469,6 +477,7 @@
   <translation tag="Bed warming timed out" zh="热床加热超时"/>
   <translation tag="Bed {}" zh="热床 {}"/>
   <translation tag="Bed {} / {}" zh="热床 {} / {}"/>
+  <translation tag="Bed {} °C" zh="热床 {} °C"/>
   <translation tag="Before starting" zh="开始之前"/>
   <translation tag="Below target" zh="低于目标"/>
   <translation tag="Belt Tension" zh="皮带张力"/>
@@ -2031,6 +2040,7 @@
   <translation tag="Is new filament coming out of the nozzle?" zh="喷嘴是否有新耗材挤出？"/>
   <translation tag="Is the bed clear?" zh="热床已清空吗？"/>
   <translation tag="Issue description" zh="问题描述"/>
+  <translation tag="It applies after the next Klipper restart." zh="将在下次重启 Klipper 后生效。"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." zh="可以在 Spoolman 的网页界面中取消归档。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." zh="尚未报告其料槽。请稍后再试。"/>
   <translation tag="It homes and heats on its own (no start macro found)." zh="自行归零并加热(未找到开始宏)。"/>
@@ -2396,6 +2406,7 @@
   <translation tag="Memory" zh="内存"/>
   <translation tag="Memory (MB)" zh="内存 (MB)"/>
   <translation tag="Memory Snapshot" zh="内存快照"/>
+  <translation tag="Mesh kept for {}" zh="已为 {} 保存网格"/>
   <translation tag="Mesh saved as &apos;{}&apos;" zh="网格已保存为 &apos;{}&apos;"/>
   <translation tag="Method" zh="方法"/>
   <translation tag="Min" zh="最小"/>
@@ -2737,6 +2748,7 @@
   <translation tag="Off: runs with these values without asking" zh="关: 不询问,直接以这些值运行"/>
   <translation tag="Offer to save Z-offset changes to the printer config" zh="提供将 Z 偏移更改保存到打印机配置的选项"/>
   <translation tag="Offset" zh="偏移"/>
+  <translation tag="Offset per material" zh="按材料的偏移"/>
   <translation tag="Offsets Saved" zh="偏移已保存"/>
   <translation tag="Offsets saved" zh="偏移已保存"/>
   <translation tag="Old logs" zh="旧日志"/>
@@ -2750,6 +2762,7 @@
   <translation tag="On:" zh="开:"/>
   <translation tag="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept." zh="每天一次，删除超过一周的打印副本和超过一个月的日志。您的文件、照片和延时摄影视频会保留。"/>
   <translation tag="One tap runs this macro. Dangerous macros still ask." zh="单击即可运行此宏。危险宏仍会询问。"/>
+  <translation tag="One-time setup" zh="一次性设置"/>
   <translation tag="Only on {0}: {1} Hz" zh="仅 {0}：{1} Hz"/>
   <translation tag="Only while this app is connected. Install the HelixPrint plugin to cover every print." zh="仅在此应用连接时生效。安装 HelixPrint 插件以覆盖所有打印。"/>
   <translation tag="Only while this app is connected. Update the HelixPrint plugin to cover every print." zh="仅在此应用连接时生效。更新 HelixPrint 插件以覆盖所有打印。"/>
@@ -3495,6 +3508,7 @@
   <translation tag="Save Z-Offset" zh="保存 Z 偏移"/>
   <translation tag="Save Z-Offset Buttons" zh="保存 Z 偏移按钮"/>
   <translation tag="Save Z-Offset?" zh="保存 Z 偏移？"/>
+  <translation tag="Save as {} mesh?" zh="另存为 {} 网格？"/>
   <translation tag="Save calibration" zh="保存校准"/>
   <translation tag="Save changes to persist them across restarts?" zh="保存更改以便在重启后保留？"/>
   <translation tag="Save failed: {}" zh="保存失败: {}"/>
@@ -3503,6 +3517,8 @@
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." zh="将新的加热器参数保存到printer.cfg？Klipper将重启。"/>
   <translation tag="Save to Spool" zh="保存到料盘"/>
   <translation tag="Save to Spoolman" zh="保存到 Spoolman"/>
+  <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" zh="保存会写入本次打印的材料；关闭时为所有打印保存同一个偏移"/>
+  <translation tag="Save {} mm for {}? Other materials keep their own offsets." zh="保存 {} mm 到 {}？其他材料保持各自的偏移。"/>
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
   <translation tag="Saved for the mounted head; other heads keep their own" zh="已为当前安装的工具头保存；其他工具头保留各自的值"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
@@ -3511,6 +3527,7 @@
   <translation tag="Saved to {}. It applies whenever this filament becomes active." zh="已保存到{}。每当该耗材启用时都会应用。"/>
   <translation tag="Saved values, and whether to ask before running" zh="保存的值,以及运行前是否询问"/>
   <translation tag="Saved {} mm" zh="已保存 {} mm"/>
+  <translation tag="Saved {} mm for {}" zh="已将 {} mm 保存到 {}"/>
   <translation tag="Saved {} mm, {} mm after Save" zh="已保存 {} mm，保存后 {} mm"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." zh="已保存。Spoolman 离线，因此价格、位置、批次和备注暂留在此处，尚未保存。"/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." zh="在第 2 层之后和每次打印结束时保存一张摄像头照片，显示在打印历史中。"/>
@@ -4285,6 +4302,7 @@
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." zh="此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。"/>
   <translation tag="This printer has no IFS." zh="此打印机没有 IFS。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" zh="此打印机没有 INDX LOAD_FILAMENT 宏"/>
+  <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." zh="这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
@@ -4579,6 +4597,7 @@
   <translation tag="Use first HID scanner found" zh="使用找到的第一个 HID 扫描器"/>
   <translation tag="Use printer type to select image" zh="使用打印机类型选择图片"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" zh="使用打印机自身屏幕上设置的主屏幕布局"/>
+  <translation tag="Used when a material has no entry" zh="材料没有条目时使用"/>
   <translation tag="User Guide" zh="用户指南"/>
   <translation tag="User intervention required" zh="需要手动干预"/>
   <translation tag="Uses tool T{}, and this printer&apos;s last tool is T{}." zh="使用工具 T{}，而此打印机的最后一个工具是 T{}。"/>
@@ -4775,6 +4794,7 @@
   <translation tag="Z Calibration" zh="Z 轴校准"/>
   <translation tag="Z Movement" zh="Z 轴移动"/>
   <translation tag="Z Offset" zh="Z 偏移"/>
+  <translation tag="Z Offset by Material" zh="按材料 Z 偏移"/>
   <translation tag="Z Probe" zh="Z 探针"/>
   <translation tag="Z Range" zh="Z 范围"/>
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
@@ -4782,6 +4802,7 @@
   <translation tag="Z is at its limit ({}mm)" zh="Z 轴已到达限位 ({}mm)"/>
   <translation tag="Z jog feedrate" zh="Z 轴移动速度"/>
   <translation tag="Z motor calibration failed" zh="Z 电机校准失败"/>
+  <translation tag="Z offset by material" zh="按材料 Z 偏移"/>
   <translation tag="Z probes for bed leveling and mesh generation" zh="用于热床调平和网格生成的 Z 探针"/>
   <translation tag="Z tilt" zh="Z倾斜"/>
   <translation tag="Z {:.2f} mm" zh="Z {:.2f} mm"/>
@@ -4810,6 +4831,7 @@
   <translation tag="Z: 0.000" zh="Z: 0.000"/>
   <translation tag="Zone {:.0f}-{:.0f} Hz" zh="区间 {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." zh="[resonance_tester] 没有 probe_points，因此打印头没有进行稳定绕圈的安全高度。"/>
+  <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" zh="在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"/>
   <translation tag="already loaded" zh="已加载"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
@@ -4948,6 +4970,7 @@
   <translation tag="{} axes homed" zh="{} 轴已归位"/>
   <translation tag="{} axis homed" zh="{} 轴已归位"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" zh="无法排除 {}：名称包含无法发送到打印机的字符"/>
+  <translation tag="{} cannot be stored on this printer." zh="{} 无法保存在这台打印机上。"/>
   <translation tag="{} changed" zh="{} 个已更改"/>
   <translation tag="{} command timed out" zh="{} 命令超时"/>
   <translation tag="{} complete" zh="{} 完成"/>

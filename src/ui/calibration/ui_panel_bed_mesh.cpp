@@ -20,6 +20,7 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_panel_common.h"
+#include "ui_settings_material_z_offset.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -43,6 +44,7 @@
 #include "json_utils.h"
 #include "layout_manager.h"
 #include "lvgl.h"
+#include "material_z_offset_state.h"
 #include "moonraker_error.h"
 #include "printer_detector.h"
 #include "printer_state.h"
@@ -1665,7 +1667,51 @@ void BedMeshPanel::finish_calibration(const std::string& profile) {
     hide_all_modals();
     // The profile lives in Klipper's memory until SAVE_CONFIG writes it out.
     pending_operation_ = PendingOperation::Calibrate;
-    show_save_config_modal();
+    if (!offer_material_mesh()) {
+        show_save_config_modal();
+    }
+}
+
+bool BedMeshPanel::offer_material_mesh() {
+    auto& temps = get_printer_state().temperature_state();
+    const int target = lv_subject_get_int(temps.get_bed_target_subject());
+    const int bed_deci = target > 0 ? target : lv_subject_get_int(temps.get_bed_temp_subject());
+    const std::vector<std::string> materials(
+        helix::settings::MaterialZOffsetOverlay::kMaterials.begin() + 1,
+        helix::settings::MaterialZOffsetOverlay::kMaterials.end());
+    const auto offer = helix::material_zoffset::MaterialZOffsetState::instance().mesh_offer(
+        materials, bed_deci / 10);
+    if (!offer) {
+        return false;
+    }
+    const std::string material = offer->first;
+    const std::string profile = offer->second;
+    const std::string title = fmt::format(fmt::runtime(lv_tr("Save as {} mesh?")), material);
+    const std::string message = fmt::format(
+        fmt::runtime(lv_tr("Also keep this mesh for {}. Its prints that do not mesh load it at "
+                           "the start.")),
+        material);
+    helix::ui::ConfirmOptions options;
+    options.cancel_text = lv_tr("Skip");
+    options.on_cancel = [this]() { show_save_config_modal(); };
+    options.on_dismiss = [this]() { show_save_config_modal(); };
+    options.owner_token = lifetime_.token();
+    helix::ui::modal_confirm(
+        title.c_str(), message.c_str(), ModalSeverity::Info, lv_tr("Save"),
+        [this, material, profile]() {
+            save_profile_as(
+                profile,
+                [this, material]() {
+                    NOTIFY_SUCCESS(lv_tr("Mesh kept for {}"), material);
+                    show_save_config_modal();
+                },
+                [this, profile](const std::string& why) {
+                    NOTIFY_ERROR(lv_tr("Could not save the mesh as '{}': {}"), profile, why);
+                    show_save_config_modal();
+                });
+        },
+        options);
+    return true;
 }
 
 void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::string& to) {

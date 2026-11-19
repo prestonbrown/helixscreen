@@ -226,3 +226,23 @@ TEST_CASE_METHOD(MaterialStateFixture,
         CHECK(api.get_uploaded_config("b.cfg") == vars);
     }
 }
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: a fresh mesh is offered to the closest material",
+                 "[material_zoffset][bed_mesh]") {
+    const std::vector<std::string> materials = {"PLA", "PETG", "ABS"};
+    const int petg_bed = mz::usual_bed_temp("PETG");
+    REQUIRE(petg_bed > 0);
+
+    discover_helix_macro();
+    CHECK_FALSE(state().mesh_offer(materials, petg_bed).has_value()); // feature off
+    state().set_enabled(true);
+    auto offer = state().mesh_offer(materials, petg_bed);
+    REQUIRE(offer.has_value());
+    CHECK(offer->first == "PETG");
+    CHECK(offer->second == "helix_petg");
+
+    // The vendor start macro keeps no mesh per material.
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    CHECK_FALSE(state().mesh_offer(materials, petg_bed).has_value());
+}

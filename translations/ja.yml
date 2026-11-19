@@ -116,6 +116,7 @@ translations:
   '1 unit': '1ユニット'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 各ノズルを加熱・拭き取りし、ブラシで清掃できるよう前方に移動します
+  1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. ヘルパーマクロをインストールします。HELIX_MATERIAL_OFFSET とオフセット用の [save_variables] ストアが追加されます。"
   1. Printer homes all axes (~1 minute): 1. プリンターが全軸の原点復帰を行います（約1分）
   1. Printer homes and probes the bed: 1. プリンターがホーミングしてベッドをプローブします
   1. Printer will home and probe each screw: 1. プリンターがホーミングして各ネジをプローブします
@@ -128,6 +129,7 @@ translations:
   180° Upside Down: 180° 上下反転
   2 min: '2分'
   2 minutes: 2分
+  '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. PRINT_START で、ホーミングとプローブの後、独自のメッシュ処理の前に次の行を追加します:"
   2. Jog X and Y until the nozzle is centered over the chute opening: 2. XとYをジョグして、ノズルがシュートの開口部の中心に来るようにします
   2. Jog Y until the nozzle is centered over the chute opening: 2. Yをジョグして、ノズルがシュートの開口部の中心に来るようにします
 
@@ -144,6 +146,7 @@ translations:
   2D Layers: 2Dレイヤー
   3. Adjust screws, then re-probe to verify: 3. ネジを調整し、再度プローブして確認してください
   3. Every toolhead is probed and the offsets are saved: 3. 各ツールヘッドを計測し、オフセットを保存します
+  "3. Have the slicer's start G-code pass the material to PRINT_START:": "3. スライサーの開始 G-code から素材を PRINT_START へ送ります:"
   3. Lower nozzle until paper drags slightly: 3. 紙がわずかに引っかかるまでノズルを下げてください
   3. Save the position: 3. 位置を保存します
 
@@ -177,8 +180,12 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "デルタプリンターはZを動かさずにXとYをホーミングできないため、印刷を再開できません。"
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
+  A first-layer offset and bed mesh for each material: "素材ごとの1層目オフセットとベッドメッシュ"
   A folder name in moonraker.conf is unsafe.: "moonraker.conf のフォルダー名が安全ではありません。"
+  A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "グリッドは保存済みベッドメッシュのある素材を示します。メッシュを取らない印刷の開始時に読み込まれます。"
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
+  ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
+  : "加熱ベッドは温度で膨張するため、素材ごとに1層目のオフセットを持てます。印刷開始マクロがそれを適用し、印刷中の保存はその印刷の素材だけを変更します。"
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。'
   A left, B right: "A左・B右"
@@ -329,6 +336,7 @@ translations:
   Allwinner: Allwinner
   Already connecting — wait a moment and try again: 接続処理中です — 少し待ってからもう一度お試しください
   Already mounted: '装着済み'
+  Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"
   Always Show Bypass Spool: バイパススプールを常に表示
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
@@ -363,6 +371,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。
   Appearance: 外観
   Appearance & Region: "外観と地域"
+  'Applied for this session only: {}': "このセッションのみ適用: {}"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : '{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。'
   Applies to: 適用対象
@@ -485,6 +494,7 @@ translations:
   Bed warming timed out: ベッド加熱がタイムアウトしました
   Bed {}: ベッド {}
   Bed {} / {}: ベッド {} / {}
+  Bed {} °C: "ベッド {} °C"
   Before starting: '開始前に'
   Below target: 目標より低い
   Belt Tension: ベルトテンション
@@ -1029,6 +1039,7 @@ translations:
   "Setup, navigation and gestures": "セットアップ、操作、ジェスチャー"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"
   Unload stopped: 'アンロードを停止しました'
+  Used when a material has no entry: "素材に項目がない場合に使用"
   "User Guide": "ユーザーガイド"
   "Your filament system": "フィラメントシステム"
   '{} could not be checked from Home - review it and tap Print': '{} をホームから確認できませんでした – 内容を確認して印刷をタップしてください'
@@ -2107,6 +2118,7 @@ translations:
   Invert: 反転
   Is the bed clear?: "ベッドは空いていますか？"
   Issue description: 問題の説明
+  It applies after the next Klipper restart.: "次回の Klipper 再起動後に適用されます。"
   It can be un-archived in Spoolman's web UI.: Spoolman の Web 画面でアーカイブを解除できます。
   It has not reported its slots yet. Try again in a moment.: スロットがまだ報告されていません。しばらくしてからもう一度お試しください。
   It homes and heats on its own (no start macro found).: ホーミングと加熱を自分で行います(開始マクロが見つかりません)。
@@ -2474,6 +2486,7 @@ translations:
   Memory: メモリ
   Memory (MB): メモリ (MB)
   Memory Snapshot: メモリースナップショット
+  Mesh kept for {}: "{} 用にメッシュを保存しました"
   Mesh saved as '{}': '"メッシュを ''{}'' として保存しました"'
   Method: 方法
   Min: 最小
@@ -2818,6 +2831,7 @@ translations:
   'Off: runs with these values without asking': 'オフ: これらの値で確認なしに実行'
   Offer to save Z-offset changes to the printer config: 'Z-Offset の変更をプリンター設定に保存する操作を表示します'
   Offset: オフセット
+  Offset per material: "素材ごとのオフセット"
   Offsets Saved: オフセットを保存しました
   Offsets saved: オフセットを保存しました
   Old logs: '古いログ'
@@ -2832,6 +2846,7 @@ translations:
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : '1日1回、1週間より古い印刷コピーと1か月より古いログを削除します。ファイル、写真、タイムラプス動画は残ります。'
   One tap runs this macro. Dangerous macros still ask.: 'ワンタップでこのマクロを実行します。危険なマクロは確認を求めます。'
+  One-time setup: "初回セットアップ"
   'Only on {0}: {1} Hz': "{0}のみ: {1} Hz"
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'このアプリが接続している間のみ有効です。すべての印刷に適用するにはHelixPrintプラグインをインストールしてください。'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'このアプリが接続している間のみ有効です。すべての印刷に適用するにはHelixPrintプラグインを更新してください。'
@@ -3584,6 +3599,7 @@ translations:
   Save Z-Offset: Z-Offset を保存
   Save Z-Offset Buttons: 'Z-Offset 保存ボタン'
   Save Z-Offset?: Z-Offset を保存しますか？
+  Save as {} mesh?: "{} のメッシュとして保存しますか？"
   Save calibration: 校正を保存
   Save changes to persist them across restarts?: 再起動後も変更を保持するために保存しますか？
   'Save failed: {}': '保存に失敗しました: {}'
@@ -3592,9 +3608,12 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
+  Save writes the print's material; off, it saves one offset for every print: "保存は印刷中の素材に書き込みます。オフにすると全印刷で1つのオフセットを保存します"
+  Save {} mm for {}? Other materials keep their own offsets.: "{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"
   Saved Z-Offset: 保存されたZ-Offset
   Saved for the mounted head; other heads keep their own: '装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します'
   "Saved {} mm": "保存値 {} mm"
+  Saved {} mm for {}: "{} mm を {} に保存しました"
   "Saved {} mm, {} mm after Save": "保存値 {} mm、保存後 {} mm"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
@@ -4420,6 +4439,7 @@ translations:
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。'
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
+  This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
@@ -4909,6 +4929,7 @@ translations:
   Z Calibration: Z キャリブレーション
   Z Movement: Z移動
   Z Offset: Zオフセット
+  Z Offset by Material: "素材別 Z-Offset"
   Z Probe: Zプローブ
   Z Range: Z 範囲
   Z Tilt Adjust...: Zチルト調整中...
@@ -4916,6 +4937,7 @@ translations:
   Z is at its limit ({}mm): Z軸は限界に達しています ({}mm)
   Z jog feedrate: Z軸のジョグ移動速度
   Z motor calibration failed: Z モーターの校正に失敗しました
+  Z offset by material: "素材別 Z-Offset"
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   Z tilt: Zチルト
   Z {:.2f} mm: Z {:.2f} mm
@@ -4944,6 +4966,7 @@ translations:
   'Z: 0.000': 'Z: 0.000'
   Zone {:.0f}-{:.0f} Hz: "ゾーン {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。'
+  '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"
   already loaded: '装填済み'
   attempt {}: '試行 {}'
   auto: 自動
@@ -5089,6 +5112,7 @@ translations:
   '{} axes homed': '{} 軸がホーミング済み'
   '{} axis homed': '{} 軸がホーミング済み'
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} は除外できません: 名前にプリンターへ送信できない文字が含まれています'
+  '{} cannot be stored on this printer.': "{} はこのプリンターに保存できません。"
   '{} changed': '変更 {} 件'
   '{} command timed out': '{} コマンドがタイムアウトしました'
   '{} complete': '{} 完了'

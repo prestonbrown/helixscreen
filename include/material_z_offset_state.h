@@ -14,6 +14,8 @@
 
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 typedef struct _lv_subject_t lv_subject_t;
 
@@ -80,11 +82,13 @@ class MaterialZOffsetState {
     using Done = helix::SharedCallback<void(bool ok, const std::string& message)>;
     void save_offset(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
 
-    /// Save the loaded mesh as @p material's profile. Klipper keeps mesh
-    /// profiles in printer.cfg, so this ends in SAVE_CONFIG, which the caller
-    /// runs through its own restart watch; this returns the G-code to send
-    /// before it, or empty when the row stores no mesh for that material.
-    [[nodiscard]] std::string mesh_save_gcode(const std::string& material) const;
+    /// The bed mesh profile a fresh mesh is offered under after a calibration:
+    /// {material, profile} for the material whose usual bed temperature is
+    /// closest to @p bed_c among @p materials, or nullopt when the feature is
+    /// off or the row stores no mesh. Klipper keeps mesh profiles in
+    /// printer.cfg, so saving one is the mesh panel's usual SAVE_CONFIG.
+    [[nodiscard]] std::optional<std::pair<std::string, std::string>>
+    mesh_offer(const std::vector<std::string>& materials, int bed_c) const;
 
     /// Bumped on every change the UI shows: the table, the setting, the target.
     /// nullptr before init_subjects().
