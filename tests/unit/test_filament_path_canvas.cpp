@@ -136,6 +136,11 @@ TEST_CASE("recorded box: hits where it is drawn after the widget moves", "[canva
     REQUIRE(helix::ui::recorded_box_hit({185, 218}, selector, rendered_at, now_at, 4));
     REQUIRE_FALSE(helix::ui::recorded_box_hit({986, 218}, selector, rendered_at, now_at, 4));
     REQUIRE_FALSE(helix::ui::recorded_box_hit({374, 240}, selector, rendered_at, now_at, 4));
+    // A glyph drawn smaller than a finger still takes a finger-sized tap about its center.
+    const lv_area_t meter = {100, 100, 110, 108};
+    CHECK(helix::ui::recorded_box_hit({120, 104}, meter, {0, 0}, {0, 0}, 4, 32));
+    CHECK_FALSE(helix::ui::recorded_box_hit({120, 104}, meter, {0, 0}, {0, 0}, 4));
+    CHECK_FALSE(helix::ui::recorded_box_hit({123, 104}, meter, {0, 0}, {0, 0}, 4, 32));
 }
 
 TEST_CASE("recorded box: unmoved widget reads the box as recorded", "[canvas][hit_test]") {
