@@ -828,6 +828,8 @@ class PrintSelectDetailView : public OverlayBase {
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     helix::Subject detail_gcode_viewer_mode_{};
+    // 1 while the viewer draws 2D although 3D was asked for
+    helix::Subject detail_preview_drawn_2d_{};
     // G-code loading indicator (0=hidden, 1=visible)
     helix::Subject detail_gcode_loading_{};
 

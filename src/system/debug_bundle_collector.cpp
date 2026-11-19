@@ -168,8 +168,9 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     // The launcher records every helix-screen exit code; the app's own log
     // cannot outlive the process it describes.
     try {
-        auto launcher_log =
-            collect_launcher_log(helix::logs::launcher_log_paths(diag.paths.install_root));
+        auto launcher_log = collect_launcher_log(
+            options.log_locator ? options.log_locator("launcher.log")
+                                : helix::logs::launcher_log_paths(diag.paths.install_root));
         if (!launcher_log.empty()) {
             bundle["launcher_log"] = launcher_log;
         }
@@ -306,7 +307,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     LogOrigin klipper_origin;
     if (options.include_klipper_logs) {
         try {
-            klipper_log = collect_klipper_log_tail(8000, &klipper_origin);
+            klipper_log = collect_klipper_log_tail(8000, &klipper_origin, options.log_locator);
         } catch (const std::exception& e) {
             spdlog::warn("[DebugBundle] Failed to collect klipper log: {}", e.what());
         }
@@ -315,7 +316,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     std::string moonraker_log;
     if (options.include_moonraker_logs) {
         try {
-            moonraker_log = collect_moonraker_log_tail();
+            moonraker_log = collect_moonraker_log_tail(8000, options.log_locator);
             if (!moonraker_log.empty()) {
                 bundle["moonraker_log"] = moonraker_log;
             }
@@ -332,7 +333,7 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
             std::string from;
             const std::time_t connected =
                 last_klippy_connection(moonraker_log, LocalEventJournal::instance().snapshot(),
-                                       moonraker_on_this_host(), &from);
+                                       options.log_locator || moonraker_on_this_host(), &from);
             json meta = assess_klipper_log(klipper_origin, last_klippy_log_stamp(klipper_log),
                                            connected, from);
             const std::string banner = stale_klipper_log_banner(meta);
@@ -887,10 +888,65 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         }
 
         std::string result = value;
+        // A pattern that gives up (the matcher's step limit) has not looked at
+        // the rest of the line, so the line is withheld rather than shipped.
+        bool gave_up = false;
+        auto redact = [&](const helix::Regex& re, std::string_view fmt) {
+            bool aborted = false;
+            result = helix::regex_replace(result, re, fmt, &aborted);
+            gave_up = gave_up || aborted;
+        };
 
         // Redact URL credentials: ://user:pass@ -> ://[REDACTED_CREDENTIALS]@
         static const helix::Regex cred_url_re(R"(://[^@/\s]+:[^@/\s]+@)");
-        result = helix::regex_replace(result, cred_url_re, "://[REDACTED_CREDENTIALS]@");
+        redact(cred_url_re, "://[REDACTED_CREDENTIALS]@");
+
+        // A notification URL (Apprise: tgram://, discord://, pover://,
+        // mailto://...) carries its bot token, webhook key or login in the
+        // part after "://". Web, websocket, local socket and file URLs keep a
+        // host or path worth reading; any other scheme keeps just its name.
+        static const helix::Regex service_url_re(
+            R"(\b(?!(?:https?|wss?|unix|file)://)([A-Za-z][A-Za-z0-9+.-]*)://[^\s"'<>]+)",
+            helix::Regex::ICase);
+        redact(service_url_re, "$1://[REDACTED]");
+
+        // A webhook's id is its secret and sits in the path after /webhook/
+        // (Home Assistant) or /webhooks/, on whatever host serves it.
+        static const helix::Regex webhook_path_re(R"((/webhooks?/)[^\s?#"'<>]+)",
+                                                  helix::Regex::ICase);
+        redact(webhook_path_re, "$1[REDACTED]");
+
+        // An Authorization value is a scheme name and its credential, in
+        // whatever shape the scheme takes (Bearer, Basic, Token, Digest k=v
+        // lists): the scheme stays, everything after it goes.
+        static const helix::Regex auth_scheme_re(
+            R"(((?:\b|[_.-])(?:authorization|auth)["']?\s*[:=]\s*[A-Za-z][\w-]*\s+)\S.*)",
+            helix::Regex::ICase);
+        redact(auth_scheme_re, "$1[REDACTED]");
+
+        // A query parameter's value ends at the next & or whitespace.
+        static const helix::Regex query_re(
+            R"(([?&](?:[\w-]*[_-])?(?:password|passwd|token|secret|api[_-]?key|apikey|auth)=)[^&\s#"']*)",
+            helix::Regex::ICase);
+        redact(query_re, "$1[REDACTED]");
+
+        // Redact the value of a credential-named key, keeping the key so the
+        // line still reads: Moonraker writes its config back to its log as
+        // `key = value`, Python dicts print `'api_key': '...'`, wpa_supplicant
+        // writes `psk="..."`. A quoted value ends at its unescaped closing
+        // quote; a bare one runs to the end of the line or the next `key:` /
+        // `key=`. A lone boolean is a setting about a credential
+        // (`enable_api_key = True`), not one.
+        static const helix::Regex key_value_re(
+            R"(((?:\b|[_.-]))"
+            R"((?:password|passwd|passphrase|psk|secret|token|api[_-]?key|apikey|auth|authorization))"
+            R"(["']?\s*[:=]\s*))"
+            R"((?!\[REDACTED|[A-Za-z][\w-]*\s+\[REDACTED\]))"
+            R"((?!(?:true|false|yes|no|none|null|on|off)\s*(?:$|[,;&])))"
+            R"((?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|)"
+            R"([^\s"'].*?(?=\s*$|[,;&]\s*[\w.-]+["']?\s*[:=]|\s+[\w.-]+["']?\s*[:=]|&)))",
+            helix::Regex::ICase);
+        redact(key_value_re, "$1[REDACTED]");
 
         // Redact email addresses. The last label must be alphabetic, because a
         // bare `<word>@<number>.<number><unit>` is a diagnostic value, not an
@@ -898,11 +954,14 @@ std::string DebugBundleCollector::sanitize_value(const std::string& value) {
         // pattern that accepts a numeric final label eats it. No TLD is a
         // single character, so requiring two costs no real address.
         static const helix::Regex email_re(R"(\b[\w.+-]+@[\w-]+(\.[\w-]+)*\.[A-Za-z]{2,}\b)");
-        result = helix::regex_replace(result, email_re, "[REDACTED_EMAIL]");
+        redact(email_re, "[REDACTED_EMAIL]");
 
         // Redact MAC addresses (aa:bb:cc:dd:ee:ff or AA-BB-CC-DD-EE-FF)
         static const helix::Regex mac_re(R"(\b([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}\b)");
-        result = helix::regex_replace(result, mac_re, "[REDACTED_MAC]");
+        redact(mac_re, "[REDACTED_MAC]");
+
+        if (gave_up)
+            return "[REDACTED]";
 
         // Redact globally routable IP addresses, IPv4 and IPv6 alike. Private
         // ones are deliberately kept: 192.168.1.50 is the same address in
@@ -2352,14 +2411,17 @@ std::string DebugBundleCollector::fetch_log_tail(const std::string& base_url,
 // in particular is the one artefact that would say why Moonraker stopped.
 std::string DebugBundleCollector::collect_local_log_tail(const std::string& log_name, int num_lines,
                                                          int condense_max_repeats,
-                                                         LogOrigin* origin) {
+                                                         LogOrigin* origin,
+                                                         const LogLocator& locate) {
     // A remote printer's logs are not on our disk, and reading a same-named file
     // here would attribute this machine's logs to the printer.
-    if (!moonraker_on_this_host())
+    if (!locate && !moonraker_on_this_host())
         return {};
 
     const auto paths =
-        helix::diag::candidate_log_paths(helix::diag::find_moonraker_processes(), log_name);
+        locate
+            ? locate(log_name)
+            : helix::diag::candidate_log_paths(helix::diag::find_moonraker_processes(), log_name);
     if (paths.empty()) {
         spdlog::debug("[DebugBundle] No local path found for {} (no daemon argv to derive it from)",
                       log_name);
@@ -2503,10 +2565,12 @@ std::string DebugBundleCollector::prepend_rotated_predecessor(const std::string&
            " above, active log below ----\n" + active_body;
 }
 
-std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines, LogOrigin* origin) {
-    std::string base_url = get_moonraker_url();
+std::string DebugBundleCollector::collect_klipper_log_tail(int num_lines, LogOrigin* origin,
+                                                           const LogLocator& locate) {
+    const std::string base_url = locate ? std::string{} : get_moonraker_url();
     if (base_url.empty())
-        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats, origin);
+        return collect_local_log_tail("klippy.log", num_lines, kKlipperCondenseMaxRepeats, origin,
+                                      locate);
     int raw_bytes = 0;
     auto body = fetch_log_tail(base_url, "/server/files/klippy.log", num_lines, kKlipperTailBytes,
                                kKlipperCondenseMaxRepeats, &raw_bytes);
@@ -2765,7 +2829,8 @@ json DebugBundleCollector::build_event_journal(bool from_plugin, const json& plu
     return sanitize_json(section);
 }
 
-std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines) {
+std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines,
+                                                             const LogLocator& locate) {
     // moonraker.log used to ship raw against a 512 KiB window. Both were wrong in
     // the same direction: the condenser is shape-based rather than Klipper-specific,
     // so it collapses moonraker's log_request() padding just as well (1524 KiB of a
@@ -2779,9 +2844,10 @@ std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines) {
     // clock rather than uptime seconds, it sees every client rather than just us,
     // and it outlives the Klipper tree: on LYGVE39Y a rollback to Klipper 12 took
     // klippy.log with it while moonraker.log kept the whole incident.
-    std::string base_url = get_moonraker_url();
+    const std::string base_url = locate ? std::string{} : get_moonraker_url();
     if (base_url.empty())
-        return collect_local_log_tail("moonraker.log", num_lines, kMoonrakerCondenseMaxRepeats);
+        return collect_local_log_tail("moonraker.log", num_lines, kMoonrakerCondenseMaxRepeats,
+                                      nullptr, locate);
     int raw_bytes = 0;
     auto body = fetch_log_tail(base_url, "/server/files/moonraker.log", num_lines,
                                kMoonrakerTailBytes, kMoonrakerCondenseMaxRepeats, &raw_bytes);

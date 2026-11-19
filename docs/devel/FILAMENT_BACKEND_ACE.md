@@ -41,6 +41,15 @@ whichever of these the printer is running:
 - **Path 4 (multiACE)** is ACE Pro hardware on a **Snapmaker U1**, and it is the one path
   the ACE backend is deliberately kept away from - see the section below.
 
+> **Not on this table because another backend reads them:** an ACE run as an AFC unit
+> (`AFC_ACE <name>` / `AFC_ACE2 <name>` on AFC's DEV branch) belongs to `AmsBackendAfc`
+> ([FILAMENT_BACKEND_AFC.md](FILAMENT_BACKEND_AFC.md)). Forks of the Path 3 driver
+> (ducati1198/acepro-any-klipper, Yheffe/KLIPPACE) publish the Path 3 surface, but KLIPPACE
+> also registers a Happy Hare `mmu` shim that detection currently hands to the Happy Hare
+> backend. ace2k (replacement ACE 2 firmware, `ace2k*` objects) has no backend. The project
+> family tree and per-project notes:
+> [printer-research/ANYCUBIC_ACE_DRIVER_LANDSCAPE.md](printer-research/ANYCUBIC_ACE_DRIVER_LANDSCAPE.md).
+
 > The sections below (`filament_hub` schema, REST endpoints, etc.) document Paths 1-3,
 > which the backend handles today. Path 4 is documented in its own section; detection
 > recognises it and hands the printer back to the U1 backend, so the schema work below

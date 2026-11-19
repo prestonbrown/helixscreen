@@ -42,7 +42,7 @@
     <prop name="gradient_hidden" type="string" default=""/>
     <prop name="viewer_hidden" type="string"/>
     <prop name="thumbnail_hidden" type="string"/>
-    <prop name="hint_hidden" type="string"/>
+    <prop name="hint_hidden_when" type="string"/>
     <!-- Optional. Deliberately declared WITHOUT a default: an unset prop with no
          default has its attribute dropped entirely, where an empty default would
          reach lv_xml_get_subject("") and log "No subject was found" on every
@@ -79,12 +79,16 @@
       <bind_flag_if cond="$thumbnail_hidden" flag="hidden"/>
     </lv_image>
 
-    <!-- 3D-only affordance. Top-right of the stack, which is the top-right of
+    <!-- 3D-only: says the model can be rotated, and a tap puts the camera back
+         to the default view. Top-right of the stack, which is the top-right of
          the host card: every host puts its metadata strip at the bottom. -->
-    <lv_label name="$hint_name"
-              text="#icon_rotate_3d" style_text_font="mdi_icons_24" style_text_color="#text_muted" style_text_opa="180"
-              align="top_right" style_translate_x="-12" style_translate_y="#space_md">
-      <bind_flag_if cond="$hint_hidden" flag="hidden"/>
-    </lv_label>
+    <ui_button name="$hint_name"
+               width="content" height="content" variant="ghost" style_pad_all="#space_xs" style_border_width="0"
+               ext_click_area="12" focusable="false" align="top_right" style_translate_x="-8"
+               style_translate_y="#space_sm">
+      <bind_flag_if cond="$hint_hidden_when" flag="hidden"/>
+      <event_cb trigger="clicked" callback="on_gcode_preview_reset_view"/>
+      <icon src="rotate_3d" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
+    </ui_button>
   </view>
 </component>

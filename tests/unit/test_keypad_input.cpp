@@ -479,3 +479,16 @@ TEST_CASE("KeypadInput Number mode ignores the Ipv4 rules", "[keypad][ipv4]") {
     CHECK_FALSE(type_keys(kp, ".5.5")); // one dot only
     CHECK(std::string(kp.text()) == "9999.5");
 }
+
+TEST_CASE("KeypadInput types a whole value key by key", "[keypad]") {
+    KeypadInput kp;
+    REQUIRE(type_keys(kp, "7"));
+    CHECK(kp.type("12.5"));
+    CHECK(std::string(kp.text()) == "12.5");
+    kp.max_int_digits = 2;
+    CHECK_FALSE(kp.type("500")); // a refused key leaves the draft empty
+    CHECK(std::string(kp.text()).empty());
+    kp.allow_sign = true;
+    CHECK(kp.type("-3"));
+    CHECK(kp.value() == -3.0f);
+}

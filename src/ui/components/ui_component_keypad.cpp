@@ -54,6 +54,8 @@ static char keypad_unit_buf[16] = "";
 static helix::Subject keypad_allow_decimal_subject;
 // Shows the +/- key, only on fields whose range reaches below zero.
 static helix::Subject keypad_allow_negative_subject;
+// Shows the reset key, only on fields that name a default.
+static helix::Subject keypad_has_default_subject;
 
 /// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
 /// overlay on the stack, and the keypad is almost never that - it opens over a temp
@@ -85,6 +87,17 @@ static float temperature_min_c = 0.0f;
 static float temperature_max_c = 0.0f;
 // Set by a confirm: the close that follows is not a cancel, and carries this value.
 static bool confirmed = false;
+
+/// @p value as the keys would type it: plain decimal digits, never exponent form,
+/// with no trailing fractional zeros.
+static std::string keypad_plain_decimal(float value) {
+    std::string text = fmt::format("{:.6f}", value);
+    text.erase(text.find_last_not_of('0') + 1); // "{:.6f}" always writes a '.'
+    if (text.back() == '.') {
+        text.pop_back();
+    }
+    return text;
+}
 static float confirmed_value = 0.0f;
 static std::string confirmed_text;
 static helix::ui::KeypadInput input;
@@ -111,6 +124,7 @@ void ui_keypad_init_subjects() {
     UI_MANAGED_SUBJECT_STRING(keypad_unit_subject, keypad_unit_buf, "", "keypad_unit", subjects_);
     UI_MANAGED_SUBJECT_INT(keypad_allow_decimal_subject, 1, "keypad_allow_decimal", subjects_);
     UI_MANAGED_SUBJECT_INT(keypad_allow_negative_subject, 0, "keypad_allow_negative", subjects_);
+    UI_MANAGED_SUBJECT_INT(keypad_has_default_subject, 0, "keypad_has_default", subjects_);
 
     subjects_initialized = true;
 
@@ -189,6 +203,15 @@ void ui_keypad_init(lv_obj_t* parent) {
          [](lv_event_t*) {
              helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
          }},
+        {"on_keypad_default",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_default", []() {
+                 if (current_config.default_value &&
+                     input.retype(keypad_plain_decimal(*current_config.default_value).c_str())) {
+                     update_display();
+                 }
+             });
+         }},
         {"on_keypad_sign",
          [](lv_event_t*) {
              helix::ui::event_safe_call("keypad_sign", []() {
@@ -265,14 +288,7 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_decimal_subject, 1);
         lv_subject_set_int(&keypad_allow_negative_subject, 0);
         // Typed key by key, so a prefill the keys could not produce starts empty.
-        for (char ch : config->initial_text) {
-            const bool ok = ch == '.' ? input.append_dot()
-                                      : (ch >= '0' && ch <= '9' && input.append_digit(ch - '0'));
-            if (!ok) {
-                input.clear();
-                break;
-            }
-        }
+        input.type(config->initial_text.c_str());
     } else {
         input.allow_dot = config->allow_decimal;
         lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
@@ -280,6 +296,13 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
     }
 
+    // A default outside the field's range could only be refused on Set.
+    const bool default_in_range = config->default_value &&
+                                  *config->default_value >= config->min_value &&
+                                  *config->default_value <= config->max_value;
+    lv_subject_set_int(
+        &keypad_has_default_subject,
+        config->mode == helix::ui::KeypadInput::Mode::Number && default_in_range ? 1 : 0);
     lv_subject_set_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
     // Update display via subject (reactive binding updates XML automatically)
@@ -347,6 +370,17 @@ ui_keypad_config_t helix::ui::keypad_config_in_unit(const ui_keypad_config_t& co
         static_cast<float>(std::floor(units::celsius_to_unit(config.max_value, unit)));
     shown.initial_value =
         static_cast<float>(units::celsius_to_unit_whole(config.initial_value, unit));
+    if (config.default_value) {
+        float shown_default =
+            static_cast<float>(units::celsius_to_unit_whole(*config.default_value, unit));
+        // Rounding to a whole display degree can step a default on a Celsius bound
+        // just past the narrowed range; it stays the bound it was.
+        if (*config.default_value >= config.min_value &&
+            *config.default_value <= config.max_value) {
+            shown_default = std::clamp(shown_default, shown.min_value, shown.max_value);
+        }
+        shown.default_value = shown_default;
+    }
     shown.unit_label = units::temp_unit_symbol(unit);
     return shown;
 }
@@ -366,7 +400,7 @@ float helix::ui::keypad_value_to_celsius(float typed, float min_c, float max_c,
 
 void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
                                        ui_keypad_callback_t callback, void* user_data,
-                                       const char* log_name) {
+                                       const char* log_name, std::optional<float> default_value) {
     const SliderScale scale{spec.divisor};
     ui_keypad_config_t config = {
         .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
@@ -378,6 +412,7 @@ void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& 
         .allow_negative = false,
         .callback = callback,
         .user_data = user_data};
+    config.default_value = default_value;
 
     spdlog::debug("[{}] Keypad for {} ({}-{})", log_name, spec.title, config.min_value,
                   config.max_value);

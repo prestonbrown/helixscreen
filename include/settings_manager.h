@@ -301,6 +301,11 @@ class SettingsManager {
         settings_.set(Key::ExtrudeSpeed, mm_per_sec);
     }
 
+    /// Shipped extrude speed in mm/s.
+    int get_extrude_speed_default() const {
+        return settings_.default_of(Key::ExtrudeSpeed);
+    }
+
     /// Sets extrude_speed to kExtrudeSpeedPresets[@p index]; an index outside the
     /// list changes nothing.
     void set_extrude_speed_preset(uint32_t index) {
@@ -327,6 +332,11 @@ class SettingsManager {
     /// Length of preset button @p index in mm; an index outside the presets reads 0.
     int get_extrude_length_preset(int index) const {
         return extrude_length_key(index) ? settings_.get(*extrude_length_key(index)) : 0;
+    }
+
+    /// Shipped length of preset button @p index in mm; an index outside the presets reads 0.
+    int get_extrude_length_default(int index) const {
+        return extrude_length_key(index) ? settings_.default_of(*extrude_length_key(index)) : 0;
     }
 
     /// Sets preset button @p index to @p mm (clamped to kExtrudeLengthMinMm..MaxMm,
@@ -361,6 +371,11 @@ class SettingsManager {
         settings_.set(Key::JogSpeedZ, mm_per_min);
     }
 
+    /// Shipped jog feedrate in mm/min, Z's when @p z.
+    int get_jog_speed_default(bool z) const {
+        return settings_.default_of(z ? Key::JogSpeedZ : Key::JogSpeedXy);
+    }
+
     /** @brief Get whether the motion readout shows actual (live) position
      *  (default false: commanded position) */
     bool get_motion_show_actual_position() const {
@@ -388,6 +403,11 @@ class SettingsManager {
         settings_.set(Key::BedMapClearance, mm);
     }
 
+    /// Shipped Bed-tab clearance height in mm.
+    int get_bed_map_clearance_default_mm() const {
+        return settings_.default_of(Key::BedMapClearance);
+    }
+
     /** @brief Motion panel Jog-tab layout (default Pad) */
     MotionLayout get_motion_layout() const {
         return static_cast<MotionLayout>(settings_.get(Key::MotionLayout));
@@ -413,6 +433,9 @@ class SettingsManager {
 
     /** @brief Set the jog step distance in mm (clamped 0.01-200, persisted) */
     void set_jog_distance(JogMode mode, bool outer, float mm);
+
+    /** @brief Shipped jog step distance in mm for a mode and ring */
+    static float get_jog_distance_default(JogMode mode, bool outer);
 
     /**
      * @brief Re-read every persisted setting and the jog distance cache from Config.

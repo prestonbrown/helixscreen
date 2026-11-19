@@ -872,6 +872,7 @@ translations:
   Completed {}h ago: Completed {}h ago
   Completed {}m ago: Completed {}m ago
   Compressed: Compressed
+  'Compressed: filament arrives faster than it is used': 'Compressed: filament arrives faster than it is used'
   Computing calibration...: Computing calibration...
   Config Dir: Config Dir
   Config Edit Failed: Config Edit Failed
@@ -1418,6 +1419,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Exhaust: keep chamber at or below'
   Exit Code: Exit Code
   Expanded: Expanded
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Expanded: the toolhead pulls filament faster than it arrives'
   Expected boolean: Expected boolean
   Expected float: Expected float
   Explore how the selected palette shapes text, controls, and status colors.: Explore how the selected palette shapes text, controls, and status colors.
@@ -1602,7 +1604,6 @@ translations:
   Feed the filament back: Feed the filament back
   Feeder: Feeder
   Feeders: Feeders
-  Feeding filament forward: Feeding filament forward
   Feeding filament to nozzle: Feeding filament to nozzle
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
@@ -2261,6 +2262,7 @@ translations:
   Load filament first: Load filament first
   Load filament to the toolhead, then tap Resume.: Load filament to the toolhead, then tap Resume.
   Load into which tool?: Load into which tool?
+  Push filament into the toolhead by hand, then tap Resume.: Push filament into the toolhead by hand, then tap Resume.
   Load it in the filament panel, then tap Resume.: Load it in the filament panel, then tap Resume.
   Load or unload filament.: Load or unload filament.
   Load Profile: Load Profile
@@ -2909,6 +2911,7 @@ translations:
   Paused: Paused
   Paused (attention needed): Paused (attention needed)
   Paused by a command: Paused by a command
+  'Paused by {}: {}': 'Paused by {}: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   Pausing at layer {}.: Pausing at layer {}.
@@ -3189,7 +3192,6 @@ translations:
   Pull: Pull
   Pull now: Pull now
   Pulled: Pulled
-  Pulling filament back: Pulling filament back
   Purge: Purge
   Purge & Wipe: Purge & Wipe
   Purge Chute Calibration: Purge Chute Calibration

@@ -545,6 +545,7 @@ PrintStatusPanel::~PrintStatusPanel() {
     // delete_hook_root_ means the tree already died (the hook fired) or the
     // explicit teardown path removed it — nothing left to uninstall.
     uninstall_root_delete_hook(delete_hook_root_, on_root_deleted, this);
+    disarm_viewer_callbacks();
 
 #if HELIX_HAS_CAMERA
     // The camera image can outlive this panel with the tree; clear it before
@@ -618,6 +619,9 @@ void PrintStatusPanel::init_subjects() {
 
     // Viewer mode subject (0=thumbnail, 1=3D gcode viewer, 2=2D gcode viewer)
     UI_MANAGED_SUBJECT_INT(gcode_viewer_mode_subject_, 0, "gcode_viewer_mode", subjects_);
+    // 1 while the viewer draws in 2D although 3D was asked for (memory budget,
+    // GPU fallback); hides the 3D-only reset-view button.
+    UI_MANAGED_SUBJECT_INT(preview_drawn_2d_subject_, 0, "print_preview_drawn_2d", subjects_);
     UI_MANAGED_SUBJECT_INT(exclude_map_active_subject_, 0, "exclude_map_active", subjects_);
     UI_MANAGED_SUBJECT_INT(camera_available_subject_, 0, "print_status_camera_available",
                            subjects_);
@@ -1005,6 +1009,13 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         spdlog::debug("[{}]   ✓ G-code viewer widget found", get_name());
 
         helix::ui::apply_preview_render_mode(gcode_viewer_, get_name());
+        helix::ui::gcode_viewer_set_render_path_callback(
+            gcode_viewer_,
+            [](lv_obj_t* /*viewer*/, void* user_data, bool drawn_3d) {
+                auto* self = static_cast<PrintStatusPanel*>(user_data);
+                lv_subject_set_int(&self->preview_drawn_2d_subject_, drawn_3d ? 0 : 1);
+            },
+            this);
 
         // Create and initialize exclude object manager
         exclude_manager_ = std::make_unique<helix::ui::PrintExcludeObjectManager>(
@@ -1386,7 +1397,16 @@ void PrintStatusPanel::on_root_deleted(lv_event_t* e) {
                        self->printer_state_.print_state().get_print_lifecycle());
 }
 
+void PrintStatusPanel::disarm_viewer_callbacks() {
+    // The callback carries `this`; the viewer can outlive this panel. The
+    // WidgetRef is null once the viewer is gone.
+    if (gcode_viewer_) {
+        helix::ui::gcode_viewer_set_render_path_callback(gcode_viewer_, nullptr, nullptr);
+    }
+}
+
 void PrintStatusPanel::forget_cached_widgets() {
+    disarm_viewer_callbacks();
     preview_.detach_widgets();
     if (exclude_manager_) {
         exclude_manager_->detach_gcode_viewer();
@@ -2218,11 +2238,18 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
     } else if (pending == helix::ui::PendingAction::Resuming) {
         reason = lv_tr("Resuming...");
     } else if (paused) {
-        if (!helix::non_filament_pause::explained() &&
-            FilamentSensorManager::instance().has_real_runout()) {
+        const std::optional<int> runout_lane =
+            helix::non_filament_pause::explained()
+                ? std::nullopt
+                : FilamentSensorManager::instance().real_runout_lane();
+        if (runout_lane.has_value()) {
+            // Name the lane that ran out, which a pause on an idle head's
+            // runout leaves different from the current one.
             AmsBackend* backend = AmsState::instance().get_backend();
-            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(),
-                                                               backend->get_current_slot())
+            const int named = *runout_lane >= 0 ? *runout_lane
+                              : backend         ? backend->get_current_slot()
+                                                : -1;
+            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(), named)
                                        : std::string();
             reason = lane.empty() ? std::string(lv_tr("Filament Runout"))
                                   : std::string(lv_tr("Filament Runout")) + " (" + lane + ")";

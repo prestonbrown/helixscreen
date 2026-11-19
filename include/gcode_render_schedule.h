@@ -3,6 +3,7 @@
 
 #include "geometry_budget_manager.h"
 
+#include <atomic>
 #include <cstddef>
 
 namespace helix::gcode::render_schedule {
@@ -37,6 +38,19 @@ inline float update_rate(float prev_rate, size_t triangles, float elapsed_ms) {
     return prev_rate + kRateSmoothing * (sample - prev_rate);
 }
 
+/// Triangles one moving frame may draw at `rate`: the moving plan's budget, and
+/// the size the moving mesh is built to.
+inline size_t moving_budget_triangles(float rate) {
+    return static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+}
+
+/// The rate the latest 3D draw in this process measured, 0 before any. One GPU
+/// serves every viewer, so a file opened later sizes its moving mesh from it.
+inline std::atomic<float>& last_measured_rate() {
+    static std::atomic<float> rate{0.0f};
+    return rate;
+}
+
 /// Triangles the next still-frame slice may submit.
 inline size_t slice_quota(float rate) {
     const auto quota = static_cast<size_t>(effective_rate(rate) * kSliceTargetMs);
@@ -56,7 +70,7 @@ struct MovingPlan {
 /// when it fits, at half resolution when even it overflows); with no mesh the
 /// smallest layer stride that fits, at half resolution.
 inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, float rate) {
-    auto budget = static_cast<size_t>(effective_rate(rate) * kMovingBudgetMs);
+    auto budget = moving_budget_triangles(rate);
     if (budget == 0) {
         budget = 1;
     }
@@ -69,10 +83,41 @@ inline MovingPlan plan_moving(size_t total_triangles, size_t mesh_triangles, flo
     return {false, static_cast<int>((total_triangles + budget - 1) / budget), true};
 }
 
+/// Keeps a gesture at half resolution once one of its frames needed it. The
+/// measured rate is triangles per millisecond, but a half-resolution frame
+/// also fills a quarter of the pixels, so its sample overstates what a
+/// full-resolution frame can do. Planning from it alone flips the next frame
+/// back to full resolution, which overruns the budget, and every flip
+/// reallocates the framebuffer.
+inline MovingPlan hold_half_resolution(MovingPlan plan, bool held) {
+    if (held) {
+        plan.half_resolution = true;
+    }
+    return plan;
+}
+
+/// A moving frame slower than this, already at half resolution, leaves the
+/// model unusable to rotate: under ~7 frames a second.
+constexpr float kMaxUsableMovingFrameMs = 150.0f;
+/// Consecutive such frames before the 3D preview gives way to 2D.
+constexpr int kSlowMovingFramesToFallBack = 5;
+
+/// Count one moving frame's wall time (draw and readback) into `slow_streak`;
+/// true once enough consecutive frames were too slow to rotate. A frame still
+/// at full resolution never counts: the plan has a cheaper rung left for it.
+inline bool moving_too_slow(int& slow_streak, float frame_ms, bool half_resolution) {
+    if (!half_resolution || frame_ms <= kMaxUsableMovingFrameMs) {
+        slow_streak = 0;
+        return false;
+    }
+    return ++slow_streak >= kSlowMovingFramesToFallBack;
+}
+
 /// How the moving mesh is banded.
 struct BandPlan {
-    int band_layers;           ///< layers one shell band covers (1 = off)
-    bool surfaces_every_layer; ///< keep top/bottom/bridge skins on every layer, not every n-th
+    int band_layers;            ///< layers one shell band covers
+    bool surfaces_every_layer;  ///< keep top/bottom/bridge skins on every layer, not every n-th
+    bool exterior_only = false; ///< a plan exists: build exterior features only (false = off)
 };
 
 /// Plan the moving mesh. `shell_segments` are band-tall exterior extrusions (walls), which
@@ -80,24 +125,26 @@ struct BandPlan {
 /// regardless of the stride: horizontal skins plus the whole first layer. Surfaces are what
 /// keep the model from reading as hollow, so they get their share of the budget first, as
 /// long as that share is at most half; past that they are strided with the shell. The mesh
-/// draws at 4 tube sides, so its triangles per segment are kTrisPerSegN4. The floor of 2
-/// keeps bands from degenerating into the full-resolution build. 0 budget (no planning rate
-/// at all) means no mesh, so the answer is the off value.
+/// draws at 4 tube sides, so its triangles per segment are kTrisPerSegN4. A budget that
+/// holds every layer's exterior gets 1-layer bands: exterior features on every layer, which
+/// a fast GPU can afford and which still drops the infill. 0 budget (no planning rate at
+/// all) means no mesh, so the answer is the off value.
 inline BandPlan plan_bands(size_t shell_segments, size_t surface_segments,
                            size_t budget_triangles) {
     if (budget_triangles == 0) {
-        return {1, false};
+        return {1, false, false};
     }
     constexpr size_t kTris = GeometryBudgetManager::kTrisPerSegN4;
     auto layers_for = [](size_t triangles, size_t budget) {
         const size_t layers = (triangles + budget - 1) / budget; // ceil divide
-        return static_cast<int>(layers < 2 ? 2 : layers);
+        return static_cast<int>(layers < 1 ? 1 : layers);
     };
     const size_t surface_triangles = surface_segments * kTris;
     if (surface_triangles * 2 <= budget_triangles) {
-        return {layers_for(shell_segments * kTris, budget_triangles - surface_triangles), true};
+        return {layers_for(shell_segments * kTris, budget_triangles - surface_triangles), true,
+                true};
     }
-    return {layers_for((shell_segments + surface_segments) * kTris, budget_triangles), false};
+    return {layers_for((shell_segments + surface_segments) * kTris, budget_triangles), false, true};
 }
 
 /// Deepest band a still image may use. Past this the steps read at fit zoom
@@ -106,12 +153,12 @@ constexpr int kMaxStillBandLayers = 4;
 
 /// Band plan for a still that the GPU triangle cap refused at full layer
 /// resolution: the same banding as the moving mesh, sized to the cap. A
-/// band_layers of 1 means no 3D still fits and the viewer stays 2D.
+/// plan that is not exterior_only means no 3D still fits and the viewer stays 2D.
 inline BandPlan plan_still_bands(size_t shell_segments, size_t surface_segments,
                                  size_t max_triangles) {
     const BandPlan p = plan_bands(shell_segments, surface_segments, max_triangles);
     if (p.band_layers > kMaxStillBandLayers) {
-        return {1, false};
+        return {1, false, false};
     }
     return p;
 }

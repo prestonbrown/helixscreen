@@ -891,12 +891,12 @@ struct AmsAlert {
     int slot_index = -1; ///< For SLOT level (-1 = N/A)
 };
 
-/// Which way a filament buffer is driving filament, translated by the backend
-/// from its firmware's own vocabulary.
+/// The physical shape of a filament buffer, translated by the backend from its
+/// firmware's own words (AFC's name its motor's response: afc::buffer_motion()).
 enum class BufferMotion : int {
-    Unknown = 0,   ///< Not reported, or a state with no direction (idle, neutral)
-    Advancing = 1, ///< Feeding filament forward: the buffer is compressed
-    Trailing = 2,  ///< Pulling filament back: the buffer is in tension
+    Unknown = 0,    ///< Not reported, or a state with no direction (idle, neutral)
+    Compressed = 1, ///< Filament arrives faster than the toolhead uses it
+    Expanded = 2,   ///< The toolhead pulls filament faster than it arrives
 };
 
 /// What a spool motor (Happy Hare's eSpooler) is doing, translated by the

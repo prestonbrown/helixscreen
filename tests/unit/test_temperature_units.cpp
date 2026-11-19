@@ -199,11 +199,13 @@ TEST_CASE("temperature units: the keypad takes °F and hands back whole Celsius"
     config.max_value = 287;
     config.unit_label = "°C";
     config.temperature = true;
+    config.default_value = 287; // 548.6°F rounds to 549, past the narrowed range
 
     const ui_keypad_config_t shown = helix::ui::keypad_config_in_unit(config, kF);
     CHECK(shown.initial_value == 410.0f);
     CHECK(shown.min_value == 32.0f);
     CHECK(shown.max_value == 548.0f); // 548.6, narrowed inside the Celsius range
+    CHECK(shown.default_value == 548.0f);
     CHECK(std::string(shown.unit_label) == "°F");
 
     CHECK(helix::ui::keypad_value_to_celsius(410, 0, 287, kF) == 210.0f);

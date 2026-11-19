@@ -355,9 +355,12 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
         return last_url_;
     }
     void set_auto_reconnect(bool) override {}
-    int gcode_script(const std::string&) override {
+    int gcode_script(const std::string& script) override {
+        gcode_scripts.push_back(script);
         return 0;
     }
+    /// Every gcode_script() sent, oldest first.
+    std::vector<std::string> gcode_scripts;
     void get_gcode_store(int count, std::function<void(const std::vector<GcodeStoreEntry>&)>,
                          helix::SharedCallback<void(const MoonrakerError&)>) override {
         last_gcode_store_count = count;

@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" zh="{} 分钟前完成"/>
   <translation tag="Completed: {}" zh="已完成：{}"/>
   <translation tag="Compressed" zh="压缩"/>
+  <translation tag="Compressed: filament arrives faster than it is used" zh="压缩：耗材送入快于消耗"/>
   <translation tag="Computing calibration..." zh="正在计算校准..."/>
   <translation tag="Config Dir" zh="配置目录"/>
   <translation tag="Config Edit Failed" zh="配置编辑失败"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" zh="排气：将腔体保持在不高于"/>
   <translation tag="Exit Code" zh="退出代码"/>
   <translation tag="Expanded" zh="伸展"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" zh="伸展：打印头拉动耗材快于送入"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
   <translation tag="Expected float" zh="需要小数值"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." zh="探索所选调色板如何影响文本、控件和状态颜色。"/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" zh="重新送入耗材"/>
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
-  <translation tag="Feeding filament forward" zh="正在向前送料"/>
   <translation tag="Feeding filament to nozzle" zh="正在向喷嘴送料"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Buffer" zh="耗材缓冲区"/>
@@ -2844,6 +2845,7 @@
   <translation tag="Paused" zh="已暂停"/>
   <translation tag="Paused (attention needed)" zh="已暂停（需要处理）"/>
   <translation tag="Paused by a command" zh="由命令暂停"/>
+  <translation tag="Paused by {}: {}" zh="由 {} 暂停：{}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." zh="在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。"/>
   <translation tag="Pausing at layer {}." zh="将在第 {} 层暂停。"/>
   <translation tag="Pausing..." zh="暂停中..."/>
@@ -3123,7 +3125,6 @@
   <translation tag="Pull" zh="拉出"/>
   <translation tag="Pull now" zh="立即拉出"/>
   <translation tag="Pulled" zh="已拉出"/>
-  <translation tag="Pulling filament back" zh="正在回抽耗材"/>
   <translation tag="Purge" zh="排料"/>
   <translation tag="Purge &amp; Wipe" zh="排料与擦拭"/>
   <translation tag="Purge Chute Calibration" zh="排料口校准"/>
@@ -3140,6 +3141,7 @@
   <translation tag="Purging nozzle" zh="正在清洗喷嘴"/>
   <translation tag="Purging old filament" zh="正在清除旧耗材"/>
   <translation tag="Purging..." zh="正在清料..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." zh="请用手将耗材推入工具头，然后点按恢复。"/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." zh="将清洁耗材推入挤出机直到推不动,然后点击挤出。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." zh="将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"/>
   <translation tag="QGL" zh="QGL"/>

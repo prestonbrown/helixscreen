@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" es="Completado hace {} min"/>
   <translation tag="Completed: {}" es="Completado: {}"/>
   <translation tag="Compressed" es="Comprimido"/>
+  <translation tag="Compressed: filament arrives faster than it is used" es="Comprimido: el filamento llega más rápido de lo que se usa"/>
   <translation tag="Computing calibration..." es="Calculando calibración..."/>
   <translation tag="Config Dir" es="Directorio de Configuración"/>
   <translation tag="Config Edit Failed" es="Error al editar la configuración"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" es="Escape: mantener la cámara a un máximo de"/>
   <translation tag="Exit Code" es="Código de salida"/>
   <translation tag="Expanded" es="Expandido"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" es="Expandido: el cabezal tira del filamento más rápido de lo que llega"/>
   <translation tag="Expected boolean" es="Se esperaba un valor booleano"/>
   <translation tag="Expected float" es="Se esperaba un número decimal"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." es="Explore cómo la paleta seleccionada da forma a los colores de texto, controles y estado."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" es="Vuelve a introducir el filamento"/>
   <translation tag="Feeder" es="Alimentador"/>
   <translation tag="Feeders" es="Alimentadores"/>
-  <translation tag="Feeding filament forward" es="Avanzando filamento"/>
   <translation tag="Feeding filament to nozzle" es="Avanzando filamento a la boquilla"/>
   <translation tag="Filament" es="Filamento"/>
   <translation tag="Filament Buffer" es="Búfer de filamento"/>
@@ -2844,6 +2845,7 @@
   <translation tag="Paused" es="Pausado"/>
   <translation tag="Paused (attention needed)" es="Pausado (requiere atención)"/>
   <translation tag="Paused by a command" es="Pausado por un comando"/>
+  <translation tag="Paused by {}: {}" es="Pausado por {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." es="Pausa una impresión en una capa elegida, para cambiar filamento o colocar una pieza. Durante la impresión, elige la capa en la tarjeta de vista previa de la pantalla de estado."/>
   <translation tag="Pausing at layer {}." es="Pausa en la capa {}."/>
   <translation tag="Pausing..." es="Pausando..."/>
@@ -3123,7 +3125,6 @@
   <translation tag="Pull" es="Tirar"/>
   <translation tag="Pull now" es="Tire ahora"/>
   <translation tag="Pulled" es="Extraído"/>
-  <translation tag="Pulling filament back" es="Retrayendo filamento"/>
   <translation tag="Purge" es="Purgar"/>
   <translation tag="Purge &amp; Wipe" es="Purgar y limpiar"/>
   <translation tag="Purge Chute Calibration" es="Calibración del conducto de purga"/>
@@ -3140,6 +3141,7 @@
   <translation tag="Purging nozzle" es="Purgando boquilla"/>
   <translation tag="Purging old filament" es="Purgando filamento anterior"/>
   <translation tag="Purging..." es="Purgando..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." es="Introduzca el filamento a mano en el cabezal y luego toque Reanudar."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." es="Empuje el filamento de limpieza en el extrusor hasta el tope y pulse Extruir."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." es="Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."/>
   <translation tag="QGL" es="QGL"/>

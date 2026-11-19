@@ -310,6 +310,19 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
                   message);
 }
 
+namespace {
+constexpr const char* kSeenFansKey = "hardware/seen_fans";
+constexpr const char* kSeenHeatersKey = "hardware/seen_heaters";
+
+void add_unseen(std::vector<std::string>& seen, const std::vector<std::string>& names) {
+    for (const auto& name : names) {
+        if (std::find(seen.begin(), seen.end(), name) == seen.end()) {
+            seen.push_back(name);
+        }
+    }
+}
+} // namespace
+
 void HardwareValidator::save_session_snapshot(Config* config,
                                               const helix::PrinterDiscovery& hardware) {
     if (!config) {
@@ -325,6 +338,13 @@ void HardwareValidator::save_session_snapshot(Config* config,
     char ts_buf[32];
     std::strftime(ts_buf, sizeof(ts_buf), "%Y-%m-%dT%H:%M:%SZ", &tm_buf);
     snapshot.timestamp = ts_buf;
+
+    // Read before the snapshot below replaces the one it folds in.
+    helix::SeenHardware seen = load_seen_hardware(config);
+    add_unseen(seen.fans, snapshot.fans);
+    add_unseen(seen.heaters, snapshot.heaters);
+    config->set<json>(config->df() + kSeenFansKey, seen.fans);
+    config->set<json>(config->df() + kSeenHeatersKey, seen.heaters);
 
     config->set<json>(config->df() + "hardware/last_snapshot", snapshot.to_json());
     config->save();
@@ -362,6 +382,21 @@ std::optional<HardwareSnapshot> HardwareValidator::load_session_snapshot(Config*
 
     spdlog::debug("[HardwareValidator] Loaded previous snapshot from {}", snapshot.timestamp);
     return snapshot;
+}
+
+helix::SeenHardware HardwareValidator::load_seen_hardware(Config* config) {
+    helix::SeenHardware seen;
+    if (!config) {
+        return seen;
+    }
+    seen.fans = config->get_string_array(config->df() + kSeenFansKey);
+    seen.heaters = config->get_string_array(config->df() + kSeenHeatersKey);
+    // The last snapshot predates the record on a config that has not saved one yet.
+    if (auto snapshot = load_session_snapshot(config)) {
+        add_unseen(seen.fans, snapshot->fans);
+        add_unseen(seen.heaters, snapshot->heaters);
+    }
+    return seen;
 }
 
 bool HardwareValidator::is_hardware_optional(Config* config, const std::string& hardware_name) {

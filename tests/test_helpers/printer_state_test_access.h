@@ -35,6 +35,7 @@ class PrinterPrintStateTestAccess {
         pps.printer_reports_layers_ = false;
         pps.slicer_progress_ = 0.0;
         pps.slicer_progress_active_ = false;
+        pps.file_progress_fraction_ = -1.0;
         pps.eta_estimator_.reset();
         pps.sdcard_active_ = false;
         // print_stats.exception parses under Moonraker delta semantics: an
@@ -44,6 +45,7 @@ class PrinterPrintStateTestAccess {
         pps.print_exception_id_ = -1;
         pps.print_exception_code_ = -1;
         pps.print_exception_message_.clear();
+        pps.print_exception_runout_lane_ = -1;
         // The job being prepared is session-scoped: it outlives
         // reset_for_new_print() by design, since it exists precisely for the
         // window before the printer reports the job. Leaving it set leaks a

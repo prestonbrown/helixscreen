@@ -30,7 +30,7 @@ class GCodeGLESRendererTestAccess {
     static void show_frame(GCodeGLESRenderer& renderer, const GCodeCamera& camera, int width,
                            int height) {
         start_frame(renderer, camera);
-        renderer.latch_shown_image(width, height);
+        renderer.latch_shown_image(renderer.frame_mvp_, width, height);
     }
 
     /// A frame begun (setup_frame ran) but not finished: refinement in progress.

@@ -11,14 +11,17 @@
 #include "gcode_ghost_mode.h"
 #include "gcode_parser.h"
 #include "gcode_render_memory.h"
+#include "gcode_render_worker.h"
 #include "gcode_selection_state.h"
 #include "gcode_selection_style.h"
 
 #include <lvgl/lvgl.h>
 
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <glm/glm.hpp>
 #include <limits>
 #include <memory>
@@ -49,7 +52,7 @@ constexpr float kFillLightIntensity = 0.2f;
 constexpr float kAmbientIntensity = 0.25f;
 
 // Still and incremental frames render into an FBO this many times the widget
-// size and come back down through a 2x2 box filter (blit_to_lvgl); moving
+// size and come back down through a 2x2 box filter (read_frame); moving
 // frames keep their own plan resolution.
 constexpr float kStillSupersample = 2.0f;
 
@@ -136,8 +139,15 @@ struct GLRenderbufferHandle {
 
 /// GPU-accelerated G-code 3D renderer using OpenGL ES 2.0
 ///
-/// Renders to FBO, reads pixels back into lv_draw_buf_t for LVGL compositing.
-/// Requires DRM+EGL display backend.
+/// GL comes up on the LVGL thread at the first render(); from then on every GL
+/// call runs on the renderer's own GCodeRenderWorker thread, which draws into
+/// an FBO and reads the pixels back into plain memory. render() only posts
+/// what to draw and copies the newest finished frame into an lv_draw_buf_t.
+///
+/// state_mutex_ guards the scene, the geometry and every GL object; the worker
+/// holds it for one step at a time (one upload chunk, one moving frame, or one
+/// refinement slice plus its readback), so a setter waits at most one step.
+/// Lock order: state_mutex_, then palette_mutex_.
 class GCodeGLESRenderer {
   public:
     GCodeGLESRenderer();
@@ -148,8 +158,20 @@ class GCodeGLESRenderer {
 
     // ====== Main Rendering Interface ======
 
-    void render(lv_layer_t* layer, const ParsedGCodeFile& gcode, const GCodeCamera& camera,
-                const lv_area_t* widget_coords);
+    /// LVGL thread. Never issues GL after the first call and never waits on a draw:
+    /// it posts {camera, widget size, gcode} to the worker and draws the newest
+    /// finished frame. The worker holds `gcode` for as long as it draws from it.
+    void render(lv_layer_t* layer, const std::shared_ptr<const ParsedGCodeFile>& gcode,
+                const GCodeCamera& camera, const lv_area_t* widget_coords);
+
+    /// Called on the worker thread after it publishes a frame, and after a
+    /// fatal GL error, so the owner can schedule a redraw. Must not touch LVGL.
+    void set_frame_ready_callback(std::function<void()> cb);
+
+    /// Copy the newest finished frame into the draw buffer, if there is one.
+    /// LVGL thread, outside a refresh: the frame-ready callback's hop is the
+    /// place. Returns true when a frame was adopted.
+    bool adopt_ready_frame();
 
     void set_viewport_size(int width, int height);
     void set_interaction_mode(bool interacting);
@@ -157,21 +179,15 @@ class GCodeGLESRenderer {
         return interaction_mode_;
     }
 
-    /// True while VBO upload is still in progress (caller should invalidate widget)
-    bool is_uploading() const {
-        return geometry_ && !geometry_uploaded_;
-    }
-
-    /// True while a still or incremental job still has slices to draw (caller keeps invalidating).
-    bool is_refining() const {
-        return job_.active && !render_failed();
-    }
+    /// LVGL thread: render() has put a frame of the current geometry on the
+    /// canvas since the geometry was last set, released or cleared.
+    bool has_frame() const;
 
     /// True if geometry has been set via set_prebuilt_geometry(). Used by the
     /// viewer widget to decide whether a live 2D→3D switch needs an on-demand
     /// geometry build (initial load in 2D mode skips the build).
     bool has_geometry() const {
-        return geometry_ != nullptr;
+        return has_geometry_.load();
     }
 
     /// True once the GPU path is unusable for the rest of the session: either
@@ -185,6 +201,12 @@ class GCodeGLESRenderer {
     /// destroyed.
     bool render_failed() const {
         return gl_render_failed_ || gl_init_failed_;
+    }
+
+    /// True when render_failed() fired because moving frames stayed too slow to
+    /// rotate (render_schedule::moving_too_slow), not because GL broke.
+    bool too_slow() const {
+        return too_slow_;
     }
 
     /// Which half of render_failed() fired: true when GL could not be brought
@@ -251,7 +273,7 @@ class GCodeGLESRenderer {
     /// World point -> widget-local pixel in the image on screen now.
     ///
     /// That image can lag the camera: the last finished frame stays up during
-    /// VBO upload, render deferral and refinement, so this projects through the
+    /// VBO upload and refinement, so this projects through the
     /// MVP that image was rendered with, not the live one. nullopt before any
     /// image, and behind the camera.
     std::optional<glm::vec2> project_to_shown_image(const glm::vec3& world) const;
@@ -277,13 +299,12 @@ class GCodeGLESRenderer {
     void set_prebuilt_coarse_geometry(std::unique_ptr<RibbonGeometry> geometry);
 
     /// Release CPU geometry and GPU VBOs. Keeps GL context alive for future loads.
+    /// The VBOs are freed by the worker's next step, inside the GL context.
     void release_geometry();
 
     // ====== Statistics ======
 
-    size_t get_segments_rendered() const {
-        return triangles_rendered_ / 2;
-    }
+    size_t get_segments_rendered() const;
     size_t get_geometry_color_count() const;
     /// The loaded geometry's color palette, overrides included (empty with no geometry).
     std::vector<uint32_t> get_geometry_color_palette() const;
@@ -292,7 +313,8 @@ class GCodeGLESRenderer {
     /// and silently omitted the readback buffer.
     helix::gcode::RenderMemoryReport memory_report() const;
 
-    /// Emit memory_report() at debug level, tagged with what just happened.
+    /// Emit the memory report at debug level, tagged with what just happened.
+    /// The caller holds state_mutex_ (the worker inside a step does).
     void log_memory_report(const char* when) const;
     size_t get_triangle_count() const;
 
@@ -329,6 +351,15 @@ class GCodeGLESRenderer {
                                size_t& next_layer, size_t total_layers);
 
     void free_vbos(std::vector<LayerVBO>& vbos);
+    void release_geometry_locked();
+
+    // ====== Worker ======
+
+    /// One worker step: takes state_mutex_ and the GL context for its duration.
+    GCodeRenderWorker::StepOutcome gl_step(const RenderRequest& req, RenderFrame& back);
+    GCodeRenderWorker::StepOutcome step_locked(const RenderRequest& req, RenderFrame& back);
+    /// LVGL thread: copy a taken frame into draw_buf_ and latch it as the image on screen.
+    void install_frame(const RenderFrame& frame);
 
     /// Free every uploaded VBO and fall back to 2D for the session, after a fatal GL error
     /// during the step `during` names.
@@ -338,17 +369,20 @@ class GCodeGLESRenderer {
 
     /// One frame while a finger is down: draw the whole visible range at the
     /// stride and resolution plan_moving() picked for the measured GPU rate,
-    /// then blit. No selection tag (the rim is a still-frame nicety), no job.
-    void render_moving(lv_layer_t* layer, const ParsedGCodeFile& gcode, const GCodeCamera& camera,
-                       const lv_area_t* widget_coords);
+    /// then read it back into `out`. No selection tag (the rim is a still-frame
+    /// nicety), no job. Returns true when `out` holds the frame.
+    bool render_moving(const ParsedGCodeFile& gcode, const GCodeCamera& camera, int widget_w,
+                       int widget_h, RenderFrame& out);
     /// Draws layers [layer_start, layer_end] at `stride`, stopping once `max_triangles`
     /// have been submitted. Returns the next layer that was not drawn (layer_end + 1
     /// when finished).
     int draw_layers(const std::vector<LayerVBO>& vbos, int layer_start, int layer_end,
                     float color_scale, float alpha, int stride = 1,
                     size_t max_triangles = std::numeric_limits<size_t>::max());
+    /// Worker: read the FBO back, stroke the selection rim and exclusion hatch,
+    /// and convert to a widget-sized ARGB8888 frame in `out`.
     /// @param overlays_drawn False for a moving frame, which skips the overlay passes.
-    void blit_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_coords, bool overlays_drawn);
+    bool read_frame(int widget_w, int widget_h, bool overlays_drawn, RenderFrame& out);
     void draw_cached_to_lvgl(lv_layer_t* layer, const lv_area_t* widget_coords);
 
     /// Crash-loop breaker (Layer 2). arm_gpu_guard() writes a persistent guard
@@ -484,9 +518,13 @@ class GCodeGLESRenderer {
     // builds only), released with the window.
     bool sdl_video_held_ = false;
     void release_sdl_video();
-    bool gl_initialized_ = false;
-    bool gl_init_failed_ = false;   // Prevents repeated init attempts
-    bool gl_render_failed_ = false; // Set on a fatal GL draw error; sticky for the session
+    bool gl_initialized_ = false;             // LVGL thread; fixed while the worker runs
+    std::atomic<bool> gl_init_failed_{false}; // Prevents repeated init attempts
+    std::atomic<bool> too_slow_{false};
+    int slow_moving_streak_ = 0;       ///< under the state mutex
+    int moving_frames_in_gesture_ = 0; ///< under the state mutex
+    std::atomic<bool> gl_render_failed_{
+        false}; // Set on a fatal GL draw error; sticky for the session
 
     // ====== GPU crash fallback (issues #966 / #1084 / #1085) ======
     bool gpu_checked_ = false;       // GL_RENDERER denylist evaluated once per session
@@ -536,21 +574,35 @@ class GCodeGLESRenderer {
     int fbo_width_ = 0;
     int fbo_height_ = 0;
 
-    // ====== Output Buffer ======
+    // ====== Output Buffer (LVGL thread only) ======
 
     lv_draw_buf_t* draw_buf_ = nullptr;
     int draw_buf_width_ = 0;
     int draw_buf_height_ = 0;
+    /// draw_buf_'s pixel bytes, for memory_report() from either thread.
+    std::atomic<size_t> draw_buf_bytes_{0};
+    /// The frame last taken from the worker; its buffer goes back on the next take.
+    RenderFrame taken_frame_;
+    /// scene_gen_ of the frame in draw_buf_.
+    uint64_t shown_gen_ = 0;
 
     // ====== Viewport ======
 
     int viewport_width_ = 800;
     int viewport_height_ = 480;
     bool interaction_mode_ = false;
+    /// The scene and frame the last moving render drew, so the other draw
+    /// events of the same refresh blit it instead of drawing it again.
+    CachedRenderState moving_state_;
+    uint64_t moving_epoch_ = 0;
+    bool moving_frame_valid_ = false;
+    /// Half resolution, once a gesture's frame needed it, for the rest of the gesture.
+    bool moving_half_res_held_ = false;
 
     // ====== Geometry ======
 
     std::unique_ptr<RibbonGeometry> geometry_;
+    std::atomic<bool> has_geometry_{false}; ///< geometry_ != nullptr, readable without the lock
     const RibbonGeometry* active_geometry_ = nullptr;
     std::string current_filename_;
 
@@ -559,17 +611,20 @@ class GCodeGLESRenderer {
     /// Indexed by the same layer numbers as layer_vbos_ (the mesh keeps the
     /// original layer indices), so pass_ranges addresses both identically.
     std::vector<LayerVBO> moving_vbos_;
-    bool geometry_uploaded_ = false;
+    std::atomic<bool> geometry_uploaded_{false};
+    /// VBOs of released geometry, freed by the worker's next step inside the GL context.
+    std::vector<LayerVBO> retired_vbos_;
     size_t upload_next_layer_ = 0;   ///< Next layer to upload (incremental)
     size_t upload_total_layers_ = 0; ///< Total layers needing upload
 
     /// Reads the upload flag and selection sets without a GL context.
     friend class GCodeGLESRendererTestAccess;
 
-    /// The FBO holds a finished frame drawn with frame_mvp_, and it is what
-    /// the widget shows until the next one.
-    void latch_shown_image(int width, int height);
+    /// LVGL thread: draw_buf_ holds a finished frame drawn with `mvp`, and it
+    /// is what the widget shows until the next one.
+    void latch_shown_image(const glm::mat4& mvp, int width, int height);
     glm::mat4 frame_mvp_{1.0f}; ///< MVP of the last setup_frame()
+    // The image on screen: LVGL thread only.
     glm::mat4 shown_mvp_{1.0f};
     int shown_width_ = 0;
     int shown_height_ = 0;
@@ -622,6 +677,18 @@ class GCodeGLESRenderer {
     // ====== Frame Skip ======
 
     bool frame_dirty_ = true;
+    /// Bumped with every mark_frame_dirty(): frame_dirty_ is consumed by the
+    /// still path, so the moving path compares epochs instead.
+    uint64_t scene_epoch_ = 0;
+    void mark_frame_dirty();
+    /// Bumped (under state_mutex_) whenever the geometry is set or released or
+    /// the cached frame is cleared: a frame stamped with an older value
+    /// describes a scene that is gone and is never shown.
+    std::atomic<uint64_t> scene_gen_{0};
+    /// Folds one measured submission into the smoothed rate. With `publish`, the
+    /// rate also sizes the next file's moving mesh: only still slices publish,
+    /// since a half-resolution moving frame overstates a full-resolution one.
+    void record_rate(size_t triangles, float elapsed_ms, bool publish);
     size_t triangles_rendered_ = 0;
 
     // ====== Time-sliced refinement ======
@@ -666,9 +733,12 @@ class GCodeGLESRenderer {
 
     std::vector<uint8_t> readback_buf_;
 
-    // ====== Render Deferral (avoid blocking panel animations) ======
+    helix::gcode::RenderMemoryReport memory_report_locked() const;
 
-    int render_defer_frames_ = 0; ///< Skip N draw callbacks before first GPU render
+    mutable std::mutex state_mutex_;
+    /// Declared last: destroyed first, but the destructor stops it explicitly
+    /// before tearing GL down.
+    GCodeRenderWorker worker_;
 };
 
 } // namespace gcode

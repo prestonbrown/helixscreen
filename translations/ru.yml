@@ -933,6 +933,7 @@ translations:
   Completed {}h ago: 'Завершено {} ч назад'
   Completed {}m ago: 'Завершено {} мин назад'
   Compressed: Сжат
+  'Compressed: filament arrives faster than it is used': 'Сжат: филамент поступает быстрее, чем расходуется'
   Computing calibration...: Вычисление калибровки...
   Config Dir: Директория конфигурации
   Config Edit Failed: 'Не удалось изменить конфигурацию'
@@ -1489,6 +1490,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Вытяжка: держать камеру не выше'
   Exit Code: Код выхода
   Expanded: Растянут
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Растянут: голова тянет филамент быстрее, чем он поступает'
   Expected boolean: 'Ожидалось логическое значение'
   Expected float: 'Ожидалось дробное число'
   Explore how the selected palette shapes text, controls, and status colors.: Изучите, как выбранная палитра влияет на текст, элементы управления и цвета статуса.
@@ -1673,7 +1675,6 @@ translations:
   Feed the filament back: "Верните филамент"
   Feeder: Фидер
   Feeders: Фидеры
-  Feeding filament forward: Подача филамента вперёд
   Feeding filament to nozzle: "Подача филамента к соплу"
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
@@ -2343,6 +2344,7 @@ translations:
   Load filament first: Сначала загрузите филамент
   Load filament to the toolhead, then tap Resume.: 'Загрузите филамент в печатающую головку, затем нажмите «Продолжить».'
   Load into which tool?: 'В какой инструмент загрузить?'
+  Push filament into the toolhead by hand, then tap Resume.: "Вставьте филамент в печатающую головку вручную, затем нажмите «Продолжить»."
   Load it in the filament panel, then tap Resume.: 'Загрузите его на панели филамента, затем нажмите «Продолжить».'
   Load or unload filament.: Загружайте или выгружайте филамент.
   Load Profile: 'Загрузить профиль'
@@ -2992,6 +2994,7 @@ translations:
   Paused: Приостановлено
   Paused (attention needed): Приостановлено (требует внимания)
   Paused by a command: Приостановлено командой
+  'Paused by {}: {}': 'Приостановлено ({}): {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати.'
   Pausing at layer {}.: 'Пауза на слое {}.'
@@ -3288,7 +3291,6 @@ translations:
   Pull: "Вытянуть"
   Pull now: "Тяните сейчас"
   Pulled: "Вытянуто"
-  Pulling filament back: Откат филамента
   Purge: Продуть
   Purge & Wipe: 'Продувка и очистка'
   Purge Chute Calibration: Калибровка жёлоба продувки

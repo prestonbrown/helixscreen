@@ -135,6 +135,40 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_delete(parent);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "the render-path callback reports a drawn path once per change",
+                 "[gcode_viewer][gcode][render_path]") {
+    lv_obj_t* viewer = make_viewer(lv_screen_active());
+    helix::ui::gcode_viewer_set_render_mode(viewer, GcodeViewerRenderMode::Layer2D);
+    REQUIRE(test_access::gcode_viewer_show_2d(viewer, make_two_object_file()) != nullptr);
+
+    std::vector<bool> reports;
+    auto record = [](lv_obj_t*, void* user_data, bool drawn_3d) {
+        static_cast<std::vector<bool>*>(user_data)->push_back(drawn_3d);
+    };
+    auto draw = [&]() {
+        lv_obj_invalidate(viewer);
+        lv_refr_now(nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    helix::ui::gcode_viewer_set_render_path_callback(viewer, record, &reports);
+    draw();
+    REQUIRE(reports == std::vector<bool>{false});
+
+    draw(); // same path: nothing new to report
+    CHECK(reports == std::vector<bool>{false});
+
+    helix::ui::gcode_viewer_set_render_path_callback(viewer, record, &reports);
+    draw(); // a new registration hears the current path
+    CHECK(reports == std::vector<bool>{false, false});
+
+    helix::ui::gcode_viewer_set_render_path_callback(viewer, nullptr, nullptr);
+    draw();
+    CHECK(reports.size() == 2);
+
+    lv_obj_delete(viewer);
+}
+
 #ifdef ENABLE_GLES_3D
 
 TEST_CASE_METHOD(LVGLTestFixture, "switching 2D, 3D, 2D leaves every renderer with the options",

@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: '{} 時間前に完了'
   Completed {}m ago: '{} 分前に完了'
   Compressed: 圧縮
+  'Compressed: filament arrives faster than it is used': '圧縮: フィラメントの供給が消費より速い'
   Computing calibration...: キャリブレーション計算中...
   Config Dir: 設定ディレクトリ
   Config Edit Failed: '設定の編集に失敗しました'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': '排気: チャンバーをこの温度以下に保つ'
   Exit Code: 終了コード
   Expanded: 伸長
+  'Expanded: the toolhead pulls filament faster than it arrives': '伸長: ツールヘッドがフィラメントを供給より速く引いている'
   Expected boolean: '真偽値が必要です'
   Expected float: '小数値が必要です'
   Explore how the selected palette shapes text, controls, and status colors.: 選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "フィラメントを戻す"
   Feeder: フィーダー
   Feeders: フィーダー
-  Feeding filament forward: フィラメントを前方に送り出し中
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
@@ -2279,6 +2280,7 @@ translations:
   Load filament first: 先にフィラメントを装填してください
   Load filament to the toolhead, then tap Resume.: 'ツールヘッドまでフィラメントをロードしてから、再開をタップしてください。'
   Load into which tool?: 'どのツールにロードしますか？'
+  Push filament into the toolhead by hand, then tap Resume.: "フィラメントを手でツールヘッドに押し込んでから、再開をタップしてください。"
   Load it in the filament panel, then tap Resume.: 'フィラメントパネルでロードしてから、再開をタップしてください。'
   Load or unload filament.: フィラメントを装填または排出します。
   Load Profile: 'プロファイルを読み込む'
@@ -2928,6 +2930,7 @@ translations:
   Paused: 一時停止
   Paused (attention needed): 一時停止（対応が必要）
   Paused by a command: コマンドで一時停止
+  'Paused by {}: {}': '{}により一時停止: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。'
   Pausing at layer {}.: 'レイヤー {} で一時停止します。'
@@ -3208,7 +3211,6 @@ translations:
   Pull: "引く"
   Pull now: "今すぐ引く"
   Pulled: "引き抜き完了"
-  Pulling filament back: フィラメントを引き戻し中
   Purge: パージ
   Purge & Wipe: 'パージとワイプ'
   Purge Chute Calibration: パージシュートのキャリブレーション

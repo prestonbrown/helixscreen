@@ -2050,12 +2050,14 @@ Cycle the mock AFC TurtleNeck buffer through its health states, so the buffer in
 | **Default** | `neutral` (also the fallback for any unrecognized value) |
 | **File** | `src/printer/ams_backend_mock.cpp` |
 
-| Value | Reported state | `distance_to_fault` | Danger reading |
-|-------|----------------|---------------------|----------------|
-| `neutral` *(default)* | `Neutral` | `40.0` | 0% — exactly at the threshold |
-| `advancing` | `Advancing` | `-100.0` | fault timer stopped / stale — safe |
-| `trailing` | `Trailing` | `25.0` | 37.5% |
-| `fault` | `Trailing` | `5.0` | 87.5% |
+The values are AFC's own words, which name what its motor does about the buffer: `Advancing` speeds the feed because the buffer is expanded, `Trailing` slows it because the buffer is compressed.
+
+| Value | Reported state | Buffer shape | `distance_to_fault` | Danger reading |
+|-------|----------------|--------------|---------------------|----------------|
+| `neutral` *(default)* | `Neutral` | none | `40.0` | 0% — exactly at the threshold |
+| `advancing` | `Advancing` | expanded | `-100.0` | fault timer stopped / stale — safe |
+| `trailing` | `Trailing` | compressed | `25.0` | 37.5% |
+| `fault` | `Trailing` | compressed | `5.0` | 87.5% |
 
 The fault threshold is derived from `error_sensitivity = 7.0` as `(11 - 7) * 10 = 40mm`.
 

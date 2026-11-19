@@ -851,6 +851,7 @@
   <translation tag="Completed {}m ago" de="Vor {} Min. abgeschlossen"/>
   <translation tag="Completed: {}" de="Abgeschlossen: {}"/>
   <translation tag="Compressed" de="Komprimiert"/>
+  <translation tag="Compressed: filament arrives faster than it is used" de="Komprimiert: Filament kommt schneller an, als es verbraucht wird"/>
   <translation tag="Computing calibration..." de="Kalibrierung wird berechnet..."/>
   <translation tag="Config Dir" de="Konfig-Verzeichnis"/>
   <translation tag="Config Edit Failed" de="Konfigurationsänderung fehlgeschlagen"/>
@@ -1366,6 +1367,7 @@
   <translation tag="Exhaust: keep chamber at or below" de="Abluft: Kammer höchstens halten bei"/>
   <translation tag="Exit Code" de="Exit-Code"/>
   <translation tag="Expanded" de="Ausgedehnt"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" de="Ausgedehnt: Der Druckkopf zieht Filament schneller, als es ankommt"/>
   <translation tag="Expected boolean" de="Boolescher Wert erwartet"/>
   <translation tag="Expected float" de="Gleitkommazahl erwartet"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." de="Erkunden Sie, wie die gewählte Palette Text, Steuerelemente und Statusfarben gestaltet."/>
@@ -1547,7 +1549,6 @@
   <translation tag="Feed the filament back" de="Filament wieder zuführen"/>
   <translation tag="Feeder" de="Zuführung"/>
   <translation tag="Feeders" de="Zuführungen"/>
-  <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
   <translation tag="Feeding filament to nozzle" de="Filament wird zur Düse geführt"/>
   <translation tag="Filament" de="Filament"/>
   <translation tag="Filament Buffer" de="Filamentpuffer"/>
@@ -2844,6 +2845,7 @@
   <translation tag="Paused" de="Pausiert"/>
   <translation tag="Paused (attention needed)" de="Pausiert (Aufmerksamkeit erforderlich)"/>
   <translation tag="Paused by a command" de="Durch einen Befehl pausiert"/>
+  <translation tag="Paused by {}: {}" de="Pausiert durch {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." de="Hält einen Druck bei einer gewählten Schicht an, für einen Filamentwechsel oder ein Einlegeteil. Legen Sie die Schicht während eines Drucks über die Vorschaukarte im Druckstatus fest."/>
   <translation tag="Pausing at layer {}." de="Pause bei Schicht {}."/>
   <translation tag="Pausing..." de="Pausiert..."/>
@@ -3123,7 +3125,6 @@
   <translation tag="Pull" de="Ziehen"/>
   <translation tag="Pull now" de="Jetzt ziehen"/>
   <translation tag="Pulled" de="Gezogen"/>
-  <translation tag="Pulling filament back" de="Filament wird zurückgezogen"/>
   <translation tag="Purge" de="Entlüften"/>
   <translation tag="Purge &amp; Wipe" de="Entlüften &amp; Abwischen"/>
   <translation tag="Purge Chute Calibration" de="Entlüftungsrinnen-Kalibrierung"/>
@@ -3140,6 +3141,7 @@
   <translation tag="Purging nozzle" de="Düse wird gespült"/>
   <translation tag="Purging old filament" de="Altes Filament wird gespült"/>
   <translation tag="Purging..." de="Entlüften..."/>
+  <translation tag="Push filament into the toolhead by hand, then tap Resume." de="Schieben Sie das Filament von Hand in den Werkzeugkopf und tippen Sie dann auf Fortsetzen."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." de="Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." de="Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."/>
   <translation tag="QGL" de="QGL"/>

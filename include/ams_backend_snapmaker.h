@@ -824,10 +824,22 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     void derive_active_tool_loaded_locked(FrameEffects& fx);
     /// A slot whose runout sensor reports no filament is AVAILABLE, not LOADED.
     void demote_runout_slots_locked(FrameEffects& fx);
-    /// A head fed past its feeder holds filament its empty port cannot see. The lane
-    /// model lays EMPTY on its slot each frame; this runs after it and says AVAILABLE.
+    /// Keeps hand_fed_head_: a hand push raises the toolhead switch over an empty port, where a
+    /// runout or an unload empties the port under a switch already raised. A head fed past its
+    /// feeder holds filament its port cannot see, so its slot reads AVAILABLE over the lane
+    /// model's EMPTY.
     void converge_hand_fed_slots_locked(FrameEffects& fx) {
         for (int i = 0; i < kNumTools; ++i) {
+            const bool raised = toolhead_switch_reported_[i] && sensor_filament_present_[i];
+            if (port_sensor_filament_present_[i] || loaded_at_toolhead_[i] ||
+                head_is_upstream_fed_locked(i)) {
+                hand_fed_head_[i] = false;
+            } else if (raised && !switch_was_raised_[i] && feed_presence_seen_[i]) {
+                hand_fed_head_[i] = true;
+            }
+            if (feed_presence_seen_[i]) {
+                switch_was_raised_[i] = raised;
+            }
             auto* slot = system_info_.units[0].get_slot(i);
             if (slot && slot->status == SlotStatus::EMPTY && fed_past_feeder_locked(i)) {
                 slot->status = SlotStatus::AVAILABLE;
@@ -951,11 +963,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                sensor_filament_present_[i];
     }
 
-    /// Filament in tool i's toolhead that its feeder port reports absent: pushed
-    /// in by hand past the feeder, so a feed has nothing to drive. Caller holds mutex_.
+    /// Filament pushed into tool i's toolhead past its feeder, still there: a feed has nothing
+    /// to drive. Caller holds mutex_.
     [[nodiscard]] bool fed_past_feeder_locked(int i) const {
-        return parked_in_toolhead_locked(i) && feed_presence_seen_[i] &&
-               !port_sensor_filament_present_[i] && !head_is_upstream_fed_locked(i);
+        return hand_fed_head_[i] && parked_in_toolhead_locked(i);
     }
 
     /// Per-slot port/buffer sensor state — the filament_feed left/right
@@ -1010,6 +1021,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// ("no reading yet", not "no filament"), and declaring those defaults
     /// would empty a lane whose only signal so far is the toolhead pin state.
     std::array<bool, kNumTools> feed_presence_seen_{{false, false, false, false}};
+    /// Head i was fed by hand past its feeder and has not loaded through it since: its
+    /// feeder has nothing to refeed after a runout. switch_was_raised_ is its edge memory.
+    std::array<bool, kNumTools> hand_fed_head_{{false, false, false, false}};
+    std::array<bool, kNumTools> switch_was_raised_{{false, false, false, false}};
 
     /// Per-channel pending insert: parse passes held since the feed-port
     /// presence rose, 0 = none pending. The port edge fires the moment

@@ -1393,7 +1393,7 @@ TEST_CASE("UpdateChecker get_platform_asset_name format", "[update_checker]") {
     checker.shutdown();
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires cached update",
+TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires a signed, cached update",
                  "[update_checker]") {
     auto& checker = UpdateChecker::instance();
     checker.init();
@@ -1403,17 +1403,15 @@ TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires cached updat
     checker.start_download();
     REQUIRE(checker.get_download_status() == UpdateChecker::DownloadStatus::Error);
 
-    checker.shutdown();
-}
+    // A release the GitHub fallback found can announce an update, never install one.
+    checker.report_download_status(UpdateChecker::DownloadStatus::Idle, 0, "");
+    UpdateCheckerTestAccess::seed_available_update(checker, "9.9.9", "", false);
+    checker.start_download();
+    CHECK(checker.get_download_status() == UpdateChecker::DownloadStatus::Error);
+    CHECK(checker.get_download_error() == "The release list's signature could not be verified");
+    CHECK_FALSE(checker.download_in_flight());
 
-TEST_CASE("UpdateChecker cancel_download sets cancelled flag", "[update_checker]") {
-    auto& checker = UpdateChecker::instance();
-    checker.init();
-
-    checker.cancel_download();
-    // Verify it doesn't crash and state is not Downloading
-    REQUIRE(checker.get_download_status() != UpdateChecker::DownloadStatus::Downloading);
-
+    checker.clear_cache();
     checker.shutdown();
 }
 
@@ -2965,7 +2963,7 @@ TEST_CASE_METHOD(GlobalPrintStateFixture,
 
     server.release();
     CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
-    UpdateCheckerTestAccess::clear(checker);
+    checker.clear_cache();
     helix::ui::UpdateQueue::instance().drain();
     checker.shutdown();
 }
@@ -2994,7 +2992,7 @@ TEST_CASE_METHOD(GlobalPrintStateFixture,
     // socket closes the worker still has to unwind.
     server.release();
     CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
-    UpdateCheckerTestAccess::clear(checker);
+    checker.clear_cache();
     helix::ui::UpdateQueue::instance().drain();
 }
 

@@ -39,11 +39,11 @@ When beta features are enabled, the following appear in the UI:
 
 ---
 
-## ESP32-S3 Firmware (Alpha)
+## ESP32-S3 Firmware (Beta)
 
 Besides running on a printer's host computer (Linux, Raspberry Pi, Android), HelixScreen can be built as firmware that runs directly on ESP32-S3 display panels — the BTT K-Touch class of hardware.
 
-**Status: alpha.** This is an early, experimental port for developers and early testers. Expect rough edges, missing features, and instability: not for daily use. The Linux, Pi, and Android targets are unaffected and remain the production ones.
+**Status: beta.** This is the newest port, so expect rough edges and missing features. The Linux, Pi, and Android targets are unaffected.
 
 What works today:
 

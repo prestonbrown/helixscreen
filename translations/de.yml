@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: 'Vor {} Std. abgeschlossen'
   Completed {}m ago: 'Vor {} Min. abgeschlossen'
   Compressed: Komprimiert
+  'Compressed: filament arrives faster than it is used': 'Komprimiert: Filament kommt schneller an, als es verbraucht wird'
   Computing calibration...: Kalibrierung wird berechnet...
   Config Dir: Konfig-Verzeichnis
   Config Edit Failed: 'Konfigurationsänderung fehlgeschlagen'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Abluft: Kammer höchstens halten bei'
   Exit Code: Exit-Code
   Expanded: Ausgedehnt
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Ausgedehnt: Der Druckkopf zieht Filament schneller, als es ankommt'
   Expected boolean: 'Boolescher Wert erwartet'
   Expected float: 'Gleitkommazahl erwartet'
   Explore how the selected palette shapes text, controls, and status colors.: Erkunden Sie, wie die gewählte Palette Text, Steuerelemente und Statusfarben gestaltet.
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "Filament wieder zuführen"
   Feeder: Zuführung
   Feeders: Zuführungen
-  Feeding filament forward: Filament wird vorwärts geführt
   Feeding filament to nozzle: "Filament wird zur Düse geführt"
   Filament: Filament
   Filament Buffer: 'Filamentpuffer'
@@ -2279,6 +2280,7 @@ translations:
   Load filament first: Laden Sie zuerst Filament
   Load filament to the toolhead, then tap Resume.: 'Laden Sie Filament bis zum Werkzeugkopf und tippen Sie dann auf Fortsetzen.'
   Load into which tool?: 'In welches Werkzeug laden?'
+  Push filament into the toolhead by hand, then tap Resume.: "Schieben Sie das Filament von Hand in den Werkzeugkopf und tippen Sie dann auf Fortsetzen."
   Load it in the filament panel, then tap Resume.: 'Laden Sie es im Filament-Panel und tippen Sie dann auf Fortsetzen.'
   Load or unload filament.: Filament laden oder entladen.
   Load Profile: 'Profil laden'
@@ -2928,6 +2930,7 @@ translations:
   Paused: Pausiert
   Paused (attention needed): Pausiert (Aufmerksamkeit erforderlich)
   Paused by a command: Durch einen Befehl pausiert
+  'Paused by {}: {}': 'Pausiert durch {}: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Hält einen Druck bei einer gewählten Schicht an, für einen Filamentwechsel oder ein Einlegeteil. Legen Sie die Schicht während eines Drucks über die Vorschaukarte im Druckstatus fest.'
   Pausing at layer {}.: 'Pause bei Schicht {}.'
@@ -3208,7 +3211,6 @@ translations:
   Pull: "Ziehen"
   Pull now: "Jetzt ziehen"
   Pulled: "Gezogen"
-  Pulling filament back: Filament wird zurückgezogen
   Purge: Entlüften
   Purge & Wipe: 'Entlüften & Abwischen'
   Purge Chute Calibration: Entlüftungsrinnen-Kalibrierung

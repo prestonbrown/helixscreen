@@ -873,6 +873,7 @@ translations:
   Completed {}h ago: 'Completato {} h fa'
   Completed {}m ago: 'Completato {} min fa'
   Compressed: Compresso
+  'Compressed: filament arrives faster than it is used': 'Compresso: il filamento arriva più velocemente di quanto viene usato'
   Computing calibration...: Calcolo calibrazione...
   Config Dir: Dir configurazione
   Config Edit Failed: 'Modifica della configurazione non riuscita'
@@ -1429,6 +1430,7 @@ translations:
   'Exhaust: keep chamber at or below': 'Scarico: mantieni la camera al massimo a'
   Exit Code: Codice di uscita
   Expanded: Espanso
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Espanso: la testina tira il filamento più velocemente di quanto arriva'
   Expected boolean: 'Atteso un valore booleano'
   Expected float: 'Atteso un numero decimale'
   Explore how the selected palette shapes text, controls, and status colors.: Esplora come la palette selezionata definisce testo, controlli e colori di stato.
@@ -1613,7 +1615,6 @@ translations:
   Feed the filament back: "Reinserisci il filamento"
   Feeder: Alimentatore
   Feeders: Alimentatori
-  Feeding filament forward: Avanzamento filamento
   Feeding filament to nozzle: "Avanzamento filamento verso l'ugello"
   Filament: Filamento
   Filament Buffer: 'Buffer filamento'
@@ -2279,6 +2280,7 @@ translations:
   Load filament first: Prima carica il filamento
   Load filament to the toolhead, then tap Resume.: 'Carica il filamento fino alla testina, poi tocca Riprendi.'
   Load into which tool?: 'In quale strumento caricare?'
+  Push filament into the toolhead by hand, then tap Resume.: "Spingi il filamento a mano nella testina, poi tocca Riprendi."
   Load it in the filament panel, then tap Resume.: 'Caricalo nel pannello filamento, poi tocca Riprendi.'
   Load or unload filament.: Carica o scarica il filamento.
   Load Profile: 'Carica profilo'
@@ -2928,6 +2930,7 @@ translations:
   Paused: In pausa
   Paused (attention needed): In pausa (attenzione richiesta)
   Paused by a command: In pausa da un comando
+  'Paused by {}: {}': 'In pausa da {}: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Mette in pausa una stampa a un layer scelto, per cambiare filamento o inserire un oggetto. Durante la stampa, scegli il layer dalla scheda di anteprima nella schermata di stato.'
   Pausing at layer {}.: 'Pausa allo strato {}.'
@@ -3208,7 +3211,6 @@ translations:
   Pull: "Tira"
   Pull now: "Tirare ora"
   Pulled: "Tirato"
-  Pulling filament back: Retrazione filamento
   Purge: Spurga
   Purge & Wipe: 'Spurgo e pulizia'
   Purge Chute Calibration: Calibrazione condotto di spurgo

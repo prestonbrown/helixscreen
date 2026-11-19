@@ -19,6 +19,7 @@
 #include "main_loop_wake.h"
 #include "moonraker_manager.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 #include "spoolman_manager.h"
 #include "status_coalescer.h"
 
@@ -221,13 +222,23 @@ TEST_CASE_METHOD(StatusHoldFixture, "without hold every status frame applies",
     CHECK(bed_values == std::vector<int>{210, 220, 230});
 }
 
-TEST_CASE_METHOD(StatusHoldFixture, "queued status wakes a sleeping main loop at once",
+TEST_CASE_METHOD(StatusHoldFixture,
+                 "queued status and connection changes wake a sleeping main loop at once",
                  "[status_hold][moonraker_manager][sleep_input_wait]") {
     helix::main_loop_wake::drain();
     pollfd pfd{helix::main_loop_wake::fd(), POLLIN, 0};
     REQUIRE(pfd.fd >= 0);
     REQUIRE(poll(&pfd, 1, 0) == 0);
     send_bed(40.0);
+    CHECK(poll(&pfd, 1, 0) == 1);
+
+    helix::main_loop_wake::drain();
+    REQUIRE(poll(&pfd, 1, 0) == 0);
+    // A refused connection changes state twice and delivers no status.
+    REQUIRE(client->get_connection_state() == ConnectionState::DISCONNECTED);
+    get_runtime_config()->simulate_disconnect = true;
+    client->connect("ws://mock/websocket", [] {}, [] {});
+    get_runtime_config()->simulate_disconnect = false;
     CHECK(poll(&pfd, 1, 0) == 1);
     helix::main_loop_wake::drain();
 }
