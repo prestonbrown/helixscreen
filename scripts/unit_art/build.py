@@ -332,16 +332,17 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                         render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
                     # A feeding spool turns its vents over its near flange (Scene.lane_face_svg).
                     if scene.spools_turn():
-                        names["face"] = f"{tier}_lane{lane}_face.png"
-                        render(scene.lane_face_svg(lane, width), width, target / names["face"])
+                        for key, far in (("face", False), ("far_face", True)):
+                            names[key] = f"{tier}_lane{lane}_{key}.png"
+                            render(scene.lane_face_svg(lane, width, far), width, target / names[key])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
         if tier == "full" and scene.spools_turn():
             # One set of vents for every lane, centered on lane 0's near flange.
-            for key, lit in (("vents", False), ("vents_lit", True)):
+            for key, lit, far in (("vents", False, False), ("vents_lit", True, False), ("far_vents", False, True)):
                 name = f"{tier}_{key}.png"
-                vents_w, _ = scene.vents_size(0, width)
-                render(scene.vents_svg(0, width, lit), vents_w, target / name)
+                vents_w, _ = scene.vents_size(0, width, far)
+                render(scene.vents_svg(0, width, lit, far), vents_w, target / name)
                 manifest["tiers"][tier][key] = name
         if tier == "full":
             geometry = art_lane_geometry(scene, lane_count)

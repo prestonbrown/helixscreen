@@ -55,26 +55,34 @@ struct LaneImages {
     UnitArtLaneMark mark;
 };
 
-/// A lane's turning spool: its near flange redrawn over the flat image with the vents rotated
-/// in the flange's plane, and the front layer laid back over them. The baked face is cut by the
-/// lane stacks in front of it, so the redrawn flange shows only where the flat image shows it.
-struct LaneSpin {
+/// One flange of a turning spool, redrawn over the flat image with its vents rotated in the
+/// flange's plane and the front layer laid back over them. Its baked face is cut by what stands
+/// in front of it, so the redrawn flange shows only where the flat image shows it.
+struct FlangeSpin {
     lv_obj_t* image = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
     /// Drawn in turn, so the buffer a draw may still read is never the one being written.
     lv_draw_buf_t* frame[2] = {nullptr, nullptr};
     int shown = 0;
-    /// The lane's baked face, cropped to its near flange, and the drawing's vents and lit
-    /// vents, centered on a near flange, all at their baked size.
+    /// The lane's baked face, cropped to the flange, and the drawing's vents (and, on the near
+    /// flange, lit vents), centered on a flange, all at their baked size.
     lv_draw_buf_t* face = nullptr;
     lv_draw_buf_t* vents = nullptr;
     lv_draw_buf_t* lit = nullptr;
     lv_draw_buf_t* front = nullptr; ///< the front layer, cropped as the face is
     int32_t crop_x = 0, crop_y = 0; ///< the crop's corner in baked pixels
-    float baked_w = 0.0f;           ///< the baked layers' width in pixels
+};
+
+constexpr int kNearFlange = 0;
+constexpr int kFarFlange = 1;
+
+/// A lane's turning spool: both its flanges, turned together.
+struct LaneSpin {
+    FlangeSpin flange[2];
+    float baked_w = 0.0f; ///< the baked layers' width in pixels
     bool load_failed = false;
     SpoolSpin spin;
     float angle = 0.0f;      ///< degrees turned, toward paying out
-    int payout_turn = 1;     ///< the flange's sense of paying out (spool_payout_turn)
+    int payout_turn = 1;     ///< the spool's sense of paying out (spool_payout_turn)
     float anim_base = 0.0f;  ///< the angle the running animation started from
     uint32_t last_frame = 0; ///< tick of the last frame drawn
 };
@@ -180,15 +188,21 @@ void free_with(lv_obj_t* holder, lv_draw_buf_t*& buf) {
 }
 
 /// Frees a lane's spin buffers: its frames once the image showing them is gone.
-void free_spin(LaneSpin& spin) {
-    for (lv_draw_buf_t*& frame : spin.frame)
-        free_with(spin.image, frame);
-    for (lv_draw_buf_t** baked : {&spin.face, &spin.vents, &spin.lit, &spin.front}) {
+void free_flange_layers(FlangeSpin& flange) {
+    for (lv_draw_buf_t** baked : {&flange.face, &flange.vents, &flange.lit, &flange.front}) {
         if (*baked)
             lv_draw_buf_destroy(*baked);
         *baked = nullptr;
     }
-    spin.image = nullptr;
+}
+
+void free_spin(LaneSpin& spin) {
+    for (FlangeSpin& flange : spin.flange) {
+        for (lv_draw_buf_t*& frame : flange.frame)
+            free_with(flange.image, frame);
+        free_flange_layers(flange);
+        flange.image = nullptr;
+    }
 }
 
 void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
@@ -579,7 +593,7 @@ void flatten_carriage(lv_obj_t* art, ArtData* data, int32_t width, int32_t heigh
 constexpr uint32_t kSpinFrameMs = 66; ///< a turning spool redraws at most this often
 constexpr int32_t kSpinTenthsPerTurn = 3600;
 
-/// A baked layer's pixels inside the near flange's box, or nullptr when it cannot be decoded.
+/// A baked layer's pixels inside a flange's box, or nullptr when it cannot be decoded.
 lv_draw_buf_t* decode_crop(const std::string& path, int32_t x0, int32_t y0, int32_t w, int32_t h) {
     lv_image_decoder_dsc_t dsc;
     if (lv_image_decoder_open(&dsc, path.c_str(), nullptr) != LV_RESULT_OK)
@@ -607,7 +621,7 @@ lv_draw_buf_t* decode_crop(const std::string& path, int32_t x0, int32_t y0, int3
     return out;
 }
 
-/// Half the near flange's extent on screen, in shares of the drawing's width.
+/// Half a flange's extent on screen, in shares of the drawing's width.
 void flange_half_extent(const tray::ArtLaneGeom& g, float& hx, float& hy) {
     hx = std::hypot(g.ey_x, g.ez_x);
     hy = std::hypot(g.ey_y, g.ez_y);
@@ -621,10 +635,10 @@ lv_draw_buf_t* decode_whole(const std::string& path) {
     return decode_crop(path, 0, 0, header.w, header.h);
 }
 
-/// Loads lane @p lane's face, cropped to its near flange, and the drawing's vents. False when
-/// the bake has none or they cannot be read; a lane fails once.
+/// Loads lane @p lane's flange faces, each cropped to its flange, and the drawing's vents.
+/// False when the bake has none or they cannot be read; a lane fails once.
 bool load_spin_layers(ArtData* data, int lane, LaneSpin& spin) {
-    if (spin.face)
+    if (spin.flange[kNearFlange].face)
         return true;
     if (spin.load_failed)
         return false;
@@ -638,20 +652,25 @@ bool load_spin_layers(ArtData* data, int lane, LaneSpin& spin) {
     float hx = 0, hy = 0;
     flange_half_extent(g, hx, hy);
     spin.baked_w = (float)header.w;
-    spin.crop_x = (int32_t)std::floor((g.near_x - hx) * spin.baked_w) - 1;
-    spin.crop_y = (int32_t)std::floor((g.near_y - hy) * spin.baked_w) - 1;
     const int32_t w = (int32_t)std::ceil(2 * hx * spin.baked_w) + 3;
     const int32_t h = (int32_t)std::ceil(2 * hy * spin.baked_w) + 3;
-    spin.face = decode_crop(stem + "_face.png", spin.crop_x, spin.crop_y, w, h);
-    spin.vents = decode_whole(data->base + "_vents.png");
-    spin.lit = decode_whole(data->base + "_vents_lit.png");
-    spin.front = decode_crop(data->base + "_front.png", spin.crop_x, spin.crop_y, w, h);
-    if (!spin.face || !spin.vents || !spin.lit || !spin.front) {
-        for (lv_draw_buf_t** baked : {&spin.face, &spin.vents, &spin.lit, &spin.front}) {
-            if (*baked)
-                lv_draw_buf_destroy(*baked);
-            *baked = nullptr;
-        }
+    bool loaded = true;
+    for (int which : {kNearFlange, kFarFlange}) {
+        FlangeSpin& flange = spin.flange[which];
+        const bool near = which == kNearFlange;
+        flange.crop_x = (int32_t)std::floor(((near ? g.near_x : g.far_x) - hx) * spin.baked_w) - 1;
+        flange.crop_y = (int32_t)std::floor(((near ? g.near_y : g.far_y) - hy) * spin.baked_w) - 1;
+        flange.face = decode_crop(stem + (near ? "_face.png" : "_far_face.png"), flange.crop_x,
+                                  flange.crop_y, w, h);
+        flange.vents = decode_whole(data->base + (near ? "_vents.png" : "_far_vents.png"));
+        if (near)
+            flange.lit = decode_whole(data->base + "_vents_lit.png");
+        flange.front = decode_crop(data->base + "_front.png", flange.crop_x, flange.crop_y, w, h);
+        loaded = loaded && flange.face && flange.vents && flange.front && (!near || flange.lit);
+    }
+    if (!loaded) {
+        for (FlangeSpin& flange : spin.flange)
+            free_flange_layers(flange);
         spdlog::debug("[UnitArt] no turning vents for {}", stem);
         return false;
     }
@@ -701,32 +720,35 @@ Premul over(const Premul& top, const Premul& under) {
     return {top.r + under.r * k, top.g + under.g * k, top.b + under.b * k, top.a + under.a * k};
 }
 
-/// Draws lane @p lane's near flange at its current angle into the lane's next frame and shows
-/// it. Hidden when the lane shows no spool to turn.
-void render_spin(lv_obj_t* art, ArtData* data, int lane) {
+/// Draws flange @p which of lane @p lane at the spool's current angle into its next frame and
+/// shows it. Hidden when the lane shows no spool to turn.
+void render_flange(lv_obj_t* art, ArtData* data, int lane, int which) {
     LaneSpin& spin = data->spins[static_cast<size_t>(lane)];
+    FlangeSpin& flange = spin.flange[which];
     const LaneImages& images = data->lanes[static_cast<size_t>(lane)];
-    if (!spin.image || !spin.face)
+    if (!flange.image || !flange.face)
         return;
     const UnitArtLaneMark& mark = images.mark;
     const int32_t art_w = lv_obj_get_width(art), art_h = lv_obj_get_height(art);
     if (mark.absent || mark.ghost || mark.dim || art_w <= 0 || art_h <= 0) {
-        lv_obj_set_hidden(spin.image, true);
+        lv_obj_set_hidden(flange.image, true);
         return;
     }
     const tray::ArtLaneGeom& g = data->geom->lane[lane];
+    const bool near = which == kNearFlange;
+    const float center_x = near ? g.near_x : g.far_x, center_y = near ? g.near_y : g.far_y;
     const Content c = content_of(data, art_w, art_h);
     float hx = 0, hy = 0;
     flange_half_extent(g, hx, hy);
-    const int32_t x0 = std::max<int32_t>(0, (int32_t)std::floor(c.x + (g.near_x - hx) * c.w) - 1);
-    const int32_t y0 = std::max<int32_t>(0, (int32_t)std::floor(c.y + (g.near_y - hy) * c.w) - 1);
-    const int32_t x1 = std::min(art_w, (int32_t)std::ceil(c.x + (g.near_x + hx) * c.w) + 1);
-    const int32_t y1 = std::min(art_h, (int32_t)std::ceil(c.y + (g.near_y + hy) * c.w) + 1);
+    const int32_t x0 = std::max<int32_t>(0, (int32_t)std::floor(c.x + (center_x - hx) * c.w) - 1);
+    const int32_t y0 = std::max<int32_t>(0, (int32_t)std::floor(c.y + (center_y - hy) * c.w) - 1);
+    const int32_t x1 = std::min(art_w, (int32_t)std::ceil(c.x + (center_x + hx) * c.w) + 1);
+    const int32_t y1 = std::min(art_h, (int32_t)std::ceil(c.y + (center_y + hy) * c.w) + 1);
     const int32_t w = x1 - x0, h = y1 - y0;
     if (w <= 0 || h <= 0)
         return;
-    const int next = 1 - spin.shown;
-    lv_draw_buf_t*& frame = spin.frame[next];
+    const int next = 1 - flange.shown;
+    lv_draw_buf_t*& frame = flange.frame[next];
     if (frame && (frame->header.w != (uint32_t)w || frame->header.h != (uint32_t)h)) {
         destroy_buf(frame);
         frame = nullptr;
@@ -737,17 +759,21 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
         return;
     lv_image_cache_drop(frame);
 
-    // The flange's basis maps (u, v) on its unit disc to the drawing: near + ey * u + ez * v.
-    // The vents turn by the face angle, from u toward v when it grows.
+    // The flange's basis maps (u, v) on its unit disc to the drawing: center + ey * u + ez * v.
+    // The vents turn by the face angle, from u toward v when it grows; both flanges turn as one.
     const float det = g.ey_x * g.ez_y - g.ez_x * g.ey_y;
     if (std::abs(det) < 1e-9f)
         return;
     const tray::FlangeTurn turn = tray::flange_turn((float)spin.payout_turn * spin.angle);
     const float k = spin.baked_w; // shares to baked pixels
     const bool filled = images.filled;
+    // The far flange stands behind the wound filament, which covers it as far as it reaches.
+    const bool wound = !near && filled;
+    const float wound_r = tray::wound_radius(g.core, g.wound, (float)images.mask_pct / 100.0f);
+    const float px_per_unit = tray::art_lane_px_per_unit(g, c.w);
     // The vents are baked centered on a flange's center.
-    const float vents_cx = (float)spin.vents->header.w / 2,
-                vents_cy = (float)spin.vents->header.h / 2;
+    const float vents_cx = (float)flange.vents->header.w / 2,
+                vents_cy = (float)flange.vents->header.h / 2;
     const float fr = (float)images.filament.red / 255.0f;
     const float fg = (float)images.filament.green / 255.0f;
     const float fb = (float)images.filament.blue / 255.0f;
@@ -757,13 +783,17 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
         for (int32_t x = 0; x < w; ++x) {
             uint8_t* px = row + x * 4;
             const float sx = ((float)(x0 + x) + 0.5f - c.x) / c.w;
-            const float fx = sx * k - (float)spin.crop_x, fy = sy * k - (float)spin.crop_y;
-            const Premul face = sample(spin.face, fx, fy);
+            const float fx = sx * k - (float)flange.crop_x, fy = sy * k - (float)flange.crop_y;
+            Premul face = sample(flange.face, fx, fy);
+            if (wound && face.a > 0.0f) {
+                const float open = 1.0f - tray::art_lane_coverage(g, sx, sy, wound_r, px_per_unit);
+                face = {face.r * open, face.g * open, face.b * open, face.a * open};
+            }
             if (face.a <= 0.0f) {
                 std::memset(px, 0, 4);
                 continue;
             }
-            const float dx = sx - g.near_x, dy = sy - g.near_y;
+            const float dx = sx - center_x, dy = sy - center_y;
             const float u = (g.ez_y * dx - g.ez_x * dy) / det;
             const float v = (g.ey_x * dy - g.ey_y * dx) / det;
             float ru = 0, rv = 0;
@@ -771,18 +801,18 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
             const float bx = (g.ey_x * ru + g.ez_x * rv) * k + vents_cx;
             const float by = (g.ey_y * ru + g.ez_y * rv) * k + vents_cy;
             Premul out = face;
-            Premul vents = sample(spin.vents, bx, by);
+            Premul vents = sample(flange.vents, bx, by);
             // Vents show only where the flange does.
             vents = {vents.r * face.a, vents.g * face.a, vents.b * face.a, vents.a * face.a};
             out = over(vents, out);
-            if (filled) {
-                Premul lit = sample(spin.lit, bx, by);
+            if (filled && flange.lit) {
+                Premul lit = sample(flange.lit, bx, by);
                 lit = {lit.r * fr * face.a, lit.g * fg * face.a, lit.b * fb * face.a,
                        lit.a * face.a};
                 out = over(lit, out);
             }
             // Whatever the front layer lays over the flange, glass included, lies over the vents.
-            Premul front = sample(spin.front, fx, fy);
+            Premul front = sample(flange.front, fx, fy);
             front = {front.r * face.a, front.g * face.a, front.b * face.a, front.a * face.a};
             out = over(front, out);
             const float a = std::min(out.a, 1.0f);
@@ -793,19 +823,25 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
             px[3] = (uint8_t)std::lround(a * 255.0f);
         }
     }
-    lv_image_set_src(spin.image, frame);
-    lv_obj_set_pos(spin.image, x0, y0);
-    lv_obj_set_size(spin.image, w, h);
-    lv_obj_set_hidden(spin.image, false);
-    lv_obj_invalidate(spin.image);
-    spin.shown = next;
-    spin.last_frame = lv_tick_get();
+    lv_image_set_src(flange.image, frame);
+    lv_obj_set_pos(flange.image, x0, y0);
+    lv_obj_set_size(flange.image, w, h);
+    lv_obj_set_hidden(flange.image, false);
+    lv_obj_invalidate(flange.image);
+    flange.shown = next;
+}
+
+/// Draws both of lane @p lane's flanges at the spool's current angle.
+void render_spin(lv_obj_t* art, ArtData* data, int lane) {
+    render_flange(art, data, lane, kFarFlange);
+    render_flange(art, data, lane, kNearFlange);
+    data->spins[static_cast<size_t>(lane)].last_frame = lv_tick_get();
 }
 
 /// Redraws every lane that has turned, after a change of size, color or marks.
 void refresh_spins(lv_obj_t* art, ArtData* data) {
     for (size_t i = 0; i < data->spins.size(); ++i)
-        if (data->spins[i].image)
+        if (data->spins[i].flange[kNearFlange].image)
             render_spin(art, data, static_cast<int>(i));
 }
 
@@ -813,9 +849,11 @@ void refresh_spins(lv_obj_t* art, ArtData* data) {
 std::vector<lv_obj_t*> hide_spins(ArtData* data) {
     std::vector<lv_obj_t*> hidden;
     for (const LaneSpin& spin : data->spins) {
-        if (spin.image && !lv_obj_is_hidden(spin.image)) {
-            lv_obj_set_hidden(spin.image, true);
-            hidden.push_back(spin.image);
+        for (const FlangeSpin& flange : spin.flange) {
+            if (flange.image && !lv_obj_is_hidden(flange.image)) {
+                lv_obj_set_hidden(flange.image, true);
+                hidden.push_back(flange.image);
+            }
         }
     }
     return hidden;
@@ -1002,10 +1040,11 @@ void delete_cb(lv_event_t* e) {
                 lv_draw_buf_destroy(lane.mask);
         }
         for (const LaneSpin& spin : data->spins) {
-            for (lv_draw_buf_t* buf :
-                 {spin.frame[0], spin.frame[1], spin.face, spin.vents, spin.lit, spin.front})
-                if (buf)
-                    lv_draw_buf_destroy(buf);
+            for (const FlangeSpin& f : spin.flange) {
+                for (lv_draw_buf_t* buf : {f.frame[0], f.frame[1], f.face, f.vents, f.lit, f.front})
+                    if (buf)
+                        lv_draw_buf_destroy(buf);
+            }
         }
     }
     delete data_of(art);
@@ -1340,8 +1379,9 @@ void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin) {
         return;
     if (!lv_obj_is_visible(art) && spin.direction != 0)
         return;
-    if (turning.image)
-        lv_anim_delete(turning.image, spin_anim_cb);
+    lv_obj_t*& image = turning.flange[kNearFlange].image; // the animation's own
+    if (image)
+        lv_anim_delete(image, spin_anim_cb);
     turning.spin = spin;
     spdlog::debug("[UnitArt] lane {} turns {} at {} ms a phase", lane, spin.direction,
                   spin.step_ms);
@@ -1351,20 +1391,24 @@ void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin) {
         turning.spin = SpoolSpin{};
         return;
     }
-    if (!turning.image) {
-        turning.image = lv_image_create(art);
-        lv_obj_set_name(turning.image, ("lane" + std::to_string(lane) + "_spin").c_str());
-        lv_obj_set_clickable(turning.image, false);
-        lv_obj_set_user_data(turning.image, reinterpret_cast<void*>(static_cast<intptr_t>(lane)));
-        // Over the flat image, under the glow and a press.
-        lv_obj_move_to_index(turning.image, lv_obj_get_index(data->flat) + 1);
+    if (!image) {
+        // Over the flat image, under the glow and a press; the near flange over the far one.
+        for (int which : {kNearFlange, kFarFlange}) {
+            lv_obj_t* flange = lv_image_create(art);
+            const char* suffix = which == kNearFlange ? "_spin" : "_far_spin";
+            lv_obj_set_name(flange, ("lane" + std::to_string(lane) + suffix).c_str());
+            lv_obj_set_clickable(flange, false);
+            lv_obj_set_user_data(flange, reinterpret_cast<void*>(static_cast<intptr_t>(lane)));
+            lv_obj_move_to_index(flange, lv_obj_get_index(data->flat) + 1);
+            turning.flange[which].image = flange;
+        }
         render_spin(art, data, lane);
     }
     // Starts from the current angle, so a change of speed never jumps the vents.
     turning.anim_base = turning.angle;
     lv_anim_t anim;
     lv_anim_init(&anim);
-    lv_anim_set_var(&anim, turning.image);
+    lv_anim_set_var(&anim, image);
     lv_anim_set_values(&anim, 0, kSpinTenthsPerTurn);
     lv_anim_set_duration(&anim, static_cast<uint32_t>(spin.step_ms) * kSpoolSpinPhasesPerTurn);
     lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
@@ -1386,11 +1430,13 @@ float unit_art_lane_spin_angle(lv_obj_t* art, int lane) {
     return a;
 }
 
-lv_obj_t* unit_art_lane_spin_obj(lv_obj_t* art, int lane) {
+lv_obj_t* unit_art_lane_spin_obj(lv_obj_t* art, int lane, bool far_flange) {
     ArtData* data = art ? data_of(art) : nullptr;
     if (!data || lane < 0 || lane >= (int)data->spins.size())
         return nullptr;
-    return data->spins[static_cast<size_t>(lane)].image;
+    return data->spins[static_cast<size_t>(lane)]
+        .flange[far_flange ? kFarFlange : kNearFlange]
+        .image;
 }
 
 lv_obj_t* unit_art_lane_color_obj(lv_obj_t* art, int lane) {

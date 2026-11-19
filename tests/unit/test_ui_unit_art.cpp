@@ -774,8 +774,8 @@ SpoolSpin feeding_spin(int lane, int feed_centimm) {
 }
 
 /// The alpha the spin image of @p lane draws at @p x, @p y of the widget.
-int spin_alpha_at(lv_obj_t* art, int lane, int32_t x, int32_t y) {
-    lv_obj_t* image = unit_art_lane_spin_obj(art, lane);
+int spin_alpha_at(lv_obj_t* art, int lane, int32_t x, int32_t y, bool far_flange = false) {
+    lv_obj_t* image = unit_art_lane_spin_obj(art, lane, far_flange);
     REQUIRE(image != nullptr);
     lv_obj_update_layout(art);
     const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(image));
@@ -870,4 +870,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a thumbnail never turns",
     unit_art_set_lane_spin(art, 1, feeding_spin(1, 400));
     process_lvgl(200);
     CHECK(unit_art_lane_spin_obj(art, 1) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: the far flange turns with the near one",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 0, feeding_spin(0, 400));
+    lv_obj_t* far = unit_art_lane_spin_obj(art, 0, /*far_flange=*/true);
+    REQUIRE(far != nullptr);
+    REQUIRE(far != unit_art_lane_spin_obj(art, 0));
+    process_lvgl(20);
+    const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(far));
+    const std::vector<uint8_t> start(buf->data, buf->data + buf->data_size);
+    process_lvgl(1000);
+    buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(far));
+    const bool redrawn = std::vector<uint8_t>(buf->data, buf->data + buf->data_size) != start;
+    CHECK(redrawn);
+    // Its center stands behind the core, which covers it.
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t x = (int32_t)std::lround(geom->lane[0].far_x * 320.0f);
+    const int32_t y = (int32_t)std::lround(geom->lane[0].far_y * 320.0f);
+    CHECK(spin_alpha_at(art, 0, x, y, /*far_flange=*/true) == 0);
 }

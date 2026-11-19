@@ -792,3 +792,27 @@ def test_only_spools_of_one_size_with_vents_turn():
     ace_pro.UNIT.draw_art(thumb, ["#ffffff"] * 4, "thumb")
     assert not thumb.spools_turn()  # a thumbnail has no vents
     assert not kit.Scene(kit.ART_CAMERA).spools_turn()
+
+
+def test_the_far_flange_bakes_its_own_face_and_vents(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=fake_render)
+    full = json.loads((tmp_path / ace_pro.UNIT.id / "manifest.json").read_text())["tiers"]["full"]
+    assert all(lane["far_face"] == f"full_lane{i}_far_face.png" for i, lane in enumerate(full["lanes"]))
+    assert full["far_vents"] == "full_far_vents.png"
+    scene = _ace_scene()
+    far = scene._vent_items(0, far=True)
+    assert far and all(i.lane is None for i in far)  # dark hollows only, never tinted
+
+
+def test_a_far_flange_is_cut_by_its_own_core_and_near_flange_but_not_its_filament():
+    scene = _ace_scene()
+    over = {id(i) for i in scene._over_face(0, far=True)}
+    own = [i for i in scene.items if i.spool == 0]
+    near = [i for i in own if i.tag == "face"]
+    filament = [i for i in own if i.lane == 0]
+    assert near and all(id(i) in over for i in near)
+    assert filament and not any(id(i) in over for i in filament)
+    assert not any(id(i) in over for i in scene._vent_items(0, far=True))

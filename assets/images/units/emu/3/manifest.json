@@ -13,7 +13,8 @@
           "body": "full_lane0_body.png",
           "glow": "full_lane0_glow.png",
           "silhouette": "full_lane0_silhouette.png",
-          "face": "full_lane0_face.png"
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
@@ -21,7 +22,8 @@
           "body": "full_lane1_body.png",
           "glow": "full_lane1_glow.png",
           "silhouette": "full_lane1_silhouette.png",
-          "face": "full_lane1_face.png"
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
@@ -29,11 +31,13 @@
           "body": "full_lane2_body.png",
           "glow": "full_lane2_glow.png",
           "silhouette": "full_lane2_silhouette.png",
-          "face": "full_lane2_face.png"
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         }
       ],
       "vents": "full_vents.png",
-      "vents_lit": "full_vents_lit.png"
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
