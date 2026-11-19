@@ -21,11 +21,14 @@
 #include "ui_preflight_check_modal.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_runout_guidance_modal.h"
+#include "ui_runout_other_head_modal.h"
 #include "ui_spaghetti_detection_modal.h"
 
 #include "action_prompt_manager.h"
 #include "action_prompt_modal.h"
+#include "ams_backend.h"
 #include "ams_error.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
 #include "camera_frame.h"
@@ -41,6 +44,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <memory>
 
 #if HELIX_HAS_CAMERA
@@ -175,6 +179,15 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
 
     if (name == "leds") {
         return helix::open_led_control_overlay(screen) != nullptr;
+    }
+
+    if (name == "runout-other-head") {
+        // The chooser for continuing a runout on another head, for a runout on
+        // the head the carriage holds. Only a filament system with a plan row
+        // (the U1 mock: HELIX_MOCK_PRINTER=snapmaker_u1) offers it.
+        AmsBackend* backend = AmsState::instance().get_backend();
+        const int head = backend != nullptr ? std::max(0, backend->get_current_tool()) : 0;
+        return helix::ui::RunoutOtherHeadModal::show_owned(head);
     }
 
     if (name == "runout-modal") {
