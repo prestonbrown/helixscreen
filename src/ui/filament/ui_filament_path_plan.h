@@ -49,8 +49,6 @@ struct RailArtRect {
     int32_t x = 0, y = 0, w = 0, h = 0;
 };
 
-// Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
-// colors, filament/error state and the HUB merge-fan plan.
 /// The flattest a hub fan's diagonal leans under a view scale, as its drop over its run.
 inline constexpr float kFanMinSlope = 0.35f;
 /// Under a view scale a fan's fillets are this round, so its diagonals bend late and short.
@@ -58,6 +56,21 @@ inline constexpr float kScaledFanFillet = 4.0f;
 /// The straight leg a scaled fan's fillet keeps at each end of a diagonal (build_merge_fan's
 /// reserve: the fillet and its slack).
 inline constexpr float kFanLegRoom = kScaledFanFillet + 4.0f;
+/// Under a view scale a lane this close to its hub entry drops straight in: a sub-pixel offset
+/// drawn through two fillets reads as a step.
+inline constexpr float kStraightLaneSlack = 2.5f;
+
+/// The drop a lane's diagonal needs to run @p run sideways no flatter than kFanMinSlope, its
+/// fillets' straight legs included.
+inline float fan_lean_drop(float run) {
+    return run * kFanMinSlope + 2.0f * kFanLegRoom;
+}
+
+/// The height lanes converging into a hub @p hub_h tall take above it, the farthest running
+/// @p run sideways: its lean, and never under three quarters of the hub.
+inline float fan_drop_needed(float run, int32_t hub_h) {
+    return std::max(0.75f * (float)hub_h, fan_lean_drop(run));
+}
 
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
 /// under 14 px so its end marks stay legible.
@@ -86,6 +99,8 @@ BufferControlGeometry buffer_control_geometry(int32_t cap_h, int32_t max_w = 0);
 /// button and the thumb's glow, with 4 px to spare.
 lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h, int32_t max_w = 0);
 
+// Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
+// colors, filament/error state and the HUB merge-fan plan.
 struct LinearHubFrame {
     // Vertical layout (absolute display coords)
     int32_t entry_y = 0;
@@ -245,15 +260,18 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
 int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
 
-/// @p glyph_top is the full-size toolhead glyph's topmost drawn Y (toolhead_top_y()):
-/// a HUB with the bypass hidden stacks its hub and buffer above it. A HUB canvas too
-/// short for its hub above that glyph draws a smaller head (LinearHubFrame::tool_scale).
 /// The least height @p g (its top where it is) needs for compute_linear_hub_frame() to lay the
 /// path out at full size: a full-size head, and the buffer kept on the trunk when the unit
 /// reports one and its hub is not on the head. @p g's own height when that already fits, or
 /// when no height up to four times it would.
 int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g);
 
+/// The LINEAR/HUB frame for canvas @p g, its head standing on the canvas's nozzle row.
+LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g);
+/// The frame with the full-size toolhead glyph's topmost drawn Y at @p glyph_top
+/// (toolhead_top_y()): a HUB with the bypass hidden stacks its hub and buffer above it. A HUB
+/// canvas too short for its hub above that glyph draws a smaller head
+/// (LinearHubFrame::tool_scale).
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top);
 
@@ -302,9 +320,17 @@ struct MixedFrame {
  */
 bool route_lanes(const pathgeo::PathPoint* sources, pathgeo::MergeLaneOut* out, int n,
                  float clearance);
+/// route_lanes() for a merge fan already built into @p fan from @p fan_in: each lane from its
+/// start to the entry the fan chose for it. Where the router finds no room the fan's own
+/// routes stand.
+void route_fan(const pathgeo::MergeLaneIn* fan_in, pathgeo::MergeLaneOut* fan, int n,
+               float clearance);
 /// The least centerline distance two routed tubes keep: a tube, its halo and a gap, or a
 /// sensor band's width where that is more.
 float lane_clearance(const FilamentPathData& data);
+
+/// Pixels per view unit (path_view_scale.h): the scale's own, or the hub's height in units.
+float view_unit(const FilamentPathData& data);
 
 /// The smallest a shrunk head draws and still reads as a head.
 inline constexpr int32_t kMinHeadScale = 4;

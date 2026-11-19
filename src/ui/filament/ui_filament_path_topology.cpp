@@ -719,11 +719,9 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
         data->anim.output_x_target = data->anim.output_x_current;
     }
 
-    const int32_t glyph_top =
-        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
-    LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
+    LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo);
     if (drop_unloadable_art(*data, f.through))
-        f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
+        f = compute_linear_hub_frame(*data, ctx.geo);
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);

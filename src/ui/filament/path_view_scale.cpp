@@ -12,7 +12,6 @@ namespace {
 // Each element's size in scale units.
 constexpr float kTubeUnits = 0.6f;
 constexpr float kSensorUnits = 0.5f;
-constexpr float kHubUnits = 2.3f;
 constexpr float kCapsuleOfHub = 0.75f;
 constexpr float kHeadUnits = 1.1f;
 constexpr float kBracketUnits = 2.1f;
@@ -36,7 +35,7 @@ PathViewScale path_view_scale(int32_t column_h, TubeLimits tube,
         std::clamp(round_px(u * kTubeUnits), tube.floor, std::max(tube.floor, tube.ceil));
     // A sensor dot stands proud of the tube on both sides.
     s.sensor_r = std::max(round_px(u * kSensorUnits), (s.tube_gauge + 3) / 2);
-    s.hub_h = std::max({round_px(u * kHubUnits), 2 * s.sensor_r + 2, label_h + 2});
+    s.hub_h = std::max({round_px(u * kPathHubUnits), 2 * s.sensor_r + 2, label_h + 2});
     s.cap_h = std::min(s.hub_h, round_px((float)s.hub_h * kCapsuleOfHub));
     // The buffer's state always rides in the hub: no capsule on the trunk.
     s.buffer_in_hub = true;

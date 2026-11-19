@@ -1339,9 +1339,7 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
@@ -1376,9 +1374,7 @@ float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
     g.height = linear_hub_required_height(*data, g);
     if (g.height <= 0)
         return 0.0f;
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     // A lane's outlet moves out from the hub with the unit, its entry stays: a lane that runs
     // sideways grows its run by its distance from the hub times e, and its drop by that times
     // the flattest slope.
@@ -1386,7 +1382,7 @@ float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
     for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
         const float from_hub = std::fabs(f.hub_fan[i].pts[0].x - (float)f.center_x);
         const float run = std::fabs(f.hub_fan[i].pts[3].x - f.hub_fan[i].pts[0].x);
-        if (run > 2.5f)
+        if (run > kStraightLaneSlack)
             growth = std::max(growth, from_hub * kFanMinSlope);
     }
     return growth;
@@ -1417,9 +1413,7 @@ bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* sta
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     if (start_out)
         *start_out = lane_start_y(*data, f, slot);
     if (band_out)
@@ -1439,14 +1433,10 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     const int32_t w = hub_box_width(*data, g, f);
-    const int32_t y = data->topology == static_cast<int>(helix::PathTopology::LINEAR)
-                          ? f.prep_y + f.sensor_r + f.hub_h / 2
-                          : f.hub_y;
-    *area_out = {f.center_x - w / 2, y - f.hub_h / 2, f.center_x + w / 2, y + f.hub_h / 2};
+    *area_out = {f.center_x - w / 2, f.hub_y - f.hub_h / 2, f.center_x + w / 2,
+                 f.hub_y + f.hub_h / 2};
     return true;
 }
 
