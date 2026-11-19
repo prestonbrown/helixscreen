@@ -9,6 +9,7 @@ This guide documents the GitHub Actions CI/CD setup for HelixScreen, including p
 - [Platform-Specific Dependencies](#platform-specific-dependencies)
 - [Dependency Build Order](#dependency-build-order)
 - [Quality Checks](#quality-checks)
+- [CI Watch](#ci-watch)
 - [Testing Locally](#testing-locally)
 - [R2 Release Pipeline](#r2-release-pipeline)
 - [Troubleshooting](#troubleshooting)
@@ -30,6 +31,7 @@ HelixScreen uses GitHub Actions for continuous integration across multiple platf
 | `cleanup-r2.yml`, `recover-r2.yml` | manual | Prune old R2 releases; republish a tag's R2 upload |
 | `test-quality-deep.yml` | manual | `cov-diff` or `mutate-diff` on a base ref |
 | `auto-milestone.yml`, `telemetry-printers.yml` | issue opened; weekly | Issue triage automation |
+| `ci-watch.yml` | a watched workflow finishing on `main`; hourly; manual | Reruns infrastructure failures once; opens and closes the `ci-red` issue |
 
 A push to a `claude/**` branch or a PR cancels the older run of the same ref; `main` never cancels an in-flight run, and `release/**` keys on the SHA so every commit keeps its own run.
 
@@ -124,6 +126,43 @@ jobs:
 ```
 
 **Checks performed by `scripts/quality-checks.sh`:** every gate is one file, `scripts/qc/<gate>.sh`, with a `QC_TRIGGER_qc_<gate>` path regex that decides whether `--staged-only` runs it; a full sweep (CI) runs them all in parallel. `scripts/qc/copyright.sh` (copyright headers, test and generated files excluded) runs first, then the gates (lint, XML, translations, doc anchors, ESP32 checks, and so on). `ls scripts/qc/` is the list; `scripts/qc_timing.py` shows where a run's time went.
+
+## CI Watch
+
+**Files:** `.github/workflows/ci-watch.yml`, `scripts/ci/ci_watch.py` (tests: `tests/python/test_ci_watch.py`)
+
+A red `main` gets handled without anyone noticing it first. When Build, esp32-build, Code Quality, XML Lint or Nightly Full Test Suite finishes on a `main` push (or Nightly's schedule), ci-watch judges the run:
+
+| Run | What ci-watch does |
+|-----|--------------------|
+| Failed, every failing job an infrastructure signature, attempt 1 | Reruns the failed jobs once (`rerun-failed-jobs`). No issue |
+| Failed otherwise: a real failure, or infrastructure again on attempt 2+ | Opens the one open `ci-red` issue, or comments on it. The report names the workflow, the commit, the run, the failing jobs, the failing tests it can parse (Catch2 `FAILED:` with the case name and file:line, bats `not ok`, pytest `FAILED`) and a 40-line log excerpt |
+| Succeeded | Closes the open `ci-red` issue, naming the green SHA, once the latest completed `main` run of every watched workflow is green. Nightly counts only when the issue reports a Nightly failure, because its latest run judges a commit hours old |
+
+A job is infrastructure when its log or its annotations (a lost runner often leaves no log) match a signature and no test failure was parsed in it; a run is infrastructure when every failing job is. The aggregator jobs (`Build Status`, `Nightly Status`) only repeat the others and decide nothing. Cancelled jobs decide only when nothing else failed, since a job-level timeout reports as cancelled.
+
+**Signatures** (`SIGNATURES` in `scripts/ci/ci_watch.py`; patterns match per line after the timestamp and colors are stripped):
+
+| Name | Matches |
+|------|---------|
+| `apt-mirror` | apt `E:` lines: `Failed to fetch`, `Some index files failed to download`, `File has unexpected size`, `Hash Sum mismatch`, `Temporary failure resolving` |
+| `ccache-missing` | `ccache: command not found`; `Failed to install ccache via package manager` |
+| `retry-eperm` | nick-fields/retry's `code: 'EPERM'` together with `syscall: 'kill'` |
+| `runner-lost` | `The runner has received a shutdown signal`, `lost communication with the server`, `The job was not acquired by Runner`, `The hosted runner encountered an error` |
+| `timeout` | `The job has exceeded the maximum execution time`, `The action '<step>' has timed out after N minutes` |
+| `timeout-cancel` | `The operation was canceled` together with a timed-out message |
+| `disk-full` | `No space left on device` |
+| `artifact-service` | `Failed to CreateArtifact: Unable to make request` |
+
+A timeout counts as infrastructure because the cost of being wrong is one rerun: a test that really hangs times out again on attempt 2 and is reported then.
+
+**Adding a signature:** add a `Signature` to `SIGNATURES` with `any_of` (one pattern on one line suffices) or `all_of` (every pattern somewhere in the job), cut a few lines of the real log into `tests/python/fixtures/ci_watch/`, and add a case to `tests/python/test_ci_watch.py`. Anchor on the error form of a message: apt prints the same text as a `W:` warning when it carries on. `scripts/ci/ci_watch.py classify LOG...` prints the verdict for downloaded job logs (`gh api repos/OWNER/REPO/actions/jobs/JOB_ID/logs`).
+
+**The `ci-red` label** marks the one issue; ci-watch creates the label when it is missing. Never more than one is open: the workflow runs one at a time (`concurrency: ci-watch`), and each report carries a hidden `<!-- ci-watch run=... attempt=... -->` marker, so a run already reported, even in an issue since closed by hand, is not reported again.
+
+**The hourly sweep** judges the latest completed `main` run of each watched workflow the same way. A rerun started with `GITHUB_TOKEN` may not raise its own `workflow_run` event, and the concurrency group keeps only the newest queued event, so the sweep catches what an event missed.
+
+**Testing it:** Actions > CI Watch > Run workflow, with `run_id` set to a known failed run and `dry_run` left on, prints the verdict and the issue it would write without rerunning or writing anything; `run_id` empty sweeps. Locally: `GH_TOKEN=... scripts/ci/ci_watch.py run --repo prestonbrown/helixscreen --run-id ID --dry-run --any-branch`.
 
 ## Platform-Specific Dependencies
 
