@@ -265,7 +265,7 @@ void f() {
     [ "$status" -eq 1 ]
 }
 
-@test "under the baseline passes by default and fails under HELIX_RATCHET_STRICT=1, naming the new value" {
+@test "under the baseline passes at commit and fails at a push, naming the new value" {
     f=$(fixture probe.h 'namespace helix {
 class Widget {
     int x;
@@ -275,7 +275,7 @@ class Widget {
     [ "$status" -eq 0 ]
     contains "ratchet the baseline down" "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$f"
-    [ "$status" -eq 1 ] || fail "under the baseline passed under HELIX_RATCHET_STRICT=1: $output"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
     contains "scripts/qc/namespace.sh" "$output"
     contains "--max-allowed: 5 -> 0" "$output"
 }

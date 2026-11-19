@@ -124,15 +124,16 @@ qc_orphans() { # <staged-only>
     [ "$status" -eq 1 ]
     contains "unregistered:on_ghost" "$output"
 }
-@test "an accepted finding that went away passes by default and fails under HELIX_RATCHET_STRICT=1" {
+
+@test "an accepted finding that went away asks to drop it and passes, even at a push: a bookkeeping ratchet" {
     echo '<component><view><x callback="on_ghost"/></view></component>' > "$ROOT/ui_xml/demo.xml"
     printf 'unregistered:on_ghost\nunregistered:on_fixed\n' > "$ROOT/baseline.txt"
     run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
     [ "$status" -eq 0 ] || fail "a fixed finding failed by default: $output"
     contains "hold the gain" "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
-    [ "$status" -eq 1 ] || fail "a fixed finding passed under HELIX_RATCHET_STRICT=1: $output"
-    contains "unregistered:on_fixed: no longer a finding" "$output"
+    [ "$status" -eq 0 ] || fail "a fixed finding failed at a push: $output"
+    contains "on_fixed" "$output"
 }
 
 @test "a name handed to a component's callback prop from C++ counts as referenced" {

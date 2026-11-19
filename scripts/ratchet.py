@@ -3,15 +3,24 @@
 """The verdicts every count ratchet shares.
 
 A ratchet's baseline may fall and never rise. When a count comes in under its baseline,
-the slack would absorb the next violation without a word, so the baseline should come
-down with the fix. Under the baseline is bookkeeping, never a bug, so it warns at every
-stage (commit, push, make land-gate, CI) and names the baseline to lower. The weekly
-ratchet report (scripts/ratchet_report.py) shows the slack that builds up. Set
-HELIX_RATCHET_STRICT=1 by hand to make it fail, for a run that lowers baselines in bulk.
+the slack would absorb the next violation without a word, so the baseline has to come
+down with the fix. Where that happens depends on the stage:
 
-A checker whose only findings are bookkeeping ratchets (the test-line budget, TestAccess
-and friend counts, file size, hardcoded pixels, unreferenced callbacks) exits WARN_EXIT,
-which the qc wrappers print as a warning and pass (qc_run_ratchet in scripts/qc/_lib.sh).
+  - At commit (quality-checks.sh --staged-only) an under count passes and asks for the
+    baseline to be lowered, so a commit that removes violations never needs a baseline
+    edit to land.
+  - At the stages a push to main runs (pre-push's full sweep, make land-gate, CI) it
+    fails, naming the baseline to lower and the value to lower it to.
+
+scripts/quality-checks.sh decides which stage a run is and exports HELIX_RATCHET_STRICT=1
+for the push stages. A checker run by hand is lenient unless the variable says otherwise.
+
+The bookkeeping ratchets (the test-line budget, TestAccess and friend counts, file size,
+hardcoded pixels, unreferenced callbacks) block nothing (prestonbrown/helixscreen#2004):
+their under-baseline verdict is lenient at every stage (`bookkeeping=True`), and a checker
+whose only findings are their warnings exits WARN_EXIT, which the qc wrappers print and
+pass (qc_ratchet_verdict in scripts/qc/_lib.sh). scripts/ratchet_report.py shows their
+weekly trend.
 
 From a checker:   return ratchet.under_baseline(gate, where, items, lenient_message)
 From shell:       python3 scripts/ratchet.py GATE WHERE KEY BASELINE COUNT LENIENT
@@ -28,7 +37,7 @@ SHOWN = 20
 
 
 def strict() -> bool:
-    """True when a run asks for a count under its baseline to fail."""
+    """True at the push stages, where a count under its baseline fails."""
     return os.environ.get(STRICT_ENV) == '1'
 
 
@@ -45,25 +54,28 @@ def lowered(key, baseline, count) -> str:
     return f'{key}: {baseline} -> {count}'
 
 
-def under_baseline(gate, where, items, lenient) -> int:
+def under_baseline(gate, where, items, lenient, bookkeeping=False) -> int:
     """Report counts under their baseline; return the gate's exit code.
 
     gate: the gate's name. where: the file holding the baseline (and how to rewrite it,
     when a command does). items: what came in under, one line each, from lowered() or a
-    name that left a name-keyed baseline. lenient: the message a run prints.
+    name that left a name-keyed baseline. lenient: the message a commit prints.
+    bookkeeping: a ratchet that blocks nothing, lenient at every stage.
     """
     items = list(items)
     if not items:
         return 0
-    if not strict():
+    if bookkeeping or not strict():
         print(lenient)
         return 0
-    print(f'❌ {gate}: under its baseline. Lower the baseline in {where}:')
+    print(f'❌ {gate}: under its baseline. A push holds a ratchet at its count, so lower '
+          f'the baseline in {where}:')
     for item in items[:SHOWN]:
         print(f'     {item}')
     if len(items) > SHOWN:
         print(f'     ... and {len(items) - SHOWN} more')
-    print(f'   Under the baseline fails only when {STRICT_ENV}=1 asks it to.')
+    print(f'   A commit passes under the baseline; the push to main does not '
+          f'({STRICT_ENV}=1).')
     return 1
 
 

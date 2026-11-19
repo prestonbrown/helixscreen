@@ -266,7 +266,7 @@ run_gate() {
     [[ "$output" == *'== baseline'* ]]
 }
 
-@test "--max-allowed above the count asks for a lower baseline by default and fails under HELIX_RATCHET_STRICT=1" {
+@test "--max-allowed above the count asks for a lower baseline and passes, even at a push: a bookkeeping ratchet" {
     printf '%s\n' '<component><view>
   <lv_obj style_pad_all="12"/>
 </view></component>' > "$FIXTURE_DIR/below.xml"
@@ -274,9 +274,8 @@ run_gate() {
     [ "$status" -eq 0 ]
     contains 'ratchet the baseline down' "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
-    [ "$status" -eq 1 ] || fail "under the baseline passed under HELIX_RATCHET_STRICT=1: $output"
-    contains "scripts/qc/design_pixels.sh" "$output"
-    contains "--max-allowed: 5 -> 1" "$output"
+    [ "$status" -eq 0 ] || fail "a bookkeeping ratchet failed under its baseline at a push: $output"
+    contains 'ratchet the baseline down' "$output"
 }
 
 @test "--max-allowed below the count warns with the ratchet exit: the ratchet only turns one way" {

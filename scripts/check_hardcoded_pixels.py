@@ -429,7 +429,8 @@ def main() -> int:
         return ratchet.under_baseline(
             'Hardcoded pixels', 'scripts/qc/design_pixels.sh',
             [ratchet.lowered('--max-allowed', limit, total)],
-            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
+            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)",
+            bookkeeping=True)
     print(f"✅ Hardcoded pixels: {total} == baseline ({limit})")
     return 0
 

@@ -196,7 +196,8 @@ def main() -> int:
             [f"{k}: no longer a finding" for k in gone],
             f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
             f"{where}; re-run with --write-baseline to hold the gain "
-            f"({', '.join(gone)}).")
+            f"({', '.join(gone)}).",
+            bookkeeping=True)
     print(f"✅ Orphan callbacks: {len(found)} findings, all accepted debt in {where}")
     return 0
 
