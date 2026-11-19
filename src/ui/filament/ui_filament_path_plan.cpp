@@ -840,12 +840,24 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         const int32_t nozzle_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
         const int32_t sensor_to_hub = (f.hub_cy - f.hub_h / 2) - f.sensor_y;
         const int32_t lowest = nozzle_top - stub - f.hub_h - sensor_to_hub - fan;
-        // The lanes converge from the whole row of spools onto the unit: twice a rail's room.
-        const int32_t top = f.entry_y + 2 * fan;
+        // The lanes converge from the whole row of spools onto the unit: twice a rail's room
+        // (once under a view scale, whose rows are already tight to the unit).
+        const int32_t top = f.entry_y + (data.view_hub_h > 0 ? fan : 2 * fan);
+        // Under a view scale the drawing takes the room down to what the sensors, the hub and
+        // the shared head need below it; the rows below it then follow it down.
+        const int32_t scaled_lowest =
+            nozzle_top - stub - f.hub_h - fan - 2 * data.theme.sensor_radius;
         const int32_t bottom =
-            LV_MIN(lowest, row_between(f.entry_y, f.toolhead_y, kMixedArtBottom));
+            data.view_hub_h > 0
+                ? scaled_lowest
+                : LV_MIN(lowest, row_between(f.entry_y, f.toolhead_y, kMixedArtBottom));
         f.through = through_art_rect(data, g, top, bottom, (g.slot_x[0] + g.slot_x[n - 1]) / 2);
-        if (f.through.w > 0) {
+        if (f.through.w > 0 && data.view_hub_h > 0 && !data.hub_on_toolhead) {
+            f.sensor_y = f.through.y + f.through.h + fan / 2;
+            const int32_t hub_top = LV_MIN(f.sensor_y + fan / 2, nozzle_top - stub - f.hub_h);
+            f.hub_cy = hub_top + f.hub_h / 2;
+            f.hub_bottom = hub_top + f.hub_h;
+        } else if (f.through.w > 0) {
             const int32_t shift = LV_MAX(0, f.through.y + f.through.h + fan - f.sensor_y);
             f.sensor_y += shift;
             f.hub_cy += shift;
