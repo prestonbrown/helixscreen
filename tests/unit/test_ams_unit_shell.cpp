@@ -47,6 +47,9 @@ TEST_CASE("unit shell: each identified unit finds its own drawing", "[ams][unit-
     };
     CHECK(id(AmsType::CFS, "CFS 1") == "cfs");
     CHECK(id(AmsType::QIDI_BOX, "Box 1") == "qidi_box");
+    // multiACE: the ACEs beside a SnapSwap; the SnapSwap's own feeders stay undrawn.
+    CHECK(id(AmsType::SNAPMAKER, "ACE 1") == "ace_pro");
+    CHECK(unit_shell_for(one_unit(AmsType::SNAPMAKER, "SnapSwap"), 0) == nullptr);
     CHECK(id(AmsType::AFC, "ViViD_1") == "btt_vivid");
     CHECK(id(AmsType::AFC, "ViViD turtle_2") == "btt_vivid");
     CHECK(id(AmsType::AFC, "Night_Owl Owl_1") == "night_owl");
@@ -158,17 +161,20 @@ TEST_CASE("unit shell: feeders resolve from what their backends report", "[ams][
         return std::string(shell ? shell->id : "none");
     };
     CHECK(id(AmsType::AD5X_IFS, "IFS") == "ad5x_ifs");
+    CHECK(id(AmsType::AFC, "BMCU BMCU_1") == "bmcu");
     CHECK(id(AmsType::AFC, "HTLF HTLF_1") == "htlf");
     CHECK(id(AmsType::AFC, "HTLF Turtle_1") == "htlf");
-    // AFC names read "<type> <instance>": only the type token identifies an HTLF.
-    CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "none");
+    // AFC names read "<type> <instance>": only the type token identifies an HTLF, and the
+    // Claymore is one.
+    CHECK(id(AmsType::AFC, "Claymore HTLF_claymore_1") == "htlf");
+    CHECK(id(AmsType::AFC, "Box_Turtle claymore_1") == "box_turtle");
     CHECK(id(AmsType::AFC, "Box_Turtle my_htlf") == "box_turtle");
     CHECK(id(AmsType::AFC, "HTLF vivid_1") == "htlf");
     // AFC types an ACE Pro "ACE", an ACE Pro 2 "ACE2" and a CFS "CFS", only as the leading token.
     CHECK(id(AmsType::AFC, "ACE ACE_1") == "ace_pro");
     CHECK(id(AmsType::AFC, "ACE2 Turtle_1") == "ace_pro");
     CHECK(id(AmsType::AFC, "CFS CFS_1") == "cfs");
-    CHECK(id(AmsType::AFC, "Claymore ace 2") == "none");
+    CHECK(id(AmsType::AFC, "Claymore ace 2") == "htlf");
     CHECK(id(AmsType::HAPPY_HARE, "MMX") == "mmx");
     CHECK(id(AmsType::HAPPY_HARE, "3MS") == "3ms");
     // A YAMMU reports vendor "Other": only its opt-in display_name identifies it.

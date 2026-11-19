@@ -1,39 +1,48 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""QIDI Box: a pale grey body whose sides slant up to the rear, under a boxy smoked lid."""
+"""QIDI Box: a wide silver base whose sides climb steeply to the rear, under a smoked lid.
+
+Read off QIDI's product renders (front and three-quarter). Four spools stand side by side,
+axles left to right, each in a bay between tall black dividers, its feet in a well of the
+black floor level with the base's front top edge. The lid's front pane is about as tall as the
+base's front; its roof climbs gently to the rear, where the base's sides reach about twice
+their front height. A white slider latch sits on the base's top edge, over
+a darker band across the top of the front.
+"""
 from pathlib import Path
 
 from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
-W, D = 1.0, 0.68
-ZR = 0.30
-LID_FRONT, LID_REAR = 0.575, 0.60
-SIDE_TOP = 0.56
-BODY, SEAM, SMOKE = "#d6d8dc", "#9ea1a7", "#3b3f46"
-FLOOR, PARTITION = "#17181b", "#1f2024"
-LATCH = "#eceef0"
-CENTERS = [0.15, 0.39, 0.63, 0.865]
-SPOOL_Y, SPOOL_Z, SPOOL_R = 0.37, 0.325, 0.235
+SPOOL_R = 0.25
+# The renders read the front as about 2.5 spool diameters wide and the base's front as 0.8 of
+# one tall, with the spools wholly above the base. The shared frame holds no taller or wider
+# unit, so the box is drawn a little narrower and lower: the spools' feet dip just behind the
+# base's front edge and the lid's front pane stands a little taller than the base.
+W, D = 1.0, 0.66
+ZF = 0.28  # the base's front top edge, and the floor of the bays
+ZB = 0.58  # the base's side top at the rear
+LID_FRONT, LID_REAR = 0.64, 0.79
+BODY, SEAM, BAND = "#b8bbc1", "#8f9298", "#9c9fa5"
+SMOKE, FRAME = "#2f3239", "#1b1c20"
+FLOOR, DIVIDER = "#141518", "#0f1013"
+LATCH = "#eef0f3"
+CENTERS = [W * f for f in (0.16, 0.385, 0.615, 0.84)]
+SPOOL_Y = D * 0.48
+SPOOL_Z = ZF + SPOOL_R - 0.06
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
 
-LID_SET_BACK = 0.02
-
-
 def _side_z(y):
     """The height of the base's sloped side top at depth y: the line the lid sits on."""
-    return ZR + (SIDE_TOP - ZR) * y / D
+    return ZF + (ZB - ZF) * y / D
 
 
 def _lid_profile():
-    """A vertical front pane and a nearly flat roof, with barely softened corners.
-
-    The lid stands on the base's sloped side and ends flush with its rear face, so its feet are
-    on that slope: just behind the base's front top edge, and at the rear top corner.
-    """
-    pts = [(LID_SET_BACK, _side_z(LID_SET_BACK)), (LID_SET_BACK, LID_FRONT), (D, LID_REAR), (D, SIDE_TOP)]
-    return kit.fillet(pts, [0, 0.012, 0.012, 0], steps=4)
+    """A vertical front pane flush with the base's front, a roof climbing to the rear, and a short
+    rear pane down onto the base's high rear corner."""
+    pts = [(0.0, ZF), (0.0, LID_FRONT), (D, LID_REAR), (D, ZB)]
+    return kit.fillet(pts, [0, 0.01, 0.01, 0], steps=4)
 
 
 def draw_art(sc, colors, tier):
@@ -42,60 +51,65 @@ def draw_art(sc, colors, tier):
     c = spool.spool_constants(_REPO)
     cam = sc.camera
     prof = _lid_profile()
-    lidx0, lidx1 = 0.0, W
-    side = [(0.0, ZR), (D, SIDE_TOP), (D, 0.0), (0.0, 0.0)]
+    side = [(0.0, ZF), (D, ZB), (D, 0.0), (0.0, 0.0)]
 
     sc.poly([(0.0, 0.02, 0), (W + 0.03, 0.02, 0), (W + 0.03, D + 0.03, 0), (0, D + 0.03, 0)], "#000", 0.5, blur=True)
-    kit.lid_back(sc, prof, lidx0, lidx1, SMOKE, 0.34, 0.36)
-    sc.poly([(0.01, D - 0.03, ZR), (W - 0.01, D - 0.03, ZR), (W - 0.01, D - 0.03, SIDE_TOP), (0.01, D - 0.03, SIDE_TOP)], "#101114")
-    sc.poly([(0.01, 0.01, ZR), (W - 0.01, 0.01, ZR), (W - 0.01, D - 0.03, ZR), (0.01, D - 0.03, ZR)], FLOOR)
+    kit.lid_back(sc, prof, 0.0, W, SMOKE, 0.4, 0.42)
+    # The bays: a black floor at the base's front top edge, a dark back wall, tall dividers.
+    sc.poly([(0.01, D - 0.02, ZF), (W - 0.01, D - 0.02, ZF), (W - 0.01, D - 0.02, ZB), (0.01, D - 0.02, ZB)], "#0d0e10")
+    sc.poly([(0.01, 0.01, ZF), (W - 0.01, 0.01, ZF), (W - 0.01, D - 0.02, ZF), (0.01, D - 0.02, ZF)], FLOOR)
     for gx in [(CENTERS[i] + CENTERS[i + 1]) / 2 for i in range(3)]:
-        sc.poly([(gx, 0.08, ZR), (gx, D - 0.05, ZR), (gx, D - 0.05, LID_REAR - 0.02), (gx, 0.08, LID_FRONT - 0.02)], PARTITION)
+        top_front, top_rear = LID_FRONT - 0.03, LID_REAR - 0.04
+        sc.poly([(gx, 0.06, ZF), (gx, D - 0.03, ZF), (gx, D - 0.03, top_rear), (gx, 0.06, top_front)], DIVIDER)
     for lane, (xc, col) in enumerate(zip(CENTERS, colors)):
         spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
 
     sc.layer = "front"
-    for fx in (0.05, 0.87):
+    for fx in (0.06, W - 0.14):
         sc.prism([(fx, 0.03), (fx, 0.1), (fx + 0.08, 0.1), (fx + 0.08, 0.03)], 0.0, 0.012, "#2a2b2f", amb=0.9, dif=0.3, spec=0)
     z0 = 0.012
-    sc.poly([(0, 0, z0), (W, 0, z0), (W, 0, ZR), (0, 0, ZR)], kit.shade(cam, BODY, (0, -1, 0), amb=0.74, dif=0.32, spec=0))
-    sc.poly([(W, y, max(z, z0)) for y, z in side], kit.shade(cam, BODY, (1, 0, 0), amb=0.68, dif=0.34, spec=0))
-    sc.poly([(0.01, 0.0, ZR), (W - 0.01, 0.0, ZR), (W - 0.01, 0.07, ZR), (0.01, 0.07, ZR)], FLOOR)
-    sc.line([(W, 0, ZR), (W, D, SIDE_TOP)], "#f2f3f5", 0.003 * thick, 0.9)
-    sc.line([(0, -0.002, ZR), (W, -0.002, ZR)], "#f2f3f5", 0.003 * thick)
-    sc.line([(W, 0, z0), (W, 0, ZR)], "#f4f5f7", 0.003 * thick, 0.9)
+    front = kit.shade(cam, BODY, (0, -1, 0), amb=0.76, dif=0.3, spec=0)
+    sc.poly([(0, 0, z0), (W, 0, z0), (W, 0, ZF), (0, 0, ZF)], front)
+    sc.poly([(W, y, max(z, z0)) for y, z in side], kit.shade(cam, BODY, (1, 0, 0), amb=0.64, dif=0.34, spec=0))
+    # The darker band across the top of the front, under the latch.
+    sc.poly([(0, -0.001, ZF - 0.07), (W, -0.001, ZF - 0.07), (W, -0.001, ZF - 0.035), (0, -0.001, ZF - 0.035)], kit.shade(cam, BAND, (0, -1, 0), amb=0.8, dif=0.3, spec=0))
+    sc.line([(W, 0, ZF), (W, D, ZB)], "#eef0f2", 0.003 * thick, 0.9)
+    sc.line([(0, -0.002, ZF), (W, -0.002, ZF)], "#eef0f2", 0.003 * thick)
+    sc.line([(W, 0, z0), (W, 0, ZF)], "#f1f2f4", 0.003 * thick, 0.9)
     if detail:
-        sc.line([(0, -0.002, ZR - 0.042), (W, -0.002, ZR - 0.042)], SEAM, 0.002)
-    sc.poly(kit.rrect_front(0.435, 0.565, ZR - 0.038, ZR + 0.012, 0.008, -0.004), LATCH, 1.0, stroke=SEAM, sw=0.002)
-    if detail:
-        sc.line([(0.5, -0.005, ZR - 0.03), (0.5, -0.005, ZR + 0.004)], SEAM, 0.002)
+        sc.line([(0, -0.002, ZF - 0.07), (W, -0.002, ZF - 0.07)], SEAM, 0.002)
 
-    kit.lid_front(sc, prof, lidx0, lidx1, SMOKE, 0.34 if detail else 0.28, 0.16 if detail else 0.12)
+    # The lid: its black foot along the base's top, the smoked glass, a dark frame on its edges.
+    sc.poly([(0, -0.003, ZF), (W, -0.003, ZF), (W, -0.003, ZF + 0.035), (0, -0.003, ZF + 0.035)], FRAME, 0.95)
+    kit.lid_front(sc, prof, 0.0, W, SMOKE, 0.42 if detail else 0.34, 0.2 if detail else 0.15)
     roof = [p for p in prof if p[1] >= LID_FRONT - 0.002]
-    sc.extrude_x(roof, lidx0, lidx1, SMOKE, 0.5, front=True)
-    edge = "#8f949c"
-    sc.line([(lidx1, y, z) for y, z in prof], edge, 0.003 * thick, 0.85)
-    sc.line([(lidx0, y, z) for y, z in prof[:7]], edge, 0.0025 * thick, 0.6)
-    # The front pane meets the roof in a bright rim joining the lid's two top front corners.
+    sc.extrude_x(roof, 0.0, W, SMOKE, 0.55, front=True)
+    sc.line([(W, y, z) for y, z in prof], FRAME, 0.004 * thick, 0.9)
+    sc.line([(0.0, y, z) for y, z in prof[:7]], FRAME, 0.003 * thick, 0.7)
     rim = [p for p in prof if p[0] < 0.04 and p[1] > LID_FRONT - 0.02]
     rim_y, rim_z = rim[len(rim) // 2]
-    sc.line([(lidx0, rim_y - 0.001, rim_z), (lidx1, rim_y - 0.001, rim_z)], "#c3c7cd", 0.004 * thick, 0.95)
+    sc.line([(0.0, rim_y - 0.001, rim_z), (W, rim_y - 0.001, rim_z)], "#9ea2a9", 0.004 * thick, 0.9)
+
+    # The slider latch on the base's top edge, at the middle.
+    xm = W / 2
+    sc.poly(kit.rrect_front(xm - 0.07, xm + 0.07, ZF - 0.03, ZF + 0.03, 0.01, -0.006), LATCH, 1.0, stroke=SEAM, sw=0.002)
+    if detail:
+        for dx in (0.02, 0.035, 0.05):
+            sc.line([(xm + dx, -0.008, ZF - 0.02), (xm + dx, -0.008, ZF + 0.02)], SEAM, 0.0018)
 
 
 def _tray_shell():
-    # The tray's base is level, so the lid's front foot starts on the base top there.
-    profile = [(LID_SET_BACK, ZR)] + _lid_profile()[1:]
-    dome = kit.tray_profile(profile, ZR, TRAY_PX_PER_UNIT)
-    back_extra = dome[-1][1]
-    return TrayShellDef([(0.0, 0.0), (1.0, back_extra)], dome, back_extra, 40.0, 8.0, 6.0, True, True, 0xd6d8dc, 0xc4c7cc, 0xeceef0, 0x3b3f46)
+    dome = kit.tray_profile(_lid_profile(), ZF, TRAY_PX_PER_UNIT)
+    back_extra = (ZB - ZF) * TRAY_PX_PER_UNIT
+    return TrayShellDef([(0.0, 0.0), (1.0, back_extra)], dome, back_extra, 40.0, 8.0, 6.0, True, True, 0xb8bbc1, 0xa9acb2, 0xeef0f3, 0x2f3239)
 
 
 UNIT = UnitDef("qidi_box", 4, draw_art, _tray_shell())
 
 UNIT.tray.front = [
-    kit.span(2, 2, 7, 8.5, 0xa9acb2),
+    kit.span(2, 2, 7, 11, 0x9c9fa5),
     kit.center(-13, 13, 1, 7, 0xeef0f3, 2),
-    kit.center(-2, 2, 2.5, 5.5, 0x8d9096),
+    kit.center(-2, 2, 2.5, 5.5, 0x8f9298),
 ]
 
 UNIT.tray.combiner = "external"

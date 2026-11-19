@@ -18,8 +18,10 @@ PROFILE = feeder.rounded_profile(0.0, D, Z0, Z1, 0.018)
 def _body(sc, detail):
     for x in CENTERS:
         feeder.box(sc, x - 0.012, x + 0.012, PORT_Y - 0.012, PORT_Y + 0.012, Z1, Z1 + 0.03, "#e7e4dc")
-    for x in CENTERS:
+    for lane, x in enumerate(CENTERS):
         feeder.box(sc, x - 0.012, x + 0.012, PORT_Y - 0.012, PORT_Y + 0.012, Z0 - 0.045, Z0, "#e7e4dc")
+        # Each lane's filament leaves from the foot of its port on the underside.
+        kit.outlet(sc, lane, (x, PORT_Y, Z0 - 0.045))
     feeder.solid(sc, PROFILE, 0.0, W, BODY)
     if detail:
         light = kit.shift(BODY, 22)

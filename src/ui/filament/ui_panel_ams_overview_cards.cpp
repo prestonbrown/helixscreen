@@ -23,6 +23,7 @@
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "hub_buffer_meter.h"
 #include "lane_count_label.h"
 #include "lvgl.h"
 #include "printer_detector.h"
@@ -287,8 +288,34 @@ void AmsOverviewPanel::layout_unit_row() {
     for (const auto& uc : unit_cards_) {
         if (uc.has_art && uc.art_stage)
             lv_obj_set_height(uc.art_stage, lv_obj_get_width(uc.card) * kTileArtHeightPct / 100);
+        if (uc.readout_room)
+            lv_obj_set_hidden(uc.readout_room, false); // DECLARATIVE_OK: measured below
     }
     lv_obj_update_layout(cards_row_);
+
+    for (const auto& uc : unit_cards_) {
+        if (!uc.readout_room)
+            continue;
+        const bool holds = helix::ui::overview_tile_holds_readout(
+            lv_obj_get_width(uc.card), lv_obj_get_width(uc.readout_room));
+        lv_obj_set_hidden(uc.readout_room, !holds); // DECLARATIVE_OK: measured layout
+    }
+}
+
+void AmsOverviewPanel::hide_clipped_card_names() {
+    if (!cards_row_)
+        return;
+    lv_area_t row;
+    lv_obj_get_coords(cards_row_, &row);
+    for (const auto& uc : unit_cards_) {
+        if (!uc.card || !uc.name_label)
+            continue;
+        lv_area_t card;
+        lv_obj_get_coords(uc.card, &card);
+        const bool whole = card.x1 >= row.x1 && card.x2 <= row.x2;
+        // DECLARATIVE_OK: measured against the row's scroll position
+        lv_obj_set_style_opa(uc.name_label, whole ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
+    }
 }
 
 void AmsOverviewPanel::on_cards_row_resized(lv_event_t* e) {
@@ -406,6 +433,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             // required-names: ams_unit_tile
             lv_obj_t* stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
             uc.art_stage = uc.has_art ? stage : nullptr;
+            // required-names: ams_unit_tile
+            uc.readout_room = helix::ui::find_required(uc.card, "tile_readout_room", get_name());
             for (lv_obj_t* clip : {uc.card, stage}) {
                 // DECLARATIVE_OK: extended draw size has no XML form
                 lv_obj_add_event_cb(clip, tile_readout_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
@@ -575,6 +604,7 @@ void AmsOverviewPanel::push_unit_anchors(bool relayout) {
         publish_cards_compact(narrowest);
     }
     publish_cards_env_line();
+    hide_clipped_card_names();
 }
 
 // Decide whether every unit card has room for its environment line under a full
@@ -790,7 +820,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
             }
             helix::ui::ui_system_path_canvas_set_unit_hub(
                 system_path_, i, helix::ui::overview_hub_group(tool_layout, i), buffer.present,
-                buffer.fault, buffer.label);
+                buffer.fault, helix::ui::buffer_meter_position(buffer.bias, buffer.state));
         }
     }
 
@@ -827,8 +857,9 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
     // system reading.
     {
         const helix::ui::BufferBoxState box = helix::ui::ams_detail_buffer_box(info, -1);
-        helix::ui::ui_system_path_canvas_set_buffer(system_path_, box.present, box.fault,
-                                                    box.label);
+        helix::ui::ui_system_path_canvas_set_buffer(
+            system_path_, box.present, box.fault,
+            helix::ui::buffer_meter_position(box.bias, box.state));
     }
 
     // Filament reach, error and the toolhead sensor

@@ -246,6 +246,9 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         // and trip lv_inv_area assertions in LVGL 9.
         lv_obj_add_event_cb(detail_path_canvas_, &AmsOverviewPanel::on_path_layout_changed,
                             LV_EVENT_SIZE_CHANGED, this);
+        // The "+N units" chips beside the hub page to the units they count.
+        ui_filament_path_canvas_set_offpage_callback(detail_path_canvas_,
+                                                     &AmsOverviewPanel::on_offpage_chip, this);
     }
     if (page_dots_) {
         lv_obj_add_event_cb(page_dots_, &AmsOverviewPanel::on_page_dots_resized,
@@ -531,6 +534,16 @@ void AmsOverviewPanel::step_page(int delta) {
     if (!backend)
         return;
     show_current_page(backend->get_system_info(), /*relayout=*/false);
+}
+
+void AmsOverviewPanel::on_offpage_chip(int side, void* user_data) {
+    auto* self = static_cast<AmsOverviewPanel*>(user_data);
+    if (!self)
+        return;
+    if (side == 0)
+        self->prev_page();
+    else
+        self->next_page();
 }
 
 bool AmsOverviewPanel::next_page() {
@@ -1379,6 +1392,15 @@ void helix::ui::open_ams_detail_panel() {
         if (lv_obj_t* panel = detail.get_panel()) {
             push_ams_overlay(panel, &detail, &AmsPanel::run_close);
         }
+    });
+}
+
+void helix::ui::hand_ams_panel_to_overview(lv_obj_t* panel_root) {
+    helix::ui::queue_update("AMS::hand_to_overview", [panel_root]() {
+        if (!panel_root || !helix::nav::is_in_stack(panel_root))
+            return;
+        helix::nav::close_overlay(panel_root);
+        navigate_to_ams_panel();
     });
 }
 

@@ -20,6 +20,9 @@ struct Lid {
     PointF left[kCapPoints], right[kCapPoints];
     PointF hull[2 * kCapPoints];
     int hull_n = 0;
+    /// The cap samples where a shell's flat top starts (the front glass's top edge) and ends;
+    /// -1 without a shell.
+    int top_first = -1, top_last = -1;
 };
 
 /// What a unit's shell needs from the laid-out tray.

@@ -49,6 +49,7 @@
 #include "filament_motion.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
+#include "hub_buffer_meter.h"
 #include "lvgl/lvgl.h"
 
 #include <array>
@@ -547,7 +548,7 @@ void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot);
 int32_t hub_buffer_glyph_width(int32_t hub_h);
 
 /// Thumb positions further than this from center are drawn in the off-center tint.
-inline constexpr float kBufferOffCenter = 0.4f;
+inline constexpr float kBufferOffCenter = helix::ui::kBufferMeterOffCenter;
 
 /// Where the buffer sits on its travel, +1 fully compressed .. -1 fully expanded: the
 /// proportional bias when there is one, else the switched state snapped like the card's.

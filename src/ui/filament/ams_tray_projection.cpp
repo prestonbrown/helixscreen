@@ -92,19 +92,39 @@ void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, f
     out[3] = b.ft + part.y1 * scale;
 }
 
+ProfilePoint shell_cap_sample(const UnitShell& shell, int i, int n) {
+    const float at = n > 1 ? (float)i * (float)(shell.dome_n - 1) / (float)(n - 1) : 0.0f;
+    const int lo = std::min((int)at, shell.dome_n - 2);
+    const float t = at - (float)lo;
+    const ProfilePoint& p0 = shell.dome[lo];
+    const ProfilePoint& p1 = shell.dome[lo + 1];
+    return {p0.depth_frac + (p1.depth_frac - p0.depth_frac) * t,
+            p0.height_px + (p1.height_px - p0.height_px) * t};
+}
+
 void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                         PointF* out, int n) {
     const float scale = spool_size / kShellReferenceSpool;
     for (int i = 0; i < n; ++i) {
-        const float at = n > 1 ? (float)i * (float)(shell.dome_n - 1) / (float)(n - 1) : 0.0f;
-        const int lo = std::min((int)at, shell.dome_n - 2);
-        const float t = at - (float)lo;
-        const ProfilePoint& p0 = shell.dome[lo];
-        const ProfilePoint& p1 = shell.dome[lo + 1];
-        const float z = (p0.depth_frac + (p1.depth_frac - p0.depth_frac) * t) * b.depth;
-        const float h = (p0.height_px + (p1.height_px - p0.height_px) * t) * scale;
-        out[i] = proj(b, x, b.ft - h, z);
+        const ProfilePoint p = shell_cap_sample(shell, i, n);
+        out[i] = proj(b, x, b.ft - p.height_px * scale, p.depth_frac * b.depth);
     }
+}
+
+bool shell_lid_top_run(const UnitShell& shell, int n, int& first, int& last) {
+    first = last = -1;
+    if (shell.dome_n < 2 || n < 1)
+        return false;
+    float crest = 0.0f;
+    for (int i = 0; i < n; ++i)
+        crest = std::max(crest, shell_cap_sample(shell, i, n).height_px);
+    for (int i = 0; i < n; ++i) {
+        if (shell_cap_sample(shell, i, n).height_px >= crest - 0.5f) {
+            first = first < 0 ? i : first;
+            last = i;
+        }
+    }
+    return first >= 0;
 }
 
 float spool_pitch(float spool_size) {

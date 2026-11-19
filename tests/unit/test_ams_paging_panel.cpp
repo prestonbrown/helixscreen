@@ -683,6 +683,28 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the hub stays put from page to page 
     CHECK(middle.y1 == last.y1);
 }
 
+TEST_CASE_METHOD(PagingFixture, "Unit view: a tap on an off-page chip pages to its side",
+                 "[ams][pages][panel][offpage]") {
+    open_at(2);
+    const int start = page_current();
+    lv_obj_t* canvas = named("detail_path_canvas");
+    auto tap_chip = [&](int side) {
+        lv_obj_invalidate(canvas);
+        process_lvgl(30);
+        const auto* data = get_data(canvas);
+        REQUIRE(data != nullptr);
+        REQUIRE(data->hits.offpage_valid[side]);
+        const lv_area_t& chip = data->hits.offpage[side];
+        REQUIRE(UITest::click_at((chip.x1 + chip.x2) / 2, (chip.y1 + chip.y2) / 2));
+        settle();
+        process_lvgl(30);
+    };
+    tap_chip(1);
+    CHECK(page_current() == start + 1);
+    tap_chip(0);
+    CHECK(page_current() == start);
+}
+
 TEST_CASE_METHOD(PagingFixture, "Unit view: the canvas is told the units on other pages",
                  "[ams][pages][panel][stubs]") {
     open_at(2);
@@ -820,6 +842,26 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a change in the system keeps the sho
         CHECK(page_current() == 4);
         CHECK(unit_name() == "Box unit 4");
     }
+}
+
+TEST_CASE_METHOD(PagingFixture, "A panel opened on one unit makes way for the overview",
+                 "[ams][pages][panel][overview]") {
+    // multiACE reports the SnapSwap first and its ACEs a moment later.
+    PagedFleet* fleet = install([](PagedFleet& f) {
+        f.specs.resize(1);
+        f.own_number_base = 0;
+    });
+    open();
+    AmsPanel* single = get_existing_ams_panel();
+    REQUIRE(single != nullptr);
+    REQUIRE(helix::nav::is_showing(single->get_panel()));
+
+    fleet->specs.push_back({"unit_1", "fps", false});
+    AmsState::instance().sync_from_backend();
+    settle();
+    process_lvgl(80);
+    CHECK(helix::nav::is_showing(root()));
+    CHECK_FALSE(helix::nav::is_in_stack(single->get_panel()));
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Back again leaves",
@@ -1313,6 +1355,60 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
 
     tap(tiles[1]);
     CHECK(in_unit_view());
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a tile with room keeps its readout on itself",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.own_number_base = 0;
+    });
+    open();
+    process_lvgl(50);
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* room = lv_obj_find_by_name(card, "tile_readout_room");
+        REQUIRE(room != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(room));
+        lv_area_t c, r;
+        lv_obj_get_coords(card, &c);
+        lv_obj_get_coords(room, &r);
+        CHECK(r.x2 <= c.x2);
+    }
+}
+
+TEST_CASE_METHOD(
+    PagingFixture,
+    "Overview tile: a crowded row drops readouts it has no room for and hides cut names",
+    "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 6);
+        f.own_number_base = 0;
+    });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    lv_area_t row_area;
+    lv_obj_get_coords(row, &row_area);
+    int cut = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_area_t c;
+        lv_obj_get_coords(card, &c);
+        lv_obj_t* room = lv_obj_find_by_name(card, "tile_readout_room");
+        REQUIRE(room != nullptr);
+        lv_obj_t* readout = lv_obj_find_by_name(room, "tile_readout");
+        REQUIRE(readout != nullptr);
+        CHECK(lv_obj_is_hidden(room) == !helix::ui::overview_tile_holds_readout(
+                                            lv_area_get_width(&c), lv_obj_get_width(readout)));
+        lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
+        REQUIRE(name != nullptr);
+        const bool whole = c.x1 >= row_area.x1 && c.x2 <= row_area.x2;
+        cut += whole ? 0 : 1;
+        CHECK(lv_obj_get_style_opa(name, LV_PART_MAIN) == (whole ? LV_OPA_COVER : LV_OPA_TRANSP));
+    }
+    CHECK(cut > 0);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of bars",

@@ -412,7 +412,8 @@ inline constexpr std::array<PersonaEntry, 16> kPersonas = {{
         {"quattro_box", 4, 4}, {"quattrobox", 4, 4},    {"ace", 4, 4},      {"afc_ace", 4, 4},
         {"afc-ace", 4, 4},     {"afc_cfs", 4, 4},       {"afc-cfs", 4, 4},  {"hh_qidi", 4, 4},
         {"hh_vivid", 4, 4},    {"hh_night_owl", 2, 2},  {"afc", 2, 8},      {"box_turtle", 2, 8},
-        {"boxturtle", 2, 8},   {"hh_box_turtle", 2, 8}, {"hh_yammu", 4, 4},
+        {"boxturtle", 2, 8},   {"hh_box_turtle", 2, 8}, {"hh_yammu", 4, 4}, {"afc_bmcu", 4, 4},
+        {"afc-bmcu", 4, 4},
     };
     for (const Row& row : kRows) {
         if (mode == row.mode) {

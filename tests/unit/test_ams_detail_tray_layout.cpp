@@ -615,6 +615,13 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS tool changer: each tube hangs from ju
         // The tube's cap stands on the flange: clear of the spool, with no gap.
         CHECK((float)tube_top >= flange_bottom - 1);
         CHECK((float)tube_top <= flange_bottom + 1);
+        // With no unit around them the spools still grow to the view's scale where it is
+        // larger than the theme's spool.
+        const int32_t theme = theme_manager_get_spacing("ams_slot_spool_size");
+        if (size.first == 800)
+            CHECK(lv_area_get_width(&a) > theme);
+        else
+            CHECK(lv_area_get_width(&a) >= theme);
     }
 }
 

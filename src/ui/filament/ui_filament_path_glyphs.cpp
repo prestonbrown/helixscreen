@@ -12,7 +12,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 
-#include "buffer_reading.h"
+#include "hub_buffer_meter.h"
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -374,11 +374,7 @@ void tension_spring(lv_layer_t* layer, int32_t x1, int32_t x2, int32_t y, int32_
 } // namespace
 
 float buffer_tension_position(const FilamentPathData& d) {
-    if (d.buffer_bias > -1.5f)
-        return std::clamp(d.buffer_bias, -1.0f, 1.0f);
-    return d.buffer_state == 1   ? kSwitchedBufferBias
-           : d.buffer_state == 2 ? -kSwitchedBufferBias
-                                 : 0.0f;
+    return helix::ui::buffer_meter_position(d.buffer_bias, d.buffer_state);
 }
 
 lv_color_t buffer_thumb_color(const FilamentPathData& d) {
@@ -451,46 +447,31 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
 }
 
 namespace {
-// The hub's buffer meter: a short track lying on its side, a sensor band tall.
-int32_t hub_meter_length(int32_t hub_h) {
-    return LV_MAX(16, hub_h * 6 / 5);
-}
-constexpr int32_t kHubMarkPad = 6;
-
-// The meter's fill for the buffer's state: a fault red, compressed the accent, expanded the
-// warning color, centered the success color.
+// The meter's fill for the buffer's state (buffer_meter_tone).
 lv_color_t hub_meter_color(const FilamentPathData& d) {
-    if (d.buffer_fault_state >= 1)
+    switch (helix::ui::buffer_meter_tone(d.buffer_fault_state >= 1, buffer_tension_position(d))) {
+    case helix::ui::BufferMeterTone::Fault:
         return d.theme.color_error;
-    const float pos = buffer_tension_position(d);
-    return pos > kBufferOffCenter    ? d.theme.color_accent
-           : pos < -kBufferOffCenter ? d.theme.color_warning
-                                     : d.theme.color_success;
+    case helix::ui::BufferMeterTone::Compressed:
+        return d.theme.color_accent;
+    case helix::ui::BufferMeterTone::Expanded:
+        return d.theme.color_warning;
+    case helix::ui::BufferMeterTone::Centered:
+        break;
+    }
+    return d.theme.color_success;
 }
 } // namespace
 
 int32_t hub_buffer_glyph_width(int32_t hub_h) {
-    return hub_meter_length(hub_h) + 2 * kHubMarkPad;
+    return helix::ui::buffer_meter_slot_width(hub_h);
 }
 
 void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot) {
     const FilamentPathData& d = *ctx.data;
-    // The slot card's meter on its side: filled from the left up to the thumb, the thumb to the
-    // right when compressed, to the left when expanded, centered when neutral.
-    const int32_t h = lv_area_get_height(&slot);
-    const int32_t len = hub_meter_length(h);
-    const int32_t t = LV_MAX(6, h / 3);
-    const int32_t cx = (slot.x1 + slot.x2) / 2;
-    const int32_t cy = (slot.y1 + slot.y2) / 2;
-    const lv_area_t track = {cx - len / 2, cy - t / 2, cx - len / 2 + len - 1, cy - t / 2 + t - 1};
-    const float pos = buffer_tension_position(d);
-    const int32_t thumb_x = cx + (int32_t)std::lround(pos * (float)(len - 4) / 2.0f);
-    tension_fill(ctx.layer, track, d.theme.color_bg, 2, LV_OPA_COVER);
-    tension_fill(ctx.layer, {track.x1, track.y1, thumb_x, track.y2}, hub_meter_color(d), 2,
-                 LV_OPA_COVER);
-    tension_border(ctx.layer, track, d.theme.color_hub_border, 2);
-    tension_fill(ctx.layer, {thumb_x - 1, track.y1 - 2, thumb_x + 1, track.y2 + 2},
-                 d.theme.color_text, 1, LV_OPA_COVER);
+    helix::ui::draw_buffer_meter(
+        ctx.layer, slot, buffer_tension_position(d),
+        {d.theme.color_bg, d.theme.color_hub_border, d.theme.color_text, hub_meter_color(d)});
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)

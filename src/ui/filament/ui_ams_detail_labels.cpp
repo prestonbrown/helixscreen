@@ -867,9 +867,28 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
                              s_tray.lane_count, canvas));
 }
 
+namespace {
+/// The room a spool in a row with no box takes beside its own ring: its badge's slack and a gap.
+int32_t loose_spool_slack() {
+    return helix::ui::kAmsLaneSpoolBadgeMarginPx + theme_manager_get_spacing("space_xs");
+}
+} // namespace
+
 int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count) {
-    if (!draws_tray() || slot_count <= 0 || available_width <= 0)
+    if (slot_count <= 0 || available_width <= 0)
         return helix::ui::ams_slot_spool_size();
+    if (!draws_tray()) {
+        // A spool per tool, with no unit around it, grows to the view scale's spool like every
+        // drawn unit's, as far as a row of them fits the width; the flat style keeps its size.
+        const int32_t theme = helix::ui::ams_slot_spool_size();
+        if (unit_has_physical_tray())
+            return theme;
+        const helix::ui::PathViewScale& scale = refresh_view_scale(s_layout_view.get());
+        if (scale.spool_max <= 0)
+            return theme;
+        const int32_t fits = available_width / slot_count - loose_spool_slack();
+        return std::max(theme, std::min(scale.spool_max, fits));
+    }
     const SpoolHeightCap natural =
         natural_spool_layout(s_layout_unit, available_width, slot_count, s_layout_view.get());
     if (s_spool_cap.spool > 0 && same_key(s_spool_cap, natural))
@@ -878,17 +897,14 @@ int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count
 }
 
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
-    if (!unit_has_physical_tray())
-        return calculate_ams_slot_layout(available_width, slot_count);
     const float spool = (float)helix::ui::ams_detail_spool_size(available_width, slot_count);
     if (spool <= 0)
         return calculate_ams_slot_layout(available_width, slot_count);
-    // Flat spools keep the unit's compact row with no box to clear: a ring,
-    // its badge slack and a gap apart.
+    // Loose spools keep a compact row with no box to clear: a ring, its badge slack and a gap
+    // apart.
     if (!draws_tray())
         return calculate_ams_slot_layout(available_width, slot_count,
-                                         (int32_t)spool + helix::ui::kAmsLaneSpoolBadgeMarginPx +
-                                             theme_manager_get_spacing("space_xs"));
+                                         (int32_t)spool + loose_spool_slack());
     // Spools stand at the real units' pitch, each slot a spool wide, so neighbours
     // overlap. The drawn unit runs from the first lane's end cap to the last's plus
     // the right side face, and is centered in the width.

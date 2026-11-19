@@ -6,6 +6,9 @@
 #include "display_numbering.h"
 #include "ui/ams_drawing_utils.h"
 
+#include <string>
+#include <vector>
+
 #include "../catch_amalgamated.hpp"
 
 using helix::AmsSystemInfo;
@@ -153,6 +156,47 @@ TEST_CASE("SystemToolLayout: all-PARALLEL system", "[ams][tool_layout]") {
         CHECK(layout.units[u].tool_count == 4);
         CHECK(layout.units[u].first_physical_tool == u * 4);
     }
+}
+
+TEST_CASE("SystemToolLayout: a unit feeding one nozzle stands left of one fanning out from it",
+          "[ams][tool_layout]") {
+    // multiACE: the SnapSwap's four feeders go to their own heads, and an ACE feeds the first
+    // head too. Drawn on the left, the ACE's line drops straight to that head; on the right it
+    // crosses every feeder's line.
+    AmsSystemInfo info;
+    info.type = AmsType::SNAPMAKER;
+    AmsUnit feeders;
+    feeders.unit_index = 0;
+    feeders.slot_count = 4;
+    feeders.topology = PathTopology::PARALLEL;
+    for (int s = 0; s < 4; ++s) {
+        SlotInfo slot;
+        slot.slot_index = s;
+        slot.global_index = s;
+        slot.mapped_tool = s;
+        slot.extruder_name = s == 0 ? "extruder" : "extruder" + std::to_string(s);
+        feeders.slots.push_back(slot);
+    }
+    AmsUnit ace;
+    ace.unit_index = 1;
+    ace.slot_count = 4;
+    ace.first_slot_global_index = 4;
+    ace.topology = PathTopology::HUB;
+    for (int s = 0; s < 4; ++s) {
+        SlotInfo slot;
+        slot.slot_index = s;
+        slot.global_index = 4 + s;
+        slot.mapped_tool = 0;
+        slot.extruder_name = "extruder";
+        ace.slots.push_back(slot);
+    }
+    info.units = {feeders, ace};
+    info.total_slots = 8;
+
+    const auto layout = compute_system_tool_layout(info, nullptr);
+    REQUIRE(layout.units.size() == 2);
+    REQUIRE(layout.units[1].first_physical_tool == layout.units[0].first_physical_tool);
+    CHECK(layout.display_order == std::vector<int>{1, 0});
 }
 
 // ============================================================================
