@@ -167,3 +167,17 @@ with_gate_results() {
   }
   [ "$(hash_with 1)" != "$(hash_with 0)" ]
 }
+
+@test "HELIX_QC_ONLY runs only the gates it names, and its pass never stands in for a full one" {
+  hash_with() {
+    HELIX_QC_ONLY="$1" bash -c \
+      'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+  }
+  [ "$(hash_with "qc_doc_refs")" != "$(hash_with "")" ] || fail "a partial sweep shares the full sweep's stamp"
+  run bash -c 'eval "$(sed -n "/^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+    HELIX_QC_ONLY="qc_doc_refs qc_doc_anchors" STAGED_ONLY=false
+    qc_wanted qc_doc_anchors && echo "anchors runs"
+    qc_wanted qc_phase1 || echo "phase1 skipped"'
+  contains "anchors runs" "$output"
+  contains "phase1 skipped" "$output"
+}

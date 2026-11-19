@@ -115,6 +115,8 @@ qc_state_hash() {
     echo "link verdict required: ${HELIX_LINK_BOUNDARY_REQUIRED:-0}"
     # A sweep that left tests/python to the land gate is not a full sweep.
     echo "python tests skipped: ${HELIX_QC_SKIP_PYTHON_TESTS:-0}"
+    # A sweep of some gates (land-gate's docs-only run) is not a full sweep.
+    echo "gates: ${HELIX_QC_ONLY:-all}"
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
