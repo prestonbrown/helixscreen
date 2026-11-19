@@ -2897,6 +2897,7 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
         apply_working_slot_locked(fx);
 
         apply_print_task_config_locked(delta, fx);
+        note_pause_records_locked();
         fx.check_used_heads = used_heads_check_due_locked(frame_names_state, frame_names_file);
         fx.check_used_heads_file = print_filename_;
         fx.check_used_heads_print = print_generation_;
@@ -4148,6 +4149,38 @@ AmsBackendSnapmaker::get_endless_spool_capabilities() const {
             .switchable = true};
 }
 
+std::optional<helix::runout_other_head::FilamentRecord>
+AmsBackendSnapmaker::task_record_locked(int head) const {
+    // The record Auto-Replenish compares: vendor, type, subtype and colour
+    // record. A head whose vendor or type reads NONE is never a candidate.
+    const auto idx = static_cast<size_t>(head);
+    const auto& multi = task_color_multi_[idx];
+    if (!task_vendor_[idx] || is_unset_task_field(*task_vendor_[idx]) || !task_type_[idx] ||
+        is_unset_task_field(*task_type_[idx]) || !multi) {
+        return std::nullopt;
+    }
+    return helix::runout_other_head::FilamentRecord{.vendor = *task_vendor_[idx],
+                                                    .type = *task_type_[idx],
+                                                    .subtype =
+                                                        task_subtype_[idx].value_or(std::string{}),
+                                                    .colors = multi->colors,
+                                                    .alpha = multi->alpha,
+                                                    .multi_mode = multi->mode};
+}
+
+void AmsBackendSnapmaker::note_pause_records_locked() {
+    if (!print_state_ || *print_state_ != "paused") {
+        pause_records_.fill(std::nullopt);
+        return;
+    }
+    for (int i = 0; i < kNumTools; ++i) {
+        auto& kept = pause_records_[static_cast<size_t>(i)];
+        if (!kept) {
+            kept = task_record_locked(i);
+        }
+    }
+}
+
 std::optional<helix::runout_other_head::RunoutFacts>
 AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
     namespace roh = helix::runout_other_head;
@@ -4155,28 +4188,14 @@ AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
         return std::nullopt;
     }
     std::lock_guard<std::mutex> lock(mutex_);
-    // The record Auto-Replenish compares: vendor, type, subtype and colour
-    // record. A head whose vendor or type reads NONE is never a candidate.
-    const auto record_of = [this](int head) -> std::optional<roh::FilamentRecord> {
-        const auto idx = static_cast<size_t>(head);
-        const auto& multi = task_color_multi_[idx];
-        if (!task_vendor_[idx] || is_unset_task_field(*task_vendor_[idx]) || !task_type_[idx] ||
-            is_unset_task_field(*task_type_[idx]) || !multi) {
-            return std::nullopt;
-        }
-        return roh::FilamentRecord{.vendor = *task_vendor_[idx],
-                                   .type = *task_type_[idx],
-                                   .subtype = task_subtype_[idx].value_or(std::string{}),
-                                   .colors = multi->colors,
-                                   .alpha = multi->alpha,
-                                   .multi_mode = multi->mode};
-    };
     roh::RunoutFacts facts;
     facts.runout_head = runout_head;
     facts.paused = print_state_ && *print_state_ == "paused";
     facts.active_head = system_info_.current_tool;
     facts.auto_switch_enabled = print_preferences_.auto_replenish;
-    facts.original = record_of(runout_head);
+    const auto& kept = pause_records_[static_cast<size_t>(runout_head)];
+    facts.original = kept ? kept : task_record_locked(runout_head);
+    facts.routing = extruder_map_table_;
     for (int i = 0; i < kNumTools; ++i) {
         const auto& snap = channel_snapshots_[static_cast<size_t>(i)];
         const auto& ext = extruder_states_[static_cast<size_t>(i)];
@@ -4184,13 +4203,13 @@ AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
         h.head = i;
         h.nozzle_diameter = ext.nozzle_diameter;
         h.nozzle_flow = ext.nozzle_volume_type.value_or(std::string{});
-        // The firmware's own candidate test: its feeder finished a load, or it
-        // can feed the head now (feeder present, Auto loading on, filament at
-        // the port, runout sensor armed).
-        h.loaded_by_feeder =
-            snap.state == "load_finish" || (snap.module_exist && !snap.disable_auto &&
-                                            snap.filament_detected && snap.sensor_enabled);
-        h.record = record_of(i);
+        // The firmware's own tests (print_task_config.py
+        // cmd_INNER_AUTO_REPLENISH_FILAMENT): the feeder can supply the head
+        // now, or it finished a load into it.
+        h.feeder_can_supply = snap.module_exist && !snap.disable_auto && snap.filament_detected &&
+                              snap.sensor_enabled;
+        h.loaded_by_feeder = snap.state == "load_finish" || h.feeder_can_supply;
+        h.record = task_record_locked(i);
         facts.heads.push_back(std::move(h));
     }
     return facts;

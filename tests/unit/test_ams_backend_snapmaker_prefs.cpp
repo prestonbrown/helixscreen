@@ -140,5 +140,16 @@ TEST_CASE("snapmaker backend reports the facts a runout switch to another head n
     CHECK_FALSE(facts->heads[2].loaded_by_feeder);
     CHECK_FALSE(facts->heads[2].record.has_value()); // NONE is no filament
     CHECK(facts->heads[3].loaded_by_feeder);
+    CHECK(facts->heads[3].feeder_can_supply);
+    CHECK_FALSE(facts->heads[1].feeder_can_supply); // finished a load; no port reading
     CHECK_FALSE(backend.runout_other_head_facts(4).has_value());
+
+    // A spool swapped in during the pause changes the live record only: the
+    // firmware still compares against what ran out.
+    backend.fire_status(frame({{"filament_vendor", {"Generic"}}, {"filament_type", {"PETG"}}}));
+    CHECK(backend.runout_other_head_facts(0)->original->type == "PLA");
+    nlohmann::json resumed;
+    resumed["print_stats"] = {{"state", "printing"}};
+    backend.fire_status(resumed);
+    CHECK(backend.runout_other_head_facts(0)->original->type == "PETG");
 }
