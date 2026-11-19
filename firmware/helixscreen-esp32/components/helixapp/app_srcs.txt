@@ -256,6 +256,8 @@ src/printer/power_loss_sensor.cpp
 src/printer/pre_print_option.cpp
 src/printer/pre_print_preferences.cpp
 src/printer/preflight_validator.cpp
+src/printer/print_cost.cpp
+src/printer/print_cost_service.cpp
 src/printer/print_lifecycle_state.cpp
 src/printer/print_start_checks.cpp
 src/printer/print_start_inputs.cpp
@@ -410,6 +412,7 @@ src/core/text_io.cpp
 src/core/contract_breach.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
+src/system/featured_tip.cpp
 src/system/tips_manager.cpp
 src/system/tools_used_cache.cpp
 src/system/translation_loader.cpp
@@ -768,6 +771,7 @@ src/ui/settings/ui_settings_machine_limits.cpp
 src/ui/settings/ui_settings_macro_buttons.cpp
 src/ui/settings/ui_settings_material_temps.cpp
 src/ui/settings/ui_settings_motion.cpp
+src/ui/settings/ui_settings_print_cost.cpp
 src/ui/settings/ui_settings_printing.cpp
 src/ui/settings/ui_settings_safety.cpp
 src/ui/settings/ui_settings_security.cpp
@@ -929,6 +933,9 @@ src/rendering/gcode_color_metadata.cpp
 #   stub it actually registers the widget. Deps (gcode_parser types, lv_xml
 #   parser) are all in this build.
 src/ui/gcode/ui_gcode_viewer.cpp
+#   the live half of the viewer API: empty here (HELIX_HAS_GCODE_VIEWER=0), listed so the
+#   native link check sees the symbols it defines for the other build
+src/ui/gcode/gcode_viewer_api.cpp
 #   preview-card wiring shared by print-status and print-select-detail (render
 #   mode ladder + bottom-occluder handoff). Both those panels are in this build
 #   and call it ungated; its only deps are the ui_gcode_viewer_* API above (the

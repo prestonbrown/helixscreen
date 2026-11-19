@@ -223,6 +223,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un capteur qui mesure la température de l''air dans l''enceinte. Suivez-la sur l''écran de température de l''enceinte.'
   A shell on the machine running this screen: 'Un shell sur la machine qui exécute cet écran'
   A spool may be tangled or the drive gear is jammed: Une bobine est peut-être emmêlée ou l'engrenage d'entraînement est bloqué
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Le prix propre d'une bobine dans Spoolman est utilisé quand elle en a un. Ces prix couvrent toutes les autres bobines."
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Un système qui alimente plusieurs filaments vers la tête d''outil, affiché avec son nombre de slots. Gérez les slots sur l''écran du système de filament.'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'Une calibration des offsets des têtes d''outil est en cours, peut-être depuis un autre écran. La terminer maintenant ?'
@@ -255,6 +256,7 @@ translations:
   API Key (if Moonraker requires a login): 'Clé API (si Moonraker exige une connexion)'
   API not available: API non disponible
   APPEARANCE: APPARENCE
+  ASA: "ASA"
   AUTO FANS: VENTILATEURS AUTO
   AUTO STATE: ÉTAT AUTO
   AUTOMATION: AUTOMATISATION
@@ -368,6 +370,7 @@ translations:
   Anonymous usage statistics: Statistiques d'utilisation anonymes
   Another filament operation is heating the nozzle.: "Une autre opération de filament chauffe la buse."
   Any notes...: Des notes...
+  Any other material: "Tout autre matériau"
   App Background: Arrière-plan de l'application
   App startup encountered an error. Some features may be unavailable.: Le démarrage de l'application a rencontré une erreur. Certaines fonctionnalités peuvent être indisponibles.
   Appearance: Apparence
@@ -432,6 +435,7 @@ translations:
   Available Networks: Réseaux disponibles
   Available networks: Réseaux disponibles
   Average: Moyenne
+  Average draw while printing, in watts: "Consommation moyenne pendant l'impression, en watts"
   Axis Rows: 'Rangées par axe'
   Axis limits unknown: Limites de l'axe inconnues
   BACK: ARRIÈRE
@@ -1108,6 +1112,7 @@ translations:
   Creating spool...: Création de la bobine...
   'Critical hardware missing: {}': 'Matériel critique manquant : {}'
   Ctrl: 'Ctrl'
+  Currency: "Devise"
   Current / Target: Actuel / Cible
   Current Configuration: Configuration actuelle
   Current Mesh: Maillage du plateau actuel
@@ -1318,6 +1323,8 @@ translations:
   Eject failed: Échec de l'éjection
   Eject needs [force_move] enabled in printer config: L'éjection nécessite l'activation de [force_move] dans la configuration de l'imprimante
   Ejecting: Éjection
+  Electricity: "Électricité"
+  Electricity is added only when both are set: "L'électricité n'est ajoutée que lorsque les deux sont définis"
   Electronics fans: "Ventilateurs électronique"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: Élément
@@ -1689,6 +1696,8 @@ translations:
   Filament not set: 'Filament non défini'
   Filament operation failed: Échec de l'opération filament
   Filament operation timed out: Opération filament — délai dépassé
+  Filament price per kg: "Prix du filament au kg"
+  Filament prices and electricity: "Prix du filament et électricité"
   Filament ran out: Le filament est épuisé
   Filament ran out - nothing at the toolhead and the print is paused.: 'Filament épuisé - plus rien à la tête d''outil et l''impression est en pause.'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -1765,6 +1774,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Suivez le manuel pour changer la buse ou le hotend."
   'For a first Z home: claim the tool you put on the head': "Pour une première prise d'origine Z : déclarer l'outil posé sur la tête"
   For materials that need a warm enclosure, like ABS or ASA: 'Pour les matériaux qui demandent une enceinte chaude, comme l''ABS ou l''ASA'
+  For prices that do not come from Spoolman: "Pour les prix qui ne viennent pas de Spoolman"
   Force the MMU fans off or on, or follow Fan Control: "Forcer les ventilateurs du MMU à l'arrêt ou en marche, ou suivre le contrôle du ventilateur"
   Force/weight sensors: 'Capteurs de force/poids'
   Forget: Oublier
@@ -2277,6 +2287,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'La ligne {} appelle {}, que cette imprimante traite comme un arrêt d''urgence. Retranchez le fichier avec un profil conçu pour cette imprimante.'
   Linear rails: 'Rails linéaires'
   Linear rails interval: 'Intervalle des rails linéaires'
+  Lines from other apps mix with tips: 'Les lignes d''autres applis s''ajoutent aux astuces'
+  Lines from other apps replace tips: 'Les lignes d''autres applis remplacent les astuces'
   Link Spools from Tags: 'Lier les bobines par étiquette'
   Link a slot to the Spoolman spool its tag names: 'Lier un slot à la bobine Spoolman indiquée par son étiquette'
   List the shared screen with this printer's webcams: 'Lister l''écran partagé parmi les webcams de cette imprimante'
@@ -2895,6 +2907,7 @@ translations:
   PA: PA
   PA Calibration: 'Calibration PA'
   PAUSED: EN PAUSE
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: Le code PIN doit comporter 4 à 6 chiffres
@@ -3089,6 +3102,7 @@ translations:
   Print Complete!: Impression terminée !
   Print Completion Alert: Alerte de fin d'impression
   Print Controls: 'Commandes d''impression'
+  Print Cost: "Coût d'impression"
   Print Details: Détails de l'impression
   Print Failed: Impression échouée
   Print File: Fichier d'impression
@@ -3180,6 +3194,7 @@ translations:
   Printer name: Nom de l'imprimante
   Printer not connected: Imprimante non connectée
   Printer not ready: Imprimante non prête
+  Printer power: "Puissance de l'imprimante"
   Printer ready: Imprimante prête
   Printer status unknown: 'État de l''imprimante inconnu'
   Printer type mismatch: Type d'imprimante incompatible
@@ -3763,6 +3778,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "Réglez l'horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Réglez à la main le type et la couleur du filament pour ce slot. Si l'étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos
+  Set this to Spoolman's currency if you use both.: "Choisissez ici la devise de Spoolman si vous utilisez les deux."
   Set up: Configurer
   Set up your label printer in Settings: Configurez votre imprimante d'étiquettes dans les Paramètres
   Set what is really selected and loaded. Nothing moves.: 'Indiquez ce qui est réellement sélectionné et chargé. Rien ne bouge.'
@@ -5198,6 +5214,7 @@ translations:
   'Recycled': 'Recyclé'
   'Add to Spoolman + label': 'Ajouter à Spoolman + étiquette'
   'More': 'Plus'
+  Price per kWh: "Prix par kWh"
   'Price, location, lot, notes': 'Prix, emplacement, lot, notes'
   'Product': 'Produit'
   'Remaining weight': 'Poids restant'

@@ -377,6 +377,39 @@ Pair it with `HELIX_MOCK_REMOTE_PRINTER=1` and a fresh `HELIX_CONFIG_DIR` to wat
 HELIX_MOCK_REMOTE_PRINTER=1 HELIX_MOCK_HOME_LAYOUT=/tmp/layout.json ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_FEATURED_TIP`
+
+**Featured tip:** Pre-seeds the mock Moonraker database's `helix-screen` / `featured_tip` record, the line a chat bot on the printer host (Print Handy) writes for the home tips widget. The widget shows it on its first check, `title` on the tile and `details` behind the tap.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Path to a JSON file holding the record (`id`, `title`, `details`, `source`, `posted_at`) |
+| **Default** | unset (no featured line) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (constructor); record shape in `include/featured_tip.h` |
+
+Leave `posted_at` out (or make it recent): a record older than ten minutes is skipped. An unreadable file logs a warning and seeds nothing.
+
+```bash
+echo '{"id":"demo","title":"You know what I would do with a million dollars? Two prints at the same time man.","details":"Lawrence in Office Space (1999).","source":"Print Handy"}' > /tmp/tip.json
+HELIX_MOCK_FEATURED_TIP=/tmp/tip.json ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_PRINT_COST_RECORDS`
+
+**Shared print cost records:** Pre-seeds the mock Moonraker database's `helix-screen` / `print_cost.<file>` records, the ones another program on the printer host writes so HelixScreen shows its cost of a print instead of computing one (prestonbrown/helixscreen#2132).
+
+| Property | Value |
+|----------|-------|
+| **Values** | Path to a JSON object mapping a gcodes-relative file name to its record |
+| **Default** | unset (no records) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (constructor); record shape and key in `include/print_cost.h` |
+
+A record shows only when its `file_modified` matches the file's, so copy that from the file's metadata. The auto-print file is `assets/test_gcodes/3DBenchy.gcode`.
+
+```bash
+HELIX_MOCK_PRINT_COST_RECORDS=/tmp/cost.json HELIX_MOCK_AUTO_PRINT=1 ./build/bin/helix-screen --test -vv
+```
+
 #### Seeing the Adaptive Bed Mesh toggle
 
 Adaptive bed mesh is a property of the **single** Bed Mesh pre-print option (on a
@@ -834,7 +867,7 @@ A mode that stands for a real product keeps `HELIX_AMS_GATES` inside the lane co
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `HELIX_MOCK_INDX_TOOLS` | `6` | Tools, 2-10. The last one is listed in `no_heat_tools` (a pen) |
-| `HELIX_MOCK_INDX_FAULT` | unset | `seat_suspect` (T1 may be half seated), `docks_uncalibrated`, `unrecognized` (no `CHANGE_TOOL`, the "macros not recognized" state), or `kalico` (`[indx]` in configfile only, not in the object list) |
+| `HELIX_MOCK_INDX_FAULT` | unset | `seat_suspect` (T1 may be half seated), `docks_uncalibrated`, `unrecognized` (no `CHANGE_TOOL`, the "macros not recognized" state), `refuse_unhomed` (a custom `CHANGE_TOOL` that refuses every change while XYZ is unhomed, with the macro's own error, instead of homing), or `kalico` (`[indx]` in configfile only, not in the object list) |
 | `HELIX_MOCK_INDX_SPOOL_MACROS` | off | The #1333 reporter's shape: each `T<n>` declares `spool_id` and its template calls `SET_ACTIVE_SPOOL` |
 
 ```bash

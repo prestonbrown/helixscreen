@@ -19,6 +19,7 @@
 #include "lvgl.h"
 #include "material_settings_manager.h"
 #include "mount_feed_sequence.h"
+#include "print_cost.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "remote_screen_settings_manager.h"
@@ -710,6 +711,100 @@ void SettingsManager::set_mount_feed_purge_mm(int mm) {
     Config* config = Config::get_instance();
     config->set<int>(config->df() + wizard::kMountFeedPurgeMm, mount_feed_purge_mm_);
     config->save();
+}
+
+// Print cost: prices are global ("/print_cost"), the printer's watts are per printer.
+namespace {
+constexpr const char* kCostRoot = "/print_cost";
+constexpr const char* kCostWattsKey = "print_cost_watts";
+
+json cost_root() {
+    const json j = Config::get_instance()->get<json>(kCostRoot, json::object());
+    return j.is_object() ? j : json::object();
+}
+
+void save_cost_root(const json& j) {
+    Config* config = Config::get_instance();
+    config->set<json>(kCostRoot, j);
+    config->save();
+}
+
+double non_negative(double v) {
+    return std::isfinite(v) && v > 0.0 ? v : 0.0;
+}
+} // namespace
+
+helix::print_cost::CostSettings SettingsManager::get_cost_settings() const {
+    const json root = cost_root();
+    helix::print_cost::CostSettings out;
+    out.default_price_per_kg = non_negative(json_util::safe_double(root, "default_price_per_kg"));
+    out.price_per_kwh = non_negative(json_util::safe_double(root, "price_per_kwh"));
+    out.watts = get_cost_watts();
+    if (const json* prices = json_util::find_object(root, "price_per_kg")) {
+        for (auto it = prices->begin(); it != prices->end(); ++it) {
+            const double v = non_negative(json_util::as_double(it.value()));
+            if (v > 0.0) {
+                out.price_per_kg[helix::print_cost::material_key(it.key())] = v;
+            }
+        }
+    }
+    return out;
+}
+
+std::string SettingsManager::get_cost_currency() const {
+    const std::string code = json_util::safe_string(cost_root(), "currency");
+    return code.empty() ? std::string("USD") : code;
+}
+
+void SettingsManager::set_cost_currency(const std::string& code) {
+    json root = cost_root();
+    root["currency"] = code;
+    save_cost_root(root);
+}
+
+double SettingsManager::get_cost_price_per_kg(const std::string& material) const {
+    const json root = cost_root();
+    if (material.empty()) {
+        return non_negative(json_util::safe_double(root, "default_price_per_kg"));
+    }
+    const json* prices = json_util::find_object(root, "price_per_kg");
+    return prices ? non_negative(json_util::safe_double(
+                        *prices, helix::print_cost::material_key(material).c_str()))
+                  : 0.0;
+}
+
+void SettingsManager::set_cost_price_per_kg(const std::string& material, double price) {
+    json root = cost_root();
+    if (material.empty()) {
+        root["default_price_per_kg"] = non_negative(price);
+    } else {
+        if (!root["price_per_kg"].is_object()) {
+            root["price_per_kg"] = json::object();
+        }
+        root["price_per_kg"][helix::print_cost::material_key(material)] = non_negative(price);
+    }
+    save_cost_root(root);
+}
+
+double SettingsManager::get_cost_watts() const {
+    Config* config = Config::get_instance();
+    return non_negative(config->get<double>(config->df() + kCostWattsKey, 0.0));
+}
+
+void SettingsManager::set_cost_watts(double watts) {
+    Config* config = Config::get_instance();
+    config->set<double>(config->df() + kCostWattsKey, non_negative(watts));
+    config->save();
+}
+
+double SettingsManager::get_cost_price_per_kwh() const {
+    return non_negative(json_util::safe_double(cost_root(), "price_per_kwh"));
+}
+
+void SettingsManager::set_cost_price_per_kwh(double price) {
+    json root = cost_root();
+    root["price_per_kwh"] = non_negative(price);
+    save_cost_root(root);
 }
 
 std::string SettingsManager::get_chamber_heater_assignment() const {

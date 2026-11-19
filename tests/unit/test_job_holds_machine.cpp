@@ -597,6 +597,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/power_device_row.xml",
     "ui_xml/print_cancel_confirm_modal.xml",
     "ui_xml/print_completion_modal.xml",
+    "ui_xml/print_cost_overlay.xml",
+    "ui_xml/print_cost_value_row.xml",
     "ui_xml/print_file_card.xml",
     "ui_xml/print_file_detail.xml",
     "ui_xml/print_file_list_row.xml",

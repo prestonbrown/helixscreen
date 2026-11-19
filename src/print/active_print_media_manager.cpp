@@ -12,6 +12,7 @@
 #include "json_utils.h"
 #include "memory_monitor.h"
 #include "print_3mf.h"
+#include "print_cost_service.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "three_mf_reader.h"
@@ -428,6 +429,7 @@ void ActivePrintMediaManager::describe_archive_plate(const std::string& filename
                     const FileMetadata meta = three_mf::plate_file_metadata(*shown);
                     auto& print_state = printer_state_.print_state();
                     print_state.set_print_materials(materials_in_metadata(meta));
+                    helix::print_cost::ActivePrintCost::instance().set_file(archive, meta);
                     if (meta.estimated_time > 0) {
                         print_state.set_estimated_print_time(static_cast<int>(meta.estimated_time));
                     }
@@ -476,6 +478,12 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
         return;
     }
     last_effective_filename_ = effective_filename;
+
+    // The last print's cost is not this one's, whether or not this file's
+    // metadata ever arrives to price it. Queued like the display name below,
+    // so it lands before any metadata reply this load starts.
+    helix::ui::queue_update("ActivePrintMediaManager::clear_print_cost",
+                            []() { helix::print_cost::ActivePrintCost::instance().clear(); });
 
     // Update display filename subject
     std::string display_name = get_display_filename(effective_filename);
@@ -639,6 +647,8 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 }
 
                 printer_state_.print_state().set_print_materials(materials_in_metadata(metadata));
+                helix::print_cost::ActivePrintCost::instance().set_file(metadata_filename,
+                                                                        metadata);
 
                 // Slice layer heights power the Z-height current-layer derivation
                 // for printers whose slicer never reports a layer number. Thread
@@ -1239,6 +1249,7 @@ void ActivePrintMediaManager::clear_print_info() {
         printer_state_.print_state().set_print_psram_thumbnail(nullptr);
 #endif
         printer_state_.print_state().set_print_display_filename("");
+        helix::print_cost::ActivePrintCost::instance().clear();
         spdlog::debug("[ActivePrintMediaManager] Cleared print info subjects");
     });
 }

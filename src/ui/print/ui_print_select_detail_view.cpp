@@ -47,6 +47,7 @@
 #include "moonraker_validation.h"
 #include "plugin_menu_context.h"
 #include "pre_start_exclude.h"
+#include "print_cost_service.h"
 #include "print_detail_layout.h"
 #include "print_status_preview_decision.h"
 #include "queued_job_start.h"
@@ -173,6 +174,9 @@ void PrintSelectDetailView::init_subjects() {
                            "detail_history_status", subjects_);
     UI_MANAGED_SUBJECT_STRING(detail_history_text_, detail_history_text_buf_, "",
                               "detail_history_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(detail_print_cost_, detail_print_cost_buf_, "", "detail_print_cost",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_print_cost_visible_, 0, "detail_print_cost_visible", subjects_);
 
     // Preview color mode: 0 = actual (loaded slot colors), 1 = sliced (slicer intent)
     UI_MANAGED_SUBJECT_INT(detail_prefer_sliced_colors_, 0, "detail_prefer_sliced_colors",
@@ -427,6 +431,7 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         // the downstream work: re-colour the preview and re-gate pre-flight.
         // Synchronous, on the main thread, so a direct call is safe.
         refresh_preview_colors_and_mismatch();
+        refresh_print_cost(); // a tool moved to another lane prices at that spool
     });
 
     spdlog::debug("[DetailView] Detail view created");
@@ -2711,7 +2716,47 @@ bool PrintSelectDetailView::apply_file_metadata(const std::string& file_key,
     cached_file_metadata_ = metadata;
     update_prep_time_label();
     refresh_fit_check();
+    refresh_print_cost();
     return true;
+}
+
+void PrintSelectDetailView::refresh_print_cost() {
+    lv_subject_set_int(&detail_print_cost_visible_, 0);
+    if (!cached_file_metadata_.has_value()) {
+        return;
+    }
+    // The lane the user picked for a tool prices it; unpicked tools follow the
+    // printer's routing.
+    const std::vector<helix::ToolMapping> mappings = effective_mappings();
+    const helix::print_cost::LaneLookup lanes =
+        [mappings](int tool) -> std::optional<helix::print_cost::LanePick> {
+        for (const auto& m : mappings) {
+            if (m.tool_index != tool || m.mapped_slot < 0) {
+                continue;
+            }
+            const AmsBackend* backend =
+                AmsState::instance().get_backend(m.mapped_backend < 0 ? 0 : m.mapped_backend);
+            if (backend == nullptr) {
+                return std::nullopt;
+            }
+            const SlotInfo slot = backend->get_slot_info(m.mapped_slot);
+            return helix::print_cost::LanePick{slot.spoolman_id, slot.material};
+        }
+        return std::nullopt;
+    };
+    const std::string key = current_file_key();
+    helix::print_cost::estimate_file(
+        helix::gcode::join_gcode_path(current_path_, current_filename_), *cached_file_metadata_,
+        lanes, lifetime_.token(), [this, key](const helix::print_cost::Estimate& estimate) {
+            if (key != current_file_key()) {
+                return; // another file is shown now
+            }
+            const std::string text = estimate.text();
+            std::snprintf(detail_print_cost_buf_, sizeof(detail_print_cost_buf_), "%s",
+                          text.c_str());
+            lv_subject_set_string(&detail_print_cost_, detail_print_cost_buf_);
+            lv_subject_set_int(&detail_print_cost_visible_, text.empty() ? 0 : 1);
+        });
 }
 
 // ============================================================================

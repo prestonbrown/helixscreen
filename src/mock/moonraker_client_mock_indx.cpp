@@ -76,6 +76,7 @@ void MoonrakerClientMock::read_indx_knobs() {
     indx_.seat_suspect = f == "seat_suspect" ? 1 : -1;
     indx_.docks_calibrated = f != "docks_uncalibrated";
     indx_.unrecognized = f == "unrecognized";
+    indx_.refuse_unhomed = f == "refuse_unhomed";
     indx_.kalico = f == "kalico";
     indx_.spool_macros = helix::env_flag("HELIX_MOCK_INDX_SPOOL_MACROS");
     indx_.no_heat_tools = {indx_.tool_count - 1};
@@ -316,10 +317,19 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_indx(const std::stri
         target = helix::text_io::parse_leading<double>(param(gcode, "TEMP"))
                      .value_or(preset != kPresetTemps.end() ? preset->second : 0.0);
     }
+    bool xyz_homed = false;
+    {
+        std::lock_guard<std::mutex> lock(homed_axes_mutex_);
+        xyz_homed = homed_axes_.find("xyz") != std::string::npos;
+    }
     {
         std::lock_guard<std::mutex> lock(indx_mutex_);
         if (cmd == "CHANGE_TOOL" && indx_.unrecognized) {
             return std::nullopt;
+        }
+        if (indx_.refuse_unhomed && !park && cmd != "LOAD_FILAMENT" && !xyz_homed) {
+            return refuse("CHANGE_TOOL refused: XYZ is not homed. Inspect the printer and run "
+                          "G28 deliberately before changing tools.");
         }
         if (auto reason = dock_refusal(); !reason.empty()) {
             return refuse(reason);

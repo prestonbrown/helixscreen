@@ -81,6 +81,7 @@ static const IconMapping kIconMap[] = {
 
     // Cancel/Close/Check
     {"cancel",             "\xF3\xB0\x9C\xBA"},  // F073A cancel
+    {"cash",               "\xF3\xB0\x84\x94"},  // F0114 cash (print cost)
     {"chart_line",         "\xF3\xB0\x84\xAA"},  // F012A chart-line
     {"check",              "\xF3\xB0\x84\xAC"},  // F012C check
     {"check_bold",         "\xF3\xB0\xB8\x9E"},  // F0E1E check-bold

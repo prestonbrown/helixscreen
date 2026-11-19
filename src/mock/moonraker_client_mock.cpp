@@ -11,6 +11,7 @@
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "env_knobs.h"
+#include "featured_tip.h"
 #include "gcode_parser.h"
 #include "hardware_object_table.h"
 #include "helix_thread.h"
@@ -22,6 +23,7 @@
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "moonraker_status_notification.h"
+#include "print_cost.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "shaper_response.h"
@@ -193,20 +195,46 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     // Another screen's toolhead offset calibration, already holding the state at connect.
     nozzle_cal_active_ = helix::env_flag("HELIX_MOCK_NOZZLE_CAL_HELD");
 
-    // HELIX_MOCK_HOME_LAYOUT=<json file> pre-seeds the database record the
-    // printer's own screen publishes its home layout to.
-    if (const char* layout_path = std::getenv("HELIX_MOCK_HOME_LAYOUT");
-        layout_path && *layout_path) {
-        std::ifstream layout_file(layout_path);
-        json layout = layout_file.good() ? json::parse(layout_file, nullptr, false) : json();
-        if (layout.is_discarded() || !layout.is_object()) {
-            spdlog::warn("[MoonrakerClientMock] HELIX_MOCK_HOME_LAYOUT '{}' is not a readable "
-                         "JSON object",
-                         layout_path);
+    // HELIX_MOCK_<NAME>=<json file> pre-seeds a database record another program
+    // on the printer host would have written.
+    const auto seed_db_from_env = [this](const char* env, const char* ns, const char* key) {
+        const char* path = std::getenv(env);
+        if (!path || !*path) {
+            return;
+        }
+        std::ifstream file(path);
+        json value = file.good() ? json::parse(file, nullptr, false) : json();
+        if (value.is_discarded() || !value.is_object()) {
+            spdlog::warn("[MoonrakerClientMock] {} '{}' is not a readable JSON object", env, path);
+            return;
+        }
+        mock_db_set(ns, key, value);
+        spdlog::info("[MoonrakerClientMock] Pre-seeded {}/{} from '{}'", ns, key, path);
+    };
+    // The printer's own screen's published home layout.
+    seed_db_from_env("HELIX_MOCK_HOME_LAYOUT", helix::home_layout::kNamespace,
+                     helix::home_layout::kKey);
+    // A chat bot's featured line for the tips widget.
+    seed_db_from_env("HELIX_MOCK_FEATURED_TIP", helix::featured_tip::kNamespace,
+                     helix::featured_tip::kKey);
+
+    // HELIX_MOCK_PRINT_COST_RECORDS=<json file> pre-seeds shared print cost
+    // records: an object of {"<gcodes-relative file>": <record>}.
+    if (const char* records_path = std::getenv("HELIX_MOCK_PRINT_COST_RECORDS");
+        records_path && *records_path) {
+        std::ifstream records_file(records_path);
+        json records = records_file.good() ? json::parse(records_file, nullptr, false) : json();
+        if (records.is_discarded() || !records.is_object()) {
+            spdlog::warn("[MoonrakerClientMock] HELIX_MOCK_PRINT_COST_RECORDS '{}' is not a "
+                         "readable JSON object",
+                         records_path);
         } else {
-            mock_db_set(helix::home_layout::kNamespace, helix::home_layout::kKey, layout);
-            spdlog::info("[MoonrakerClientMock] Pre-seeded the published home layout from '{}'",
-                         layout_path);
+            for (auto it = records.begin(); it != records.end(); ++it) {
+                mock_db_set(helix::print_cost::kRecordNamespace,
+                            helix::print_cost::record_key(it.key()), it.value());
+            }
+            spdlog::info("[MoonrakerClientMock] Pre-seeded {} print cost record(s) from '{}'",
+                         records.size(), records_path);
         }
     }
 
