@@ -377,6 +377,23 @@ Pair it with `HELIX_MOCK_REMOTE_PRINTER=1` and a fresh `HELIX_CONFIG_DIR` to wat
 HELIX_MOCK_REMOTE_PRINTER=1 HELIX_MOCK_HOME_LAYOUT=/tmp/layout.json ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_FEATURED_TIP`
+
+**Featured tip:** Pre-seeds the mock Moonraker database's `helix-screen` / `featured_tip` record, the line a chat bot on the printer host (Print Handy) writes for the home tips widget. The widget shows it on its first check, `title` on the tile and `details` behind the tap.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Path to a JSON file holding the record (`id`, `title`, `details`, `source`, `posted_at`) |
+| **Default** | unset (no featured line) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (constructor); record shape in `include/featured_tip.h` |
+
+Leave `posted_at` out (or make it recent): a record older than ten minutes is skipped. An unreadable file logs a warning and seeds nothing.
+
+```bash
+echo '{"id":"demo","title":"You know what I would do with a million dollars? Two prints at the same time man.","details":"Lawrence in Office Space (1999).","source":"Print Handy"}' > /tmp/tip.json
+HELIX_MOCK_FEATURED_TIP=/tmp/tip.json ./build/bin/helix-screen --test -vv
+```
+
 #### Seeing the Adaptive Bed Mesh toggle
 
 Adaptive bed mesh is a property of the **single** Bed Mesh pre-print option (on a

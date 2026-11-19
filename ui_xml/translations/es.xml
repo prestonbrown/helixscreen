@@ -2176,6 +2176,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." es="La línea {} llama a {}, que esta impresora trata como una parada de emergencia. Vuelva a laminar el archivo con un perfil hecho para esta impresora."/>
   <translation tag="Linear rails" es="Rieles lineales"/>
   <translation tag="Linear rails interval" es="Intervalo de los rieles lineales"/>
+  <translation tag="Lines from other apps mix with tips" es="Las líneas de otras apps se mezclan con los consejos"/>
+  <translation tag="Lines from other apps replace tips" es="Las líneas de otras apps reemplazan los consejos"/>
   <translation tag="Link Spools from Tags" es="Vincular bobinas por etiqueta"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" es="Vincula una ranura a la bobina de Spoolman que indica su etiqueta"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" es="Incluir la pantalla compartida entre las cámaras web de esta impresora"/>

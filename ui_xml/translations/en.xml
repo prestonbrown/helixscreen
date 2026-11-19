@@ -2176,6 +2176,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." en="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer."/>
   <translation tag="Linear rails" en="Linear rails"/>
   <translation tag="Linear rails interval" en="Linear rails interval"/>
+  <translation tag="Lines from other apps mix with tips" en="Lines from other apps mix with tips"/>
+  <translation tag="Lines from other apps replace tips" en="Lines from other apps replace tips"/>
   <translation tag="Link Spools from Tags" en="Link Spools from Tags"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" en="Link a slot to the Spoolman spool its tag names"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" en="List the shared screen with this printer&apos;s webcams"/>

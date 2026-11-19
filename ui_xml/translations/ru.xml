@@ -2224,6 +2224,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ru="Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера."/>
   <translation tag="Linear rails" ru="Линейные направляющие"/>
   <translation tag="Linear rails interval" ru="Интервал линейных направляющих"/>
+  <translation tag="Lines from other apps mix with tips" ru="Строки из других приложений чередуются с советами"/>
+  <translation tag="Lines from other apps replace tips" ru="Строки из других приложений заменяют советы"/>
   <translation tag="Link Spools from Tags" ru="Привязывать катушки по меткам"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" ru="Привязывать слот к катушке Spoolman, указанной в его метке"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" ru="Показывать общий экран среди веб-камер этого принтера"/>

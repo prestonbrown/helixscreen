@@ -2237,6 +2237,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.
   Linear rails: Linear rails
   Linear rails interval: Linear rails interval
+  Lines from other apps mix with tips: Lines from other apps mix with tips
+  Lines from other apps replace tips: Lines from other apps replace tips
   Link Spools from Tags: Link Spools from Tags
   Link a slot to the Spoolman spool its tag names: Link a slot to the Spoolman spool its tag names
   List the shared screen with this printer's webcams: List the shared screen with this printer's webcams

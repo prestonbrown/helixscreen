@@ -7,14 +7,18 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
+#include "ui_toast_manager.h"
 
+#include "app_globals.h"
 #include "core/subject.h"
 #include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
+#include "featured_tip.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix_psram_attr.h"
+#include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -27,7 +31,10 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
+
+#include "hv/json.hpp"
 
 // Tip rotation interval (60 seconds)
 static constexpr uint32_t kTipRotationIntervalMs = 60000;
@@ -35,9 +42,44 @@ static constexpr uint32_t kTipRotationIntervalMs = 60000;
 // Fade animation duration
 static constexpr uint32_t kTipFadeDurationMs = 300;
 
+// How often an active widget checks Moonraker for a featured line
+static constexpr uint32_t kFeaturedPollIntervalMs = 15000;
+
+// The featured line last shown or passed over, shared by every instance so a
+// recycled widget does not show it again.
+static std::string s_last_featured_id;
+
+// The featured line on screen, when it was posted and when it went up. Shared
+// so it holds the tile across a grid rebuild that recycles the widget.
+static helix::PrintingTip s_featured_tip;
+static double s_featured_posted_at = 0.0;
+static uint32_t s_featured_shown_at = 0;
+
+static double unix_now_s() {
+    return std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
+
+/// Whether the featured line keeps the tile from the tips: while it is current
+/// when it replaces them, else for one rotation interval.
+static bool featured_tip_holds_tile(bool featured_only) {
+    if (s_featured_tip.title.empty()) {
+        return false;
+    }
+    if (featured_only) {
+        helix::featured_tip::FeaturedTip age_only;
+        age_only.posted_at = s_featured_posted_at;
+        return helix::featured_tip::is_fresh(age_only, unix_now_s(),
+                                             helix::featured_tip::kReplaceMaxAgeSeconds);
+    }
+    return lv_tick_elaps(s_featured_shown_at) < kTipRotationIntervalMs;
+}
+
 // Subject owned by TipsWidget module — created before XML bindings resolve
 static helix::Subject s_status_subject;
 static HELIX_PSRAM_BSS char s_status_buffer[512];
+// 1 while the label shows a featured line, which hides the "Tip:" label
+static helix::Subject s_featured_subject;
 static helix::WidgetSubjects s_subjects{"TipsWidgetSubjects"};
 
 /// Widest unbreakable run of any tip title in `font`. LVGL wraps after any of
@@ -74,8 +116,11 @@ static void tips_widget_init_subjects() {
                                      "Welcome to HelixScreen");
         s_subjects.publish("status_text", &s_status_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_status_subject, "status_text", LV_SUBJECT_TYPE_STRING);
+        s_featured_subject.init_int(0);
+        s_subjects.publish("tip_is_featured", &s_featured_subject);
+        HELIX_SUBJECT_DEBUG_REGISTER(&s_featured_subject, "tip_is_featured", LV_SUBJECT_TYPE_INT);
 
-        spdlog::debug("[TipsWidget] Subjects initialized (status_text)");
+        spdlog::debug("[TipsWidget] Subjects initialized (status_text, tip_is_featured)");
     });
 }
 
@@ -128,12 +173,9 @@ void TipsWidget::detach() {
             tip_animating_ = false;
             lv_anim_delete(this, nullptr);
         }
-
-        if (tip_rotation_timer_) {
-            helix::ui::lv_timer_cancel_safe(tip_rotation_timer_);
-            tip_rotation_timer_ = nullptr;
-        }
     }
+    stop_timers();
+    lifetime_.invalidate();
 
     tip_label_ = nullptr;
 
@@ -161,6 +203,11 @@ void TipsWidget::on_activate() {
         spdlog::debug("[TipsWidget] Started tip rotation timer ({}ms interval)",
                       kTipRotationIntervalMs);
     }
+    if (!featured_poll_timer_) {
+        featured_poll_timer_ =
+            lv_timer_create(featured_poll_timer_cb, kFeaturedPollIntervalMs, this);
+    }
+    poll_featured_tip();
 }
 
 void TipsWidget::on_deactivate() {
@@ -170,10 +217,20 @@ void TipsWidget::on_deactivate() {
         lv_anim_delete(this, nullptr);
     }
 
+    stop_timers();
+    // A featured-line reply that lands after this is dropped.
+    lifetime_.invalidate();
+    spdlog::debug("[TipsWidget] Stopped tip timers");
+}
+
+void TipsWidget::stop_timers() {
     if (tip_rotation_timer_) {
         helix::ui::lv_timer_cancel_safe(tip_rotation_timer_);
         tip_rotation_timer_ = nullptr;
-        spdlog::debug("[TipsWidget] Stopped tip rotation timer");
+    }
+    if (featured_poll_timer_) {
+        helix::ui::lv_timer_cancel_safe(featured_poll_timer_);
+        featured_poll_timer_ = nullptr;
     }
 }
 
@@ -197,16 +254,9 @@ void TipsWidget::on_size_changed(int /*colspan*/, int /*rowspan*/, int width_px,
     if (!tip_container)
         return;
 
-    // The tip text label (named). Its height is capped at what the tile leaves
-    // inside the container's padding: the XML max height resolves against a
-    // content-height row, so without the cap a long title stops at one line
-    // instead of wrapping into a tall tile and ending in its ellipsis there.
-    if (tip_label_) {
-        lv_obj_set_style_text_font(tip_label_, text_font, 0);
-        const int32_t pad_v = lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) +
-                              lv_obj_get_style_pad_bottom(tip_container, LV_PART_MAIN);
-        lv_obj_set_style_max_height(tip_label_, std::max<int32_t>(0, height_px - pad_v), 0);
-    }
+    tile_w_ = width_px;
+    tile_h_ = height_px;
+    fit_title_font();
 
     // The "Tip:" prefix label is the first child of tip_container (unnamed text_heading)
     lv_obj_t* prefix = lv_obj_get_child(tip_container, 0);
@@ -239,7 +289,85 @@ bool TipsWidget::fits_at(int width_px, int /*height_px*/) const {
     return width_px - chrome >= widest_title_run_px(text_font);
 }
 
+void TipsWidget::fit_title_font() {
+    if (!tip_label_ || tile_w_ <= 0)
+        return;
+    // The title's height is capped at what the tile leaves inside the row's
+    // padding, which a featured line drops: the XML max height resolves against
+    // a content-height row, so without the cap a long title stops at one line
+    // instead of wrapping into a tall tile and ending in its ellipsis there.
+    auto* tip_container = lv_obj_get_parent(tip_label_);
+    const int32_t pad_v = lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) +
+                          lv_obj_get_style_pad_bottom(tip_container, LV_PART_MAIN);
+    const int32_t max_h = std::max<int32_t>(0, tile_h_ - pad_v);
+    lv_obj_set_style_max_height(tip_label_, max_h, 0);
+    // Below wide-tier width the tile reads in the body face (on_size_changed).
+    const bool compact = tile_w_ < widget_size::w_wide();
+    const lv_font_t* font = theme_manager_get_font(compact ? "font_body" : "font_heading");
+    if (!font)
+        return;
+    if (featured_tip::is_featured(current_tip_)) {
+        // A joke cut off before its punchline is no joke: step down a face at a
+        // time until all of it fits the tile, and only the smallest may end in
+        // the ellipsis. Measured on the laid-out label, which the hidden "Tip:"
+        // has just widened: the row decides its width to the pixel, and a pixel
+        // short wraps the last word into the ellipsis.
+        lv_obj_update_layout(widget_obj_);
+        const int32_t max_w = lv_obj_get_content_width(tip_label_);
+        const int32_t letter_space = lv_obj_get_style_text_letter_space(tip_label_, LV_PART_MAIN);
+        const int32_t line_space = lv_obj_get_style_text_line_space(tip_label_, LV_PART_MAIN);
+        const char* faces[] = {"font_heading", "font_body", "font_small"};
+        for (const char* face : faces) {
+            if (compact && std::strcmp(face, "font_heading") == 0)
+                continue;
+            const lv_font_t* candidate = theme_manager_get_font(face);
+            if (!candidate)
+                continue;
+            font = candidate;
+            lv_point_t size;
+            lv_text_get_size(&size, current_tip_.title.c_str(), font, letter_space, line_space,
+                             max_w, LV_TEXT_FLAG_NONE);
+            spdlog::debug("[TipsWidget] Featured line in {}: {}x{} in {}x{}", face, size.x, size.y,
+                          max_w, max_h);
+            if (size.y <= max_h)
+                break;
+        }
+    }
+    lv_obj_set_style_text_font(tip_label_, font, 0);
+}
+
+void TipsWidget::set_displayed_tip(const PrintingTip& tip) {
+    current_tip_ = tip;
+    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
+    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    lv_subject_set_int(&s_featured_subject, featured_tip::is_featured(tip) ? 1 : 0);
+    fit_title_font();
+}
+
+void TipsWidget::set_config(const nlohmann::json& config) {
+    featured_only_ = featured_tip::featured_only(config);
+}
+
+bool TipsWidget::on_edit_configure() {
+    featured_only_ = !featured_only_;
+    nlohmann::json config = nlohmann::json::object();
+    config[featured_tip::kConfigFeaturedOnly] = featured_only_;
+    save_widget_config(config);
+    spdlog::info("[TipsWidget] Featured lines {} tips", featured_only_ ? "replace" : "mix with");
+    ToastManager::instance().show(ToastSeverity::INFO,
+                                  featured_only_ ? lv_tr("Lines from other apps replace tips")
+                                                 : lv_tr("Lines from other apps mix with tips"));
+    return true;
+}
+
 void TipsWidget::update_tip_of_day() {
+    if (featured_tip_holds_tile(featured_only_)) {
+        // Already up: a rotation does not fade the same line out and back in.
+        if (current_tip_.id != s_featured_tip.id || tip_animating_) {
+            show_tip(s_featured_tip);
+        }
+        return;
+    }
     // Tip selection allocates on the heap; on memory-constrained ARM devices
     // (ad5x, k1) a std::bad_alloc here would otherwise unwind out of a
     // 60-second LVGL timer callback and terminate the process (#771).
@@ -251,19 +379,78 @@ void TipsWidget::update_tip_of_day() {
     }
 
     if (!tip.title.empty()) {
-        // Use animated transition if label is available and not already animating
-        if (tip_label_ && !tip_animating_) {
-            start_tip_fade_transition(tip);
-        } else {
-            // Fallback: instant update (initial load or animation in progress)
-            current_tip_ = tip;
-            std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", tip.title.c_str());
-            lv_subject_set_string(&s_status_subject, s_status_buffer);
-            spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
-        }
+        show_tip(tip);
     } else {
         spdlog::warn("[TipsWidget] Failed to get tip, keeping current");
     }
+}
+
+void TipsWidget::show_tip(const PrintingTip& tip) {
+    if (tip_animating_) {
+        // The fade in flight applies pending_tip_ when it reaches zero.
+        pending_tip_ = tip;
+        return;
+    }
+    if (tip_label_) {
+        start_tip_fade_transition(tip);
+        return;
+    }
+    // No label to animate (initial load): instant update
+    set_displayed_tip(tip);
+    spdlog::trace("[TipsWidget] Updated tip (instant): {}", tip.title);
+}
+
+void TipsWidget::poll_featured_tip() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        return;
+    }
+    api->database_get_item(
+        featured_tip::kNamespace, featured_tip::kKey,
+        lifetime_.bg_cb("TipsWidget::featured_tip",
+                        [this](const nlohmann::json& value) { apply_featured_tip(value); }),
+        // No featured line: Moonraker answers a missing key with an
+        // error, which is the normal state without a writer, and
+        // after a switch to a printer that has none.
+        lifetime_.bg_cb("TipsWidget::featured_tip_missing", [this](const MoonrakerError& err) {
+            spdlog::trace("[TipsWidget] No featured tip: {}", err.message);
+            drop_featured_tip();
+        }));
+}
+
+void TipsWidget::apply_featured_tip(const nlohmann::json& value) {
+    const auto featured = featured_tip::parse_record(value);
+    if (!featured || featured->id == s_last_featured_id) {
+        return;
+    }
+    s_last_featured_id = featured->id;
+    if (!featured_tip::is_fresh(*featured, unix_now_s(),
+                                featured_tip::max_age_seconds(featured_only_))) {
+        spdlog::debug("[TipsWidget] Skipping stale featured tip {}", featured->id);
+        return;
+    }
+    spdlog::info("[TipsWidget] Showing featured tip from {}", featured->source);
+    s_featured_tip = featured_tip::to_printing_tip(*featured);
+    s_featured_posted_at = featured->posted_at;
+    s_featured_shown_at = lv_tick_get();
+    show_tip(s_featured_tip);
+    // The featured line gets a full rotation interval before the next tip.
+    if (tip_rotation_timer_) {
+        lv_timer_reset(tip_rotation_timer_);
+    }
+}
+
+void TipsWidget::drop_featured_tip() {
+    // Mixed in, a line leaves on its own after one rotation. Replacing the
+    // tips, it would stay up with no record behind it, so the tips come back
+    // at the next rotation, and a record that reappears shows again.
+    if (!featured_only_ || s_featured_tip.title.empty()) {
+        return;
+    }
+    spdlog::debug("[TipsWidget] Featured tip gone, back to tips");
+    s_featured_tip = PrintingTip{};
+    s_featured_posted_at = 0.0;
+    s_last_featured_id.clear();
 }
 
 void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
@@ -279,9 +466,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
 
     // Skip animation if disabled — apply text immediately
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
-        current_tip_ = pending_tip_;
-        std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-        lv_subject_set_string(&s_status_subject, s_status_buffer);
+        set_displayed_tip(pending_tip_);
         // DECLARATIVE_OK: the tip fade animates this opacity frame by frame.
         lv_obj_set_style_opa(tip_label_, LV_OPA_COVER, LV_PART_MAIN);
         tip_animating_ = false;
@@ -317,9 +502,7 @@ void TipsWidget::start_tip_fade_transition(const PrintingTip& new_tip) {
 
 void TipsWidget::apply_pending_tip() {
     // Apply the pending tip text
-    current_tip_ = pending_tip_;
-    std::snprintf(s_status_buffer, sizeof(s_status_buffer), "%s", pending_tip_.title.c_str());
-    lv_subject_set_string(&s_status_subject, s_status_buffer);
+    set_displayed_tip(pending_tip_);
 
     spdlog::debug("[TipsWidget] Applied pending tip: {}", pending_tip_.title);
 
@@ -368,8 +551,9 @@ void TipsWidget::handle_tip_text_clicked() {
     spdlog::info("[TipsWidget] Tip text clicked - showing detail dialog");
 
     // Use alert helper which auto-handles OK button to close
-    helix::ui::modal_alert(current_tip_.title.c_str(), current_tip_.content.c_str(),
-                           ModalSeverity::Info);
+    const std::string& heading =
+        current_tip_.heading.empty() ? current_tip_.title : current_tip_.heading;
+    helix::ui::modal_alert(heading.c_str(), current_tip_.content.c_str(), ModalSeverity::Info);
 }
 
 void TipsWidget::handle_tip_rotation_timer() {
@@ -393,5 +577,12 @@ void TipsWidget::tip_rotation_timer_cb(lv_timer_t* timer) {
     auto* self = static_cast<TipsWidget*>(lv_timer_get_user_data(timer));
     if (self) {
         self->handle_tip_rotation_timer();
+    }
+}
+
+void TipsWidget::featured_poll_timer_cb(lv_timer_t* timer) {
+    auto* self = static_cast<TipsWidget*>(lv_timer_get_user_data(timer));
+    if (self) {
+        self->poll_featured_tip();
     }
 }

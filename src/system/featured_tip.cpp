@@ -1,0 +1,55 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+#include "featured_tip.h"
+
+#include "json_utils.h"
+
+namespace helix::featured_tip {
+
+std::optional<FeaturedTip> parse_record(const nlohmann::json& value) {
+    if (!value.is_object()) {
+        return std::nullopt;
+    }
+    FeaturedTip tip;
+    tip.id = json_util::safe_string(value, "id");
+    tip.title = json_util::safe_string(value, "title");
+    if (tip.id.empty() || tip.title.empty()) {
+        return std::nullopt;
+    }
+    tip.details = json_util::safe_string(value, "details");
+    tip.source = json_util::safe_string(value, "source");
+    tip.posted_at = json_util::safe_double(value, "posted_at");
+    return tip;
+}
+
+bool featured_only(const nlohmann::json& config) {
+    if (!config.is_object() || !config.contains(kConfigFeaturedOnly)) {
+        return false;
+    }
+    const auto& value = config[kConfigFeaturedOnly];
+    return value.is_boolean() && value.get<bool>();
+}
+
+double max_age_seconds(bool featured_only) {
+    return featured_only ? kReplaceMaxAgeSeconds : kMaxAgeSeconds;
+}
+
+bool is_fresh(const FeaturedTip& tip, double now_s, double max_age_s) {
+    return tip.posted_at <= 0.0 || now_s - tip.posted_at <= max_age_s;
+}
+
+PrintingTip to_printing_tip(const FeaturedTip& tip) {
+    PrintingTip out;
+    out.id = "featured:" + tip.id;
+    out.title = tip.title;
+    out.heading = tip.source;
+    out.content = tip.details.empty() ? tip.title : tip.title + "\n\n" + tip.details;
+    out.category = kCategory;
+    return out;
+}
+
+bool is_featured(const PrintingTip& tip) {
+    return tip.category == kCategory;
+}
+
+} // namespace helix::featured_tip
