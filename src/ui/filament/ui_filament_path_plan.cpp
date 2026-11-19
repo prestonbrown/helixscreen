@@ -12,6 +12,7 @@
 #include "i18n_plural.h"
 #include "lvgl.h"
 #include "theme_manager.h"
+#include "tube_router.h"
 
 #include <algorithm>
 #include <cmath>
@@ -641,13 +642,22 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             const float step = usable / (float)(fit_n - 1);
             // Each lane from its own start: a lane leaving lower runs a shorter way in.
             float need = -1e9f;
+            pg::PathPoint src[FilamentPathData::kMaxSlots], sink[FilamentPathData::kMaxSlots];
+            float highest = 1e9f;
             for (int i = 0; i < fan_n; ++i) {
                 const float offset = (float)i - (float)(fan_n - 1) / 2.0f;
                 const float run = std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x);
                 const float start = std::max(fan_in[i].start_y, (float)f.prep_band_y);
                 need = std::max(need, start + std::max(0.75f * (float)f.hub_h,
                                                        run * kFanMinSlope + 2.0f * kFanLegRoom));
+                src[i] = {fan_in[i].slot_x, start};
+                sink[i] = {(float)f.center_x + step * offset, 0.0f};
+                highest = std::min(highest, start);
             }
+            // And the tube router's least span for the ribbon it lays, where that is more.
+            if (const float span = lanes_required_span(src, sink, fan_n, (float)separation);
+                span >= 0.0f)
+                need = std::max(need, highest + span);
             top = std::min(roomy_top, (int32_t)std::ceil(need + (float)f.sensor_r));
         }
         hub_top = LV_MAX(LV_MAX(top, lanes_top), art_floor);
@@ -670,6 +680,14 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     pg::build_merge_fan(fan_in, fan_n, (float)f.center_x, (float)hub_top, (float)f.hub_box_w,
                         (float)entry_margin, /*fillet_r=*/fan_fillet, max_slope, f.hub_fan, reserve,
                         &fan_info);
+    // Under a view scale the tube router lays the fan as a ribbon onto the entries the fan
+    // chose; where it finds no room the fan's own routes stand.
+    if (scaled && fan_n > 0) {
+        pg::PathPoint src[FilamentPathData::kMaxSlots];
+        for (int i = 0; i < fan_n; ++i)
+            src[i] = {fan_in[i].slot_x, fan_in[i].start_y};
+        route_lanes(src, f.hub_fan, fan_n, (float)separation);
+    }
     // Under a view scale a lane within a couple of pixels of its entry drops straight in: a
     // sub-pixel offset drawn through two fillets reads as a step.
     for (int i = 0; scaled && i < fan_n; ++i) {
@@ -697,6 +715,64 @@ int32_t row_between(int32_t top, int32_t bottom, float fraction) {
 }
 
 } // namespace
+
+namespace {
+namespace tr = helix::ui::tuberoute;
+
+/// The router's settings for lanes converging under a view scale: a tube's clearance between
+/// any two, short fillets, 45-degree jogs where the height allows and the flattest the fan
+/// takes (kFanMinSlope) where it does not, never a sideways run, the jogs low near the sinks.
+tr::RouterConfig scaled_router(float clearance, float slope) {
+    tr::RouterConfig cfg;
+    cfg.clearance = clearance;
+    cfg.fillet_r = kScaledFanFillet;
+    cfg.slope = slope;
+    cfg.alt_slope = slope > kFanMinSlope ? kFanMinSlope : 0.0f;
+    cfg.allow_horizontal = false;
+    cfg.align = 1.0f;
+    return cfg;
+}
+} // namespace
+
+float lane_clearance(const FilamentPathData& data) {
+    return (float)LV_MAX(data.theme.tube_gauge + kHaloWidthExtra + 2,
+                         2 * data.theme.sensor_radius + 2);
+}
+
+bool route_lanes(const pg::PathPoint* sources, pg::MergeLaneOut* out, int n, float clearance) {
+    if (n <= 0 || n > tr::kMaxTraces)
+        return false;
+    pg::PathPoint sinks[tr::kMaxTraces];
+    for (int i = 0; i < n; ++i)
+        sinks[i] = out[i].pts[3];
+    const tr::Bus bus{sources, sinks, n};
+    tr::Trace traces[tr::kMaxTraces];
+    if (tr::plan_routes(&bus, 1, scaled_router(clearance, 1.0f), traces, tr::kMaxTraces) !=
+        tr::RouteStatus::Ok)
+        return false;
+    for (int i = 0; i < n; ++i) {
+        const tr::Trace& t = traces[i];
+        if (t.count == 4) {
+            for (int k = 0; k < 4; ++k)
+                out[i].pts[k] = t.pts[k];
+        } else {
+            const pg::PathPoint a = t.pts[0], b = t.pts[t.count - 1];
+            out[i].pts[0] = a;
+            out[i].pts[1] = {a.x, a.y + (b.y - a.y) / 3.0f};
+            out[i].pts[2] = {a.x, a.y + 2.0f * (b.y - a.y) / 3.0f};
+            out[i].pts[3] = b;
+        }
+    }
+    return true;
+}
+
+float lanes_required_span(const pg::PathPoint* sources, const pg::PathPoint* sinks, int n,
+                          float clearance) {
+    if (n <= 0 || n > tr::kMaxTraces)
+        return -1.0f;
+    const tr::Bus bus{sources, sinks, n};
+    return tr::required_span(&bus, 1, scaled_router(clearance, kFanMinSlope));
+}
 
 int32_t head_scale_within_height(int32_t scale, float max_h) {
     while (scale > kMinHeadScale) {
@@ -845,11 +921,18 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
         // spread from the others needs, no flatter than a hub's lanes.
         const ParallelRows r = parallel_rows(data, g);
         const int32_t head_top = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).top;
-        float spread = 0.0f;
-        for (int i = 0; i < LV_MIN(g.slot_count, FilamentPathData::kMaxSlots); i++)
-            spread =
-                std::max(spread, (float)std::abs(parallel_head_x(data, g, r, i) - g.slot_x[i]));
-        const float lean = spread > 1.0f ? spread * kFanMinSlope + 2.0f * kFanLegRoom : 0.0f;
+        // The tube router's least span for the ribbon out to the heads.
+        const int lanes = LV_MIN(g.slot_count, FilamentPathData::kMaxSlots);
+        pg::PathPoint src[FilamentPathData::kMaxSlots], sink[FilamentPathData::kMaxSlots];
+        bool spread = false;
+        for (int i = 0; i < lanes; i++) {
+            src[i] = {(float)g.slot_x[i], (float)r.entry_y};
+            sink[i] = {(float)parallel_head_x(data, g, r, i), 0.0f};
+            spread |= std::fabs(sink[i].x - src[i].x) > 1.0f;
+        }
+        const float lean =
+            spread ? std::max(0.0f, lanes_required_span(src, sink, lanes, lane_clearance(data)))
+                   : 0.0f;
         return (float)(head_top - r.entry_y) >= std::max(run_units(6.0f, 9.2f), lean);
     };
     const int32_t ceiling = std::max(g.height * 4, data.view_hub_h * 24);
@@ -1060,6 +1143,12 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
     const float fillet = data.view_hub_h > 0 ? kScaledFanFillet : 8.0f;
     pg::build_merge_fan(fan_in, fan_n, (float)f.hub_cx, (float)hub_top, (float)f.hub_w,
                         /*entry_margin=*/8.0f, fillet, /*max_slope=*/1.2f, f.hub_fan);
+    if (data.view_hub_h > 0 && fan_n > 0) {
+        pg::PathPoint src[FilamentPathData::kMaxSlots];
+        for (int i = 0; i < fan_n; i++)
+            src[i] = {fan_in[i].slot_x, fan_in[i].start_y};
+        route_lanes(src, f.hub_fan, fan_n, lane_clearance(data));
+    }
     return f;
 }
 } // namespace
@@ -1454,6 +1543,19 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
     const SlotRenderStates states = compute_slot_render_states(&data);
 
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
+    // Under a view scale the tube router lays the lanes out to their heads as one ribbon; where
+    // it finds no room each lane takes its own down-diagonal-down.
+    pg::MergeLaneOut routed[FilamentPathData::kMaxSlots];
+    bool use_router = false;
+    if (data.view_hub_h > 0 && n > 0) {
+        pg::PathPoint src[FilamentPathData::kMaxSlots];
+        for (int i = 0; i < n; i++) {
+            const bool prep_row = !data.art_sensors && data.slot_has_prep_sensor[i];
+            src[i] = {(float)g.slot_x[i], (float)(prep_row ? rows.prep_y : entry_y)};
+            routed[i].pts[3] = {(float)parallel_head_x(data, g, rows, i), (float)sensor_y};
+        }
+        use_router = route_lanes(src, routed, n, lane_clearance(data));
+    }
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(states[i], error, data.theme.color_bg);
         const float x = (float)g.slot_x[i];
@@ -1487,6 +1589,10 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
                                                                          : PathSegment::SPOOL);
         if (std::fabs(hx - x) < 0.5f) {
             append_line(*r, x, top, x, (float)sensor_y, run_style);
+        } else if (use_router) {
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, routed[i].pts, 4, kScaledFanFillet);
+            route_append(*r, bend, run_style);
         } else {
             // Out to its own head, spread wider than the lanes: down, one diagonal, down, all
             // above the heads.
@@ -1520,6 +1626,27 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
     const PathSegment error = static_cast<PathSegment>(data.error_segment);
 
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
+    // Under a view scale the tube router lays the direct lanes out to their heads as one
+    // ribbon; where it finds no room each takes its own down-diagonal-down.
+    const bool outlets = f.through.w > 0 && data.view_hub_h > 0;
+    pg::MergeLaneOut routed[FilamentPathData::kMaxSlots];
+    int route_of[FilamentPathData::kMaxSlots];
+    bool use_router = false;
+    if (data.view_hub_h > 0) {
+        pg::PathPoint src[FilamentPathData::kMaxSlots];
+        int m = 0;
+        for (int i = 0; i < n; i++) {
+            route_of[i] = -1;
+            if (f.slot_to_fan[i] >= 0)
+                continue;
+            const float x =
+                outlets ? (float)rail_outlet_x(*data.rail_art, f.through, i) : (float)g.slot_x[i];
+            src[m] = {x, (float)f.sensor_y};
+            routed[m].pts[3] = {(float)f.head_x[i], nozzle_top};
+            route_of[i] = m++;
+        }
+        use_router = m > 0 && route_lanes(src, routed, m, lane_clearance(data));
+    }
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(f.states[i], error, bg);
         float x = (float)g.slot_x[i];
@@ -1543,10 +1670,15 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
         const int fi = f.slot_to_fan[i];
         if (fi >= 0) {
             pg::FilamentPath fan;
-            pg::route_polyline_filleted(fan, f.hub_fan[fi].pts, 4, 8.0f);
+            pg::route_polyline_filleted(fan, f.hub_fan[fi].pts, 4,
+                                        data.view_hub_h > 0 ? kScaledFanFillet : 8.0f);
             route_append(r, fan, lane.style(PathSegment::SPOOL));
         } else if (const float hx = (float)f.head_x[i]; std::fabs(hx - x) < 0.5f) {
             append_line(r, x, (float)f.sensor_y, x, nozzle_top, lane.style(PathSegment::NOZZLE));
+        } else if (use_router && route_of[i] >= 0) {
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, routed[route_of[i]].pts, 4, kScaledFanFillet);
+            route_append(r, bend, lane.style(PathSegment::NOZZLE));
         } else {
             // Out to its own head, spread from the others: down, one diagonal, down.
             const float run = nozzle_top - (float)f.sensor_y;
@@ -1681,7 +1813,8 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             route_into_art(r, data, f.through, i, x, (float)f.prep_band_y,
                            lane.style(PathSegment::LANE));
             pg::FilamentPath fan;
-            pg::route_polyline_filleted(fan, f.hub_fan[i].pts, 4, 8.0f);
+            pg::route_polyline_filleted(fan, f.hub_fan[i].pts, 4,
+                                        data.view_hub_h > 0 ? kScaledFanFillet : 8.0f);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (bare)
                 append_line(r, f.hub_fan[i].pts[3].x, hub_top, cx, hub_bot,

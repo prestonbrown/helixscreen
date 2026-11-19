@@ -294,6 +294,22 @@ struct MixedFrame {
     SlotRenderStates states;
 };
 
+/**
+ * @brief Routes @p n lanes from @p sources down to the sinks already in each @p out[i].pts[3]
+ * with the tube router (tube_router.h), keeping their order and @p clearance apart, into
+ * @p out's four waypoints. False, @p out untouched, where the router finds no room: the caller
+ * keeps its own routes.
+ */
+bool route_lanes(const pathgeo::PathPoint* sources, pathgeo::MergeLaneOut* out, int n,
+                 float clearance);
+/// The least centerline distance two routed tubes keep: a tube, its halo and a gap, or a
+/// sensor band's width where that is more.
+float lane_clearance(const FilamentPathData& data);
+/// The least drop from the highest of @p sources to the row of @p sinks that routes them at the
+/// fan's flattest slope; negative where no height does.
+float lanes_required_span(const pathgeo::PathPoint* sources, const pathgeo::PathPoint* sinks, int n,
+                          float clearance);
+
 /// The smallest a shrunk head draws and still reads as a head.
 inline constexpr int32_t kMinHeadScale = 4;
 /// The tallest a head stands under a view scale, in view units, whatever its style's
