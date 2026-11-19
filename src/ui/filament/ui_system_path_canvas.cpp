@@ -897,6 +897,7 @@ bool ui_system_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, 
     return true;
 }
 
+namespace helix::ui {
 void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
                                                     void (*cb)(int side, void* user_data),
                                                     void* user_data) {
@@ -905,6 +906,7 @@ void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
         data->parked_chip_user_data = user_data;
     }
 }
+} // namespace helix::ui
 
 void ui_system_path_canvas_refresh(lv_obj_t* obj) {
     lv_obj_invalidate(obj);

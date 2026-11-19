@@ -220,8 +220,8 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             // during render and trip lv_inv_area assertions in LVGL 9.
             lv_obj_add_event_cb(system_path_, &AmsOverviewPanel::on_system_path_size_changed,
                                 LV_EVENT_SIZE_CHANGED, this);
-            ui_system_path_canvas_set_parked_chip_callback(system_path_,
-                                                           &AmsOverviewPanel::on_parked_chip, this);
+            helix::ui::ui_system_path_canvas_set_parked_chip_callback(
+                system_path_, &AmsOverviewPanel::on_parked_chip, this);
         }
     }
 
