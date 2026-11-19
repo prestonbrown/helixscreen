@@ -49,18 +49,84 @@ struct SpoolHeightCap {
     int32_t available_width = 0, screen_w = 0, screen_h = 0;
     int32_t spool = 0;
 };
-SpoolHeightCap s_spool_cap;
+
+bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
+    return a.unit == b.unit && a.slot_count == b.slot_count &&
+           a.available_width == b.available_width && a.screen_w == b.screen_w &&
+           a.screen_h == b.screen_h;
+}
+
+/**
+ * How large a drawn unit's spools are, so the path under it gets the room it needs.
+ *
+ * The rule: a unit takes the size its row gives it (natural_spool_layout()) unless the path
+ * under it, at the least height that lays the path out, then runs past the column's foot (or,
+ * under a view scale, the drawing past the column's top). Then its spools shrink by what the
+ * path lacks, never below a floor: half its row's size with no view scale, where a head too
+ * tall for what is left shrinks instead (compute_linear_hub_frame()); a third under a view
+ * scale, whose head keeps its size at every height, so the unit gives up more. Under a view
+ * scale the unit also grows back into room the path leaves.
+ *
+ * The loop: the panel lays the unit out at spool_for(); ams_detail_sync_lane_entry() measures
+ * the path and asks fit_*(); a true answer makes the panel lay the unit out again
+ * (ams_detail_relayout_unit()). It ends because each answer moves toward a size that stays:
+ * without a view scale the cap only ever falls for one row; with one, a size once seen too tall
+ * is never grown back to, a size the row draws a pixel off counts as settled, and a settled
+ * row stays until its path no longer fits. The panel's pass limit
+ * (kAmsDetailMaxRelayoutPasses) bounds it whatever the drawing does.
+ *
+ * Every size is kept for one key (unit, slot count, row width, screen): a new key starts over.
+ */
+class UnitSizer {
+  public:
+    /// A new view: nothing is known about its rows.
+    void reset() {
+        *this = {};
+    }
+
+    /// The spools are drawn at @p size: a cap the row draws a pixel off (its rounding) is the
+    /// size it shows.
+    void note_drawn(int32_t size) {
+        if (cap_.spool > 0 && std::abs(cap_.spool - size) <= 1)
+            cap_.spool = size;
+    }
+
+    /// The size @p natural's row draws its spools at: its own, or less where it was capped.
+    int32_t spool_for(const SpoolHeightCap& natural) const {
+        if (cap_.spool > 0 && same_key(cap_, natural))
+            return std::min(natural.spool, cap_.spool);
+        return natural.spool;
+    }
+
+    /// With no view scale: the unit drawn at @p now spools, its drawing @p art_h tall, has a
+    /// path @p overflow px past the column's foot. True when it must be laid out again smaller.
+    bool fit_unscaled(float now, int32_t art_h, int32_t overflow, const SpoolHeightCap& layout);
+
+    /// Under a view scale: as fit_unscaled(), the path growing @p fan_growth px taller as the
+    /// unit grows by its own size (ui_filament_path_canvas_fan_growth()), @p overflow negative
+    /// where the path leaves room. Solves for the size whose overflow is zero in one step,
+    /// growing as well as shrinking. True when the unit must be laid out again at a new size.
+    bool fit_scaled(int32_t now, int32_t art_h, int32_t overflow, float fan_growth,
+                    const SpoolHeightCap& layout);
+
+  private:
+    void cap_at(const SpoolHeightCap& layout, int32_t spool) {
+        cap_ = layout;
+        cap_.spool = spool;
+    }
+
+    SpoolHeightCap cap_;         ///< the size the row is to draw at, for its key
+    SpoolHeightCap settled_;     ///< the key the unit settled at (view scale)
+    SpoolHeightCap too_big_;     ///< the smallest size seen too tall for its key (view scale)
+    SpoolHeightCap tried_;       ///< the last size tried for a key (view scale) ...
+    int32_t tried_overflow_ = 0; ///< ... and how far its path ran over
+};
+UnitSizer s_sizer;
+
 int s_layout_unit = -2;         // the unit ams_detail_create_slots() lays out
 bool s_layout_path_art = false; // that unit's selector is drawn in the path, under its tray
 // A widget of the view it lays out; it lets go when the view is deleted.
 helix::ui::WidgetRef s_layout_view;
-// Under a view scale: the size a unit settled at for its row and screen, and the smallest seen
-// too tall for it (fit_scaled_unit()). A new view starts them afresh.
-SpoolHeightCap s_settled, s_too_big;
-/// The last size tried for a row and how far its path ran over: with the size now drawn, a
-/// line through the two gives the next size better than the one-step estimate.
-SpoolHeightCap s_tried;
-int32_t s_tried_overflow = 0;
 helix::ui::PathViewScale s_view_scale;
 
 /// The column the unit view and its path stand in, or null where they have none: the AMS
@@ -98,7 +164,6 @@ int32_t head_glyph_width(int32_t scale) {
     return b.right - b.left;
 }
 
-/// Recomputes the view scale from the column the view stands in.
 /// Recomputes the view scale from the column @p from (a live widget of the view) stands in.
 const helix::ui::PathViewScale& refresh_view_scale(lv_obj_t* from) {
     s_view_scale = {};
@@ -152,12 +217,6 @@ SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_
         k.spool = std::min<int32_t>(cap, (int32_t)((float)available_width / per_spool));
     }
     return k;
-}
-
-bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
-    return a.unit == b.unit && a.slot_count == b.slot_count &&
-           a.available_width == b.available_width && a.screen_w == b.screen_w &&
-           a.screen_h == b.screen_h;
 }
 } // namespace
 
@@ -236,20 +295,14 @@ bool lane_shows_label(lv_obj_t* slot) {
 } // namespace
 
 void note_drawn_spool_size(int32_t size) {
-    // A cap the row draws a pixel short of (its rounding) is the size it shows.
-    if (s_spool_cap.spool > 0 && std::abs(s_spool_cap.spool - size) <= 1)
-        s_spool_cap.spool = size;
+    s_sizer.note_drawn(size);
 }
 
 void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art) {
     s_layout_unit = unit_index;
     s_layout_path_art = path_art;
-    if (!s_layout_view.get() || view != s_layout_view.get()) {
-        s_settled = {};
-        s_too_big = {};
-        s_tried = {};
-        s_spool_cap = {};
-    }
+    if (!s_layout_view.get() || view != s_layout_view.get())
+        s_sizer.reset();
     s_layout_view = view;
 }
 
@@ -349,70 +402,84 @@ int32_t on_screen_bottom(lv_obj_t* obj) {
     return a.y2 - below;
 }
 
-/// Under a view scale the drawing takes what its row and the column leave: as wide as its row
-/// allows (@p layout), as tall as the path at its least height leaves, growing as well as
-/// shrinking, solved in one step. @p overflow is how far the path at its least height runs
-/// past the column's foot, negative where it leaves room; @p fan_growth is how much taller
-/// the path grows as the unit grows by a fraction (ui_filament_path_canvas_fan_growth()).
-/// True when the unit must be laid out again at a new size.
-bool fit_scaled_unit(int32_t overflow, float fan_growth, const SpoolHeightCap& layout) {
+bool UnitSizer::fit_scaled(int32_t now, int32_t art_h, int32_t overflow, float fan_growth,
+                           const SpoolHeightCap& layout) {
     // A path a pixel or two past the foot still shows whole.
     constexpr int32_t kOverflowSlack = 2;
-    const int32_t art_h = s_tray.art_drawn_h;
-    const int32_t now = (int32_t)s_tray.spool_size;
+    // Below this many pixels of overflow per spool pixel the two sizes tried say nothing
+    // reliable about the path's response.
+    constexpr float kMinOverflowPerPx = 0.05f;
     if (art_h <= 0 || now <= 0)
         return false;
     // Once a unit has settled at a size for its row and screen, later passes (a lane filling,
     // a label changing) leave it there unless the path no longer fits: it does not hunt.
-    if (same_key(s_settled, layout) && overflow <= kOverflowSlack) {
-        s_spool_cap = layout;
-        s_spool_cap.spool = now;
+    if (same_key(settled_, layout) && overflow <= kOverflowSlack) {
+        cap_at(layout, now);
         return false;
     }
-    // Growing the unit by a fraction e moves the path's foot down by its own height times e
-    // and by what its lanes' wider spread asks of the fan: the size whose overflow is zero.
-    const float e = -(float)overflow / ((float)art_h + fan_growth);
+    // Growing the unit by a fraction moves the path's foot down by its own height times that
+    // fraction and by what its lanes' wider spread asks of the fan: the size whose overflow is
+    // zero.
+    const float growth_fraction = -(float)overflow / ((float)art_h + fan_growth);
     // The drawing scales with its spools only roughly: a size seen too tall for this row is
     // never grown back to, so the size settles instead of trading a pixel back and forth.
-    if (!same_key(s_too_big, layout))
-        s_too_big = layout, s_too_big.spool = INT32_MAX;
-    if (overflow > kOverflowSlack)
-        s_too_big.spool = std::min(s_too_big.spool, now);
-    // It never shrinks below a third of its row's size, and never grows to get there.
+    if (!same_key(too_big_, layout)) {
+        too_big_ = layout;
+        too_big_.spool = INT32_MAX;
+    }
     const bool over = overflow > kOverflowSlack;
+    if (over)
+        too_big_.spool = std::min(too_big_.spool, now);
+    // It never shrinks below a third of its row's size, and never grows to get there.
     const int32_t floor_spool = over ? std::min(layout.spool / 3, now) : layout.spool / 3;
-    float estimate = (float)now * (1.0f + e);
+    float estimate = (float)now * (1.0f + growth_fraction);
     // A second size tried at this row: the overflow it gave against the one now gives the
     // path's real response to the unit's size.
-    if (same_key(s_tried, layout) && s_tried.spool != now) {
-        const float per_px = (float)(s_tried_overflow - overflow) / (float)(s_tried.spool - now);
-        if (per_px > 0.05f)
+    if (same_key(tried_, layout) && tried_.spool != now) {
+        const float per_px = (float)(tried_overflow_ - overflow) / (float)(tried_.spool - now);
+        if (per_px > kMinOverflowPerPx)
             estimate = (float)now - (float)overflow / per_px;
     }
-    s_tried = layout;
-    s_tried.spool = now;
-    s_tried_overflow = overflow;
+    tried_ = layout;
+    tried_.spool = now;
+    tried_overflow_ = overflow;
     int32_t spool =
         std::clamp<int32_t>((int32_t)std::floor(estimate), floor_spool,
-                            std::max(floor_spool, std::min(layout.spool, s_too_big.spool - 1)));
+                            std::max(floor_spool, std::min(layout.spool, too_big_.spool - 1)));
     // A row that rounds to a size above the cap it was given draws no smaller for the same
     // cap again: ask below what it drew by as much as it overshot.
-    if (over && same_key(s_spool_cap, layout) && s_spool_cap.spool > 0 && now > s_spool_cap.spool &&
-        spool >= s_spool_cap.spool)
-        spool = std::max(floor_spool, s_spool_cap.spool - (now - s_spool_cap.spool));
+    if (over && same_key(cap_, layout) && cap_.spool > 0 && now > cap_.spool && spool >= cap_.spool)
+        spool = std::max(floor_spool, cap_.spool - (now - cap_.spool));
     if (spool == now || (over && spool > now) || (!over && spool <= now + 1)) {
         // Settled: the cap is the size it shows.
-        s_settled = layout;
-        s_spool_cap = layout;
-        s_spool_cap.spool = now;
+        settled_ = layout;
+        cap_at(layout, now);
         return false;
     }
-    s_settled = {};
-    s_spool_cap = layout;
-    s_spool_cap.spool = spool;
+    settled_ = {};
+    cap_at(layout, spool);
     spdlog::debug("[AmsDetail] Unit {} drawn at {} for a path {} px {} (fan {:.0f}): spools at {}",
                   layout.unit, now, std::abs(overflow), overflow > 0 ? "over" : "under", fan_growth,
                   spool);
+    return true;
+}
+
+bool UnitSizer::fit_unscaled(float now, int32_t art_h, int32_t overflow,
+                             const SpoolHeightCap& layout) {
+    if (overflow <= 0)
+        return false;
+    // The drawing scales with its spools: shrinking it by the overflow gives the path that room.
+    // A unit keeps at least half the size its width gives it, so its drawing still reads; where
+    // that is not enough the head below gives up the rest.
+    const int32_t floor_spool = layout.spool / 2;
+    const int32_t spool =
+        std::max<int32_t>(floor_spool, (int32_t)(now * (float)(art_h - overflow) / (float)art_h));
+    const bool same = same_key(cap_, layout);
+    if (spool >= now || (same && cap_.spool > 0 && spool >= cap_.spool))
+        return false;
+    cap_at(layout, spool);
+    spdlog::debug("[AmsDetail] Unit {} overflows its path by {} px: spools capped at {}",
+                  layout.unit, overflow, spool);
     return true;
 }
 
@@ -479,29 +546,12 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
         }
         int32_t over = std::max(cc.y1 + need - 1 - limit, over_top);
         // A row that moved lays out again even where the unit's size holds.
-        const bool refit =
-            ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
-            fit_scaled_unit(over, ui_filament_path_canvas_fan_growth(canvas), layout);
+        const bool refit = ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
+                           s_sizer.fit_scaled((int32_t)s_tray.spool_size, s_tray.art_drawn_h, over,
+                                              ui_filament_path_canvas_fan_growth(canvas), layout);
         return refit || moved;
     }
-    if (overflow <= 0)
-        return false;
-    // The drawing scales with its spools: shrinking it by the overflow gives the path that room.
-    const int32_t art_h = s_tray.art_drawn_h;
-    // A unit keeps at least half the size its width gives it, so its drawing still
-    // reads; where that is not enough the head below gives up the rest.
-    const int32_t floor_spool = layout.spool / 2;
-    const int32_t spool =
-        std::max<int32_t>(floor_spool, (int32_t)((float)s_tray.spool_size *
-                                                 (float)(art_h - overflow) / (float)art_h));
-    const bool same = same_key(s_spool_cap, layout);
-    if (spool >= s_tray.spool_size || (same && s_spool_cap.spool > 0 && spool >= s_spool_cap.spool))
-        return false;
-    s_spool_cap = layout;
-    s_spool_cap.spool = spool;
-    spdlog::debug("[AmsDetail] Unit {} overflows its path by {} px: spools capped at {}",
-                  s_spool_cap.unit, overflow, spool);
-    return true;
+    return s_sizer.fit_unscaled(s_tray.spool_size, s_tray.art_drawn_h, overflow, layout);
 }
 } // namespace
 
@@ -1003,9 +1053,7 @@ int32_t helix::ui::ams_detail_spool_size(int32_t available_width, int slot_count
     }
     const SpoolHeightCap natural =
         natural_spool_layout(s_layout_unit, available_width, slot_count, s_layout_view.get());
-    if (s_spool_cap.spool > 0 && same_key(s_spool_cap, natural))
-        return std::min(natural.spool, s_spool_cap.spool);
-    return natural.spool;
+    return s_sizer.spool_for(natural);
 }
 
 AmsSlotLayout helix::ui::ams_detail_slot_layout(int32_t available_width, int slot_count) {
