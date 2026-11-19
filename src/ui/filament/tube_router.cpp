@@ -287,12 +287,12 @@ float verify_all(const Work* w, int n, const Params& p, int* worst_a, int* worst
     float best = far;
     *worst_a = -1;
     *worst_b = -1;
-    Flat fa, fb;
+    Flat flats[kMaxTraces];
+    for (int i = 0; i < n; ++i)
+        flatten_final(w[i], p, flats[i]);
     for (int i = 0; i < n; ++i) {
-        flatten_final(w[i], p, fa);
         for (int j = i + 1; j < n; ++j) {
-            flatten_final(w[j], p, fb);
-            float d = flat_distance(fa, fb, far);
+            float d = flat_distance(flats[i], flats[j], far);
             if (d < best) {
                 best = d;
                 *worst_a = i;
@@ -438,42 +438,24 @@ void emit(const Work& w, float m, Trace& out) {
     out.count = work_points(w, w.ey, out.pts);
 }
 
-} // namespace
-
-RouteStatus plan_routes(const Bus* buses, int bus_count, const RouterConfig& cfg, Trace* out,
-                        int out_cap, RouteReport* report) {
-    RouteReport local;
-    RouteReport& r = report ? *report : local;
-    r = RouteReport{};
-    r.slope = cfg.slope;
-
-    Work in[kMaxTraces];
-    int n = 0;
-    RouteStatus st = load(buses, bus_count, in, &n);
-    if (st == RouteStatus::Ok && (!out || out_cap < n || !(cfg.slope > 0.0f) ||
-                                  !(cfg.clearance > 0.0f) || cfg.fillet_r < 0.0f))
+// load(), then the checks every plan makes on the config, the output buffer and
+// each sink standing below its source.
+RouteStatus load_checked(const Bus* buses, int bus_count, const RouterConfig& cfg, const Trace* out,
+                         int out_cap, Work* in, int* n_out) {
+    RouteStatus st = load(buses, bus_count, in, n_out);
+    if (st == RouteStatus::Ok &&
+        (!out || out_cap < *n_out || !(cfg.clearance > 0.0f) || cfg.fillet_r < 0.0f))
         st = RouteStatus::BadInput;
-    if (st == RouteStatus::Ok) {
-        for (int t = 0; t < n; ++t) {
-            if (in[t].ey <= in[t].sy) {
-                st = RouteStatus::BadInput;
-                break;
-            }
-        }
-    }
-    if (st != RouteStatus::Ok) {
-        r.status = st;
-        return st;
-    }
+    for (int t = 0; st == RouteStatus::Ok && t < *n_out; ++t)
+        if (in[t].ey <= in[t].sy)
+            st = RouteStatus::BadInput;
+    return st;
+}
 
-    float slopes[3];
-    int slope_count = 0;
-    slopes[slope_count++] = cfg.slope;
-    if (cfg.alt_slope > 0.0f && cfg.alt_slope != cfg.slope)
-        slopes[slope_count++] = cfg.alt_slope;
-    if (cfg.allow_horizontal)
-        slopes[slope_count++] = 0.0f;
-
+// Tries each slope of @p slopes in order (0 is a horizontal jog) and emits the
+// first plan that fits. A failure reports the first slope's attempt.
+RouteStatus route_ladder(const Work* in, int n, const RouterConfig& cfg, const float* slopes,
+                         int slope_count, Trace* out, RouteReport& r) {
     Work w[kMaxTraces];
     Attempt first;
     for (int s = 0; s < slope_count; ++s) {
@@ -497,6 +479,67 @@ RouteStatus plan_routes(const Bus* buses, int bus_count, const RouterConfig& cfg
     r.pair_a = first.pair_a;
     r.pair_b = first.pair_b;
     return first.status;
+}
+
+} // namespace
+
+RouteStatus plan_routes(const Bus* buses, int bus_count, const RouterConfig& cfg, Trace* out,
+                        int out_cap, RouteReport* report) {
+    RouteReport local;
+    RouteReport& r = report ? *report : local;
+    r = RouteReport{};
+    r.slope = cfg.slope;
+
+    Work in[kMaxTraces];
+    int n = 0;
+    RouteStatus st = load_checked(buses, bus_count, cfg, out, out_cap, in, &n);
+    if (st == RouteStatus::Ok && !(cfg.slope > 0.0f))
+        st = RouteStatus::BadInput;
+    if (st != RouteStatus::Ok) {
+        r.status = st;
+        return st;
+    }
+
+    float slopes[3];
+    int slope_count = 0;
+    slopes[slope_count++] = cfg.slope;
+    if (cfg.alt_slope > 0.0f && cfg.alt_slope != cfg.slope)
+        slopes[slope_count++] = cfg.alt_slope;
+    if (cfg.allow_horizontal)
+        slopes[slope_count++] = 0.0f;
+    return route_ladder(in, n, cfg, slopes, slope_count, out, r);
+}
+
+RouteStatus plan_routes_ladder(const Bus* buses, int bus_count, const RouterConfig& cfg,
+                               const float* slopes, int slope_count, bool level_last, Trace* out,
+                               int out_cap, RouteReport* report) {
+    RouteReport local;
+    RouteReport& r = report ? *report : local;
+    r = RouteReport{};
+    r.slope = slopes && slope_count > 0 ? slopes[0] : 0.0f;
+
+    Work in[kMaxTraces];
+    int n = 0;
+    RouteStatus st = load_checked(buses, bus_count, cfg, out, out_cap, in, &n);
+    if (st == RouteStatus::Ok && (!slopes || slope_count <= 0 || slope_count > kMaxLadderSlopes))
+        st = RouteStatus::BadInput;
+    for (int s = 0; st == RouteStatus::Ok && s < slope_count; ++s)
+        if (!(slopes[s] > 0.0f))
+            st = RouteStatus::BadInput;
+    if (st != RouteStatus::Ok) {
+        r.status = st;
+        return st;
+    }
+    float ladder[kMaxLadderSlopes + 1];
+    std::copy(slopes, slopes + slope_count, ladder);
+    int count = slope_count;
+    if (level_last)
+        ladder[count++] = 0.0f;
+    return route_ladder(in, n, cfg, ladder, count, out, r);
+}
+
+float segment_distance(PathPoint a0, PathPoint a1, PathPoint b0, PathPoint b1) {
+    return dist_seg_seg({a0, a1}, {b0, b1});
 }
 
 float required_span(const Bus* buses, int bus_count, const RouterConfig& cfg) {

@@ -997,6 +997,68 @@ TEST_CASE("Overview plan: the lean shortfall is the height that lets level tubes
     CHECK_FALSE(has_level_run(plan, d->tube_gauge));
 }
 
+namespace {
+// Every route of @p a runs through the same points as the route at its index in @p b.
+bool same_routes(const PathPlan& a, const PathPlan& b) {
+    if (a.route_count != b.route_count)
+        return false;
+    for (int i = 0; i < a.route_count; i++) {
+        const pg::FilamentPath& pa = a.routes[i].path;
+        const pg::FilamentPath& pb = b.routes[i].path;
+        if (pa.count != pb.count)
+            return false;
+        for (int k = 0; k < pa.count; k++) {
+            const pg::PathPoint s = seg_start(pb.segs[k]), e = seg_end(pb.segs[k]);
+            if (!near(seg_start(pa.segs[k]), s.x, s.y) || !near(seg_end(pa.segs[k]), e.x, e.y))
+                return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
+TEST_CASE("Overview plan: the router runs once per set of route ends",
+          "[system_path][hub_groups][tube_router]") {
+    // Four units across the canvas into two heads: every draw plans the same routes.
+    auto d = hub_row_data(4, 2);
+    for (int u = 0; u < 4; u++)
+        hub_unit(*d, u, u / 2, 60 + 90 * u);
+    const lv_area_t area = {0, 0, 399, 199};
+    auto plan = std::make_unique<PathPlan>();
+    OverviewBoxes boxes;
+    plan_overview(*d, compute_sys_layout(*d, area), *plan, boxes);
+    REQUIRE(d->route_memo.searches == 1);
+
+    SECTION("a repeated draw reuses the routing, and draws what a fresh route draws") {
+        plan_overview(*d, compute_sys_layout(*d, area), *plan, boxes);
+        plan_overview(*d, compute_sys_layout(*d, area), *plan, boxes);
+        CHECK(d->route_memo.searches == 1);
+        auto cold = std::make_unique<SystemPathData>(*d);
+        cold->route_memo = {};
+        auto cold_plan = std::make_unique<PathPlan>();
+        plan_overview(*cold, compute_sys_layout(*cold, area), *cold_plan, boxes);
+        CHECK(same_routes(*plan, *cold_plan));
+    }
+    SECTION("a unit's stem moving routes again") {
+        d->unit_x_positions[1] += 12;
+        plan_overview(*d, compute_sys_layout(*d, area), *plan, boxes);
+        CHECK(d->route_memo.searches == 2);
+    }
+    SECTION("a taller canvas routes again") {
+        const lv_area_t taller = {0, 0, 399, 259};
+        plan_overview(*d, compute_sys_layout(*d, taller), *plan, boxes);
+        CHECK(d->route_memo.searches == 2);
+    }
+    SECTION("the lean shortfall searches once per canvas size") {
+        const int32_t need = overview_lean_shortfall(*d, area);
+        CHECK(overview_lean_shortfall(*d, area) == need);
+        CHECK(d->route_memo.searches == 2);
+        const lv_area_t taller = {0, 0, 399, 259};
+        overview_lean_shortfall(*d, taller);
+        CHECK(d->route_memo.searches == 3);
+    }
+}
+
 TEST_CASE("Overview plan: the StealthChanger row has one hub, where two units meet",
           "[system_path][hub_row]") {
     auto d = stealth_row();
