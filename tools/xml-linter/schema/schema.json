@@ -3642,6 +3642,7 @@
     "dialog_content_recovery_max_tiny",
     "dialog_content_recovery_max_xlarge",
     "dialog_content_recovery_max_xxlarge",
+    "dialog_max_width",
     "dot_size",
     "dryer_unit_art_size",
     "dryer_unit_art_size_large",
