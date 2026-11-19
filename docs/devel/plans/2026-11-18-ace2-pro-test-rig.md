@@ -53,6 +53,18 @@ page seen. The BMCU RS-485 adapter is not needed.
 - [ ] Crimp a proper 2x2 receptacle once it enumerates.
 - [ ] RDM pinout (its 6-pin cable goes to the printer per the manual; Kobra-S1 wires it as a
       `filament_switch_sensor`, optionally a `filament_tracker` with an encoder line).
+      Deferred: the first layout below needs no RDM.
+
+**Hub layout for the first run:** a printed passive 4-in-1 placed right at the V0's existing
+foot runout sensor (`gpio16`), so the sensor sits at the hub's outlet. AFC's ACE 2 template
+ships a virtual hub (`switch_pin: virtual`, the ACE 2 has no hub switch), so the sensor is an
+addition: point `[AFC_hub]` `switch_pin` at the foot sensor's pin and delete
+`[filament_switch_sensor filament_runout_sensor]`, which claims the same pin and calls
+`PAUSE` on runout. A real hub switch on an ACE unit is untested in AFC. Each lane's
+`dist_hub` must park its tip short of the hub's merge point (the template's rule), and
+`AFC_ACE_CALIBRATE` measures `afc_bowden_length` from there to the toolhead sensor.
+
+- [ ] Print the 4-in-1; measure each ACE outlet's tube length to the merge point.
 - [ ] Mount the ACE and the hub; route one PTFE run from hub to the V0 extruder; measure it.
 - [ ] Hub sensor: if it is a plain switch, wire it to a free Pico or SHT36 input (or reuse
       `gpio16` if the runout switch moves to the hub).
