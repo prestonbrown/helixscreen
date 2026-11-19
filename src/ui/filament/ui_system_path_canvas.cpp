@@ -28,9 +28,13 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <string>
 
 using namespace helix::ui::syspath;
 namespace fpath = helix::ui::fpath;
+
+// A finger-sized tap target: a chip shorter than this is reached from around it.
+static constexpr int32_t kChipTouchPx = 44;
 
 // Default dimensions
 static constexpr int32_t kDefaultWidth = 300;
@@ -310,6 +314,83 @@ static void draw_single_nozzle(lv_layer_t* layer, SystemPathData* data, const Sy
     }
 }
 
+// The "+N units" chip over the tubes of the units scrolled off one edge: a pill
+// in the off-page chip's style on the detail page, laid over where their tubes
+// enter so they read as coming from off-screen.
+static void draw_parked_chips(lv_layer_t* layer, SystemPathData* data, const SysLayout& L,
+                              const OverviewBoxes& boxes, const lv_area_t& obj_coords) {
+    for (int side = 0; side < 2; ++side) {
+        data->parked_chip_drawn[side] = false;
+        const ParkedChip& p = boxes.parked[side];
+        const lv_font_t* font = data->label_font;
+        if (!p.present || p.units <= 0 || !font)
+            continue;
+        const std::string text = "+" + fpath::offpage_label_text(p.units);
+        const int32_t pad = data->space_xs * 2;
+        const int32_t h = data->label_line_h + 2 * data->space_xs;
+        const int32_t w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad,
+                                 p.stem_hi - p.stem_lo + 2 * pad);
+        const int32_t left = L.x_off, right = L.x_off + L.width - 1;
+        int32_t x1 = (p.stem_lo + p.stem_hi) / 2 - w / 2;
+        x1 = LV_CLAMP(left, x1, LV_MAX(left, right - w + 1));
+        const int32_t y1 = LV_MAX(obj_coords.y1, L.entry_y - data->space_xs);
+        const lv_area_t chip = {x1, y1, x1 + w - 1, y1 + h - 1};
+
+        lv_draw_fill_dsc_t fill;
+        lv_draw_fill_dsc_init(&fill);
+        fill.color = data->color_hub_bg;
+        fill.opa = LV_OPA_COVER;
+        fill.radius = LV_RADIUS_CIRCLE;
+        lv_draw_fill(layer, &fill, &chip);
+        lv_draw_border_dsc_t border;
+        lv_draw_border_dsc_init(&border);
+        border.color = data->color_hub_border;
+        border.width = 1;
+        border.radius = LV_RADIUS_CIRCLE;
+        lv_draw_border(layer, &border, &chip);
+        lv_draw_label_dsc_t label;
+        lv_draw_label_dsc_init(&label);
+        label.color = data->color_text;
+        label.font = font;
+        label.align = LV_TEXT_ALIGN_CENTER;
+        label.text = text.c_str();
+        label.text_local = 1;
+        const int32_t cy = (chip.y1 + chip.y2) / 2;
+        const lv_area_t text_area = {chip.x1, cy - data->label_line_h / 2, chip.x2,
+                                     cy + data->label_line_h / 2};
+        lv_draw_label(layer, &label, &text_area);
+
+        data->parked_chip_area[side] = {chip.x1 - obj_coords.x1, chip.y1 - obj_coords.y1,
+                                        chip.x2 - obj_coords.x1, chip.y2 - obj_coords.y1};
+        data->parked_chip_drawn[side] = true;
+    }
+}
+
+// A tap on a "+N units" chip, or within a finger's reach of it, pages the card
+// row toward the units it stands for.
+static void system_path_click_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    SystemPathData* data = get_data(obj);
+    lv_indev_t* indev = lv_indev_active();
+    if (!data || !data->parked_chip_cb || !indev)
+        return;
+    lv_point_t p;
+    lv_indev_get_point(indev, &p);
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    const int32_t px = p.x - coords.x1, py = p.y - coords.y1;
+    for (int side = 0; side < 2; ++side) {
+        if (!data->parked_chip_drawn[side])
+            continue;
+        const lv_area_t& a = data->parked_chip_area[side];
+        const int32_t reach = LV_MAX(data->space_md, (kChipTouchPx - (a.y2 - a.y1 + 1)) / 2);
+        if (px >= a.x1 - reach && px <= a.x2 + reach && py >= a.y1 - reach && py <= a.y2 + reach) {
+            data->parked_chip_cb(side, data->parked_chip_user_data);
+            return;
+        }
+    }
+}
+
 static void system_path_draw_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     lv_layer_t* layer = lv_event_get_layer(e);
@@ -338,6 +419,7 @@ static void system_path_draw_cb(lv_event_t* e) {
         draw_single_nozzle(layer, data, L);
     fpath::paint_tubes(layer, plan, pal);
 
+    draw_parked_chips(layer, data, L, boxes, obj_coords);
     if (L.multi_tool) {
         draw_mini_hubs(layer, data, boxes);
         fpath::paint_box_bands(layer, plan, pal);
@@ -409,8 +491,9 @@ static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** a
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
-    // Click handling on the canvas is no longer needed — bypass clicks are
-    // captured by the BypassSpoolWidgets overlay the panel places on top.
+    // The canvas takes taps only for its "+N units" chips; bypass taps land on the
+    // BypassSpoolWidgets overlay the panel places on top.
+    lv_obj_add_event_cb(obj, system_path_click_cb, LV_EVENT_CLICKED, nullptr);
 
     spdlog::debug("[SystemPath] Created widget via XML");
     return obj;
@@ -493,8 +576,9 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent) {
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
-    // Click handling on the canvas is no longer needed — bypass clicks are
-    // captured by the BypassSpoolWidgets overlay the panel places on top.
+    // The canvas takes taps only for its "+N units" chips; bypass taps land on the
+    // BypassSpoolWidgets overlay the panel places on top.
+    lv_obj_add_event_cb(obj, system_path_click_cb, LV_EVENT_CLICKED, nullptr);
 
     spdlog::debug("[SystemPath] Created widget programmatically");
     return obj;
@@ -811,6 +895,15 @@ bool ui_system_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, 
         *cy_out = bg.merge_y;
     }
     return true;
+}
+
+void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
+                                                    void (*cb)(int side, void* user_data),
+                                                    void* user_data) {
+    if (auto* data = get_data(obj)) {
+        data->parked_chip_cb = cb;
+        data->parked_chip_user_data = user_data;
+    }
 }
 
 void ui_system_path_canvas_refresh(lv_obj_t* obj) {

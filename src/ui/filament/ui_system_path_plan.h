@@ -119,6 +119,13 @@ struct SystemPathData {
     // label_font's line height; 0 when no font is measured (every box then
     // takes its labels).
     int32_t label_line_h = 0;
+
+    // The "+N units" chips drawn this pass, relative to the canvas's top left,
+    // and who pages the card row when one is tapped (side 0 left, 1 right).
+    lv_area_t parked_chip_area[2] = {};
+    bool parked_chip_drawn[2] = {};
+    void (*parked_chip_cb)(int side, void* user_data) = nullptr;
+    void* parked_chip_user_data = nullptr;
 };
 
 // Vertical layout. The unit stems start at kEntryYRatio of the height, and the
@@ -182,9 +189,8 @@ int32_t small_tool_scale(const SystemPathData& data);
 // box; two or more routes, from any units and topologies, meet in ONE box
 // just above the nozzle.
 struct NozzleFeed {
-    int routes = 0;          // routes entering the nozzle
-    bool junction = false;   // routes >= 2: one hub box joins them
-    bool hub_sensor = false; // a hub at the junction reads filament presence
+    int routes = 0;        // routes entering the nozzle
+    bool junction = false; // routes >= 2: one hub box joins them
     // A buffer on the way into the nozzle: inside the junction's hub box, or
     // inline on the one route. buffer_unit is the unit whose buffer it is
     // (unit_buffer_*), or -1 for the system reading (buffer_*).
@@ -194,9 +200,8 @@ struct NozzleFeed {
 
 /// The routes into physical nozzle @p tool and what joins them. With one
 /// toolhead every present unit feeds it; with several, a PARALLEL or MIXED unit
-/// feeds each of its tools and any other unit feeds its first tool. The hub
-/// sensor and the buffer come from the units with a hub on the way in (a HUB or
-/// LINEAR unit, a MIXED unit's hub-routed tool).
+/// feeds each of its tools and any other unit feeds its first tool. The buffer
+/// comes from the units with a hub on the way in (a HUB or LINEAR unit).
 NozzleFeed nozzle_feed(const SystemPathData& data, int tool);
 
 // What the canvas draws over the tubes at one nozzle of the several-toolhead
@@ -221,8 +226,17 @@ struct HubInfo {
 };
 
 // What the canvas draws on top of the planned tubes.
+// The units scrolled off one edge of the card row: their shared tubes enter
+// from that edge under a "+N units" chip that pages toward them.
+struct ParkedChip {
+    bool present = false;
+    int units = 0;                    // units past the edge
+    int32_t stem_lo = 0, stem_hi = 0; // x span of their tubes' stems
+};
+
 struct OverviewBoxes {
     HubInfo hubs[SystemPathData::kMaxTools] = {}; // by physical tool
+    ParkedChip parked[2] = {};                    // [0] left edge, [1] right edge
     // One toolhead: the combiner hub box, drawn when two or more units meet,
     // and whether it carries the system buffer.
     bool combiner = false;

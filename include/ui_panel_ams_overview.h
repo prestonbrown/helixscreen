@@ -209,6 +209,9 @@ class AmsOverviewPanel : public PanelBase {
     bool prev_page();
     /// A tap on an off-page chip beside the hub: side 0 pages back, 1 forward.
     static void on_offpage_chip(int side, void* user_data);
+    /// A tap on the system path's "+N units" chip: scrolls the card row toward
+    /// the units past that edge (side 0 left, 1 right).
+    static void on_parked_chip(int side, void* user_data);
 
     /// The page on screen, or -1 with no pages.
     [[nodiscard]] int page() const {

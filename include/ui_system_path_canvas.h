@@ -300,6 +300,16 @@ void ui_system_path_canvas_set_tool_virtual_numbers(lv_obj_t* obj, const int* nu
 void ui_system_path_canvas_set_tool_label_prefix(lv_obj_t* obj, char prefix);
 
 /**
+ * @brief Who pages the card row when a "+N units" chip is tapped
+ *
+ * The chip stands over the tubes of the units scrolled off one edge of the card
+ * row; @p cb gets side 0 for the left edge, 1 for the right.
+ */
+void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
+                                                    void (*cb)(int side, void* user_data),
+                                                    void* user_data);
+
+/**
  * @brief Force redraw of the path visualization
  *
  * @param obj The system_path_canvas widget

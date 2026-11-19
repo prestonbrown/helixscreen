@@ -220,6 +220,8 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             // during render and trip lv_inv_area assertions in LVGL 9.
             lv_obj_add_event_cb(system_path_, &AmsOverviewPanel::on_system_path_size_changed,
                                 LV_EVENT_SIZE_CHANGED, this);
+            ui_system_path_canvas_set_parked_chip_callback(system_path_,
+                                                           &AmsOverviewPanel::on_parked_chip, this);
         }
     }
 
@@ -525,6 +527,16 @@ void AmsOverviewPanel::step_page(int delta) {
     if (!backend)
         return;
     show_current_page(backend->get_system_info(), /*relayout=*/false);
+}
+
+void AmsOverviewPanel::on_parked_chip(int side, void* user_data) {
+    auto* self = static_cast<AmsOverviewPanel*>(user_data);
+    if (!self || !self->cards_row_)
+        return;
+    // One row's width toward the units past that edge; the row's snap settles
+    // it on whole tiles.
+    const int32_t step = lv_obj_get_content_width(self->cards_row_);
+    lv_obj_scroll_by_bounded(self->cards_row_, side == 0 ? step : -step, 0, LV_ANIM_ON);
 }
 
 void AmsOverviewPanel::on_offpage_chip(int side, void* user_data) {

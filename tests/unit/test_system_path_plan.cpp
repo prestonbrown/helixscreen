@@ -68,19 +68,6 @@ PathPlan& plan_of(const SystemPathData& d) {
     return plan;
 }
 
-// The band on the line leaving the unit whose stem stands at @p x: the nearest one under the
-// cards, the line leaning toward the hub from there.
-const SensorBand* stem_band(const PathPlan& plan, float x) {
-    const SensorBand* best = nullptr;
-    for (int i = 0; i < plan.band_count; i++) {
-        const SensorBand& b = plan.bands[i];
-        if (b.at.y < 100 && std::fabs(b.at.x - x) < 40.0f &&
-            (!best || std::fabs(b.at.x - x) < std::fabs(best->at.x - x)))
-            best = &b;
-    }
-    return best;
-}
-
 // A segment of the route ends exactly at @p p.
 bool on_route(const Route& r, pg::PathPoint p) {
     for (int i = 0; i < r.path.count; i++)
@@ -91,7 +78,7 @@ bool on_route(const Route& r, pg::PathPoint p) {
 
 } // namespace
 
-TEST_CASE("Overview plan: each unit's route is continuous with a clamp band on its stem",
+TEST_CASE("Overview plan: each unit's route is one plain line from its stem",
           "[system_path][filament_path]") {
     auto d = multi();
     const PathPlan& plan = plan_of(*d);
@@ -103,12 +90,10 @@ TEST_CASE("Overview plan: each unit's route is continuous with a clamp band on i
         CAPTURE(u);
         const Route& r = plan.routes[u];
         CHECK(contiguous(r.path));
-        const SensorBand* band = stem_band(plan, (float)d->unit_x_positions[u]);
-        REQUIRE(band != nullptr);
-        CHECK(on_route(r, band->at));
         CHECK(near(seg_start(r.path.segs[0]), (float)d->unit_x_positions[u], 20, 0.5f));
     }
-    CHECK(plan.band_count == 2);
+    // Hub sensors stay on the unit pages: the overview's tubes carry no bands.
+    CHECK(plan.band_count == 0);
 
     // The active route runs on, unbroken, to the nozzle top.
     const Route& active = plan.routes[0];
@@ -183,55 +168,17 @@ TEST_CASE("Overview plan: the trunk ends at each toolhead style's own inlet",
     REQUIRE(art_inlet_seen);
 }
 
-TEST_CASE("Overview plan: hub bands take the detail view's four states",
+TEST_CASE("Overview plan: an inactive unit loaded to its hub fills its line in the lane color",
           "[system_path][filament_path]") {
     auto d = multi();
-
-    SECTION("Active: triggered on the unit carrying the route") {
-        CHECK(stem_band(plan_of(*d), 100)->state == BandState::Active);
-    }
-    SECTION("Empty: not triggered") {
-        CHECK(stem_band(plan_of(*d), 300)->state == BandState::Empty);
-    }
-    SECTION("Loaded: triggered on an inactive unit, in its loaded lane's color") {
-        d->unit_hub_triggered[1] = true;
-        d->unit_lane_segment[1] = PathSegment::OUTPUT;
-        d->unit_lane_color[1] = kOwl;
-        const PathPlan& plan = plan_of(*d);
-        const SensorBand* band = stem_band(plan, 300);
-        REQUIRE(band != nullptr);
-        CHECK(band->state == BandState::Loaded);
-        CHECK(lv_color_eq(band->fill, lv_color_hex(kOwl)));
-        // Its tube is filled down to the combiner, in the lane color, plain walls.
-        const Route& r = plan.routes[1];
-        CHECK(r.style[0].filled);
-        CHECK(r.style[0].wall == TubeWall::Plain);
-        CHECK(lv_color_eq(r.style[r.path.count - 1].bore, lv_color_hex(kOwl)));
-    }
-    SECTION("Loaded with no lane reporting a color takes the wall color") {
-        d->unit_hub_triggered[1] = true;
-        const SensorBand* band = stem_band(plan_of(*d), 300);
-        REQUIRE(band != nullptr);
-        CHECK(band->state == BandState::Loaded);
-        CHECK(lv_color_eq(band->fill, IDLE));
-    }
-    SECTION("Error: the system error is at the active unit's hub output") {
-        d->error_segment = PathSegment::OUTPUT;
-        const PathPlan& plan = plan_of(*d);
-        CHECK(stem_band(plan, 100)->state == BandState::Error);
-        // An error belongs to the active route only.
-        CHECK(stem_band(plan, 300)->state == BandState::Empty);
-    }
-}
-
-TEST_CASE("Overview plan: a dumb hub is a continuous tube with no band",
-          "[system_path][filament_path]") {
-    auto d = multi();
-    d->unit_has_hub_sensor[1] = false;
+    d->unit_hub_triggered[1] = true;
+    d->unit_lane_segment[1] = PathSegment::OUTPUT;
+    d->unit_lane_color[1] = kOwl;
     const PathPlan& plan = plan_of(*d);
-    CHECK(plan.band_count == 1);
-    CHECK(stem_band(plan, 300) == nullptr);
-    CHECK(contiguous(plan.routes[1].path));
+    const Route& r = plan.routes[1];
+    CHECK(r.style[0].filled);
+    CHECK(r.style[0].wall == TubeWall::Plain);
+    CHECK(lv_color_eq(r.style[r.path.count - 1].bore, lv_color_hex(kOwl)));
 }
 
 TEST_CASE("Overview plan: an idle system keeps an idle trunk with its toolhead band",
@@ -249,9 +196,9 @@ TEST_CASE("Overview plan: an idle system keeps an idle trunk with its toolhead b
     const SysLayout L = compute_sys_layout(*d, AREA);
     CHECK(near(seg_start(trunk.path.segs[0]), 200, (float)(L.hub_y + L.hub_h / 2), 0.5f));
     CHECK(near(seg_end(trunk.path.segs[trunk.path.count - 1]), 200, 315, 0.5f));
-    REQUIRE(plan.band_count == 3);
-    CHECK(plan.bands[2].state == BandState::Empty);
-    CHECK(on_route(trunk, plan.bands[2].at));
+    REQUIRE(plan.band_count == 1);
+    CHECK(plan.bands[0].state == BandState::Empty);
+    CHECK(on_route(trunk, plan.bands[0].at));
 }
 
 TEST_CASE("Overview plan: an active bypass joins the trunk at the merge",
@@ -392,7 +339,8 @@ TEST_CASE("Overview plan: toolchanger tubes end at each head style's filament in
     CHECK(below_glyph_top > 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the error setter reaches the hub band",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "Overview canvas: the hub sensor setter fills a loaded unit's line",
                  "[system_path][filament_path]") {
     lv_obj_t* canvas = ui_system_path_canvas_create(test_screen());
     REQUIRE(canvas != nullptr);
@@ -402,25 +350,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the error setter reaches the
     for (int u = 0; u < 2; u++) {
         ui_system_path_canvas_set_unit_topology(canvas, u, 1);
         ui_system_path_canvas_set_unit_tools(canvas, u, 1, 0);
-        ui_system_path_canvas_set_unit_hub_sensor(canvas, u, true, u == 0);
     }
     ui_system_path_canvas_set_total_tools(canvas, 1);
     ui_system_path_canvas_set_active_unit(canvas, 0);
-    ui_system_path_canvas_set_filament_segment(canvas, static_cast<int>(PathSegment::NOZZLE));
-
+    ui_system_path_canvas_set_unit_lane(canvas, 1, static_cast<int>(PathSegment::LANE), kOwl);
     const SystemPathData* data = system_path_data(canvas);
     REQUIRE(data != nullptr);
-    CHECK(stem_band(plan_of(*data), 100)->state == BandState::Active);
+    CHECK_FALSE(plan_of(*data).routes[1].style[0].filled);
 
-    ui_system_path_canvas_set_error_segment(canvas, static_cast<int>(PathSegment::OUTPUT));
-    CHECK(stem_band(plan_of(*data), 100)->state == BandState::Error);
-
-    ui_system_path_canvas_set_unit_lane(canvas, 1, static_cast<int>(PathSegment::OUTPUT), kOwl);
     ui_system_path_canvas_set_unit_hub_sensor(canvas, 1, true, true);
-    const SensorBand* owl = stem_band(plan_of(*data), 300);
-    REQUIRE(owl != nullptr);
-    CHECK(owl->state == BandState::Loaded);
-    CHECK(lv_color_eq(owl->fill, lv_color_hex(kOwl)));
+    const Route& owl = plan_of(*data).routes[1];
+    CHECK(owl.style[0].filled);
+    CHECK(lv_color_eq(owl.style[0].bore, lv_color_hex(kOwl)));
 
     lv_obj_delete(canvas);
 }
@@ -518,16 +459,13 @@ TEST_CASE("Overview plan: the nozzle feed counts the routes into each nozzle",
         const NozzleFeed t0 = nozzle_feed(*d, 0);
         CHECK(t0.routes == 2);
         CHECK(t0.junction);
-        CHECK_FALSE(t0.hub_sensor);
         CHECK_FALSE(t0.buffer);
         const NozzleFeed t1 = nozzle_feed(*d, 1);
         CHECK(t1.routes == 1);
         CHECK_FALSE(t1.junction);
 
-        d->unit_has_hub_sensor[1] = true;
         d->unit_has_buffer[1] = true;
         const NozzleFeed sensed = nozzle_feed(*d, 0);
-        CHECK(sensed.hub_sensor);
         CHECK(sensed.buffer);
         CHECK(sensed.buffer_unit == 1);
 
@@ -540,29 +478,24 @@ TEST_CASE("Overview plan: the nozzle feed counts the routes into each nozzle",
         d->unit_count = 2;
         d->unit_topology[0] = 2;
         d->unit_tool_count[0] = 2;
-        d->unit_has_hub_sensor[0] = true;
         d->unit_first_tool[1] = 1;
         CHECK(nozzle_feed(*d, 0).routes == 1);
         const NozzleFeed t1 = nozzle_feed(*d, 1);
         CHECK(t1.routes == 2);
         CHECK(t1.junction);
-        CHECK_FALSE(t1.hub_sensor);
     }
-    SECTION("a MIXED unit's hub sits on its last tool") {
+    SECTION("a MIXED unit feeds each of its tools once") {
         auto d = two_toolheads(false);
         d->unit_count = 1;
         d->unit_topology[0] = 3;
         d->unit_tool_count[0] = 2;
-        d->unit_has_hub_sensor[0] = true;
-        CHECK_FALSE(nozzle_feed(*d, 0).hub_sensor);
-        CHECK(nozzle_feed(*d, 1).hub_sensor);
+        CHECK(nozzle_feed(*d, 0).routes == 1);
         CHECK(nozzle_feed(*d, 1).routes == 1);
     }
     SECTION("one toolhead: every present unit feeds it") {
         auto d = multi();
         CHECK(nozzle_feed(*d, 0).routes == 2);
         CHECK(nozzle_feed(*d, 0).junction);
-        CHECK(nozzle_feed(*d, 0).hub_sensor);
         d->has_buffer = true;
         CHECK(nozzle_feed(*d, 0).buffer);
         CHECK(nozzle_feed(*d, 0).buffer_unit == -1);
@@ -726,39 +659,20 @@ TEST_CASE("Overview plan: a buffer on a single route stays an inline box with no
     }
 }
 
-TEST_CASE("Overview plan: a junction shows a hub sensor only when one of its hubs has one",
+TEST_CASE("Overview plan: several toolheads' tubes carry no hub-sensor bands",
           "[system_path][filament_path][hub_groups]") {
+    // A junction's hubs and a lone hub all sense filament; the overview still shows plain
+    // tubes, the sensors' detail staying on the unit pages.
     auto d = two_toolheads(false);
-    {
-        const auto p = plan_boxes(*d);
-        CHECK(p->plan.band_count == 0);
+    for (int u = 0; u < 3; u++) {
+        d->unit_has_hub_sensor[u] = true;
+        d->unit_hub_triggered[u] = true;
     }
-    d->unit_has_hub_sensor[1] = true;
-    d->unit_hub_triggered[1] = true;
-    d->unit_lane_segment[1] = PathSegment::OUTPUT;
-    d->unit_lane_color[1] = kOwl;
     const auto p = plan_boxes(*d);
-    const HubInfo& hub = p->boxes.hubs[0];
-    REQUIRE(p->plan.band_count == 1);
-    const SensorBand& band = p->plan.bands[0];
-    CHECK(band.on_box_edge);
-    CHECK(near(band.at, (float)hub.hub_x, (float)(hub.mini_hub_y + hub.mini_hub_h / 2), 0.5f));
-    CHECK(band.state == BandState::Loaded);
-    CHECK(lv_color_eq(band.fill, lv_color_hex(kOwl)));
-}
-
-TEST_CASE("Overview plan: a lone hub's sensor sits on its line",
-          "[system_path][filament_path][hub_groups]") {
-    auto d = two_toolheads(false);
-    d->unit_has_hub_sensor[2] = true;
-    const auto p = plan_boxes(*d);
-    REQUIRE(p->plan.band_count == 1);
-    const SensorBand& band = p->plan.bands[0];
-    CHECK_FALSE(band.on_box_edge);
-    CHECK(std::fabs(band.at.x - (float)calc_tool_x(1, 2, p->L.x_off, p->L.width)) < 0.5f);
-    const Route* r = route_from(*p, 320);
-    REQUIRE(r != nullptr);
-    CHECK(on_route(*r, band.at));
+    CHECK(p->plan.band_count == 0);
+    const Route* lone = route_from(*p, 320);
+    REQUIRE(lone != nullptr);
+    CHECK(contiguous(lone->path));
 }
 
 TEST_CASE("Overview plan: a MIXED unit alone on its hub tool draws no box",
@@ -774,15 +688,9 @@ TEST_CASE("Overview plan: a MIXED unit alone on its hub tool draws no box",
     const auto p = plan_boxes(*d);
     CHECK(hub_boxes(p->boxes) == 0);
     const int32_t tool_x = calc_tool_x(2, 3, p->L.x_off, p->L.width);
-    // Its hub sensor reads the hub-routed lanes on their own line.
-    REQUIRE(p->plan.band_count == 1);
-    CHECK_FALSE(p->plan.bands[0].on_box_edge);
-    CHECK(std::fabs(p->plan.bands[0].at.x - (float)tool_x) < 0.5f);
-    CHECK(p->plan.bands[0].state == BandState::Active);
     REQUIRE(p->plan.active_route >= 0);
     const Route& r = p->plan.routes[p->plan.active_route];
     CHECK(contiguous(r.path));
-    CHECK(on_route(r, p->plan.bands[0].at));
     CHECK(
         near(seg_end(r.path.segs[r.path.count - 1]), (float)tool_x, nozzle_top_of(*d, p->L), 0.5f));
 }
@@ -851,7 +759,7 @@ std::unique_ptr<SystemPathData> scrolled_off_fleet(int count, int first_group_si
 
 } // namespace
 
-TEST_CASE("Overview plan: a junction with every card scrolled off still draws its hub",
+TEST_CASE("Overview plan: units all scrolled off share one tube per head under a chip, no box",
           "[system_path][filament_path][hub_groups]") {
     // The second group's units are the last cards of the row: four units split
     // 2 + 2, and twelve split 10 + 2.
@@ -863,34 +771,35 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
     REQUIRE(p->plan.dropped == 0);
     const float nozzle_top = nozzle_top_of(*d, p->L);
 
+    // One tube enters each head, so no HUB box stands on it: the merge is off-screen.
+    // The tube runs on to its nozzle, past its buffer's box.
+    CHECK(hub_boxes(p->boxes) == 0);
+    CHECK(p->plan.route_count == 2);
     for (int tool : {0, 1}) {
         CAPTURE(tool);
-        const HubInfo& hub = p->boxes.hubs[tool];
-        REQUIRE(hub.valid);
-        const int32_t half_w = hub.mini_hub_w / 2;
-        CHECK(hub.hub_x - half_w >= p->L.x_off);
-        CHECK(hub.hub_x + half_w < p->L.x_off + p->L.width);
-        CHECK(hub.mini_hub_y + hub.mini_hub_h / 2 < nozzle_top);
-        CHECK(hub.buffer_in_hub);
+        const HubInfo& h = p->boxes.hubs[tool];
+        CHECK(h.buffer_h > 0);
+        const float tool_x = (float)calc_tool_x(tool, 2, p->L.x_off, p->L.width);
+        CHECK(routes_ending_at(p->plan, tool_x, nozzle_top) == 1);
     }
 
-    // The parked units bound for each junction share one tube into its top, and
-    // one outlet reaches its nozzle. The two parked stems stand a pitch apart.
-    const HubInfo& hub = p->boxes.hubs[1];
-    int joined = 0;
+    // Both tubes enter from the right edge under one chip counting every unit past it,
+    // their stems a pitch apart and inside its span.
+    const ParkedChip& chip = p->boxes.parked[1];
+    CHECK_FALSE(p->boxes.parked[0].present);
+    REQUIRE(chip.present);
+    CHECK(chip.units == count);
     std::vector<float> stems;
     for (int i = 0; i < p->plan.route_count; i++) {
         const Route& r = p->plan.routes[i];
         CHECK(contiguous(r.path));
-        joined += enters_top(r, hub);
         stems.push_back(seg_start(r.path.segs[0]).x);
     }
-    CHECK(joined == 1);
-    CHECK(p->plan.route_count == 2);
     std::sort(stems.begin(), stems.end());
+    CHECK(stems.front() >= (float)chip.stem_lo - 0.5f);
+    CHECK(stems.back() <= (float)chip.stem_hi + 0.5f);
     for (size_t i = 1; i < stems.size(); i++)
         CHECK(stems[i] - stems[i - 1] >= (float)(d->tube_gauge + helix::ui::kHaloWidthExtra));
-    CHECK(routes_ending_at(p->plan, (float)hub.tool_x, nozzle_top) == 1);
 }
 
 TEST_CASE("Overview plan: units scrolled off an edge share one tube per destination",
@@ -911,7 +820,7 @@ TEST_CASE("Overview plan: units scrolled off an edge share one tube per destinat
             for (int t : {0, 1})
                 into[t] += enters_top(p->plan.routes[i], p->boxes.hubs[t]);
         CHECK(into[0] == 4);
-        CHECK(into[1] == 1);
+        CHECK_FALSE(p->boxes.hubs[1].valid);
         CHECK(p->plan.route_count == 5);
         REQUIRE(p->plan.active_route >= 0);
         const Route& active = p->plan.routes[p->plan.active_route];
