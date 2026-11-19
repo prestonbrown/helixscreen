@@ -45,6 +45,19 @@ std::string param(const std::string& gcode, const char* name) {
         return {};
     }
     const size_t start = at + key.size();
+    // A single-quoted value runs to its closing quote, spaces included.
+    if (start < gcode.size() && gcode[start] == '\'') {
+        const size_t close = gcode.find('\'', start + 1);
+        std::string inner = gcode.substr(start + 1, close == std::string::npos ? std::string::npos
+                                                                               : close - start - 1);
+        std::string out;
+        for (char c : inner) {
+            if (c != '"') {
+                out += c;
+            }
+        }
+        return out;
+    }
     const size_t end = gcode.find_first_of(" \t\n", start);
     std::string value =
         gcode.substr(start, end == std::string::npos ? std::string::npos : end - start);
@@ -148,6 +161,7 @@ json MoonrakerClientMock::material_zoffset_status_json() const {
         }
         status["save_variables"] = {{"variables", vars}};
         status[kHelixObject] = {{"next", material_zoffset_next_},
+                                {"next_file", material_zoffset_next_file_},
                                 {"applied", material_zoffset_applied_},
                                 {"apply_count", material_zoffset_apply_count_}};
         break;
@@ -182,12 +196,12 @@ MoonrakerClientMock::gcode_material_zoffset(const std::string& gcode) {
             return 0;
         }
         if (mode == MaterialZOffsetMock::HelixMacro && macro == "_HELIX_MATERIAL" &&
-            variable == "next") {
+            (variable == "next" || variable == "next_file")) {
             {
                 std::lock_guard<std::mutex> lock(material_zoffset_mutex_);
-                material_zoffset_next_ = value;
+                (variable == "next" ? material_zoffset_next_ : material_zoffset_next_file_) = value;
             }
-            spdlog::info("[MoonrakerClientMock] _HELIX_MATERIAL next = '{}'", value);
+            spdlog::info("[MoonrakerClientMock] _HELIX_MATERIAL {} = '{}'", variable, value);
             dispatch_status_update(material_zoffset_status_json());
             return 0;
         }
@@ -195,7 +209,8 @@ MoonrakerClientMock::gcode_material_zoffset(const std::string& gcode) {
     }
     if (cmd == "SAVE_VARIABLE" && mode == MaterialZOffsetMock::HelixMacro) {
         const std::string variable = helix::text_io::to_lower(param(gcode, "VARIABLE"));
-        if (variable.rfind("helix_zoffset_", 0) != 0) {
+        if (variable.rfind("helix_zoffset_", 0) != 0 &&
+            variable != "helix_material_offset_enabled") {
             return std::nullopt;
         }
         {
@@ -211,7 +226,8 @@ MoonrakerClientMock::gcode_material_zoffset(const std::string& gcode) {
     return std::nullopt;
 }
 
-void MoonrakerClientMock::apply_material_zoffset_at_start(const std::string& filament_type) {
+void MoonrakerClientMock::apply_material_zoffset_at_start(const std::string& filament_type,
+                                                          const std::string& filename) {
     const MaterialZOffsetMock mode = material_zoffset_mock();
     if (mode == MaterialZOffsetMock::None) {
         return;
@@ -234,10 +250,19 @@ void MoonrakerClientMock::apply_material_zoffset_at_start(const std::string& fil
             material = first;
             offset = lookup("offset_" + helix::text_io::to_lower(material), "offset_default");
         } else {
-            material = helix::text_io::to_upper(
-                material_zoffset_next_.empty() ? first : material_zoffset_next_);
-            offset = lookup("helix_zoffset_" + helix_key(material), "helix_zoffset_default");
+            // The hint counts only for the file it names, as the macro checks
+            // it against print_stats.filename.
+            const bool hinted =
+                !material_zoffset_next_.empty() && material_zoffset_next_file_ == filename;
+            material = helix::text_io::to_upper(hinted ? material_zoffset_next_ : first);
             material_zoffset_next_.clear();
+            material_zoffset_next_file_.clear();
+            const auto flag = material_zoffset_values_.find("helix_material_offset_enabled");
+            if (flag == material_zoffset_values_.end() || flag->second == 0.0) {
+                spdlog::info("[MoonrakerClientMock] HELIX_MATERIAL_OFFSET is switched off");
+                return;
+            }
+            offset = lookup("helix_zoffset_" + helix_key(material), "helix_zoffset_default");
             material_zoffset_applied_ = material;
             ++material_zoffset_apply_count_;
         }

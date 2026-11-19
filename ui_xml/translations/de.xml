@@ -4320,6 +4320,7 @@
   <translation tag="This printer&apos;s network service controls the WiFi radio" de="Der Netzwerkdienst dieses Druckers steuert das WiFi-Funkmodul"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" de="Der Netzwerkdienst dieses Druckers verwaltet gespeicherte WiFi-Netzwerke"/>
   <translation tag="This printer&apos;s screen has not shared a layout" de="Der Bildschirm dieses Druckers hat kein Layout geteilt"/>
+  <translation tag="This printer&apos;s start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings &gt; Printing &gt; Z Offset by Material to save it for the print&apos;s material." de="Das Startmakro dieses Druckers setzt für jedes Material einen Z-Offset, daher würde er beim Speichern in die Sonde doppelt angewendet. Schalte Einstellungen &gt; Drucken &gt; Z-Offset nach Material ein, um ihn für das Material des Drucks zu speichern."/>
   <translation tag="This printer&apos;s travel or settings cannot hold the test moves." de="Verfahrweg oder Einstellungen dieses Druckers reichen für die Testbewegungen nicht aus."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." de="Dies entfernt die Moonraker-Komponente des Plugins und startet Moonraker neu. Der Drucker wird kurz getrennt. Falls in PRINT_START noch alte Zeilen zur Phasenverfolgung vorhanden sind, werden sie ebenfalls entfernt, wobei Backups aufbewahrt werden. Ein Klipper-Neustart wendet das an."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." de="Dies ersetzt die Hilfsmakros des Druckers durch die aktuelle Version und startet Klipper neu."/>
@@ -4908,6 +4909,7 @@
   <translation tag="passive" de="passiv"/>
   <translation tag="preparing" de="Vorbereitung"/>
   <translation tag="printer default" de="Druckerstandard"/>
+  <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" de="printer.cfg lädt mehr als {} Konfigurationsdateien; [{}] wurde nicht in allen gesucht"/>
   <translation tag="prints" de="Drucke"/>
   <translation tag="ready to load" de="bereit zum Laden"/>
   <translation tag="remaining" de="verbleibend"/>

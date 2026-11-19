@@ -4457,6 +4457,8 @@ translations:
   This printer's network service controls the WiFi radio: このプリンターのネットワークサービスが WiFi 無線を制御しています
   This printer's network service manages saved WiFi networks: このプリンターのネットワークサービスが保存済みの WiFi ネットワークを管理しています
   This printer's screen has not shared a layout: "このプリンターの画面はレイアウトを共有していません"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "このプリンターの開始マクロは素材ごとに Z-Offset を設定するため、プローブに保存すると二重に適用されます。印刷の素材に保存するには 設定 > 印刷 > 素材別 Z-Offset をオンにしてください。"
   This printer's travel or settings cannot hold the test moves.: 'このプリンターの可動範囲または設定では、テスト動作を行えません。'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : プラグインの Moonraker コンポーネントを削除し、Moonraker を再起動します。プリンターは一時的に切断されます。PRINT_START に古いフェーズトラッキングの行が残っている場合、それらも削除されますが、バックアップは保持されます。Klipper を再起動すると、その変更が適用されます。
@@ -5047,6 +5049,7 @@ translations:
   passive: パッシブ
   preparing: 準備中
   printer default: プリンター既定
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"
   prints: 印刷
   ready to load: '装填可能'
   remaining: 残り

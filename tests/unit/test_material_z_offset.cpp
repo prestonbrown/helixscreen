@@ -101,7 +101,7 @@ TEST_CASE("material zoffset: which printers get a row", "[material_zoffset]") {
             CHECK_FALSE(mz::supported(hw));
             CHECK(mz::required_status_objects(hw).empty());
             CHECK_FALSE(mz::write_plan(hw, {}, "PLA", 50).has_value());
-            CHECK(mz::start_hint_gcode(hw, "PLA").empty());
+            CHECK(mz::start_hint_gcode(hw, "PLA", "a.gcode").empty());
         }
     }
 }
@@ -155,6 +155,37 @@ TEST_CASE("material zoffset: reading HelixScreen's macro", "[material_zoffset]")
     }
     SECTION("the _START_PRINT_VARS schema is not read on this printer") {
         CHECK_FALSE(mz::merge_status(hw, vars_frame({{"offset_abs", 0.2}}), t));
+    }
+}
+
+TEST_CASE("material zoffset: whether the start macro applies offsets on its own",
+          "[material_zoffset]") {
+    // The fold into the probe is refused whenever this is true, setting or not.
+    SECTION("the vendor macro applies its table on every print") {
+        CHECK(mz::start_macro_applies(vars_printer(), {}));
+        CHECK(mz::enable_gcode(vars_printer(), false).empty());
+    }
+    SECTION("HelixScreen's macro applies only while its printer-side flag is on") {
+        auto hw = helix_printer();
+        mz::Table t;
+        CHECK_FALSE(mz::start_macro_applies(hw, t)); // flag not read yet
+        REQUIRE(mz::merge_status(
+            hw, json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 1}}}}}},
+            t));
+        CHECK(t.enabled == true);
+        CHECK(t.offsets.empty()); // the flag is not a material
+        CHECK(mz::start_macro_applies(hw, t));
+        REQUIRE(mz::merge_status(
+            hw, json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}},
+            t));
+        CHECK_FALSE(mz::start_macro_applies(hw, t));
+        CHECK(mz::enable_gcode(hw, true) ==
+              "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=1");
+        CHECK(mz::enable_gcode(hw, false) ==
+              "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=0");
+    }
+    SECTION("no row, nothing applies") {
+        CHECK_FALSE(mz::start_macro_applies(printer_with({"START_PRINT"}, true), {}));
     }
 }
 
@@ -247,13 +278,26 @@ TEST_CASE("material zoffset: meshes and the screen's material hint", "[material_
     CHECK_FALSE(mz::stores_mesh(vars));
     CHECK(mz::mesh_profile_name(vars, "PETG").empty());
 
-    CHECK(mz::start_hint_gcode(helix, "PETG") ==
-          "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"PETG\"'");
-    CHECK(mz::start_hint_gcode(helix, "PA/CF").empty());
-    CHECK(mz::start_hint_gcode(helix, " ") ==
-          "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"\"'");
-    // The vendor start macro takes the material from the slicer only.
-    CHECK(mz::start_hint_gcode(vars, "PETG").empty());
+    // The hint names the file it is for; the macro ignores it for any other
+    // job, so a start that never reached PRINT_START cannot leak it.
+    const std::string clear =
+        "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"\"'\n"
+        "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next_file "
+        "VALUE='\"\"'";
+    CHECK(mz::start_hint_gcode(helix, "PETG", "parts/benchy v2.gcode") ==
+          "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"PETG\"'\n"
+          "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next_file "
+          "VALUE='\"parts/benchy v2.gcode\"'");
+    // No material, one the macro cannot key, or a file name the G-code line
+    // cannot carry: the hint is cleared rather than left for another job.
+    CHECK(mz::start_hint_gcode(helix, " ", "a.gcode") == clear);
+    CHECK(mz::start_hint_gcode(helix, "PA/CF", "a.gcode") == clear);
+    for (const char* name :
+         {"it's.gcode", "a\"b.gcode", "a#b.gcode", "a;b.gcode", "a\\b.gcode", ""}) {
+        CAPTURE(name);
+        CHECK(mz::start_hint_gcode(helix, "PETG", name) == clear);
+    }
+    CHECK(mz::start_hint_gcode(vars, "PETG", "a.gcode").empty());
 }
 
 // ============================================================================

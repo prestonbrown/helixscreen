@@ -292,10 +292,8 @@ void PrintStartController::execute_print_start() {
             navigate_to_print_status_();
         }
 
-        if (!primary_material.empty()) {
-            helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
-                api_, primary_material);
-        }
+        helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
+            api_, primary_material, gcode::join_gcode_path(path, filename_to_print));
 
         prep_manager->start_print(
             filename_to_print, path,

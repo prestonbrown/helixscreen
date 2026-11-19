@@ -20,6 +20,7 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "save_config_restart.h"
 #include "settings_manager.h"
 #include "tool_state.h"
 #include "z_offset_utils.h"
@@ -49,7 +50,7 @@ class MaterialStateFixture : public LVGLUITestFixture {
     }
 
     ~MaterialStateFixture() override {
-        state().set_enabled(false);
+        state().set_enabled(nullptr, false);
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
         state().on_discovery(get_printer_state().get_discovery());
         helix::zoffset::deinit_save_available_subject();
@@ -80,6 +81,15 @@ class MaterialStateFixture : public LVGLUITestFixture {
         discover({"HELIX_MATERIAL_OFFSET", "_HELIX_MATERIAL"}, true);
     }
 
+    /// Turn the setting on, and have the printer report the switch it sends
+    /// (a vendor-macro printer has none and ignores the frame); the switch is
+    /// not what a case examines.
+    void enable() {
+        state().set_enabled(&api, true);
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 1}}}}}});
+        api.sent.clear();
+    }
+
     void status(const json& frame) {
         get_printer_state().update_from_status(frame);
         state().update_from_status(frame);
@@ -106,12 +116,16 @@ class MaterialStateFixture : public LVGLUITestFixture {
     }
 
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::ui::SaveConfigWatch watch;
     helix::test::GcodeRecordingApi api{client, get_printer_state()};
 };
 
 const json kPetgApplied = {
     {"save_variables",
-     {{"variables", {{"helix_zoffset_petg", 0.05}, {"helix_zoffset_default", 0}}}}},
+     {{"variables",
+       {{"helix_zoffset_petg", 0.05},
+        {"helix_zoffset_default", 0},
+        {"helix_material_offset_enabled", 1}}}}},
     {"gcode_macro _HELIX_MATERIAL", {{"applied", "PETG"}, {"apply_count", 1}}}};
 
 } // namespace
@@ -129,7 +143,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
         CHECK_FALSE(state().save_withheld());
     }
     SECTION("on: the target is PETG, dirty against PETG's stored value") {
-        state().set_enabled(true);
+        enable();
         auto target = state().save_target();
         REQUIRE(target.has_value());
         CHECK(target->material == "PETG");
@@ -156,7 +170,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
                  "[material_zoffset][zoffset]") {
     SECTION("HelixScreen's macro has not run since Klipper started") {
         discover_helix_macro();
-        state().set_enabled(true);
+        enable();
         live_offset_mm(0.08);
         CHECK(state().save_withheld());
         CHECK_FALSE(helix::zoffset::current_save_availability().manual_save_supported);
@@ -165,7 +179,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
     }
     SECTION("the macro ran without a material: DEFAULT") {
         discover_helix_macro();
-        state().set_enabled(true);
+        enable();
         status(json{{"gcode_macro _HELIX_MATERIAL", {{"applied", ""}, {"apply_count", 2}}}});
         auto target = state().save_target();
         REQUIRE(target.has_value());
@@ -173,7 +187,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
     }
     SECTION("without [save_variables] the feature waits for setup") {
         discover({"HELIX_MATERIAL_OFFSET"}, false);
-        state().set_enabled(true);
+        enable();
         status(kPetgApplied);
         CHECK(state().status() == mz::Status::NeedsSetup);
         CHECK_FALSE(state().active());
@@ -185,7 +199,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
                  "material zoffset state: _START_PRINT_VARS edits the one file that defines it",
                  "[material_zoffset][zoffset]") {
     discover({"START_PRINT", "_START_PRINT_VARS"}, false);
-    state().set_enabled(true);
+    enable();
     status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.02}, {"offset_default", 0}}}});
     state().note_print_file("PETG");
     const std::string vars = "[gcode_macro _START_PRINT_VARS]\n"
@@ -237,7 +251,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
 
     discover_helix_macro();
     CHECK_FALSE(state().mesh_offer(materials, petg_bed).has_value()); // feature off
-    state().set_enabled(true);
+    enable();
     auto offer = state().mesh_offer(materials, petg_bed);
     REQUIRE(offer.has_value());
     CHECK(offer->first == "PETG");
@@ -251,11 +265,14 @@ TEST_CASE_METHOD(MaterialStateFixture,
 TEST_CASE("material zoffset: where a Save goes", "[material_zoffset][zoffset]") {
     using helix::zoffset::save_route;
     using R = helix::zoffset::SaveRoute;
-    CHECK(save_route(false, true, true) == R::None);
-    CHECK(save_route(true, true, true) == R::PerMaterial);
-    CHECK(save_route(true, true, false) == R::PerMaterial);
-    CHECK(save_route(true, false, false) == R::MachineWide);
-    CHECK(save_route(true, false, true) == R::Refused);
+    //                 available  per-material  macro applies  motion blocked
+    CHECK(save_route(false, true, true, true) == R::None);
+    CHECK(save_route(true, true, true, true) == R::PerMaterial);
+    CHECK(save_route(true, true, false, false) == R::PerMaterial);
+    CHECK(save_route(true, false, true, false) == R::MacroOwnsOffset);
+    CHECK(save_route(true, false, true, true) == R::MacroOwnsOffset);
+    CHECK(save_route(true, false, false, false) == R::MachineWide);
+    CHECK(save_route(true, false, false, true) == R::Refused);
 }
 
 TEST_CASE_METHOD(MaterialStateFixture,
@@ -273,7 +290,7 @@ TEST_CASE_METHOD(MaterialStateFixture,
     REQUIRE(guard != nullptr);
 
     SECTION("per material: allowed, one SAVE_VARIABLE, nothing that moves or restarts") {
-        state().set_enabled(true);
+        enable();
         REQUIRE(helix::zoffset::save_available());
         CHECK(lv_subject_get_int(guard) == 0);
         helix::zoffset::save_dirty_offsets_shared();
@@ -296,4 +313,136 @@ TEST_CASE_METHOD(MaterialStateFixture,
     lv_subject_set_int(blocked, 0);
     helix::zoffset::reset_shared_save();
     set_moonraker_api(previous);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: no fold into the probe while the start macro applies "
+                 "offsets",
+                 "[material_zoffset][zoffset]") {
+    helix::zoffset::reset_shared_save();
+    helix::IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+    auto tap_save = [this]() {
+        helix::zoffset::save_dirty_offsets_shared();
+        process_lvgl(50);
+    };
+    // The tool-offset panel's path: a caller asking to save the global offset.
+    auto save_global_directly = [this]() {
+        bool done = false;
+        helix::zoffset::save_dirty_offsets(
+            &api, watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE,
+            get_printer_state().get_discovery(), true, [&done]() { done = true; },
+            [&done](const std::string&) { done = true; }, &get_printer_state());
+        process_lvgl(50);
+        return done;
+    };
+
+    SECTION("vendor macro, setting off") {
+        discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+        status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.08}}}});
+        live_offset_mm(0.09);
+        REQUIRE(helix::zoffset::save_available());
+        CHECK_FALSE(helix::zoffset::folds_global(helix::zoffset::current_save_availability()));
+        tap_save();
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        CHECK(save_global_directly());
+        CHECK_FALSE(sent_anything_that_folds_or_restarts());
+    }
+    SECTION("HelixScreen's macro switched on, setting off") {
+        discover_helix_macro();
+        status(kPetgApplied);
+        live_offset_mm(0.09);
+        REQUIRE(state().start_macro_applies());
+        REQUIRE(helix::zoffset::save_available());
+        tap_save();
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        CHECK(save_global_directly());
+        CHECK_FALSE(sent_anything_that_folds_or_restarts());
+    }
+    SECTION("HelixScreen's macro switched off: the machine-wide save is offered as before") {
+        discover_helix_macro();
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}});
+        live_offset_mm(0.09);
+        REQUIRE(helix::zoffset::save_available());
+        CHECK(helix::zoffset::folds_global(helix::zoffset::current_save_availability()));
+        tap_save();
+        CHECK(ModalStack::instance().top_dialog() != nullptr); // the restart confirmation
+        helix::test::dismiss_top_modal();
+    }
+    helix::zoffset::reset_shared_save();
+    set_moonraker_api(previous);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: the setting switches HelixScreen's macro",
+                 "[material_zoffset]") {
+    discover_helix_macro();
+    status(kPetgApplied);
+    state().set_enabled(&api, true);
+    CHECK(api.sent.back() == "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=1");
+    CHECK(state().active());
+    state().set_enabled(&api, false);
+    CHECK(api.sent.back() == "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=0");
+
+    SECTION("on in this screen but off on the printer: not active, and reconciled") {
+        state().set_enabled(nullptr, true);
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}});
+        CHECK_FALSE(state().active());
+        api.sent.clear();
+        state().reconcile(&api);
+        CHECK(api.sent == std::vector<std::string>{
+                              "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=1"});
+    }
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: every screen start passes or clears the hint",
+                 "[material_zoffset]") {
+    discover_helix_macro();
+    status(kPetgApplied);
+    const std::string cleared =
+        "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"\"'\n"
+        "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next_file VALUE='\"\"'";
+    SECTION("feature off: cleared, so an old hint cannot apply") {
+        state().note_screen_start(&api, "PETG", "a.gcode");
+        CHECK(api.sent == std::vector<std::string>{cleared});
+    }
+    SECTION("feature on, no material: cleared") {
+        enable();
+        state().note_screen_start(&api, "", "a.gcode");
+        CHECK(api.sent == std::vector<std::string>{cleared});
+    }
+    SECTION("feature on: the material, for this file only") {
+        enable();
+        state().note_screen_start(&api, "PETG", "dir/a.gcode");
+        REQUIRE(api.sent.size() == 1);
+        CHECK(api.sent.front().find("VALUE='\"PETG\"'") != std::string::npos);
+        CHECK(api.sent.front().find("VARIABLE=next_file VALUE='\"dir/a.gcode\"'") !=
+              std::string::npos);
+    }
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: a file search cut short by the cap refuses",
+                 "[material_zoffset]") {
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    enable();
+    status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.02}}}});
+    state().note_print_file("PETG");
+    std::map<std::string, std::string> files;
+    std::string printer_cfg;
+    for (int i = 0; i < 70; ++i) {
+        const std::string name = "inc" + std::to_string(i) + ".cfg";
+        printer_cfg += "[include " + name + "]\n";
+        files[name] = "[gcode_macro M" + std::to_string(i) + "]\ngcode:\n";
+    }
+    // The one definition sits in the first file read; the rest go unread.
+    files["inc0.cfg"] = "[gcode_macro _START_PRINT_VARS]\nvariable_offset_PETG: 0.02\n";
+    files["printer.cfg"] = printer_cfg;
+    api.set_config_files(files);
+
+    auto [ok, message] = save("PETG", 80);
+    CHECK_FALSE(ok);
+    CHECK(message.find("more than") != std::string::npos);
+    CHECK(api.get_uploaded_config("inc0.cfg") == files["inc0.cfg"]);
 }

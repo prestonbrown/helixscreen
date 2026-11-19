@@ -4428,6 +4428,8 @@ translations:
   This printer's network service controls the WiFi radio: This printer's network service controls the WiFi radio
   This printer's network service manages saved WiFi networks: This printer's network service manages saved WiFi networks
   This printer's screen has not shared a layout: This printer's screen has not shared a layout
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
   This printer's travel or settings cannot hold the test moves.: This printer's travel or settings cannot hold the test moves.
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
@@ -5018,6 +5020,7 @@ translations:
   passive: passive
   preparing: preparing
   printer default: printer default
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: printer.cfg loads more than {} config files; [{}] was not searched for in all of them
   prints: prints
   ready to load: ready to load
   remaining: remaining

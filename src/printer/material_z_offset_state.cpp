@@ -17,6 +17,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <deque>
 #include <functional>
 #include <lvgl.h>
@@ -140,19 +141,48 @@ bool MaterialZOffsetState::enabled() const {
     return config && config->get<bool>(enabled_key(*config), false);
 }
 
-void MaterialZOffsetState::set_enabled(bool on) {
+void MaterialZOffsetState::set_enabled(IMoonrakerAPI* api, bool on) {
     Config* config = Config::get_instance();
-    if (!config || on == enabled()) {
-        return;
+    if (config && on != enabled()) {
+        config->set<bool>(enabled_key(*config), on);
+        config->save();
+        spdlog::info("[MaterialZOffset] Z offset by material {}", on ? "on" : "off");
     }
-    config->set<bool>(enabled_key(*config), on);
-    config->save();
-    spdlog::info("[MaterialZOffset] Z offset by material {}", on ? "on" : "off");
+    // The start macro obeys the printer-side switch, not this screen: turning
+    // the setting off has to stop it applying, or a later machine-wide save
+    // would fold an offset the next print adds again.
+    send_enable(api, on);
     bump();
 }
 
+void MaterialZOffsetState::reconcile(IMoonrakerAPI* api) {
+    if (enabled() && status() == Status::Ready && table_.enabled != true) {
+        send_enable(api, true);
+    }
+}
+
+void MaterialZOffsetState::send_enable(IMoonrakerAPI* api, bool on) {
+    const std::string gcode = enable_gcode(hw(), on);
+    if (!api || gcode.empty() || status() != Status::Ready) {
+        return;
+    }
+    api->execute_gcode(
+        gcode, nullptr,
+        [](const MoonrakerError& err) {
+            spdlog::warn("[MaterialZOffset] Could not switch the start macro: {}", err.message);
+        },
+        0, /*silent=*/true, nullptr, /*caller_surfaces_errors=*/false);
+}
+
 bool MaterialZOffsetState::active() const {
-    return enabled() && status() == Status::Ready;
+    // A row with a printer-side switch is active only once the switch reads on:
+    // a value saved while the macro ignores the table would never apply.
+    const bool switched = enable_gcode(hw(), true).empty() || table_.enabled == true;
+    return enabled() && status() == Status::Ready && switched;
+}
+
+bool MaterialZOffsetState::start_macro_applies() const {
+    return material_zoffset::start_macro_applies(hw(), table_);
 }
 
 std::string MaterialZOffsetState::print_material() const {
@@ -183,15 +213,19 @@ bool MaterialZOffsetState::save_withheld() const {
     return active() && !save_target();
 }
 
-void MaterialZOffsetState::note_screen_start(IMoonrakerAPI* api, const std::string& material) {
-    if (!api || !active()) {
+void MaterialZOffsetState::note_screen_start(IMoonrakerAPI* api, const std::string& material,
+                                             const std::string& filename) {
+    if (!api) {
         return;
     }
-    const std::string hint = start_hint_gcode(hw(), material);
+    // Sent on every screen start, the clearing form when there is nothing to
+    // pass, so no earlier hint is left standing.
+    const std::string hint = start_hint_gcode(hw(), active() ? material : std::string(), filename);
     if (hint.empty()) {
         return;
     }
-    spdlog::info("[MaterialZOffset] This print applies {}'s offset (most by weight)", material);
+    spdlog::info("[MaterialZOffset] Start hint for '{}': {}", filename,
+                 active() && !material.empty() ? material : std::string("(cleared)"));
     api->execute_gcode(
         hint, nullptr,
         [](const MoonrakerError& err) {
@@ -201,11 +235,11 @@ void MaterialZOffsetState::note_screen_start(IMoonrakerAPI* api, const std::stri
 }
 
 void MaterialZOffsetState::note_screen_start_failed(IMoonrakerAPI* api) {
-    if (!api || !active()) {
+    if (!api) {
         return;
     }
     // An empty material is the hint's cleared state.
-    const std::string clear = start_hint_gcode(hw(), "");
+    const std::string clear = start_hint_gcode(hw(), "", "");
     if (clear.empty()) {
         return;
     }
@@ -344,6 +378,18 @@ void MaterialZOffsetState::locate_config_file(
     Scan* raw = scan.get();
     raw->next = [this, api, raw]() {
         if (raw->queue.empty() || raw->visited.size() >= kMaxScannedFiles) {
+            // A search stopped by the cap has not seen every loaded file, so
+            // one holder so far proves nothing: refuse rather than guess.
+            const bool unread =
+                std::any_of(raw->queue.begin(), raw->queue.end(),
+                            [raw](const std::string& f) { return raw->visited.count(f) == 0; });
+            if (unread) {
+                raw->then({}, fmt::format(
+                                  fmt::runtime(lv_tr("printer.cfg loads more than {} config files; "
+                                                     "[{}] was not searched for in all of them")),
+                                  kMaxScannedFiles, raw->section));
+                return;
+            }
             if (raw->holders.size() == 1) {
                 config_file_ = raw->holders.front();
                 spdlog::info("[MaterialZOffset] [{}] is in {}", raw->section, config_file_);

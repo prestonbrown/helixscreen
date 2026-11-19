@@ -4545,6 +4545,8 @@ translations:
   This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
   This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   This printer's screen has not shared a layout: "Экран этого принтера не поделился раскладкой"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "Стартовый макрос этого принтера задаёт Z-Offset для каждого материала, поэтому сохранение в зонд применит его дважды. Включите Настройки > Печать > Z-Offset по материалу, чтобы сохранить его для материала печати."
   This printer's travel or settings cannot hold the test moves.: 'Ход или настройки этого принтера не позволяют выполнить тестовые движения.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения.
@@ -5139,6 +5141,7 @@ translations:
   passive: пассивно
   preparing: подготовка
   printer default: по умолчанию для принтера
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
   prints: печатей
   ready to load: 'готов к загрузке'
   remaining: осталось

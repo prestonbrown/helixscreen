@@ -4457,6 +4457,8 @@ translations:
   This printer's network service controls the WiFi radio: 此打印机的网络服务控制 WiFi 无线模块
   This printer's network service manages saved WiFi networks: 此打印机的网络服务管理已保存的 WiFi 网络
   This printer's screen has not shared a layout: "此打印机的屏幕尚未共享布局"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "这台打印机的开始宏会为每种材料设置 Z 偏移，保存到探针会重复应用。请打开 设置 > 打印 > 按材料 Z 偏移，为本次打印的材料保存。"
   This printer's travel or settings cannot hold the test moves.: '此打印机的行程或设置无法容纳测试移动。'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : 这会移除插件的 Moonraker 组件并重启 Moonraker。打印机将短暂断开连接。如果 PRINT_START 中仍有旧的阶段跟踪行，它们也会被移除，但会保留备份。重启 Klipper 后生效。
@@ -5047,6 +5049,7 @@ translations:
   passive: 被动
   preparing: 准备中
   printer default: 打印机默认
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"
   prints: 打印次数
   ready to load: '可加载'
   remaining: 剩余

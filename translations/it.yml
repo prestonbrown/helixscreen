@@ -4457,6 +4457,8 @@ translations:
   This printer's network service controls the WiFi radio: Il servizio di rete di questa stampante controlla la radio WiFi
   This printer's network service manages saved WiFi networks: Il servizio di rete di questa stampante gestisce le reti WiFi salvate
   This printer's screen has not shared a layout: "Lo schermo di questa stampante non ha condiviso un layout"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "La macro di avvio di questa stampante imposta uno Z-Offset per ogni materiale, quindi salvarlo nella sonda lo applicherebbe due volte. Attiva Impostazioni > Stampa > Z-Offset per materiale per salvarlo per il materiale della stampa."
   This printer's travel or settings cannot hold the test moves.: 'La corsa o le impostazioni di questa stampante non consentono i movimenti di prova.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Questo rimuove il componente Moonraker del plugin e riavvia Moonraker. La stampante si disconnetterà brevemente. Se sono ancora presenti vecchie righe di tracciamento delle fasi in PRINT_START, vengono rimosse anch'esse, mantenendo i backup. Un riavvio di Klipper applica ciò.
@@ -5047,6 +5049,7 @@ translations:
   passive: passivo
   preparing: preparazione
   printer default: predefinito stampante
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carica più di {} file di configurazione; [{}] non è stato cercato in tutti"
   prints: stampe
   ready to load: 'pronto al caricamento'
   remaining: rimanente

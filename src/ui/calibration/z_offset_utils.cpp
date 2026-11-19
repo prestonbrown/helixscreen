@@ -436,6 +436,21 @@ bool save_available() {
     return save_available(current_save_availability());
 }
 
+namespace {
+
+/// Z offset by material, or a start macro applying per-material offsets on its
+/// own, owns the gcode offset: folding it into the probe would double it.
+bool material_owns_gcode_offset() {
+    const auto& by_material = helix::material_zoffset::MaterialZOffsetState::instance();
+    return by_material.save_target().has_value() || by_material.start_macro_applies();
+}
+
+} // namespace
+
+bool folds_global(const SaveAvailability& facts) {
+    return saves_global(facts) && !material_owns_gcode_offset();
+}
+
 bool save_enabled() {
     const auto mode = static_cast<SaveMode>(SettingsManager::instance().get_z_offset_save_mode());
     const bool per_tool_z =
@@ -713,7 +728,7 @@ void run_shared_save() {
     NOTIFY_INFO(lv_tr("Saving Z-offset..."));
     save_dirty_offsets(
         api, shared_save_watch(), ps.profile_state().z_offset_calibration_strategy(),
-        ps.get_discovery(), saves_global(current_save_availability()),
+        ps.get_discovery(), folds_global(current_save_availability()),
         []() {
             end_shared_save();
             NOTIFY_SUCCESS("{}", lv_tr("Z-offset saved"));
@@ -771,13 +786,24 @@ void save_dirty_offsets_shared() {
     PrinterState& ps = get_printer_state();
     const SaveAvailability facts = current_save_availability();
 
-    const auto target = helix::material_zoffset::MaterialZOffsetState::instance().save_target();
+    auto& by_material = helix::material_zoffset::MaterialZOffsetState::instance();
+    const auto target = by_material.save_target();
     // The rule both surfaces' buttons bind to, so a click that got through
     // cannot mean something different from what the button offered.
     const SaveRoute route =
-        save_route(save_available(facts), target.has_value(), machine_motion_blocked_now());
+        save_route(save_available(facts), target.has_value(), by_material.start_macro_applies(),
+                   machine_motion_blocked_now());
     if (route == SaveRoute::None) {
         spdlog::debug("[ZOffsetUtils] No Z-offset adjustment to save");
+        return;
+    }
+    if (route == SaveRoute::MacroOwnsOffset) {
+        spdlog::warn("[ZOffsetUtils] Machine-wide Z-offset save refused: the start macro applies a "
+                     "per-material offset");
+        NOTIFY_WARNING("{}", lv_tr("This printer's start macro sets a Z offset for each material, "
+                                   "so saving it into the probe would apply it twice. Turn on "
+                                   "Settings > Printing > Z Offset by Material to save it for the "
+                                   "print's material."));
         return;
     }
     if (route == SaveRoute::Refused) {
@@ -883,6 +909,13 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
         }
         return;
     }
+    // Every caller that can fold reaches here, so the fold is decided here too,
+    // whatever the caller computed.
+    if (global_dirty && material_owns_gcode_offset()) {
+        spdlog::warn("[ZOffsetUtils] Not folding the machine-wide offset into the probe: a "
+                     "per-material Z offset owns it");
+        global_dirty = false;
+    }
 
     auto& ts = helix::ToolState::instance();
     const std::vector<int> dirty_tools = ts.dirty_tool_indices();
@@ -947,6 +980,17 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
 
     const bool tools_need_save_config =
         !dirty_tools.empty() && helix::tool_offsets::persist_requires_save_config(hw);
+
+    // SAVE_CONFIG restarts Klipper, which a job holding the machine refuses.
+    if ((global_dirty || tools_need_save_config) && ps &&
+        lv_subject_get_int(ps->print_state().get_machine_motion_blocked_subject()) != 0) {
+        spdlog::warn("[ZOffsetUtils] Save needing SAVE_CONFIG refused while a job holds the "
+                     "machine");
+        if (on_error) {
+            on_error(lv_tr("Save the Z-offset after the print: saving restarts Klipper."));
+        }
+        return;
+    }
 
     if (global_dirty) {
         // Commits its own change AND any tool parameters staged above. A

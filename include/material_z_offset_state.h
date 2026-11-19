@@ -55,17 +55,28 @@ class MaterialZOffsetState {
 
     [[nodiscard]] Status status() const;
     [[nodiscard]] bool enabled() const;
-    void set_enabled(bool on);
+    /// Store the setting and switch the start macro to match, where it has a
+    /// printer-side switch.
+    void set_enabled(IMoonrakerAPI* api, bool on);
+    /// Switch the start macro on when the setting is on and it reads off (a
+    /// fresh [save_variables] file, or a switch written elsewhere).
+    void reconcile(IMoonrakerAPI* api);
+    /// The start macro applies per-material offsets at print start whatever
+    /// the setting says, so no save may fold the live offset into the probe.
+    [[nodiscard]] bool start_macro_applies() const;
     /// The setting is on and the row can write: Saves go per material.
     [[nodiscard]] bool active() const;
     [[nodiscard]] const Table& table() const {
         return table_;
     }
 
-    /// The screen is starting a print of @p material most by weight. Sends the
-    /// row's hint, where it has one, so the start macro applies that material
-    /// instead of the slicer's first filament; nothing otherwise.
-    void note_screen_start(IMoonrakerAPI* api, const std::string& material);
+    /// The screen is starting @p filename (gcodes-relative), which prints
+    /// @p material most by weight. Sends the row's hint, where it has one, so
+    /// the start macro applies that material instead of the slicer's first
+    /// filament; the clearing form when the feature is off or there is no
+    /// material, so a hint never outlives the start it was for.
+    void note_screen_start(IMoonrakerAPI* api, const std::string& material,
+                           const std::string& filename);
     /// The screen's start did not go ahead: clear any hint it sent.
     void note_screen_start_failed(IMoonrakerAPI* api);
     /// The print running now names @p first as its first filament.
@@ -102,6 +113,7 @@ class MaterialZOffsetState {
     void bump();
     [[nodiscard]] std::string print_material() const;
     [[nodiscard]] bool material_known() const;
+    void send_enable(IMoonrakerAPI* api, bool on);
     void write_config_file(IMoonrakerAPI* api, const std::string& material, int microns,
                            const std::string& message, Done done);
     void locate_config_file(
