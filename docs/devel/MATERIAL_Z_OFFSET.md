@@ -136,6 +136,39 @@ matches (`material_zoffset_status` 0), an update prompt when the macro is there 
 
 ---
 
+## Limitations
+
+Each one is a decision or a gap a reader will otherwise rediscover:
+
+- **The last absolute `SET_GCODE_OFFSET Z=` wins.** Nothing stops a later macro (a toolchanger
+  pickup, a probe touch routine such as `CARTOGRAPHER_TOUCH_HOME`) from replacing the material's
+  offset. HelixScreen cannot see the start sequence's order; the user doc says to call
+  `HELIX_MATERIAL_OFFSET` last.
+- **The vendor row takes the slicer's material only.** `_START_PRINT_VARS` has no input for
+  the screen's most-by-weight pick, so on a multi-material file a screen start applies and
+  saves the first filament. Passing it would mean rewriting the file's `START_PRINT` line.
+- **HelixScreen's row needs the macro to have run since Klipper started.** Before
+  `apply_count` moves, the material is unknown and the save is withheld; a `PRINT_START` that
+  never calls the macro never offers a save while the feature is on.
+- **A file the walk cannot find reads but does not persist.** Absolute includes, a section
+  in two loaded files, or more than 64 files: the live `SET_GCODE_VARIABLE` lands, the edit
+  is refused, and the user sees "Applied for this session only". No backup is written before
+  an edit, deliberately, so a save per print does not litter the config directory.
+- **A new vendor-row material is file-only** until the next Klipper restart (`live_now`).
+- **Settings lists DEFAULT and seven materials** (`MaterialZOffsetOverlay::kMaterials`).
+  Entries for other materials apply and save through prints but have no row.
+- **Key collisions.** HelixScreen's row folds `-`, ` `, `+` and `.` to `_`, so `PETG-CF` and
+  `PETG CF` share an entry; any other non-alphanumeric character makes the material
+  unstorable, and that print uses DEFAULT.
+- **A per-material mesh needs `SAVE_CONFIG`.** Klipper keeps profiles in `printer.cfg`; only
+  the offsets avoid a restart. The offer appears only for a heated-bed calibration, and only
+  for the seven listed materials.
+- **Job Queue starts** (`QueuedJobStarter`) do not send the most-by-weight hint; only the file
+  view's Print does (`PrintStartController::execute_print_start`).
+- **No row on firmware that owns the offset.** ZMOD, Forge-X and Helper-Script re-apply their
+  own stored value at print start, and a per-head toolchanger sets each head's offset
+  absolutely at pickup, so a second per-material value would be overwritten or doubled.
+
 ## Adding a row
 
 One entry in `providers()` in `src/printer/material_z_offset.cpp`: detect macro, status

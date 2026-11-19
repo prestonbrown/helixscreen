@@ -70,6 +70,7 @@ The home screen is yours to build: pick the widgets, size them, and spread them 
 ### Watching the Current Print
 
 - **[During a print](guide/printing.md#during-a-print)**: progress, pausing at a layer, the tune overlay, Z-offset baby steps, excluding a failed object, the post-print summary, and resuming after a power loss.
+- **[Z Offset by Material](guide/z-offset-by-material.md)**: a separate first-layer offset and bed mesh for each material, applied at every print start and saved per material.
 - **[Print Monitoring & Failure Detection](guide/print-monitoring.md)**: the pre-print filament check and the response to camera-based failure detection.
 - **[Camera](guide/camera.md)**: the camera widget and the fullscreen viewer.
 - **[Screen Sharing and Remote Control](guide/screen-sharing.md)**: seeing and using the printer's screen from any browser, or as a webcam in Mainsail and Fluidd.
