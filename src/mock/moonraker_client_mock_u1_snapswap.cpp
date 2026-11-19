@@ -7,7 +7,6 @@
 // production AmsBackendSnapmaker under --test.
 
 #include "core/text_io.h"
-#include "display_numbering.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
 
@@ -308,6 +307,6 @@ void MoonrakerClientMock::u1_auto_replenish(int empty_head) {
     }
     spdlog::info("[MoonrakerClientMock] U1: auto-replenish T{} -> T{}", empty_head, replacement);
     dispatch_status_update({{"print_task_config", u1_snapswap_status_json()["print_task_config"]}});
-    gcode_script(helix::ui::tool_label(replacement));
+    gcode_script(fmt::format("T{}", replacement)); // DISPLAY_NUMBERING_OK: head-swap G-code
     resume_print_internal();
 }

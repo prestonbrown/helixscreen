@@ -151,10 +151,14 @@ class SwitchWatch {
         // the switch goes back on its own.
         if (!restore_gcode_.empty()) {
             if (IMoonrakerAPI* api = get_moonraker_api()) {
-                api->execute_gcode(restore_gcode_, nullptr, [](const MoonrakerError& err) {
-                    spdlog::warn("[RunoutOtherHead] restoring Auto-Replenish failed: {}",
-                                 err.message);
-                });
+                // The printer's own complaint is the report if this fails too.
+                api->execute_gcode(
+                    restore_gcode_, nullptr,
+                    [](const MoonrakerError& err) {
+                        spdlog::warn("[RunoutOtherHead] restoring Auto-Replenish failed: {}",
+                                     err.message);
+                    },
+                    0, false, nullptr, /*caller_surfaces_errors=*/false);
             }
         }
         const std::string text = fmt::format(
@@ -391,6 +395,8 @@ void RunoutOtherHeadModal::start(int head) {
         queue_update("RunoutOtherHead::reply",
                      [generation, r] { SwitchWatch::watch().note_reply(generation, r); });
     };
+    // ERROR_OWNERSHIP_OK: SwitchWatch reports the outcome, and a timed-out
+    // send may still switch, so no failure is reported from the reply alone.
     api->execute_gcode(
         script, [reply]() { reply(roh::SendReply::Ok); },
         [reply](const MoonrakerError& err) {
