@@ -991,7 +991,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: with no room beside the hub the arro
     CHECK(get_data(named("detail_path_canvas"))->edge_reserve == 0);
 }
 
-TEST_CASE_METHOD(PagingFixture, "Unit view: the hub holds still on a unit with fewer lanes",
+TEST_CASE_METHOD(PagingFixture,
+                 "Unit view: a unit with fewer lanes converges into its own hub on the same line",
                  "[ams][pages][panel]") {
     install([](PagedFleet& f) {
         // A one-bay unit first, then four-bay units, all on one hub.
@@ -1002,23 +1003,16 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the hub holds still on a unit with f
     });
     open_at(0);
     lv_obj_t* canvas = named("detail_path_canvas");
-    REQUIRE(get_data(canvas)->fixed_hub_lanes == kSlotsPerUnit);
-    // At the lane pitch of a four-bay unit's slot row.
-    CHECK(get_data(canvas)->fixed_hub_pitch > 0);
+    // A hub sized for the group's widest unit would leave this unit's lane running flat to it.
+    CHECK(get_data(canvas)->fixed_hub_lanes == 0);
 
     const lv_area_t first = hub_box();
     go_to(1);
     const lv_area_t second = hub_box();
-    // The hub's center line is the widget's, whichever unit stands over it.
-    lv_area_t c;
-    lv_obj_get_coords(canvas, &c);
-    CHECK(std::abs((first.x1 + first.x2) / 2 - (c.x1 + c.x2) / 2) <= 1);
-    CHECK(std::abs((second.x1 + second.x2) / 2 - (c.x1 + c.x2) / 2) <= 1);
-    CHECK(first.y1 == second.y1);
-    // And the box itself is the widest unit's, not the one-bay unit's.
-    CHECK(first.x1 == second.x1);
-    CHECK(first.x2 == second.x2);
-    CHECK(first.y2 == second.y2);
+    // The hub keeps its center line from page to page, under the centered unit.
+    CHECK(std::abs((first.x1 + first.x2) / 2 - (second.x1 + second.x2) / 2) <= 1);
+    // The four-bay unit's hub is its own, wider than the one-bay unit's.
+    CHECK(lv_area_get_width(&second) > lv_area_get_width(&first));
 }
 
 TEST_CASE_METHOD(PagingFixture,
