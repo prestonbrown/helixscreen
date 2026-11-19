@@ -422,7 +422,7 @@
   <translation tag="Auto-Detect" ru="Автоопределение"/>
   <translation tag="Auto-Heat on Load" ru="Автонагрев при загрузке"/>
   <translation tag="Auto-Replenish" ru="Автопополнение"/>
-  <translation tag="Auto-Replenish is turned on for this switch." ru="Для этого переключения включается автопополнение."/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." ru="Автопополнение включается для этого переключения и затем выключается."/>
   <translation tag="Auto-detect" ru="Автоопределение"/>
   <translation tag="Auto-install only works on local Moonraker" ru="Автоустановка работает только с локальным Moonraker"/>
   <translation tag="Auto-lock" ru="Автоблокировка"/>
@@ -1643,6 +1643,7 @@
   <translation tag="Filament is dragging" ru="Филамент идёт с натягом"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." ru="Филамент загружен в печатающую головку. Выгрузите его перед включением обхода."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." ru="В печатающей головке загружен филамент. Сначала выгрузите его, чтобы он не размягчился в экструдере, пока греется стол."/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" ru="В фидере пустой печатающей головки ещё есть филамент"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." ru="После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки."/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." ru="Филамент всё ещё загружен. Выгрузите его перед включением обхода."/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" ru="После реза филамент остался. Возможно, лезвие затупилось или смещено"/>
@@ -4212,13 +4213,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
   <translation tag="The printer did not report its toolhead limits." ru="Принтер не сообщил пределы печатающей головки."/>
   <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
-  <translation tag="The printer did not switch toolheads" ru="Принтер не переключил печатающую головку"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." ru="Принтер ещё не ответил на отмену. Он остановится, как только завершит стартовую последовательность."/>
   <translation tag="The printer has not reported its axis limits yet." ru="Принтер ещё не сообщил пределы осей."/>
   <translation tag="The printer has not reported its maximum velocity yet." ru="Принтер ещё не сообщил максимальную скорость."/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" ru="Принтер не сообщил, включено ли автопополнение"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ru="Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ru="Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ru="Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."/>
@@ -5035,6 +5036,7 @@
   <translation tag="{} days" ru="{} дн."/>
   <translation tag="{} detected" ru="{}: обнаружено"/>
   <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ru="{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} disconnected" ru="{}: отключено"/>

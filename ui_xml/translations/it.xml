@@ -383,7 +383,7 @@
   <translation tag="Auto-Detect" it="Rilevamento auto"/>
   <translation tag="Auto-Heat on Load" it="Riscaldamento automatico al caricamento"/>
   <translation tag="Auto-Replenish" it="Rifornimento automatico"/>
-  <translation tag="Auto-Replenish is turned on for this switch." it="Il rifornimento automatico viene attivato per questo cambio."/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." it="Il rifornimento automatico viene attivato per questo cambio e poi disattivato."/>
   <translation tag="Auto-detect" it="Rilevamento auto"/>
   <translation tag="Auto-install only works on local Moonraker" it="L&apos;installazione automatica funziona solo su Moonraker locale"/>
   <translation tag="Auto-lock" it="Blocco automatico"/>
@@ -1598,6 +1598,7 @@
   <translation tag="Filament is dragging" it="Il filamento oppone resistenza"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." it="Il filamento è caricato nella testina. Scaricalo prima di attivare il bypass."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." it="C&apos;è filamento caricato nella testina. Scaricalo prima, così non si ammorbidisce nell&apos;estrusore mentre il piano si scalda."/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" it="C&apos;è ancora filamento nell&apos;alimentatore della testina vuota"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." it="Dopo lo scaricamento il filamento è ancora all&apos;ugello. Il taglio o la retrazione potrebbe non essere completato. Libera la testina prima di caricare un&apos;altra bobina."/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." it="Il filamento è ancora caricato. Scaricalo prima di attivare il bypass."/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" it="Dopo il taglio è ancora presente del filamento. La lama potrebbe essere consumata o disallineata"/>
@@ -4146,13 +4147,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." it="La stampante non ha confermato l&apos;avvio della stampa ({}). Potrebbe comunque avviarsi: controlla la stampante prima di avviarla di nuovo."/>
   <translation tag="The printer did not report its toolhead limits." it="La stampante non ha comunicato i limiti della testina."/>
   <translation tag="The printer did not reset the filter" it="La stampante non ha azzerato il filtro"/>
-  <translation tag="The printer did not switch toolheads" it="La stampante non ha cambiato testina"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." it="La stampante estrude in un angolo e ripete finché le letture concordano. Non giudichi nulla a occhio."/>
   <translation tag="The printer finishes this measurement on its own." it="La stampante completa questa misurazione da sola."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" it="La stampante ha interrotto questa stampa e non può riprenderla. Riavviare dall&apos;inizio?"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." it="La stampante non ha ancora risposto all&apos;annullamento. Si ferma appena termina la sequenza di avvio."/>
   <translation tag="The printer has not reported its axis limits yet." it="La stampante non ha ancora comunicato i limiti degli assi."/>
   <translation tag="The printer has not reported its maximum velocity yet." it="La stampante non ha ancora comunicato la velocità massima."/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" it="La stampante non ha indicato se il rifornimento automatico è attivo"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." it="La stampante riscalda l&apos;ugello, fa alcuni brevi movimenti di prova in un angolo del piano e li misura da sola. Ripete finché le letture concordano, poi riporta un unico numero."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." it="La stampante esegue l&apos;homing di X e Y se serve, poi porta la testina contro la taglierina per trovarne la posizione. Scaricare prima il filamento."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." it="La stampante esegue l&apos;homing di X e Y, porta la testina al centro del piano e regola ogni cinghia con il suo tenditore. Alla fine i motori vengono rilasciati, quindi eseguire l&apos;homing prima di muovere la stampante."/>
@@ -4960,6 +4961,7 @@
   <translation tag="{} days" it="{} giorni"/>
   <translation tag="{} detected" it="{} rilevata"/>
   <translation tag="{} did not arrive; nothing was sent" it="{} non è arrivato; non è stato inviato nulla"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." it="{} non è passata a {}. La stampa è ancora in pausa e {} ora riporta l&apos;etichetta del filamento di {}."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." it="{} non si è caricato. Verifica che il suo hotend sia ben inserito ed esegui un&apos;estrusione di prova prima di riprendere."/>
   <translation tag="{} disabled" it="{} disabilitato"/>
   <translation tag="{} disconnected" it="{} scollegata"/>

@@ -383,7 +383,7 @@
   <translation tag="Auto-Detect" zh="自动检测"/>
   <translation tag="Auto-Heat on Load" zh="加载时自动加热"/>
   <translation tag="Auto-Replenish" zh="自动补充"/>
-  <translation tag="Auto-Replenish is turned on for this switch." zh="此次切换将开启自动补充。"/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." zh="此次切换将开启自动补充，完成后再关闭。"/>
   <translation tag="Auto-detect" zh="自动检测"/>
   <translation tag="Auto-install only works on local Moonraker" zh="自动安装仅适用于本地 Moonraker"/>
   <translation tag="Auto-lock" zh="自动锁定"/>
@@ -1598,6 +1598,7 @@
   <translation tag="Filament is dragging" zh="耗材阻力过大"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." zh="工具头上已装载耗材。启用旁通前请先卸载。"/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." zh="工具头中已装有耗材。请先卸载,以免热床加热时耗材在挤出机中变软。"/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" zh="空工具头的送料器中仍有耗材"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." zh="卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。"/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." zh="耗材仍处于装载状态。启用旁通前请先卸载。"/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" zh="切断后仍有耗材残留。刀片可能已钝或未对准"/>
@@ -4146,13 +4147,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." zh="打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。"/>
   <translation tag="The printer did not report its toolhead limits." zh="打印机未报告其工具头限制。"/>
   <translation tag="The printer did not reset the filter" zh="打印机未重置滤网"/>
-  <translation tag="The printer did not switch toolheads" zh="打印机未切换工具头"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." zh="打印机尚未响应取消。启动流程完成后会停止。"/>
   <translation tag="The printer has not reported its axis limits yet." zh="打印机尚未报告其轴限位。"/>
   <translation tag="The printer has not reported its maximum velocity yet." zh="打印机尚未报告其最大速度。"/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" zh="打印机未报告自动补充是否开启"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." zh="打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。"/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." zh="打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." zh="打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"/>
@@ -4960,6 +4961,7 @@
   <translation tag="{} days" zh="{} 天"/>
   <translation tag="{} detected" zh="检测到{}"/>
   <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." zh="{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." zh="{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。"/>
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} disconnected" zh="{}已断开"/>

@@ -252,6 +252,26 @@ TEST_CASE("runout other head: the switch is seen by the pause ending or the rout
     CHECK(switch_happened(before, now));
 }
 
+TEST_CASE("runout other head: a silent decline fails once the reply has settled",
+          "[runout_other_head]") {
+    auto before = paused_runout_on_head0();
+    before.routing = {0, 1, 2, 3};
+    auto switched = before;
+    switched.paused = false;
+    CHECK(judge_switch(before, before, SendReply::Ok, 100, 100) == SwitchVerdict::Pending);
+    CHECK(judge_switch(before, before, SendReply::Ok, kSwitchSettleMs, 9000) ==
+          SwitchVerdict::Failed);
+    CHECK(judge_switch(before, before, SendReply::Refused, kSwitchSettleMs, 9000) ==
+          SwitchVerdict::Failed);
+    // A timed-out send may still be heating and purging: wait for the outcome.
+    CHECK(judge_switch(before, before, SendReply::TransportLost, 60000, 150000) ==
+          SwitchVerdict::Pending);
+    CHECK(judge_switch(before, switched, SendReply::TransportLost, 60000, 170000) ==
+          SwitchVerdict::Switched);
+    CHECK(judge_switch(before, before, SendReply::None, 0, kSwitchGiveUpMs) ==
+          SwitchVerdict::Failed);
+}
+
 TEST_CASE("runout other head: U1 names the lower head holding the identical filament",
           "[runout_other_head]") {
     // The firmware takes the first head, in order, whose record matches the

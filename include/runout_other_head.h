@@ -165,4 +165,26 @@ struct ContinuePlan {
 /// past a reasonable wait means it was declined.
 [[nodiscard]] bool switch_happened(const RunoutFacts& before, const RunoutFacts& now);
 
+/// What came back for the sent plan.
+enum class SendReply {
+    None,          ///< nothing yet
+    Ok,            ///< the script ran; the firmware may still have declined
+    TransportLost, ///< a timeout or a dropped link: the printer may still be at it
+    Refused,       ///< the printer answered with an error
+};
+
+enum class SwitchVerdict { Pending, Switched, Failed };
+
+/// Frames reporting the switch may trail the reply this long.
+inline constexpr uint32_t kSwitchSettleMs = 5000;
+/// Past this since sending, a switch that has not shown is not coming. Longer
+/// than the send's own timeout, so a slow heat and purge is not called failed.
+inline constexpr uint32_t kSwitchGiveUpMs = 180000;
+
+/// Has the sent switch happened, failed, or is it still pending? A clean reply
+/// does not mean success: the firmware declines by doing nothing.
+[[nodiscard]] SwitchVerdict judge_switch(const RunoutFacts& before, const RunoutFacts& now,
+                                         SendReply reply, uint32_t ms_since_reply,
+                                         uint32_t ms_since_send);
+
 } // namespace helix::runout_other_head

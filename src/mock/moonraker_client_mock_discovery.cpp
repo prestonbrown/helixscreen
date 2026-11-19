@@ -695,6 +695,17 @@ void MoonrakerClientMock::populate_capabilities() {
                 mock_objects.push_back(obj);
             }
         }
+        // HELIX_MOCK_U1_EMPTY_PORTS=<head digits>: those heads' spools ran
+        // out at the port (an empty feeder), as after a real runout.
+        if (const char* empty = std::getenv("HELIX_MOCK_U1_EMPTY_PORTS")) {
+            for (const char* c = empty; *c != '\0'; ++c) {
+                if (*c >= '0' && *c < '0' + kU1Channels) {
+                    const auto head = static_cast<size_t>(*c - '0');
+                    u1_filament_detected_[head] = false;
+                    u1_channel_state_[head] = "wait_insert";
+                }
+            }
+        }
     }
 
     // multiACE mock hardware (HELIX_MOCK_AMS=multiace): the U1's own feed

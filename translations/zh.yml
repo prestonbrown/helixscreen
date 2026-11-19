@@ -399,7 +399,7 @@ translations:
   Auto-Detect: 自动检测
   Auto-Heat on Load: 加载时自动加热
   Auto-Replenish: 自动补充
-  Auto-Replenish is turned on for this switch.: '此次切换将开启自动补充。'
+  Auto-Replenish is turned on for this switch and off again after.: '此次切换将开启自动补充，完成后再关闭。'
   Auto-detect: 自动检测
   Auto-install only works on local Moonraker: 自动安装仅适用于本地 Moonraker
   Auto-lock: 自动锁定
@@ -1664,6 +1664,7 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: '工具头上已装载耗材。启用旁通前请先卸载。'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: 工具头中已装有耗材。请先卸载,以免热床加热时耗材在挤出机中变软。
 
+  Filament is still at the empty head's feeder: '空工具头的送料器中仍有耗材'
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : 卸载后耗材仍留在喷嘴处。切断或回抽可能未完成。请先清理工具头，再装载其他料盘。
   Filament is still loaded. Unload it before enabling bypass.: '耗材仍处于装载状态。启用旁通前请先卸载。'
@@ -4258,13 +4259,13 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': '打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。'
   The printer did not report its toolhead limits.: '打印机未报告其工具头限制。'
   The printer did not reset the filter: '打印机未重置滤网'
-  The printer did not switch toolheads: '打印机未切换工具头'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
   The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: '打印机尚未响应取消。启动流程完成后会停止。'
   The printer has not reported its axis limits yet.: '打印机尚未报告其轴限位。'
   The printer has not reported its maximum velocity yet.: '打印机尚未报告其最大速度。'
+  The printer has not reported whether Auto-Replenish is on: '打印机未报告自动补充是否开启'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : '打印机会加热喷嘴，在打印板角落进行几次短促的测试挤出并自行测量。它会重复直到读数一致，然后给出一个数值。'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: 打印机将归零并扫过切刀（约1分钟）。请保持料路畅通。
@@ -5101,6 +5102,7 @@ translations:
   '{} days': "{} 天"
   '{} detected': '检测到{}'
   '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'

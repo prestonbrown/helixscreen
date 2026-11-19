@@ -389,7 +389,7 @@
   <translation tag="Auto-Detect" fr="Auto-détection"/>
   <translation tag="Auto-Heat on Load" fr="Préchauffage auto au chargement"/>
   <translation tag="Auto-Replenish" fr="Réapprovisionnement automatique"/>
-  <translation tag="Auto-Replenish is turned on for this switch." fr="Le réapprovisionnement automatique est activé pour ce changement."/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." fr="Le réapprovisionnement automatique est activé pour ce changement, puis désactivé."/>
   <translation tag="Auto-detect" fr="Auto-détection"/>
   <translation tag="Auto-install only works on local Moonraker" fr="L&apos;installation automatique ne fonctionne que sur Moonraker local"/>
   <translation tag="Auto-lock" fr="Verrouillage auto"/>
@@ -1604,6 +1604,7 @@
   <translation tag="Filament is dragging" fr="Le filament frotte"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." fr="Du filament est chargé dans la tête d&apos;outil. Déchargez-le avant d&apos;activer le bypass."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." fr="Du filament est chargé dans la tête d&apos;outil. Déchargez-le d&apos;abord pour qu&apos;il ne ramollisse pas dans l&apos;extrudeur pendant que le plateau chauffe."/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" fr="Il reste du filament à l&apos;alimentateur de la tête vide"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." fr="Le filament est encore à la buse après le déchargement. La coupe ou la rétractation n&apos;a peut-être pas abouti. Dégagez la tête d&apos;outil avant de charger une autre bobine."/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." fr="Du filament est encore chargé. Déchargez-le avant d&apos;activer le bypass."/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" fr="Du filament est encore présent après la coupe. La lame est peut-être émoussée ou mal alignée"/>
@@ -4152,13 +4153,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." fr="L&apos;imprimante n&apos;a pas confirmé le démarrage de l&apos;impression ({}). Elle peut encore démarrer : vérifiez l&apos;imprimante avant de la relancer."/>
   <translation tag="The printer did not report its toolhead limits." fr="L&apos;imprimante n&apos;a pas indiqué les limites de sa tête d&apos;outil."/>
   <translation tag="The printer did not reset the filter" fr="L&apos;imprimante n&apos;a pas réinitialisé le filtre"/>
-  <translation tag="The printer did not switch toolheads" fr="L&apos;imprimante n&apos;a pas changé de tête d&apos;outil"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." fr="L&apos;imprimante extrude dans un coin et répète jusqu&apos;à ce que les mesures concordent. Vous ne jugez rien à l&apos;œil."/>
   <translation tag="The printer finishes this measurement on its own." fr="L&apos;imprimante termine cette mesure d&apos;elle-même."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" fr="L&apos;imprimante a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début ?"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." fr="L&apos;imprimante n&apos;a pas encore répondu à l&apos;annulation. Elle s&apos;arrête dès que sa séquence de démarrage est terminée."/>
   <translation tag="The printer has not reported its axis limits yet." fr="L&apos;imprimante n&apos;a pas encore signalé les limites de ses axes."/>
   <translation tag="The printer has not reported its maximum velocity yet." fr="L&apos;imprimante n&apos;a pas encore signalé sa vitesse maximale."/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" fr="L&apos;imprimante n&apos;a pas indiqué si le réapprovisionnement automatique est activé"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." fr="L&apos;imprimante chauffe la buse, fait quelques mouvements de test dans un coin du plateau et les mesure elle-même. Elle répète jusqu&apos;à ce que les mesures concordent, puis indique un seul chiffre."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." fr="L&apos;imprimante prend l&apos;origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d&apos;abord le filament."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." fr="L&apos;imprimante prend l&apos;origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l&apos;origine avant de déplacer l&apos;imprimante."/>
@@ -4966,6 +4967,7 @@
   <translation tag="{} days" fr="{} jours"/>
   <translation tag="{} detected" fr="{} détecté"/>
   <translation tag="{} did not arrive; nothing was sent" fr="{} n&apos;est pas arrivé ; rien n&apos;a été envoyé"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." fr="{} n&apos;est pas passé à {}. L&apos;impression reste en pause, et {} porte maintenant l&apos;étiquette de filament de {}."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." fr="{} ne s&apos;est pas chargé. Vérifiez que sa hotend est bien en place et faites une extrusion de test avant de reprendre."/>
   <translation tag="{} disabled" fr="{} désactivé"/>
   <translation tag="{} disconnected" fr="{} débranché"/>

@@ -279,4 +279,16 @@ bool switch_happened(const RunoutFacts& before, const RunoutFacts& now) {
     return (before.paused && !now.paused) || now.routing != before.routing;
 }
 
+SwitchVerdict judge_switch(const RunoutFacts& before, const RunoutFacts& now, SendReply reply,
+                           uint32_t ms_since_reply, uint32_t ms_since_send) {
+    if (switch_happened(before, now)) {
+        return SwitchVerdict::Switched;
+    }
+    const bool answered = reply == SendReply::Ok || reply == SendReply::Refused;
+    if ((answered && ms_since_reply >= kSwitchSettleMs) || ms_since_send >= kSwitchGiveUpMs) {
+        return SwitchVerdict::Failed;
+    }
+    return SwitchVerdict::Pending;
+}
+
 } // namespace helix::runout_other_head

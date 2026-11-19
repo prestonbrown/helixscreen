@@ -451,7 +451,7 @@ translations:
   Auto-Detect: Автоопределение
   Auto-Heat on Load: Автонагрев при загрузке
   Auto-Replenish: Автопополнение
-  Auto-Replenish is turned on for this switch.: 'Для этого переключения включается автопополнение.'
+  Auto-Replenish is turned on for this switch and off again after.: 'Автопополнение включается для этого переключения и затем выключается.'
   Auto-detect: Автоопределение
   Auto-install only works on local Moonraker: Автоустановка работает только с локальным Moonraker
   Auto-lock: Автоблокировка
@@ -1724,6 +1724,7 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Филамент загружен в печатающую головку. Выгрузите его перед включением обхода.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: В печатающей головке загружен филамент. Сначала выгрузите его, чтобы он не размягчился в экструдере, пока греется стол.
 
+  Filament is still at the empty head's feeder: 'В фидере пустой печатающей головки ещё есть филамент'
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : После выгрузки филамент всё ещё находится у сопла. Отрезание или втягивание могло не завершиться. Очистите печатающую головку перед загрузкой другой катушки.
   Filament is still loaded. Unload it before enabling bypass.: 'Филамент всё ещё загружен. Выгрузите его перед включением обхода.'
@@ -4346,13 +4347,13 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова.'
   The printer did not report its toolhead limits.: 'Принтер не сообщил пределы печатающей головки.'
   The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
-  The printer did not switch toolheads: 'Принтер не переключил печатающую головку'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер остановил эту печать и не может её возобновить. Начать с начала?
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'Принтер ещё не ответил на отмену. Он остановится, как только завершит стартовую последовательность.'
   The printer has not reported its axis limits yet.: 'Принтер ещё не сообщил пределы осей.'
   The printer has not reported its maximum velocity yet.: 'Принтер ещё не сообщил максимальную скорость.'
+  The printer has not reported whether Auto-Replenish is on: 'Принтер не сообщил, включено ли автопополнение'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'Принтер нагревает сопло, делает несколько коротких тестовых перемещений в углу стола и сам их измеряет. Он повторяет, пока показания не сойдутся, и затем сообщает одно число.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: Принтер ищет ноль и прощупывает резак (около 1 минуты). Держите путь филамента свободным.
@@ -5201,6 +5202,7 @@ translations:
   '{} days': "{} дн."
   '{} detected': '{}: обнаружено'
   '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
   '{} disabled': '{} выключено'
   '{} disconnected': '{}: отключено'

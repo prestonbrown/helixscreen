@@ -383,7 +383,7 @@
   <translation tag="Auto-Detect" en="Auto-Detect"/>
   <translation tag="Auto-Heat on Load" en="Auto-Heat on Load"/>
   <translation tag="Auto-Replenish" en="Auto-Replenish"/>
-  <translation tag="Auto-Replenish is turned on for this switch." en="Auto-Replenish is turned on for this switch."/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." en="Auto-Replenish is turned on for this switch and off again after."/>
   <translation tag="Auto-detect" en="Auto-detect"/>
   <translation tag="Auto-install only works on local Moonraker" en="Auto-install only works on local Moonraker"/>
   <translation tag="Auto-lock" en="Auto-lock"/>
@@ -1598,6 +1598,7 @@
   <translation tag="Filament is dragging" en="Filament is dragging"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." en="Filament is loaded at the toolhead. Unload it before enabling bypass."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." en="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats."/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" en="Filament is still at the empty head&apos;s feeder"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." en="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool."/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." en="Filament is still loaded. Unload it before enabling bypass."/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" en="Filament is still present after the cut — the blade may be dull or misaligned"/>
@@ -4146,13 +4147,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
   <translation tag="The printer did not report its toolhead limits." en="The printer did not report its toolhead limits."/>
   <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
-  <translation tag="The printer did not switch toolheads" en="The printer did not switch toolheads"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." en="The printer has not answered the cancel yet. It stops once its start sequence finishes."/>
   <translation tag="The printer has not reported its axis limits yet." en="The printer has not reported its axis limits yet."/>
   <translation tag="The printer has not reported its maximum velocity yet." en="The printer has not reported its maximum velocity yet."/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" en="The printer has not reported whether Auto-Replenish is on"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." en="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." en="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." en="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."/>
@@ -4960,6 +4961,7 @@
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} disconnected" en="{} disconnected"/>

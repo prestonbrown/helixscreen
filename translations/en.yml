@@ -400,7 +400,7 @@ translations:
   Auto-Detect: Auto-Detect
   Auto-Heat on Load: Auto-Heat on Load
   Auto-Replenish: Auto-Replenish
-  Auto-Replenish is turned on for this switch.: Auto-Replenish is turned on for this switch.
+  Auto-Replenish is turned on for this switch and off again after.: Auto-Replenish is turned on for this switch and off again after.
   Auto-detect: Auto-detect
   Auto-install only works on local Moonraker: Auto-install only works on local Moonraker
   Auto-lock: Auto-lock
@@ -1652,6 +1652,7 @@ translations:
   Filament is dragging: Filament is dragging
   Filament is loaded at the toolhead. Unload it before enabling bypass.: Filament is loaded at the toolhead. Unload it before enabling bypass.
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.
+  Filament is still at the empty head's feeder: Filament is still at the empty head's feeder
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   Filament is still loaded. Unload it before enabling bypass.: Filament is still loaded. Unload it before enabling bypass.
@@ -4228,13 +4229,13 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.'
   The printer did not report its toolhead limits.: The printer did not report its toolhead limits.
   The printer did not reset the filter: The printer did not reset the filter
-  The printer did not switch toolheads: The printer did not switch toolheads
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.
   The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
   The printer halted this print and cannot resume it. Restart from the beginning?: The printer halted this print and cannot resume it. Restart from the beginning?
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: The printer has not answered the cancel yet. It stops once its start sequence finishes.
   The printer has not reported its axis limits yet.: The printer has not reported its axis limits yet.
   The printer has not reported its maximum velocity yet.: The printer has not reported its maximum velocity yet.
+  The printer has not reported whether Auto-Replenish is on: The printer has not reported whether Auto-Replenish is on
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.
@@ -5070,6 +5071,7 @@ translations:
   '{} days': '{} days'
   '{} detected': '{} detected'
   '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'

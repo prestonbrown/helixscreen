@@ -383,7 +383,7 @@
   <translation tag="Auto-Detect" ja="自動検出"/>
   <translation tag="Auto-Heat on Load" ja="装填時に自動加熱"/>
   <translation tag="Auto-Replenish" ja="自動補充"/>
-  <translation tag="Auto-Replenish is turned on for this switch." ja="この切り替えのために自動補充をオンにします。"/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." ja="この切り替えのために自動補充をオンにし、終わったらオフに戻します。"/>
   <translation tag="Auto-detect" ja="自動検出"/>
   <translation tag="Auto-install only works on local Moonraker" ja="自動インストールはローカルの Moonraker でのみ動作します"/>
   <translation tag="Auto-lock" ja="自動ロック"/>
@@ -1598,6 +1598,7 @@
   <translation tag="Filament is dragging" ja="フィラメントに抵抗がかかっています"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." ja="ツールヘッドにフィラメントが装填されています。バイパスを有効にする前に取り出してください。"/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." ja="ツールヘッドにフィラメントがロードされています。ベッドの加熱中にエクストルーダー内で柔らかくならないよう、先に排出してください。"/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" ja="空のツールヘッドのフィーダーにまだフィラメントがあります"/>
   <translation tag="Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool." ja="アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。"/>
   <translation tag="Filament is still loaded. Unload it before enabling bypass." ja="フィラメントがまだ装填されています。バイパスを有効にする前に取り出してください。"/>
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" ja="切断後もフィラメントが残っています。刃が摩耗しているか、位置がずれている可能性があります"/>
@@ -4146,13 +4147,13 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ja="プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。"/>
   <translation tag="The printer did not report its toolhead limits." ja="プリンターがツールヘッドの限界値を報告しませんでした。"/>
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
-  <translation tag="The printer did not switch toolheads" ja="プリンターはツールヘッドを切り替えませんでした"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
   <translation tag="The printer has not answered the cancel yet. It stops once its start sequence finishes." ja="プリンターからキャンセルの応答がまだありません。開始シーケンスが終わると停止します。"/>
   <translation tag="The printer has not reported its axis limits yet." ja="プリンターがまだ軸の範囲を報告していません。"/>
   <translation tag="The printer has not reported its maximum velocity yet." ja="プリンターがまだ最大速度を報告していません。"/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" ja="プリンターは自動補充がオンかどうかを報告していません"/>
   <translation tag="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number." ja="プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。"/>
   <translation tag="The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first." ja="プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"/>
   <translation tag="The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer." ja="プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"/>
@@ -4960,6 +4961,7 @@
   <translation tag="{} days" ja="{}日"/>
   <translation tag="{} detected" ja="{}を検出"/>
   <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ja="{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。"/>
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} disconnected" ja="{}が外れました"/>

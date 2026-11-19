@@ -9,6 +9,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
@@ -82,6 +83,112 @@ lv_color_t first_color(const roh::FilamentRecord& r) {
     }
     return lv_color_hex(static_cast<uint32_t>(std::strtoul(r.colors.front().c_str(), nullptr, 16)));
 }
+
+/// Watches one sent switch until the printer shows it or it is clearly not
+/// coming. The firmware declines a switch by doing nothing, so a clean reply
+/// proves nothing: only the pause ending or the routing changing does.
+class SwitchWatch {
+  public:
+    ~SwitchWatch() {
+        stop();
+    }
+
+    void start(roh::RunoutFacts before, std::string restore_gcode, std::string runout_name,
+               std::string chosen_name) {
+        stop();
+        ++generation_;
+        before_ = std::move(before);
+        restore_gcode_ = std::move(restore_gcode);
+        runout_name_ = std::move(runout_name);
+        chosen_name_ = std::move(chosen_name);
+        reply_ = roh::SendReply::None;
+        sent_at_ = lv_tick_get();
+        reply_at_ = sent_at_;
+        timer_ = lv_timer_create([](lv_timer_t*) { watch().tick(); }, 1000, nullptr);
+    }
+
+    /// Main thread. Ignored when @p generation is not the watch in progress.
+    void note_reply(uint64_t generation, roh::SendReply reply) {
+        if (generation != generation_ || timer_ == nullptr) {
+            return;
+        }
+        reply_ = reply;
+        reply_at_ = lv_tick_get();
+        tick();
+    }
+
+    [[nodiscard]] uint64_t generation() const {
+        return generation_;
+    }
+
+    static SwitchWatch& watch();
+
+  private:
+    void tick() {
+        const auto now = facts_for(before_.runout_head);
+        if (!now) {
+            stop();
+            return;
+        }
+        switch (roh::judge_switch(before_, *now, reply_, lv_tick_elaps(reply_at_),
+                                  lv_tick_elaps(sent_at_))) {
+        case roh::SwitchVerdict::Pending:
+            return;
+        case roh::SwitchVerdict::Switched:
+            spdlog::info("[RunoutOtherHead] the printer switched off head {}", before_.runout_head);
+            stop();
+            return;
+        case roh::SwitchVerdict::Failed:
+            fail();
+            return;
+        }
+    }
+
+    void fail() {
+        spdlog::warn("[RunoutOtherHead] the printer did not switch off head {} (reply {})",
+                     before_.runout_head, static_cast<int>(reply_));
+        // The script stops at its first error, so a setting it changed for
+        // the switch goes back on its own.
+        if (!restore_gcode_.empty()) {
+            if (IMoonrakerAPI* api = get_moonraker_api()) {
+                api->execute_gcode(restore_gcode_, nullptr, [](const MoonrakerError& err) {
+                    spdlog::warn("[RunoutOtherHead] restoring Auto-Replenish failed: {}",
+                                 err.message);
+                });
+            }
+        }
+        const std::string text = fmt::format(
+            fmt::runtime(lv_tr("{} did not switch to {}. The print is still paused, and {} now "
+                               "carries the filament label of {}.")),
+            runout_name_, chosen_name_, runout_name_, chosen_name_);
+        ToastManager::instance().show(ToastSeverity::ERROR, text.c_str(), 10000);
+        stop();
+    }
+
+    void stop() {
+        lv_timer_cancel_safe(timer_);
+        timer_ = nullptr;
+    }
+
+    lv_timer_t* timer_ = nullptr;
+    uint64_t generation_ = 0;
+    roh::RunoutFacts before_;
+    std::string restore_gcode_;
+    std::string runout_name_;
+    std::string chosen_name_;
+    roh::SendReply reply_ = roh::SendReply::None;
+    uint32_t sent_at_ = 0;
+    uint32_t reply_at_ = 0;
+};
+
+SwitchWatch& SwitchWatch::watch() {
+    static SwitchWatch w;
+    return w;
+}
+
+/// The send's own timeout. Auto-Replenish heats, primes and cleans the new head
+/// inside its RESUME, which outlasts the default.
+constexpr uint32_t kSwitchSendTimeoutMs = 150000;
 
 } // namespace
 
@@ -213,6 +320,11 @@ void RunoutOtherHeadModal::pick(int row) {
     const roh::ContinuePlan plan = roh::build_plan(backend->get_type(), *facts, row);
     if (!plan.ok()) {
         spdlog::info("[RunoutOtherHead] head {} refused ({})", row, static_cast<int>(plan.refusal));
+        if (plan.refusal == roh::PlanRefusal::AutoSwitchUnknown) {
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("The printer has not reported whether Auto-Replenish is on"));
+        }
         publish(); // the printer moved on; show why
         return;
     }
@@ -238,7 +350,7 @@ void RunoutOtherHeadModal::pick(int row) {
     }
     if (plan.switches_auto_switch_on) {
         message += " ";
-        message += lv_tr("Auto-Replenish is turned on for this switch.");
+        message += lv_tr("Auto-Replenish is turned on for this switch and off again after.");
     }
     ConfirmOptions options;
     options.owner_token = lifetime_.token();
@@ -270,13 +382,23 @@ void RunoutOtherHeadModal::start(int head) {
     }
     spdlog::info("[RunoutOtherHead] continuing the print: runout head {} -> head {}", runout_head_,
                  plan.continues_on);
-    api->execute_gcode(script, nullptr, [](const MoonrakerError& err) {
-        spdlog::warn("[RunoutOtherHead] switch refused: {}", err.message);
-        queue_update("RunoutOtherHead::error", [] {
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          lv_tr("The printer did not switch toolheads"));
-        });
-    });
+    SwitchWatch& watch = SwitchWatch::watch();
+    watch.start(*facts, plan.restore_gcode,
+                active_tool_name_label(tool_label(runout_head_), runout_head_),
+                active_tool_name_label(tool_label(plan.continues_on), plan.continues_on));
+    const uint64_t generation = watch.generation();
+    const auto reply = [generation](roh::SendReply r) {
+        queue_update("RunoutOtherHead::reply",
+                     [generation, r] { SwitchWatch::watch().note_reply(generation, r); });
+    };
+    api->execute_gcode(
+        script, [reply]() { reply(roh::SendReply::Ok); },
+        [reply](const MoonrakerError& err) {
+            spdlog::warn("[RunoutOtherHead] switch send failed: {}", err.message);
+            reply(err.is_transport_loss() ? roh::SendReply::TransportLost
+                                          : roh::SendReply::Refused);
+        },
+        kSwitchSendTimeoutMs);
     hide();
 }
 

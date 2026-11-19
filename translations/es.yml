@@ -399,7 +399,7 @@ translations:
   Auto-Detect: Auto-Detectar
   Auto-Heat on Load: Calentar Automáticamente al Cargar
   Auto-Replenish: Rellenado automático
-  Auto-Replenish is turned on for this switch.: 'El rellenado automático se activa para este cambio.'
+  Auto-Replenish is turned on for this switch and off again after.: 'El rellenado automático se activa para este cambio y se desactiva después.'
   Auto-detect: Auto-detectar
   Auto-install only works on local Moonraker: La instalación automática solo funciona con Moonraker local
   Auto-lock: Bloqueo automático
@@ -1664,6 +1664,7 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Hay filamento cargado en el cabezal. Descárguelo antes de activar el bypass.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Hay filamento cargado en el cabezal. Descárgalo primero para que no se ablande en el extrusor mientras la cama se calienta.
 
+  Filament is still at the empty head's feeder: 'Aún hay filamento en el alimentador del cabezal vacío'
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : El filamento sigue en la boquilla tras la descarga. Es posible que el corte o la retracción no se hayan completado. Limpie el cabezal antes de cargar otra bobina.
   Filament is still loaded. Unload it before enabling bypass.: 'Todavía hay filamento cargado. Descárguelo antes de activar el bypass.'
@@ -4258,13 +4259,13 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'La impresora no confirmó el inicio de la impresión ({}). Puede que aún empiece: revisa la impresora antes de iniciarla de nuevo.'
   The printer did not report its toolhead limits.: 'La impresora no informó de los límites de su cabezal.'
   The printer did not reset the filter: 'La impresora no restableció el filtro'
-  The printer did not switch toolheads: 'La impresora no cambió de cabezal'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'La impresora extruye en una esquina y repite hasta que las lecturas coinciden. Tú no juzgas nada a ojo.'
   The printer finishes this measurement on its own.: 'La impresora termina esta medición por su cuenta.'
   The printer halted this print and cannot resume it. Restart from the beginning?: La impresora detuvo esta impresión y no puede reanudarla. ¿Reiniciar desde el principio?
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'La impresora aún no ha respondido a la cancelación. Se detendrá en cuanto termine su secuencia de inicio.'
   The printer has not reported its axis limits yet.: 'La impresora aún no ha informado los límites de sus ejes.'
   The printer has not reported its maximum velocity yet.: 'La impresora aún no ha informado su velocidad máxima.'
+  The printer has not reported whether Auto-Replenish is on: 'La impresora no ha indicado si el rellenado automático está activado'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'La impresora calienta la boquilla, hace unos movimientos de prueba cortos en una esquina de la placa y los mide ella misma. Repite hasta que las lecturas coinciden y luego informa de un número.'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: La impresora referencia y barre el cortador (unos 60 segundos). Mantenga despejada la ruta del filamento.
@@ -5101,6 +5102,7 @@ translations:
   '{} days': "{} días"
   '{} detected': '{} detectada'
   '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar.'
   '{} disabled': '{} desactivado'
   '{} disconnected': '{} desconectada'

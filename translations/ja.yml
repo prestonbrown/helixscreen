@@ -399,7 +399,7 @@ translations:
   Auto-Detect: 自動検出
   Auto-Heat on Load: 装填時に自動加熱
   Auto-Replenish: 自動補充
-  Auto-Replenish is turned on for this switch.: 'この切り替えのために自動補充をオンにします。'
+  Auto-Replenish is turned on for this switch and off again after.: 'この切り替えのために自動補充をオンにし、終わったらオフに戻します。'
   Auto-detect: 自動検出
   Auto-install only works on local Moonraker: 自動インストールはローカルの Moonraker でのみ動作します
   Auto-lock: 自動ロック
@@ -1664,6 +1664,7 @@ translations:
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'ツールヘッドにフィラメントが装填されています。バイパスを有効にする前に取り出してください。'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: ツールヘッドにフィラメントがロードされています。ベッドの加熱中にエクストルーダー内で柔らかくならないよう、先に排出してください。
 
+  Filament is still at the empty head's feeder: '空のツールヘッドのフィーダーにまだフィラメントがあります'
   ? Filament is still at the nozzle after unloading. The cut or retract may not have completed. Clear the toolhead before loading another spool.
   : アンロード後もフィラメントがノズルに残っています。カットまたは引き戻しが完了していない可能性があります。別のスプールを装填する前にツールヘッドを空にしてください。
   Filament is still loaded. Unload it before enabling bypass.: 'フィラメントがまだ装填されています。バイパスを有効にする前に取り出してください。'
@@ -4258,13 +4259,13 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。'
   The printer did not report its toolhead limits.: 'プリンターがツールヘッドの限界値を報告しませんでした。'
   The printer did not reset the filter: 'プリンターがフィルターをリセットしませんでした'
-  The printer did not switch toolheads: 'プリンターはツールヘッドを切り替えませんでした'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
   The printer has not answered the cancel yet. It stops once its start sequence finishes.: 'プリンターからキャンセルの応答がまだありません。開始シーケンスが終わると停止します。'
   The printer has not reported its axis limits yet.: 'プリンターがまだ軸の範囲を報告していません。'
   The printer has not reported its maximum velocity yet.: 'プリンターがまだ最大速度を報告していません。'
+  The printer has not reported whether Auto-Replenish is on: 'プリンターは自動補充がオンかどうかを報告していません'
   ? The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number.
   : 'プリンターはノズルを加熱し、プレートの隅で短いテスト移動を数回行って自ら測定します。測定値が一致するまで繰り返し、最後にひとつの数値を報告します。'
   The printer homes and sweeps the cutter (about 1 minute). Keep the filament path clear.: プリンターが原点復帰してカッターを走査します（約1分）。フィラメントの経路を空けてください。
@@ -5101,6 +5102,7 @@ translations:
   '{} days': "{}日"
   '{} detected': '{}を検出'
   '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
+  '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。'
   '{} disabled': '{} を無効にしました'
   '{} disconnected': '{}が外れました'
