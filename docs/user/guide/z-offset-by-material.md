@@ -2,7 +2,7 @@
 
 Keep a separate first-layer Z offset, and if you like a separate bed mesh, for each material you print. HelixScreen applies the right one at the start of every print and saves your corrections to that material only.
 
-For baby steps and saving in general, see [Z-Offset / Baby Steps](printing.md#z-offset--baby-steps).
+For calibration, baby steps and saving in general, see the [Z offset guide](z-offset.md).
 
 ---
 
@@ -175,5 +175,6 @@ If you never set it, it is 0, which means no offset beyond your probe's own.
 ## Related
 
 - [Printing](printing.md): starting a print and the Tune overlay
+- [Z offset guide](z-offset.md)
 - [Settings: Printing](settings/printing.md#z-offset-by-material)
 - [Advanced](advanced.md): installing the helper macros
