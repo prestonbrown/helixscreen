@@ -683,6 +683,28 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the hub stays put from page to page 
     CHECK(middle.y1 == last.y1);
 }
 
+TEST_CASE_METHOD(PagingFixture, "Unit view: a tap on an off-page chip pages to its side",
+                 "[ams][pages][panel][offpage]") {
+    open_at(2);
+    const int start = page_current();
+    lv_obj_t* canvas = named("detail_path_canvas");
+    auto tap_chip = [&](int side) {
+        lv_obj_invalidate(canvas);
+        process_lvgl(30);
+        const auto* data = get_data(canvas);
+        REQUIRE(data != nullptr);
+        REQUIRE(data->hits.offpage_valid[side]);
+        const lv_area_t& chip = data->hits.offpage[side];
+        REQUIRE(UITest::click_at((chip.x1 + chip.x2) / 2, (chip.y1 + chip.y2) / 2));
+        settle();
+        process_lvgl(30);
+    };
+    tap_chip(1);
+    CHECK(page_current() == start + 1);
+    tap_chip(0);
+    CHECK(page_current() == start);
+}
+
 TEST_CASE_METHOD(PagingFixture, "Unit view: the canvas is told the units on other pages",
                  "[ams][pages][panel][stubs]") {
     open_at(2);

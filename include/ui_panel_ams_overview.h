@@ -192,6 +192,8 @@ class AmsOverviewPanel : public PanelBase {
     /// Step one page. False, and nothing changes, at the last (first) page.
     bool next_page();
     bool prev_page();
+    /// A tap on an off-page chip beside the hub: side 0 pages back, 1 forward.
+    static void on_offpage_chip(int side, void* user_data);
 
     /// The page on screen, or -1 with no pages.
     [[nodiscard]] int page() const {
@@ -249,7 +251,7 @@ class AmsOverviewPanel : public PanelBase {
     helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
     helix::ui::WidgetRef detail_slot_widgets_[kMaxDetailSlots];
     int detail_slot_count_ = 0;
-    static constexpr int kMaxRelayoutPasses = 2;
+    static constexpr int kMaxRelayoutPasses = kAmsDetailMaxRelayoutPasses;
     int relayout_passes_ = 0; ///< how deep create_detail_slots() is in laying a unit out again
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
 
