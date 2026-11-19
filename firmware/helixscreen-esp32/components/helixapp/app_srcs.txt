@@ -285,6 +285,7 @@ src/printer/printer_recovery_service.cpp
 src/printer/printer_state.cpp
 src/printer/printer_temperature_state.cpp
 src/printer/printer_versions_state.cpp
+src/printer/runout_other_head.cpp
 src/printer/sensor_state.cpp
 src/printer/slot_registry.cpp
 src/printer/snapmaker_channel_state.cpp
