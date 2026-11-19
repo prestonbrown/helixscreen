@@ -216,7 +216,8 @@ struct AmsLabelSpan {
 /**
  * @brief Packs the labels in row @p r of ams_over_lane_label_spans() side by side, each its whole
  * @p need wide, twice @p gap apart (glyphs that sit flush, "PETG" before "TPU", read as one word
- * at a single gap): each label stays as near its own lane as the
+ * at a single gap), and twice @p gap clear of a higher row's tick, which a packed label slid
+ * toward it would otherwise nearly touch: each label stays as near its own lane as the
  * row allows (the farthest any strays is as small as it can be), its tick under its text, and
  * clear of the ticks of higher rows and the row's ends @p lo and @p hi. Writes the row's spans
  * into @p out and returns true where that fits; false, @p out untouched, where it does not.
