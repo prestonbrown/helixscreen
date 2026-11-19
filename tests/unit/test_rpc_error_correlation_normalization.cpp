@@ -248,13 +248,14 @@ TEST_CASE_METHOD(CorrelationFixture, "cross-channel dedup still works for un-rew
 
 TEST_CASE_METHOD(CorrelationFixture, "cross-channel dedup is unaffected by toast-length truncation",
                  "[moonraker][tracker][dedup][errors]") {
-    // truncate_for_toast() clips at 80 chars, but it runs at PRESENTATION time
+    // truncate_for_toast() clips a long line, but it runs at PRESENTATION time
     // on a copy -- the compared text (ErrorEvent::detail / DeferredCtx::clean)
-    // is never truncated. This >80-char message must therefore dedup on the
-    // untruncated text. Pins that truncation stays out of the compared path.
+    // is never truncated. A message past the toast bound must therefore dedup
+    // on the untruncated text. Pins that truncation stays out of the compared path.
     const std::string LONG = "Move out of range: X=400.000000 Y=400.000000 Z=400.000000 exceeds "
-                             "the configured axis maximum for this printer";
-    REQUIRE(LONG.size() > 80);
+                             "the configured axis maximum for this printer " +
+                             std::string(200, 'x');
+    REQUIRE(LONG.size() > 240);
 
     auto r = run_both_channels(LONG);
 

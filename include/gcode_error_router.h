@@ -220,8 +220,9 @@ class GcodeErrorRouter {
     /// Main-thread only.
     std::vector<lv_timer_t*> pending_deferred_;
 
-    /// Bytes-only truncation for transient toasts. Modals always get the
-    /// full text -- they wrap to multiple lines.
+    /// Bounds a transient toast's text at a few wrapped lines, cutting on a
+    /// codepoint boundary. A message under the bound is shown whole; modals
+    /// always get the full text.
     static std::string truncate_for_toast(std::string text);
 
     IMoonrakerAPI* api_;

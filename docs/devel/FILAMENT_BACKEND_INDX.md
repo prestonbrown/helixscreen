@@ -64,6 +64,14 @@ Status keys are matched case-insensitively and subscribed under the configured c
 Optional macros are used only when listed: `MODE_*` (all three), `TC_CYCLE_ALL`,
 `MANUAL_TOOL_SEAT` with `MANUAL_TOOL_REMOVE`, `SET_TOOL_FILAMENT` (`indx::Contract::has_*`).
 
+A tool change is sent without a G28 in front of it, and HelixScreen never refuses one because
+the printer is unhomed (`include/ams_backend_indx.h#delegates_homing_to_printer`): the stock
+`CHANGE_TOOL` homes an unhomed printer itself. A custom `CHANGE_TOOL` that refuses instead,
+for example one that never homes inside a tool change and raises "CHANGE_TOOL refused: XYZ is
+not homed. Inspect the printer and run G28 deliberately before changing tools.", is supported
+by showing its error: the `!!` line reaches the user whole, through `GcodeErrorRouter`, so
+the macro's own instruction is what the user reads.
+
 ### Recognized, or not
 
 Required in `printer.objects.list`: `save_variables`, `gcode_macro TOOL_POSITIONS`,

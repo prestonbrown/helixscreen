@@ -33,6 +33,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 namespace helix {
@@ -243,12 +244,22 @@ bool GcodeErrorRouter::should_surface_replay(double entry_time, double now) {
 // firmware slice links it without this TU's error-routing dependency web.
 
 std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
-    // UTF-8 byte truncation can land mid-codepoint. Wrapping text in
-    // ToastManager would make this truncation unnecessary.
-    constexpr size_t kMaxLen = 80;
-    if (text.size() > kMaxLen) {
-        text = text.substr(0, kMaxLen - 3) + "...";
+    // The toast wraps, so a macro's refusal arrives whole, instruction and
+    // all ("... run G28 deliberately before changing tools."). The cap only
+    // bounds a runaway line to a few wrapped lines and keeps the text inside
+    // the notification history's fixed-size row. The cut backs off to a
+    // UTF-8 lead byte so it never splits a codepoint.
+    constexpr size_t kMaxLen = 240;
+    constexpr const char* kEllipsis = "...";
+    if (text.size() <= kMaxLen) {
+        return text;
     }
+    size_t cut = kMaxLen - std::char_traits<char>::length(kEllipsis);
+    while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) {
+        --cut;
+    }
+    text.resize(cut);
+    text += kEllipsis;
     return text;
 }
 
