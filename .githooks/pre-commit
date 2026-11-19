@@ -35,7 +35,7 @@ if [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
         claim_tree "merge $(git name-rev --name-only MERGE_HEAD 2>/dev/null || echo '?')" || exit 1
     fi
     # The merge driver kept this side's generated files; rebuild them first.
-    bash "$(dirname "$0")/lib/regen-generated.sh"
+    bash "$(dirname "$0")/lib/regen-generated.sh" --staged
 fi
 # ---------------------------------------------------------------------------
 
