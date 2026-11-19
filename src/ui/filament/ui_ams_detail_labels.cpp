@@ -173,16 +173,17 @@ int32_t label_whole(lv_obj_t* slot) {
 
 /// The room beside @p slot's label its tool tag takes (place_tool_badges()): its width on each
 /// side, since the label stays centered on its spool; 0 with no tag shown. A unit on a page of
-/// a paged hub keeps the rows its labels alone ask for, so its hub stands still from page to
-/// page; there the tag keeps to the label's own room.
+/// a paged hub counts no tag in its rows, so its hub stands still from page to page; there the
+/// tag keeps to the label's own room.
 int32_t label_tag_room(lv_obj_t* slot) {
-    if (s_tray.unit_index >= 0)
-        return 0;
+    int32_t side = 0;
     lv_obj_t* tag = ui_ams_slot_get_tool_badge(slot);
-    if (!tag || lv_obj_is_hidden(tag) || lv_obj_get_style_opa(tag, LV_PART_MAIN) == 0)
-        return 0;
-    lv_obj_update_layout(tag);
-    return 2 * (lv_obj_get_width(tag) + 3);
+    if (s_tray.unit_index < 0 && tag && !lv_obj_is_hidden(tag) &&
+        lv_obj_get_style_opa(tag, LV_PART_MAIN) > 0) {
+        lv_obj_update_layout(tag);
+        side = lv_obj_get_width(tag) + 3;
+    }
+    return 2 * side;
 }
 
 /// Characters a label over a drawn unit keeps before its ellipsis, at the least.
@@ -562,10 +563,10 @@ int32_t place_unit_labels() {
     // Each label takes the room its whole text asks, as far as its neighbours allow.
     helix::ui::ams_over_lane_label_spans(shown_x, row_of, text_w, shown, label_gap, 0.0f, row_w,
                                          span);
-    // A lane's climate reading stands over its label, so a row of labels steps up past the
-    // tallest reading too.
+    // On a drawn tray a lane's climate reading stands over its label, so a row of labels steps
+    // up past the tallest reading too; on a unit's drawing it stands beside the label.
     int32_t reading_h = 0;
-    for (int k = 0; k < shown && rows > 1; ++k) {
+    for (int k = 0; k < shown && rows > 1 && !s_tray.art; ++k) {
         lv_obj_t* reading = ui_ams_slot_get_lane_humidity(s_tray.slot[lane_of[k]]);
         if (reading && !lv_obj_is_hidden(reading)) {
             lv_obj_update_layout(reading);
@@ -606,17 +607,77 @@ int32_t place_unit_labels() {
         lv_area_t la;
         lv_obj_get_coords(label, &la);
         highest = std::min<int32_t>(highest, la.y1);
-        // A lane's own climate reading stands directly over its label.
+        // On a unit's drawing a lane's own climate reading stands beside its label on the
+        // label's row, left of the text (its tool tag takes the right), so the readings add no
+        // rows over the unit; where it would touch another label or reading it is left out.
         lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot);
         if (!row || lv_obj_is_hidden(row))
             continue;
+        // DECLARATIVE_OK: measured layout; the reading shows only where it has room
+        lv_obj_set_style_opa(row, LV_OPA_COVER, LV_PART_MAIN);
         clear_translate(row);
         lv_obj_update_layout(row);
         lv_area_t ra;
         lv_obj_get_coords(row, &ra);
-        lv_obj_set_style_translate_x(row, (la.x1 + la.x2 - ra.x1 - ra.x2) / 2, LV_PART_MAIN);
-        lv_obj_set_style_translate_y(row, la.y1 - 1 - ra.y2, LV_PART_MAIN);
-        highest = std::min<int32_t>(highest, la.y1 - 1 - (ra.y2 - ra.y1));
+        if (!s_tray.art) {
+            // A drawn tray's per-lane lids carry their readings over the labels, two lines tall.
+            lv_obj_set_style_translate_x(row, (la.x1 + la.x2 - ra.x1 - ra.x2) / 2, LV_PART_MAIN);
+            lv_obj_set_style_translate_y(row, la.y1 - 1 - ra.y2, LV_PART_MAIN);
+            highest = std::min<int32_t>(highest, la.y1 - 1 - (ra.y2 - ra.y1));
+            continue;
+        }
+        const int32_t text_w = helix::ui::text_width(
+            lv_label_get_text(label), lv_obj_get_style_text_font(label, LV_PART_MAIN),
+            lv_obj_get_style_text_letter_space(label, LV_PART_MAIN));
+        const int32_t text_left = std::max(la.x1, (la.x1 + la.x2) / 2 - text_w / 2);
+        lv_obj_set_style_translate_x(row, text_left - 3 - ra.x2, LV_PART_MAIN);
+        lv_obj_set_style_translate_y(row, (la.y1 + la.y2) / 2 - (ra.y1 + ra.y2) / 2, LV_PART_MAIN);
+        lv_obj_update_layout(row);
+        lv_obj_get_coords(row, &ra);
+        bool touches = false;
+        for (int j = 0; j < n && !touches; ++j) {
+            lv_obj_t* other = s_tray.slot[j];
+            lv_obj_t* other_label = other ? ui_ams_slot_get_material_label(other) : nullptr;
+            if (!other_label || lv_obj_is_hidden(other_label))
+                continue;
+            lv_area_t oa;
+            lv_obj_get_coords(other_label, &oa);
+            if (j != i) {
+                // Its text, not the whole width the label was given.
+                const int32_t ow = helix::ui::text_width(
+                    lv_label_get_text(other_label),
+                    lv_obj_get_style_text_font(other_label, LV_PART_MAIN),
+                    lv_obj_get_style_text_letter_space(other_label, LV_PART_MAIN));
+                const int32_t ocx = (oa.x1 + oa.x2) / 2;
+                oa.x1 = std::max(oa.x1, ocx - ow / 2);
+                oa.x2 = std::min(oa.x2, ocx + ow / 2);
+                touches = oa.x1 <= ra.x2 && ra.x1 <= oa.x2 && oa.y1 <= ra.y2 && ra.y1 <= oa.y2;
+            }
+            lv_obj_t* other_row = j < i && other ? ui_ams_slot_get_lane_humidity(other) : nullptr;
+            if (!touches && other_row && !lv_obj_is_hidden(other_row) &&
+                lv_obj_get_style_opa(other_row, LV_PART_MAIN) > 0) {
+                lv_obj_get_coords(other_row, &oa);
+                touches = oa.x1 <= ra.x2 && ra.x1 <= oa.x2 && oa.y1 <= ra.y2 && ra.y1 <= oa.y2;
+            }
+        }
+        // Only beside a label in the row nearest the unit: an upper row stands past the slots'
+        // own box, which clips its readings.
+        int32_t nearest_row = INT32_MIN;
+        for (int j = 0; j < n; ++j) {
+            lv_obj_t* other = s_tray.slot[j];
+            lv_obj_t* other_label = other ? ui_ams_slot_get_material_label(other) : nullptr;
+            if (other_label && !lv_obj_is_hidden(other_label) &&
+                lv_obj_get_parent(other_label) == layer) {
+                lv_area_t oa;
+                lv_obj_get_coords(other_label, &oa);
+                nearest_row = std::max(nearest_row, oa.y2);
+            }
+        }
+        const bool upper = la.y2 < nearest_row - 2;
+        if (touches || upper || ra.x1 < origin.x) {
+            // DECLARATIVE_OK: as above
+            lv_obj_set_style_opa(row, LV_OPA_TRANSP, LV_PART_MAIN);
+        }
     }
     // Each label's tick drops straight from just under it to the top of its spool, which
     // stands directly below: a lower row's labels keep clear of the ticks rising past them.
