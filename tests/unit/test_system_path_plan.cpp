@@ -874,8 +874,8 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
         CHECK(hub.buffer_in_hub);
     }
 
-    // The second junction's two lanes join its top, and one outlet reaches its
-    // nozzle. The parked stems stand apart, one tube pitch or more.
+    // The parked units bound for each junction share one tube into its top, and
+    // one outlet reaches its nozzle. The two parked stems stand a pitch apart.
     const HubInfo& hub = p->boxes.hubs[1];
     int joined = 0;
     std::vector<float> stems;
@@ -885,11 +885,60 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
         joined += enters_top(r, hub);
         stems.push_back(seg_start(r.path.segs[0]).x);
     }
-    CHECK(joined == count - split);
+    CHECK(joined == 1);
+    CHECK(p->plan.route_count == 2);
     std::sort(stems.begin(), stems.end());
     for (size_t i = 1; i < stems.size(); i++)
         CHECK(stems[i] - stems[i - 1] >= (float)(d->tube_gauge + helix::ui::kHaloWidthExtra));
     CHECK(routes_ending_at(p->plan, (float)hub.tool_x, nozzle_top) == 1);
+}
+
+TEST_CASE("Overview plan: units scrolled off an edge share one tube per destination",
+          "[system_path][filament_path][hub_groups]") {
+    SECTION("several toolheads: the active parked unit's tube is the one drawn") {
+        // Units 0-2 on the canvas and 3-9 past its right edge share toolhead 0's hub;
+        // units 10 and 11, also past the right edge, share toolhead 1's.
+        auto d = scrolled_off_fleet(12, 10);
+        for (int u = 0; u < 3; u++)
+            d->unit_x_positions[u] = 60 + 80 * u;
+        d->active_unit = 7;
+        d->filament_loaded = true;
+        d->filament_segment = PathSegment::NOZZLE;
+        const auto p = plan_boxes(*d);
+        REQUIRE(p->plan.dropped == 0);
+        int into[2] = {0, 0};
+        for (int i = 0; i < p->plan.route_count; i++)
+            for (int t : {0, 1})
+                into[t] += enters_top(p->plan.routes[i], p->boxes.hubs[t]);
+        CHECK(into[0] == 4);
+        CHECK(into[1] == 1);
+        CHECK(p->plan.route_count == 5);
+        REQUIRE(p->plan.active_route >= 0);
+        const Route& active = p->plan.routes[p->plan.active_route];
+        CHECK(seg_start(active.path.segs[0]).x > (float)(p->L.x_off + p->L.width / 2));
+    }
+    SECTION("one toolhead: one line from each edge with units past it") {
+        auto d = multi();
+        d->unit_count = 6;
+        const int32_t xs[] = {-300, -150, 120, 280, 700, 900};
+        for (int u = 0; u < 6; u++) {
+            d->unit_x_positions[u] = xs[u];
+            d->unit_topology[u] = 1;
+            d->unit_tool_count[u] = 1;
+        }
+        d->active_unit = 5;
+        const auto p = plan_boxes(*d);
+        REQUIRE(p->plan.dropped == 0);
+        std::vector<float> starts;
+        for (int i = 0; i < p->plan.route_count; i++) {
+            const pg::PathPoint s0 = seg_start(p->plan.routes[i].path.segs[0]);
+            if (std::fabs(s0.y - (float)p->L.entry_y) < 0.5f)
+                starts.push_back(s0.x);
+        }
+        CHECK(starts.size() == 4);
+        REQUIRE(p->plan.active_route >= 0);
+        CHECK(seg_start(p->plan.routes[p->plan.active_route].path.segs[0]).x > 300.0f);
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry position and severity",

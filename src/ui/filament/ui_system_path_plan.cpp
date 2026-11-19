@@ -55,6 +55,31 @@ int32_t lane_pitch(const SystemPathData& data) {
     return data.tube_gauge + kHaloWidthExtra + 2;
 }
 
+// The span a unit stem may stand in: the canvas less a small margin.
+struct StemSpan {
+    int32_t lo, hi;
+};
+StemSpan stem_span(const SysLayout& L) {
+    const int32_t margin = LV_MIN(8, L.width / 4);
+    return {L.x_off + margin, L.x_off + L.width - margin};
+}
+
+// Which edge unit @p i's card has scrolled past: -1 left, +1 right, 0 on the canvas.
+int parked_side(const SystemPathData& data, const SysLayout& L, int i) {
+    if (i < 0 || i >= SystemPathData::kMaxUnits)
+        return 0;
+    const StemSpan span = stem_span(L);
+    const int32_t x = L.x_off + data.unit_x_positions[i];
+    return x < span.lo ? -1 : (x > span.hi ? 1 : 0);
+}
+
+// The stem @p rank tube pitches in from the edge on @p side.
+int32_t parked_stem_x(const SystemPathData& data, const SysLayout& L, int side, int rank) {
+    const StemSpan span = stem_span(L);
+    const int32_t step = rank * lane_pitch(data);
+    return side > 0 ? LV_MAX(span.lo, span.hi - step) : LV_MIN(span.hi, span.lo + step);
+}
+
 // Horizontal position of unit `i`'s entry stem: the center of its unit card,
 // clamped into the canvas.
 //
@@ -68,23 +93,20 @@ int32_t unit_stem_x(const SystemPathData& data, const SysLayout& L, int i) {
     if (i < 0 || i >= SystemPathData::kMaxUnits) {
         return L.x_off + L.width / 2;
     }
-    const int32_t margin = LV_MIN(8, L.width / 4);
-    const int32_t lo = L.x_off + margin;
-    const int32_t hi = L.x_off + L.width - margin;
+    const int side = parked_side(data, L, i);
+    if (side == 0)
+        return L.x_off + data.unit_x_positions[i];
     const int32_t x = L.x_off + data.unit_x_positions[i];
-    if (x >= lo && x <= hi)
-        return x;
-    const bool right = x > hi;
     int farther = 0;
     for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
         const int32_t ux = L.x_off + data.unit_x_positions[u];
-        if (u == i || (right ? ux <= hi : ux >= lo))
+        if (u == i || parked_side(data, L, u) != side)
             continue;
-        const bool beyond = right ? (ux > x || (ux == x && u > i)) : (ux < x || (ux == x && u > i));
+        const bool beyond =
+            side > 0 ? (ux > x || (ux == x && u > i)) : (ux < x || (ux == x && u > i));
         farther += beyond;
     }
-    const int32_t step = farther * lane_pitch(data);
-    return right ? LV_MAX(lo, hi - step) : LV_MIN(hi, lo + step);
+    return parked_stem_x(data, L, side, farther);
 }
 
 // The fan of one or more lanes into a hub top at (hub_cx, hub_top).
@@ -741,6 +763,47 @@ Lane route_lane(const SystemPathData& data, const GlobalRoute& route) {
     return lane;
 }
 
+// Units scrolled off one edge send one tube per destination between them, from
+// that edge: the active one's when it is among them. A unit's lanes are one tube
+// on the overview; the units past an edge are one tube more. Kept tubes stand a
+// pitch apart from the edge in, the one bound for the farthest nozzle outermost,
+// so their runs never cross.
+int merge_parked_routes(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes,
+                        int n) {
+    int side[SystemPathData::kMaxTools];
+    int kept = 0;
+    for (int r = 0; r < n; ++r) {
+        const int s = parked_side(data, L, routes[r].unit_idx);
+        int same = -1;
+        for (int k = 0; k < kept && s != 0; ++k)
+            if (side[k] == s && routes[k].tool_idx == routes[r].tool_idx &&
+                routes[k].hub_lane == routes[r].hub_lane)
+                same = k;
+        if (same < 0) {
+            side[kept] = s;
+            routes[kept++] = routes[r];
+        } else if (route_lane(data, routes[r]).on) {
+            routes[same] = routes[r];
+        }
+    }
+    for (int s : {-1, 1}) {
+        int members[SystemPathData::kMaxTools];
+        int count = 0;
+        for (int k = 0; k < kept; ++k)
+            if (side[k] == s)
+                members[count++] = k;
+        std::sort(members, members + count, [&](int a, int b) {
+            return s > 0 ? routes[a].end_x > routes[b].end_x : routes[a].end_x < routes[b].end_x;
+        });
+        for (int m = 0; m < count; ++m) {
+            GlobalRoute& g = routes[members[m]];
+            g.start_x = parked_stem_x(data, L, s, m);
+            g.dist = LV_ABS(g.start_x - g.end_x);
+        }
+    }
+    return kept;
+}
+
 // Each junction's routes enter its box top left to right, in the order of
 // their stems, one tube pitch apart. The group of slots sits as near the
 // routes' mean stem as the box's entry margins allow, so routes arriving from
@@ -846,11 +909,20 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
         else
             n = collect_hub_route(data, L, i, routes, n);
     }
+    n = merge_parked_routes(data, L, routes, n);
 
     const int tools = LV_MIN(data.total_tools, SystemPathData::kMaxTools);
     NozzleFeed feeds[SystemPathData::kMaxTools];
-    for (int t = 0; t < tools; ++t)
+    for (int t = 0; t < tools; ++t) {
+        // A junction is where units meet; its box is as wide as the tubes that
+        // still enter it once parked units share theirs.
         feeds[t] = nozzle_feed(data, t);
+        int tubes = 0;
+        for (int r = 0; r < n; ++r)
+            tubes += routes[r].tool_idx == t;
+        if (feeds[t].routes > 0)
+            feeds[t].routes = LV_MAX(1, tubes);
+    }
     const HubRowYs ys = hub_row_ys(data, L);
     const int32_t nozzle_top = tool_row_inlet_y(data, L);
     for (int r = 0; r < n; ++r) {
@@ -965,9 +1037,25 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     int units[SystemPathData::kMaxUnits];
     pg::MergeLaneIn in[SystemPathData::kMaxUnits];
     int count = 0;
+    // Units scrolled off one edge share one line from that edge: the active one's
+    // when it is among them.
+    int parked_at[2] = {-1, -1};
     for (int i = 0; i < data.unit_count && i < SystemPathData::kMaxUnits; i++) {
         if (data.unit_absent[i])
             continue;
+        const int side = parked_side(data, L, i);
+        if (side != 0) {
+            int& slot = parked_at[side > 0];
+            if (slot >= 0) {
+                if (i == data.active_unit)
+                    units[slot] = i;
+                continue;
+            }
+            slot = count;
+            units[count] = i;
+            in[count++] = {(float)parked_stem_x(data, L, side, 0), (float)L.merge_y};
+            continue;
+        }
         units[count] = i;
         in[count++] = {(float)unit_stem_x(data, L, i), (float)L.merge_y};
     }
