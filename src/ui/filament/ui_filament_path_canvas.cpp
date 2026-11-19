@@ -23,6 +23,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/core/lv_refr_private.h" // lv_obj_refr
 #include "path_view_scale.h"
 #include "theme_manager.h"
 #include "widget_data_registry.h"
@@ -219,7 +220,7 @@ static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) 
     for (int i = 0; i < n; i++) {
         lv_obj_t* parent = lv_obj_get_parent(badges[i]);
         if (!lv_obj_is_hidden(badges[i]) && (!parent || !lv_obj_is_hidden(parent)))
-            lv_obj_redraw(layer, badges[i]);
+            lv_obj_refr(layer, badges[i]); // with its transform: a number shrunk to its pitch
     }
 }
 
@@ -1274,18 +1275,6 @@ void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool b
     data->offpage_after = after;
     data->offpage_before_drying = before_drying;
     data->offpage_after_drying = after_drying;
-    layered_mark_dirty(obj);
-}
-
-// NAMESPACE_OK: the widget's C setter API, beside its siblings
-void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch) {
-    auto* data = get_data(obj);
-    lanes = LV_CLAMP(0, lanes, FilamentPathData::kMaxSlots);
-    lane_pitch = LV_MAX(0, lane_pitch);
-    if (!data || (data->fixed_hub_lanes == lanes && data->fixed_hub_pitch == lane_pitch))
-        return;
-    data->fixed_hub_lanes = lanes;
-    data->fixed_hub_pitch = lane_pitch;
     layered_mark_dirty(obj);
 }
 

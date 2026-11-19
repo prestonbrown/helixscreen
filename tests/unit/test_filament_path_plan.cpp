@@ -497,6 +497,28 @@ TEST_CASE("FilamentPath plan: under a drawn unit a prep-only lane's mark lies al
             CHECK(plan.bands[b].state != BandState::Empty);
 }
 
+TEST_CASE("FilamentPath plan: under a drawn selector the lanes run unbroken to the head's hub",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    d->hub_on_toolhead = true;
+    load_active(*d, 1, PathSegment::NOZZLE);
+    const auto hidden_spans = [&] {
+        const PathPlan& plan = plan_for(*d);
+        int hidden = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int k = 0; k < plan.routes[i].path.count; ++k)
+                hidden += !plan.routes[i].style[k].painted;
+        return hidden;
+    };
+    // Without a drawing every lane passes hidden behind the drawn selector bar; with one, only
+    // the loaded lane's pass through the head's hub box stays hidden.
+    const int with_bar = hidden_spans();
+    d->art_sensors = true;
+    const int drawn = hidden_spans();
+    CHECK(with_bar >= 4);
+    CHECK(drawn <= 1);
+}
+
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);
@@ -1784,93 +1806,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     process_lvgl(20);
     CHECK(tapped == 1);
     UITest::cleanup();
-}
-
-TEST_CASE("FilamentPath offpage: a fixed hub is sized for its widest unit",
-          "[filament-path][plan][offpage]") {
-    auto narrow = make_data(helix::PathTopology::HUB);
-    narrow->slot_count = 1;
-    BaseGeometry g;
-    g.width = 400;
-    g.height = 400;
-    g.slot_count = 1;
-    g.slot_x[0] = 200;
-    g.center_x = 200;
-
-    const LinearHubFrame natural = compute_linear_hub_frame(*narrow, g, kGlyphTop);
-    narrow->fixed_hub_lanes = 4;
-    const LinearHubFrame fixed = compute_linear_hub_frame(*narrow, g, kGlyphTop);
-    CHECK(fixed.hub_box_w > natural.hub_box_w);
-    // Four lanes at the target entry spacing, plus the margins.
-    CHECK(fixed.hub_box_w >= 3 * 22 + 2 * 8);
-
-    // Stubs land at the ends of the row either way: the same x as a four-lane unit's.
-    auto wide = make_data(helix::PathTopology::HUB);
-    wide->fixed_hub_lanes = 4;
-    narrow->offpage_before = 1;
-    wide->offpage_before = 1;
-    const LinearHubFrame narrow_stub = compute_linear_hub_frame(*narrow, g, kGlyphTop);
-    const LinearHubFrame wide_stub = compute_linear_hub_frame(*wide, geometry(), kGlyphTop);
-    REQUIRE(narrow_stub.stubs[0].present);
-    REQUIRE(wide_stub.stubs[0].present);
-    CHECK(narrow_stub.hub_box_w >= 3 * 22 + 2 * 8);
-}
-
-TEST_CASE("FilamentPath offpage: the hub box is identical on every page of one hub",
-          "[filament-path][plan][offpage]") {
-    // A four-lane unit, a two-lane unit and a one-lane unit of one hub, on a fixed hub.
-    auto frame_of = [](int lanes, int fixed, int before, int after) {
-        auto d = make_data(helix::PathTopology::HUB);
-        d->slot_count = lanes;
-        d->fixed_hub_lanes = fixed;
-        d->fixed_hub_pitch = 100;
-        d->show_bypass = true; // not stacked above the glyph, so the hub's row is free to move
-        BaseGeometry g;
-        g.width = 400;
-        g.height = 240; // short enough that a hub of three or more lanes borrows height
-        g.slot_count = lanes;
-        g.center_x = 200;
-        for (int i = 0; i < lanes; i++)
-            g.slot_x[i] = 200 + (int)((i - (lanes - 1) / 2.0f) * 100);
-        return frame_with_offpage(*d, before, false, after, false, g);
-    };
-    const LinearHubFrame four = frame_of(4, 4, 1, 1);
-    const LinearHubFrame two = frame_of(2, 4, 1, 1);
-    const LinearHubFrame one = frame_of(1, 4, 1, 0);
-    const LinearHubFrame last = frame_of(4, 4, 0, 1);
-
-    for (const LinearHubFrame* f : {&two, &one, &last}) {
-        CHECK(f->hub_box_w == four.hub_box_w);
-        CHECK(f->center_x == four.center_x);
-        CHECK(f->hub_y == four.hub_y);
-        CHECK(f->hub_h == four.hub_h);
-    }
-    // The lanes of a narrower unit enter inside the box.
-    const float left = (float)four.center_x - four.hub_box_w / 2.0f;
-    const float right = (float)four.center_x + four.hub_box_w / 2.0f;
-    CHECK(one.hub_fan[0].pts[3].x > left);
-    CHECK(one.hub_fan[0].pts[3].x < right);
-
-    // A hub of fewer lanes is its own box.
-    const LinearHubFrame small = frame_of(2, 2, 1, 1);
-    CHECK(small.hub_box_w != four.hub_box_w);
-
-    // The box follows the widest unit's lane pitch, not the shown unit's.
-    auto with_pitch = [](int pitch) {
-        auto d = make_data(helix::PathTopology::HUB);
-        d->slot_count = 1;
-        d->fixed_hub_lanes = 4;
-        d->fixed_hub_pitch = pitch;
-        d->show_bypass = true;
-        BaseGeometry g;
-        g.width = 400;
-        g.height = 240;
-        g.slot_count = 1;
-        g.center_x = 200;
-        g.slot_x[0] = 200;
-        return frame_with_offpage(*d, 1, false, 1, false, g).hub_box_w;
-    };
-    CHECK(with_pitch(120) != with_pitch(40));
 }
 
 // ============================================================================

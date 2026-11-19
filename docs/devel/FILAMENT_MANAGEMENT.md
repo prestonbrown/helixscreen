@@ -1435,12 +1435,9 @@ token, the current page's in the accent). An action that is unavailable is hidde
 disabled. The header reads "Multi-Filament", a colon, the unit's logo and its name; below
 the SMALL breakpoint the title and the colon give way to the logo and name.
 
-**A hub that holds still.** `ui_filament_path_canvas_set_fixed_hub(canvas, lanes)` stands
-the hub, buffer and toolhead on the canvas's own center line instead of the center of the
-shown unit's spools, and sizes the hub box for the widest unit of the hub (the panel passes
-the largest `slot_count` in the page's group), so a one-bay unit and a four-bay unit sit
-over the same hub. The hub box's *width* still follows the lanes' geometry (a unit with
-fewer lanes leaves it narrower); its position does not move.
+**The hub on a page.** Each unit's lanes converge into a hub sized for them, as on the
+single-unit panel. The hub stands on the centered unit's center line, so paging changes
+only its width, and only where the lane counts differ.
 
 **Measured layout (C++).** The arrows are 48 px touch targets at every breakpoint
 (`ams_page_arrow_hit`, with a smaller disc drawn inside where room is tight). They float

@@ -346,8 +346,11 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
         }
     }
     if (draws_tray() && helix::ui::ams_slot_spool_size() > 0) {
-        result.layout.label_rows = over_lane_label_rows(slot_widgets, count, result.layout,
-                                                        lv_obj_get_parent(w.slot_grid));
+        // A unit with every lane empty keeps one row's height, so it stands the same size as
+        // a filled one and does not grow when its lanes empty.
+        result.layout.label_rows =
+            std::max(count > 0 ? 1 : 0, over_lane_label_rows(slot_widgets, count, result.layout,
+                                                             lv_obj_get_parent(w.slot_grid)));
         for (int i = 0; i < count; ++i) {
             if (slot_widgets[i])
                 ui_ams_slot_set_layout_info(slot_widgets[i], i, count, result.layout.label_rows);
@@ -937,6 +940,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     refresh_unit_view_marks();
 
     // Each lane's number stands just right of its tube, inside its bay; the pill clears them.
+    constexpr float kArtBadgePitchShare = 0.55f;
+    constexpr float kArtBadgeMinFit = 0.7f;
     float badge_end = 0;
     if (w.badge_layer) {
         lv_area_t layer;
@@ -958,7 +963,14 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             lv_obj_update_layout(badge);
             const float bw = (float)lv_obj_get_width(badge);
             const float bh = (float)lv_obj_get_height(badge);
-            const float fit = s_tray.art && bw > 0 ? std::min(1.0f, (pitch - inset) / bw) : 1.0f;
+            // Narrower than the pitch, so neighbors never touch; and kArtBadgePitchShare of it,
+            // leaving the drawn outlet tabs between lanes in view, but not below
+            // kArtBadgeMinFit for that, where the number stops reading.
+            const float fit =
+                s_tray.art && bw > 0
+                    ? std::min({1.0f, (pitch - inset) / bw,
+                                std::max(kArtBadgeMinFit, kArtBadgePitchShare * pitch / bw)})
+                    : 1.0f;
             // DECLARATIVE_OK: measured layout; the number shrinks to the drawn outlets' pitch
             lv_obj_set_style_transform_pivot_x(badge, (int32_t)(bw / 2), LV_PART_MAIN);
             lv_obj_set_style_transform_pivot_y(badge, (int32_t)(bh / 2), LV_PART_MAIN);

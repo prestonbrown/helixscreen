@@ -1001,9 +1001,6 @@ TEST_CASE_METHOD(PagingFixture,
         f.loaded_slot = -1;
     });
     open_at(0);
-    lv_obj_t* canvas = named("detail_path_canvas");
-    // A hub sized for the group's widest unit would leave this unit's lane running flat to it.
-    CHECK(get_data(canvas)->fixed_hub_lanes == 0);
 
     const lv_area_t first = hub_box();
     go_to(1);

@@ -504,11 +504,9 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
     helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
 
     if (detail_path_canvas_) {
-        // Each unit's lanes converge into a hub sized for them, as on the single-unit panel:
-        // a hub sized for the widest unit of the group would leave a smaller unit's lanes
-        // running flat across to it. The hub stays on the centered unit's center line, so paging
-        // changes only its width, and only where the lane counts differ.
-        ui_filament_path_canvas_set_fixed_hub(detail_path_canvas_, 0);
+        // Each unit's lanes converge into a hub sized for them, as on the single-unit panel.
+        // The hub stays on the centered unit's center line, so paging changes only its width,
+        // and only where the lane counts differ.
         ui_filament_path_canvas_set_offpage_units(detail_path_canvas_, page.same_hub_before,
                                                   page.drying_before, page.same_hub_after,
                                                   page.drying_after);
