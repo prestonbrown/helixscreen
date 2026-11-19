@@ -497,6 +497,28 @@ TEST_CASE("FilamentPath plan: under a drawn unit a prep-only lane's mark lies al
             CHECK(plan.bands[b].state != BandState::Empty);
 }
 
+TEST_CASE("FilamentPath plan: under a drawn selector the lanes run unbroken to the head's hub",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    d->hub_on_toolhead = true;
+    load_active(*d, 1, PathSegment::NOZZLE);
+    const auto hidden_spans = [&] {
+        const PathPlan& plan = plan_for(*d);
+        int hidden = 0;
+        for (int i = 0; i < 4; ++i)
+            for (int k = 0; k < plan.routes[i].path.count; ++k)
+                hidden += !plan.routes[i].style[k].painted;
+        return hidden;
+    };
+    // Without a drawing every lane passes hidden behind the drawn selector bar; with one, only
+    // the loaded lane's pass through the head's hub box stays hidden.
+    const int with_bar = hidden_spans();
+    d->art_sensors = true;
+    const int drawn = hidden_spans();
+    CHECK(with_bar >= 4);
+    CHECK(drawn <= 1);
+}
+
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);
