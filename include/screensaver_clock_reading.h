@@ -18,9 +18,14 @@ namespace helix::ui {
 
 /// How long a finished print stays on the readout before the clock returns.
 inline constexpr uint32_t kClockDoneHoldMs = 60000;
-/// A remaining-time estimate this far from the running countdown resets it; nearer ones are
+/// A remaining-time estimate this far below the running countdown resets it; nearer ones are
 /// ignored, so estimator jitter never runs the seconds backwards.
 inline constexpr int32_t kClockCountdownResyncS = 10;
+/// An estimate this far above the running countdown resets it upward. Between
+/// kClockCountdownResyncS and this, the countdown holds until the estimate comes down to it: a
+/// heater or print slower than predicted lowers its estimate slower than real time, and
+/// resetting to it would step the seconds back up every time the gap reached the resync window.
+inline constexpr int32_t kClockCountdownRewindS = 300;
 /// Longest countdown a readout shows: 999:59:59.
 inline constexpr int32_t kClockMaxCountdownS = 999 * 3600 + 59 * 60 + 59;
 /// How often a clock drifts to a new position, so no pixel stays lit in one place.

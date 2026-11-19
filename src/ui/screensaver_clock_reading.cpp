@@ -36,6 +36,7 @@ void ClockState::reset() {
 }
 
 void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
+    const int32_t count_before = countdown_s();
     if (mode_ == ClockMode::COUNTDOWN) {
         since_anchor_ms_ += dt_ms;
     }
@@ -54,9 +55,13 @@ void ClockState::step(uint32_t dt_ms, const ClockInput& in) {
     case ClockPrintPhase::PRINTING:
         if (!anchored_ && print.remaining_s > 0) {
             anchor(print.remaining_s);
-        } else if (anchored_ && print.remaining_s >= 0 &&
-                   std::abs(print.remaining_s - countdown_s()) > kClockCountdownResyncS) {
-            anchor(print.remaining_s);
+        } else if (anchored_ && print.remaining_s >= 0) {
+            const int32_t gap = print.remaining_s - countdown_s();
+            if (gap < -kClockCountdownResyncS || gap > kClockCountdownRewindS) {
+                anchor(print.remaining_s);
+            } else if (gap > kClockCountdownResyncS) {
+                anchor(count_before);
+            }
         }
         mode_ = anchored_ ? ClockMode::COUNTDOWN : ClockMode::CLOCK;
         break;

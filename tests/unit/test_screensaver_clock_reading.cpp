@@ -28,6 +28,7 @@ using helix::ui::ClockMode;
 using helix::ui::ClockPrintPhase;
 using helix::ui::ClockState;
 using helix::ui::ClockTime;
+using helix::ui::kClockCountdownResyncS;
 using helix::ui::kClockDoneHoldMs;
 using helix::ui::StrokeDigitSet;
 
@@ -115,6 +116,17 @@ TEST_CASE("a print with an estimate reads a countdown with its end time and prog
     in.print.remaining_s = 4319 + 5;
     state.step(0, in);
     CHECK(state.countdown_s() == 4319);
+
+    // An estimate falling slower than real time (a heater behind its model) holds the
+    // count once it trails by the window, instead of stepping the seconds back up.
+    in.print.remaining_s = 4299;
+    state.step(20000, in);
+    REQUIRE(state.countdown_s() == 4299);
+    in.print.remaining_s = 4299 + kClockCountdownResyncS + 1;
+    state.step(1000, in);
+    CHECK(state.countdown_s() == 4299);
+    state.step(1000, in);
+    CHECK(state.countdown_s() == 4299);
 
     in.print.remaining_s = 4000;
     state.step(0, in);
