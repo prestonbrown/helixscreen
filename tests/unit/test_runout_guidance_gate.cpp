@@ -272,6 +272,20 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     CHECK(handler->is_modal_visible());
     // The U1 can continue on another loaded head (#2137).
     CHECK(lv_subject_get_int(RunoutGuidanceModal::other_head_offered_subject()) == 1);
+
+    // Filament still at the runout head's port with its feeder on automatic (a
+    // jam): the firmware refeeds that head, so no other head is offered.
+    u1->fire_status(nlohmann::json{
+        {"filament_feed right",
+         {{"extruder2",
+           {{"filament_detected", true}, {"module_exist", true}, {"disable_auto", false}}}}}});
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    u1->fire_status(empty);
+    fsm.update_from_status(empty);
+    settle();
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    REQUIRE(handler->is_modal_visible());
+    CHECK(lv_subject_get_int(RunoutGuidanceModal::other_head_offered_subject()) == 0);
 }
 
 // The U1's bed check pauses with exception 532 code 1. That pause is the
