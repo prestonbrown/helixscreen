@@ -5,6 +5,9 @@
 // anything else, replace a source whole, and keep lanes apart. A lane colour
 // string reads as a value, a clear or nothing.
 
+#include "ui_color_picker.h"
+
+#include "ams_types.h"
 #include "helix_test_fixture.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -101,4 +104,12 @@ TEST_CASE("a lane colour string reads as a value, a clear or nothing", "[lane][i
         INFO(junk);
         CHECK(read_lane_color(junk).kind == ColorReadingKind::NoReading);
     }
+}
+
+TEST_CASE("a colorless slot has no color name and a picked gray keeps one", "[lane][ids]") {
+    using helix::ams::slot_color_name;
+    CHECK(slot_color_name(helix::kAmsDefaultSlotColor).empty());
+    CHECK(slot_color_name(helix::ams::picked_color(helix::kAmsDefaultSlotColor)) ==
+          helix::get_color_name_from_hex(0x7F7F7F));
+    CHECK_FALSE(slot_color_name(0x1A1A1A).empty());
 }

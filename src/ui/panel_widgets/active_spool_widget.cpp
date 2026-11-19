@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "filament_display_name.h"
 #include "i_moonraker_api.h"
+#include "lane_translation.h"
 #include "observer_factory.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
@@ -262,7 +263,7 @@ void ActiveSpoolWidget::update_spool_display() {
             const auto identity = SpoolmanManager::find_identity(source_slot->spoolman_id);
             const auto parts =
                 resolve_filament_label_parts(*source_slot, identity ? &*identity : nullptr,
-                                             get_color_name_from_hex(source_slot->color_rgb));
+                                             helix::ams::slot_color_name(source_slot->color_rgb));
             // The material has its own row above this one, so it is joined out.
             brand_color_str = compose_filament_label(parts.brand, parts.name, "");
         }

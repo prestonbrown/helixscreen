@@ -1256,7 +1256,7 @@ void AmsEditOverlay::update_summary() {
     const std::string type = catalog_ ? selected_type(sel_, *catalog_) : working_info_.material;
     const std::string color = details_color_set_
                                   ? helix::get_color_name_from_hex(details_color_)
-                                  : helix::get_color_name_from_hex(working_info_.color_rgb);
+                                  : helix::ams::slot_color_name(working_info_.color_rgb);
     std::string label =
         helix::compose_filament_label(sel_.brand, working_info_.spool_name, type, " ");
     if (!color.empty()) {
