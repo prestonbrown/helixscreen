@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "core/data_root_resolver.h"
+#include "display_manager.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -196,7 +197,13 @@ void free_flange_layers(FlangeSpin& flange) {
     }
 }
 
+void spin_anim_cb(void* var, int32_t value);
+
+/// Frees everything of a lane's spin, its animation included: a condemned image's animation
+/// would otherwise keep writing into the lane's next spin.
 void free_spin(LaneSpin& spin) {
+    if (lv_obj_t* image = spin.flange[kNearFlange].image)
+        lv_anim_delete(image, spin_anim_cb);
     for (FlangeSpin& flange : spin.flange) {
         for (lv_draw_buf_t*& frame : flange.frame)
             free_with(flange.image, frame);
@@ -832,7 +839,17 @@ void render_flange(lv_obj_t* art, ArtData* data, int lane, int which) {
 }
 
 /// Draws both of lane @p lane's flanges at the spool's current angle.
+/// A stopped lane whose layers are freed can no longer redraw its turned flanges, so they hide
+/// and the flat image shows the spool at rest.
 void render_spin(lv_obj_t* art, ArtData* data, int lane) {
+    LaneSpin& spin = data->spins[static_cast<size_t>(lane)];
+    if (!spin.flange[kNearFlange].face) {
+        for (FlangeSpin& flange : spin.flange)
+            if (flange.image)
+                lv_obj_set_hidden(flange.image, true);
+        spin.angle = 0.0f;
+        return;
+    }
     render_flange(art, data, lane, kFarFlange);
     render_flange(art, data, lane, kNearFlange);
     data->spins[static_cast<size_t>(lane)].last_frame = lv_tick_get();
@@ -864,8 +881,80 @@ void show_spins(const std::vector<lv_obj_t*>& images) {
         lv_obj_set_hidden(image, false);
 }
 
+/// The display is asleep: no spool turns until it wakes.
+bool g_display_asleep = false;
+
+/// Whether a spool in @p art may turn now: it is on screen and the display is awake.
+bool spin_can_run(lv_obj_t* art) {
+    return !g_display_asleep && lv_obj_is_visible(art);
+}
+
+/// Starts lane @p lane's turning at its requested pace from its current angle, when it should
+/// turn and is not already. Never draws, so it is safe while the art is being drawn.
+void start_spin_anim(ArtData* data, int lane) {
+    LaneSpin& turning = data->spins[static_cast<size_t>(lane)];
+    lv_obj_t* image = turning.flange[kNearFlange].image; // the animation's own
+    if (turning.spin.direction == 0 || !image || !turning.flange[kNearFlange].face ||
+        lv_anim_get(image, spin_anim_cb))
+        return;
+    // Starts from the current angle, so a change of speed never jumps the vents.
+    turning.anim_base = turning.angle;
+    lv_anim_t anim;
+    lv_anim_init(&anim);
+    lv_anim_set_var(&anim, image);
+    lv_anim_set_values(&anim, 0, kSpinTenthsPerTurn);
+    lv_anim_set_duration(&anim,
+                         static_cast<uint32_t>(turning.spin.step_ms) * kSpoolSpinPhasesPerTurn);
+    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_path_cb(&anim, lv_anim_path_linear);
+    lv_anim_set_exec_cb(&anim, spin_anim_cb);
+    lv_anim_set_early_apply(&anim, false);
+    lv_anim_start(&anim);
+}
+
+/// Stops every turning spool in @p art where it stands; each keeps its requested spin.
+void pause_spins(ArtData* data) {
+    for (const LaneSpin& spin : data->spins)
+        if (lv_obj_t* image = spin.flange[kNearFlange].image)
+            lv_anim_delete(image, spin_anim_cb);
+}
+
+/// Starts every spool in @p art that should turn and is not, when it may turn now.
+void resume_spins(lv_obj_t* art, ArtData* data) {
+    if (!spin_can_run(art))
+        return;
+    for (size_t i = 0; i < data->spins.size(); ++i)
+        start_spin_anim(data, static_cast<int>(i));
+}
+
+/// Every live unit art, so a display sleep or wake reaches each one's spools.
+std::vector<lv_obj_t*>& live_arts() {
+    static std::vector<lv_obj_t*> arts;
+    return arts;
+}
+
+/// An art coming into view, scrolled back or under an overlay sliding in, is drawn: its
+/// requested spins start again.
+void spin_draw_cb(lv_event_t* e) {
+    lv_obj_t* art = lv_event_get_target_obj(e);
+    if (ArtData* data = data_of(art))
+        resume_spins(art, data);
+}
+
+/// Hears the display's sleep and wake, once per DisplayManager.
+void hook_display_sleep() {
+    static DisplayManager* hooked = nullptr;
+    DisplayManager* dm = DisplayManager::instance();
+    if (!dm || dm == hooked)
+        return;
+    hooked = dm;
+    g_display_asleep = dm->is_display_sleeping();
+    dm->register_sleep_callback([](bool sleeping) { unit_art_set_display_asleep(sleeping); });
+}
+
 /// One step of a turning spool, at LVGL's animation tick; redraws at most every kSpinFrameMs.
-/// Off screen the animation stops, and clearing the spin lets the next update start it again.
+/// Off screen or with the display asleep the animation stops; the spin stays requested and
+/// starts again when the art is drawn or the display wakes.
 void spin_anim_cb(void* var, int32_t value) {
     auto* image = static_cast<lv_obj_t*>(var);
     lv_obj_t* art = lv_obj_get_parent(image);
@@ -874,8 +963,7 @@ void spin_anim_cb(void* var, int32_t value) {
     if (!data || lane < 0 || lane >= (int)data->spins.size())
         return;
     LaneSpin& spin = data->spins[static_cast<size_t>(lane)];
-    if (!lv_obj_is_visible(art)) {
-        spin.spin = SpoolSpin{};
+    if (!spin_can_run(art)) {
         lv_anim_delete(image, spin_anim_cb);
         return;
     }
@@ -1028,6 +1116,8 @@ bool refresh_glow_image(lv_obj_t* art, ArtData* data) {
 
 void delete_cb(lv_event_t* e) {
     lv_obj_t* art = lv_event_get_target_obj(e);
+    std::vector<lv_obj_t*>& arts = live_arts();
+    arts.erase(std::remove(arts.begin(), arts.end(), art), arts.end());
     if (ArtData* data = data_of(art)) {
         if (data->flat_buf)
             lv_draw_buf_destroy(data->flat_buf);
@@ -1061,6 +1151,11 @@ lv_obj_t* make_widget(lv_obj_t* parent, UnitArtTier tier) {
     lv_obj_set_user_data(art, data);
     // DECLARATIVE_OK: a custom widget's own teardown hook.
     lv_obj_add_event_cb(art, delete_cb, LV_EVENT_DELETE, nullptr);
+    // DECLARATIVE_OK: a custom widget's own hook; being drawn is its only sign of coming back
+    // into view.
+    lv_obj_add_event_cb(art, spin_draw_cb, LV_EVENT_DRAW_MAIN_BEGIN, nullptr);
+    live_arts().push_back(art);
+    hook_display_sleep();
     return art;
 }
 
@@ -1377,16 +1472,23 @@ void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin) {
     LaneSpin& turning = data->spins[static_cast<size_t>(lane)];
     if (spin == turning.spin)
         return;
-    if (!lv_obj_is_visible(art) && spin.direction != 0)
-        return;
     lv_obj_t*& image = turning.flange[kNearFlange].image; // the animation's own
     if (image)
         lv_anim_delete(image, spin_anim_cb);
     turning.spin = spin;
     spdlog::debug("[UnitArt] lane {} turns {} at {} ms a phase", lane, spin.direction,
                   spin.step_ms);
-    if (spin.direction == 0)
-        return; // a stopped spool holds its angle
+    if (spin.direction == 0) {
+        // A stopped spool holds its angle in its last frame; the layers that drew it go.
+        for (FlangeSpin& flange : turning.flange) {
+            free_flange_layers(flange);
+            lv_draw_buf_t*& spare = flange.frame[1 - flange.shown];
+            if (spare)
+                destroy_buf(spare); // render_flange frees it the same way on a resize
+            spare = nullptr;
+        }
+        return;
+    }
     if (!load_spin_layers(data, lane, turning)) {
         turning.spin = SpoolSpin{};
         return;
@@ -1402,19 +1504,22 @@ void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin) {
             lv_obj_move_to_index(flange, lv_obj_get_index(data->flat) + 1);
             turning.flange[which].image = flange;
         }
-        render_spin(art, data, lane);
     }
-    // Starts from the current angle, so a change of speed never jumps the vents.
-    turning.anim_base = turning.angle;
-    lv_anim_t anim;
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, image);
-    lv_anim_set_values(&anim, 0, kSpinTenthsPerTurn);
-    lv_anim_set_duration(&anim, static_cast<uint32_t>(spin.step_ms) * kSpoolSpinPhasesPerTurn);
-    lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_path_cb(&anim, lv_anim_path_linear);
-    lv_anim_set_exec_cb(&anim, spin_anim_cb);
-    lv_anim_start(&anim);
+    render_spin(art, data, lane);
+    if (spin_can_run(art))
+        start_spin_anim(data, lane);
+}
+
+void unit_art_set_display_asleep(bool asleep) {
+    g_display_asleep = asleep;
+    for (lv_obj_t* art : live_arts()) {
+        if (ArtData* data = data_of(art)) {
+            if (asleep)
+                pause_spins(data);
+            else
+                resume_spins(art, data);
+        }
+    }
 }
 
 float unit_art_lane_spin_angle(lv_obj_t* art, int lane) {
