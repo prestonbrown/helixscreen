@@ -69,6 +69,10 @@ addition: point `[AFC_hub]` `switch_pin` at the foot sensor's pin and delete
 `AFC_ACE_CALIBRATE` measures `afc_bowden_length` from there to the toolhead sensor.
 
 - [ ] Print the 4-in-1; measure each ACE outlet's tube length to the merge point.
+- [ ] Optional: an automatic bypass, a 2-into-1 hub before the toolhead whose switch sits on
+      the bypass input only, configured as `[filament_switch_sensor bypass]`. A hand-fed spool
+      then turns AFC's bypass on by itself, which settles the "filament at the toolhead, unit
+      empty" state the V0 is in today (`FILAMENT_BACKEND_AFC.md`, bypass paragraph).
 - [ ] Mount the ACE and the hub; route one PTFE run from hub to the V0 extruder; measure it.
 - [ ] Hub sensor: if it is a plain switch, wire it to a free Pico or SHT36 input (or reuse
       `gpio16` if the runout switch moves to the hub).
