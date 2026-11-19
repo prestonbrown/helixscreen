@@ -602,6 +602,8 @@ void AdvancedPanel::handle_helix_plugin_install_clicked() {
         [this]() { return restart_moonraker_for_plugin(); });
     plugin_install_modal_.set_job_gate(
         [this]() { return helix::ui::refuse_plugin_change_during_job(printer_state_); });
+    plugin_install_modal_.set_job_check(
+        [this]() { return helix::ui::job_blocks_plugin_change(printer_state_); });
     plugin_install_modal_.show(lv_screen_active());
 }
 
@@ -673,8 +675,7 @@ void AdvancedPanel::run_helix_plugin_uninstall() {
     };
 
     // The installer forks the bundled script and waits for it right here, on the
-    // LVGL thread — the same blocking call the install modal makes, and for the
-    // same reason (see PluginInstallModal::on_install_clicked).
+    // LVGL thread.
     if (uninstall_runner_) {
         uninstall_runner_(on_done);
     } else {

@@ -904,6 +904,17 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Dryer | ACE units only | `AFC_ACE_DRY` / `AFC_ACE_DRY_STOP` on AFC's DEV branch (AFC #879; see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
+**Bypass: virtual switch or automatic hardware sensor.** AFC looks up
+`[filament_switch_sensor bypass]` at startup (AFC.py, where it sets `self.bypass`). With none
+configured it creates `filament_switch_sensor virtual_bypass`, a switch the user flips and AFC
+saves across restarts; AFC never turns it on by itself. The hardware form is an automatic
+bypass: a 2-into-1 hub whose switch sits on the bypass input only, so it triggers when a
+hand-fed bypass filament goes in and never for the filament system's own input. Either way,
+with bypass on AFC refuses lane loads ("Filament loaded in bypass, not doing tool load") and
+turns its unload into the printer's stock `UNLOAD_FILAMENT`. With bypass off, filament at the
+toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
+UI with a toolhead that reads full and a unit that reads empty.
+
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
 gets the dialog with manual **Load** kept prominent, because Resume alone does not re-feed.
 `supports_per_tool_spool_assignment()` is not overridden either; it falls through to
