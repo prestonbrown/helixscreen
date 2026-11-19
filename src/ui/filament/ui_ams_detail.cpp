@@ -631,7 +631,8 @@ void set_lane_picking(const helix::ui::WidgetRef slot_widgets[], int n, const Un
 }
 
 /// Anchors the linked-lanes bracket over the unit to its drawing: each lane's tick drops to its
-/// label's top, or to its spool's where it shows no label. With no drawing, or a unit whose
+/// label's top. A lane with no label stops at the labels' row, so its tick never runs down over
+/// the unit; with no label on any lane, at its spool's top. With no drawing, or a unit whose
 /// lanes are not the system's first, the bracket keeps the slot row.
 void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_widgets[], int n,
                          lv_point_t origin, const UnitViewArt* art) {
@@ -652,7 +653,7 @@ void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
             break;
         }
         x[i] = origin.x + (int32_t)std::lround(s_tray.label_x[i]);
-        y[i] = origin.y + art->lane[i].y1;
+        y[i] = INT32_MIN;
         lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]);
         if (label && s_tray.label_shown[i] && !lv_obj_is_hidden(label)) {
             lv_area_t la;
@@ -660,6 +661,13 @@ void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
             y[i] = la.y1 - 1;
         }
     }
+    // The labels' nearest row: the lowest label top.
+    int32_t row = INT32_MIN;
+    for (int i = 0; i < count; ++i)
+        row = std::max(row, y[i]);
+    for (int i = 0; i < count; ++i)
+        if (y[i] == INT32_MIN)
+            y[i] = row != INT32_MIN ? row : origin.y + art->lane[i].y1;
     ui_endless_spool_arrows_set_lane_anchors(bracket, x, y, count);
 }
 
