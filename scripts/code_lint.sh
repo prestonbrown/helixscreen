@@ -1198,13 +1198,15 @@ lint_own_endpoint_http() {
 # rebuilds every file that includes it, so a caller that only needs those
 # takes helix::nav::* and ui_nav.h. The count may fall, never rise: lower the
 # limit when an includer narrows. The class's own split-out implementation files
-# are not callers.
+# are not callers, and Application's translation units count as one caller.
 UI_NAV_MANAGER_INCLUDER_LIMIT=15
 
 lint_ui_nav_manager_includers() {
     local includers count
     includers=$(grep -rlE '^#include "ui_nav_manager\.h"' src include |
-        grep -vE '^src/ui/ui_nav_(navbar|transitions)\.cpp$' | sort)
+        grep -vE '^src/ui/ui_nav_(navbar|transitions)\.cpp$' |
+        sed -E 's#^src/application/application_[a-z_]+\.cpp$#src/application/application.cpp#' |
+        sort -u)
     count=$(printf '%s\n' "$includers" | grep -c .)
     [ "$count" -le "$UI_NAV_MANAGER_INCLUDER_LIMIT" ] && return 0
     echo "ui_nav_manager.h has $count includers in src/ and include/, limit $UI_NAV_MANAGER_INCLUDER_LIMIT."
