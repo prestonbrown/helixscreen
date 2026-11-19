@@ -585,6 +585,22 @@ TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entri
         const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
         CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
     }
+    // The tube router lays the lanes leaning one way as a ribbon: their diagonals parallel, at
+    // 45 degrees where the height allows, else the fan's flattest slope.
+    float slope = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float dx = lane.pts[2].x - lane.pts[1].x;
+        if (std::fabs(dx) < 0.5f)
+            continue;
+        const float k = std::fabs((lane.pts[2].y - lane.pts[1].y) / dx);
+        if (slope == 0.0f)
+            slope = k;
+        CHECK(k == Catch::Approx(slope).margin(0.01));
+    }
+    CHECK((slope == Catch::Approx(1.0f).margin(0.01) ||
+           slope == Catch::Approx(kFanMinSlope).margin(0.01)));
 }
 
 TEST_CASE("A path no taller canvas would help asks for no height past its own",

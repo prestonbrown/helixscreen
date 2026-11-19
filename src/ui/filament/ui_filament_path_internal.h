@@ -251,6 +251,10 @@ struct LayerState {
 struct HitRects {
     lv_area_t hub = {0, 0, 0, 0};
     bool hub_valid = false;
+    /// Where the hub stands, drawn as a box or not (a lone lane's bare tube): the off-page chips
+    /// stand beside it.
+    lv_area_t hub_anchor = {0, 0, 0, 0};
+    bool hub_anchor_valid = false;
     lv_area_t buffer = {0, 0, 0, 0};
     bool buffer_valid = false;
     lv_area_t bypass = {0, 0, 0, 0};
@@ -366,6 +370,8 @@ struct FilamentPathData {
     // sets, and whether the buffer rides in the hub box. 0 = the hub is a share of the height.
     int32_t view_hub_h = 0;
     int32_t view_cap_h = 0;
+    float view_unit = 0.0f; // its pixels per unit (path_view_scale.h); the hub's height is
+                            // floored by its label's, so lengths that shrink with the view use this
     bool buffer_in_hub = false;
 
     // The unit's hub (or selector) output sensor.
