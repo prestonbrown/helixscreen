@@ -1041,6 +1041,23 @@ FILAMENT_USED_G  FILAMENT_USED_MM
   own live-remap-on-runout path and is the clearest proof the map is the routing authority.
 - `INNER_PRINT_END` — sets `is_exec_print_end_action=True`.
 
+##### Continuing a runout on another head
+
+The firmware takes no tool map while paused and has no "resume on head N", so HelixScreen
+steers its Auto-Replenish instead (`src/printer/runout_other_head.cpp#u1_plan`). Auto-Replenish
+compares each candidate head's vendor, type, subtype and `filament_color_multi` exactly against
+`filament_info_backup` for the empty head, and `SET_PRINT_FILAMENT_CONFIG` on a head refreshes
+that backup (`backup_filament_info`). The plan therefore writes the chosen head's record onto
+the empty head (multi-colour form, `FORCE=1`), then sends
+`INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=<empty>`, wrapped in `AUTO_REPLENISH_FILAMENT=1` and
+back to `0` when the switch was off. The firmware takes the first head, in order, whose record
+matches, so a lower head holding the identical spool record wins over the choice; the plan
+names it. Which heads qualify (nozzle size and flow type, fed by the feeder, a compatible
+material) is `runout_other_head::assess()`, and the backend's facts come from
+`src/printer/ams_backend_snapmaker.cpp#runout_other_head_facts`. Source:
+Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`. **hw-verify:** not yet run on a
+real U1.
+
 #### Error-id convention
 Blocked-during-print errors all use `id=531` with a distinguishing `code` (15 = set map, 16 = used/prefs/params,
 17 = params generic, 14 = nozzle mismatch, 18 = flow-calib not allowed). The runout "no filament edited"
