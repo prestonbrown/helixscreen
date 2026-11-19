@@ -32,6 +32,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_system_path_plan.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -905,6 +906,43 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     // A card opens its own page again, not the one left behind.
     enter(2);
     CHECK(page_current() == 2);
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview: the canvases keep no chip callback into a detached panel",
+                 "[ams][pages][panel][overview]") {
+    open();
+    lv_obj_t* overview_canvas = AmsPanelTestAccess::system_path(panel());
+    lv_obj_t* unit_canvas = AmsPanelTestAccess::path_canvas(panel());
+    REQUIRE(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb != nullptr);
+    REQUIRE(get_data(unit_canvas)->offpage_callback != nullptr);
+
+    AmsPanelTestAccess::detach_hooks(panel());
+    CHECK(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb == nullptr);
+    CHECK(get_data(unit_canvas)->offpage_callback == nullptr);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview: tile height given to the path goes with its card row",
+                 "[ams][pages][panel][overview]") {
+    open();
+    constexpr int32_t kStaleNeed = 17;
+
+    SECTION("a torn-down panel reopens with full-height tiles") {
+        AmsPanelTestAccess::set_path_room(panel(), 40, kStaleNeed);
+        destroy_ams_overview_panel_ui();
+        CHECK(AmsPanelTestAccess::path_extra(panel()) == 0);
+        CHECK(AmsPanelTestAccess::settled_need(panel()) == INT32_MIN);
+    }
+    SECTION("a rebuilt card row fits its path afresh") {
+        AmsPanelTestAccess::set_path_room(panel(), 0, kStaleNeed);
+        auto* fleet = static_cast<PagedFleet*>(AmsState::instance().get_backend());
+        fleet->specs.push_back({"unit_new", "fps2", false});
+        AmsState::instance().bump_slots_version();
+        drain();
+        process_lvgl(30);
+        REQUIRE(AmsPanelTestAccess::unit_cards(panel()).size() == 13);
+        CHECK(AmsPanelTestAccess::settled_need(panel()) != kStaleNeed);
+    }
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages nothing",

@@ -455,6 +455,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
     lv_obj_update_layout(cards_row_);
     helix::ui::safe_clean_children(cards_row_);
     unit_cards_.clear();
+    // New tiles start at their full height: fit_path_room() decides their path room afresh.
+    forget_path_room();
 
     const int unit_count = static_cast<int>(info.units.size());
     if (unit_count > AmsState::kMaxUnits) {
