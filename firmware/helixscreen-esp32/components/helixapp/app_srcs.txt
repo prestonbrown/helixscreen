@@ -931,6 +931,9 @@ src/rendering/gcode_color_metadata.cpp
 #   stub it actually registers the widget. Deps (gcode_parser types, lv_xml
 #   parser) are all in this build.
 src/ui/gcode/ui_gcode_viewer.cpp
+#   the live half of the viewer API: empty here (HELIX_HAS_GCODE_VIEWER=0), listed so the
+#   native link check sees the symbols it defines for the other build
+src/ui/gcode/gcode_viewer_api.cpp
 #   preview-card wiring shared by print-status and print-select-detail (render
 #   mode ladder + bottom-occluder handoff). Both those panels are in this build
 #   and call it ungated; its only deps are the ui_gcode_viewer_* API above (the

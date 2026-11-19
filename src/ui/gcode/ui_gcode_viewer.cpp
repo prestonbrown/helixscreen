@@ -1052,6 +1052,73 @@ bool helix::ui::gcode_viewer_has_content(lv_obj_t* obj) {
     return st && st->viewer_state == GcodeViewerState::Loaded;
 }
 
+// ==============================================
+// LVGL XML Component Registration
+// ==============================================
+
+/**
+ * @brief XML create handler for gcode_viewer widget
+ */
+static void* gcode_viewer_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
+    (void)attrs; // Required by callback signature, but widget has no XML attributes
+    void* parent = lv_xml_state_get_parent(state);
+    if (!parent) {
+        spdlog::error("[GCode Viewer] XML create: no parent object");
+        return nullptr;
+    }
+
+    lv_obj_t* obj = helix::ui::gcode_viewer_create((lv_obj_t*)parent);
+    if (!obj) {
+        spdlog::error("[GCode Viewer] XML create: failed to create widget");
+        return nullptr;
+    }
+
+    spdlog::trace("[GCode Viewer] XML created widget");
+    return (void*)obj;
+}
+
+/**
+ * @brief XML apply handler for gcode_viewer widget
+ * Applies XML attributes to the widget
+ */
+static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
+    void* item = lv_xml_state_get_item(state);
+    lv_obj_t* obj = (lv_obj_t*)item;
+
+    if (!obj) {
+        spdlog::error("[GCode Viewer] NULL object in xml_apply");
+        return;
+    }
+
+    // Apply standard lv_obj properties from XML (size, style, align, name, etc.)
+    lv_xml_obj_apply(state, attrs);
+
+    spdlog::trace("[GCode Viewer] Applied XML attributes");
+}
+
+/**
+ * @brief Register gcode_viewer widget with LVGL XML system
+ *
+ * Call this during application initialization before loading any XML.
+ * Typically called from main() or ui_init().
+ */
+/// The preview stack's rotate button: reset the viewer that shares its stack.
+static void on_gcode_preview_reset_view(lv_event_t* e) {
+    lv_obj_t* stack = lv_obj_get_parent(lv_event_get_current_target_obj(e));
+    for (lv_obj_t* viewer : active_viewers()) {
+        if (lv_obj_get_parent(viewer) == stack) {
+            helix::ui::gcode_viewer_reset_camera(viewer);
+            return;
+        }
+    }
+}
+
+void helix::ui::gcode_viewer_register(void) {
+    lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
+    lv_xml_register_event_cb(nullptr, "on_gcode_preview_reset_view", on_gcode_preview_reset_view);
+    spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
+}
+
 #else // !HELIX_HAS_GCODE_VIEWER
 
 // Compiled-out build (HELIX_HAS_GCODE_VIEWER=0): stub widget keeps XML layouts
