@@ -716,8 +716,19 @@ int32_t place_unit_labels() {
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
         lv_obj_t* label = slot ? ui_ams_slot_get_material_label(slot) : nullptr;
-        if (!label || lv_obj_get_parent(label) != layer || lv_obj_is_hidden(label))
+        if (!label || lv_obj_get_parent(label) != layer)
             continue;
+        if (lv_obj_is_hidden(label)) {
+            // On a unit's drawing a lane's reading stands only beside its label: a lane that
+            // shows none (an empty one) shows no reading either, which would otherwise stand
+            // over the drawing's spool.
+            lv_obj_t* row = ui_ams_slot_get_lane_humidity(slot);
+            if (s_tray.art && row && !lv_obj_is_hidden(row)) {
+                // DECLARATIVE_OK: measured layout; the reading shows only beside a label
+                lv_obj_set_style_opa(row, LV_OPA_TRANSP, LV_PART_MAIN);
+            }
+            continue;
+        }
         lv_area_t la;
         lv_obj_get_coords(label, &la);
         highest = std::min<int32_t>(highest, la.y1);

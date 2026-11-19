@@ -39,6 +39,9 @@ int view_unit(const helix::AmsSystemInfo& info, int unit_index);
 /// @p lanes: its geometry, or null when the tray draws the unit.
 const tray::UnitArtGeom* unit_view_art_geom(const helix::AmsSystemInfo& info, int unit_index,
                                             int lanes, bool dryer);
+/// Whether the unit view stands @p unit_index's own drawing over its @p lanes, open or enclosed:
+/// the drawing then stands its environment pill at its foot, out of the spools' row.
+bool unit_view_draws_art(const helix::AmsSystemInfo& info, int unit_index, int lanes);
 
 // Defined in ui_ams_detail_labels.cpp.
 

@@ -28,6 +28,7 @@
 #include "ui_filament_path_plan.h"
 
 #include "baked_art.h"
+#include "helix/ui/text_metrics.h"
 #include "helix_psram_attr.h"
 
 #include <spdlog/spdlog.h>
@@ -205,29 +206,42 @@ void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, in
                   noz_color, tool_scale, toolhead_opa);
 }
 
-// A fed lane's upstream caption, on the row its prep sensor band would take:
-// a lane with an upstream has no prep sensor of its own, so the row is free.
+// A fed lane's upstream caption, centered on the row its prep sensor band would take (a lane
+// with an upstream has no prep sensor of its own, so the row is free), on a backing of the
+// canvas's own color so its tube does not strike through the text.
 void draw_upstream_captions(const RenderCtx& ctx, const ParallelRows& rows) {
     const FilamentPathData* data = ctx.data;
     const lv_font_t* font = data->theme.label_font;
     if (!font)
         return;
     const int32_t font_h = lv_font_get_line_height(font);
+    constexpr int32_t kBackingPad = 2;
     for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++) {
         const char* caption = data->slot_upstream_caption[i];
         if (!caption[0])
             continue;
+        const int32_t half_col = (ctx.geo.slot_count > 1)
+                                     ? (ctx.geo.slot_x[1] - ctx.geo.slot_x[0]) / 2
+                                     : ctx.geo.width / 2;
+        const int32_t top = rows.prep_y - font_h / 2;
+        const int32_t half_text =
+            std::min(half_col, (helix::ui::text_width(caption, font) + 1) / 2 + kBackingPad);
+        lv_draw_rect_dsc_t backing;
+        lv_draw_rect_dsc_init(&backing);
+        backing.bg_color = data->theme.color_bg;
+        backing.bg_opa = LV_OPA_COVER;
+        backing.radius = kBackingPad;
+        const lv_area_t back = {ctx.geo.slot_x[i] - half_text, top, ctx.geo.slot_x[i] + half_text,
+                                top + font_h - 1};
+        lv_draw_rect(ctx.layer, &backing, &back);
         lv_draw_label_dsc_t dsc;
         lv_draw_label_dsc_init(&dsc);
         dsc.color = data->theme.color_muted;
         dsc.font = font;
         dsc.align = LV_TEXT_ALIGN_CENTER;
         dsc.text = caption;
-        const int32_t half_col = (ctx.geo.slot_count > 1)
-                                     ? (ctx.geo.slot_x[1] - ctx.geo.slot_x[0]) / 2
-                                     : ctx.geo.width / 2;
-        const lv_area_t area = {ctx.geo.slot_x[i] - half_col, rows.prep_y - font_h,
-                                ctx.geo.slot_x[i] + half_col, rows.prep_y};
+        const lv_area_t area = {ctx.geo.slot_x[i] - half_col, top, ctx.geo.slot_x[i] + half_col,
+                                top + font_h};
         lv_draw_label(ctx.layer, &dsc, &area);
     }
 }

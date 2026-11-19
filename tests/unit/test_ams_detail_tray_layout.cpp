@@ -1346,6 +1346,88 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS unit view: a unit a shell knows has its t
     AmsState::instance().set_backend(nullptr);
 }
 
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: a unit laid out with no tray leaves no drawing behind",
+                 "[ams][tray][ui_integration][unit-art]") {
+    // A view that draws no tray (flat spools, or a feeder unit with no housing) after one that
+    // stood a drawing over its spools shows its own spools, with no drawing behind them.
+    build("off", 4, /*tool_changer=*/false, /*ace=*/true);
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(drawing != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(drawing));
+    helix::Config::get_instance()->set<std::string>("/ams/spool_style", "flat");
+    AmsDetailWidgets w = ams_detail_find_widgets(lv_obj_find_by_name(panel_obj_, "unit_detail"));
+    helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+    for (int i = 0; i < 4; ++i)
+        slots[i].reset(slot(i));
+    ams_detail_update_tray(w, slots, 4, -1);
+    lv_obj_update_layout(test_screen());
+    drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    CHECK((drawing == nullptr || lv_obj_is_hidden(drawing)));
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* spool = lv_obj_find_by_name(slot(i), "lane_spool");
+        REQUIRE(spool != nullptr);
+        CHECK(lv_obj_get_style_opa(spool, LV_PART_MAIN) == LV_OPA_COVER);
+    }
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "EMU: an empty lane's climate reading never stands over the drawing",
+                 "[ams][tray][ui_integration][unit-art]") {
+    // A lane's reading stands beside its label; an empty lane shows no label, so no reading.
+    unit_name_ = "EMU EMU_1";
+    build("passive", 2, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
+          /*buffer=*/false, /*empty_lane=*/0);
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    REQUIRE(drawing != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(drawing));
+    lv_obj_t* empty_label = ui_ams_slot_get_material_label(slot(0));
+    REQUIRE(empty_label != nullptr);
+    REQUIRE(lv_obj_is_hidden(empty_label));
+    lv_obj_t* empty_reading = ui_ams_slot_get_lane_humidity(slot(0));
+    REQUIRE(empty_reading != nullptr);
+    CHECK((lv_obj_is_hidden(empty_reading) ||
+           lv_obj_get_style_opa(empty_reading, LV_PART_MAIN) == LV_OPA_TRANSP));
+    // The filled lane's reading, where it shows, stands on its label's row.
+    lv_obj_t* label = ui_ams_slot_get_material_label(slot(1));
+    lv_obj_t* reading = ui_ams_slot_get_lane_humidity(slot(1));
+    REQUIRE(label != nullptr);
+    REQUIRE(reading != nullptr);
+    if (!lv_obj_is_hidden(reading) && lv_obj_get_style_opa(reading, LV_PART_MAIN) > 0) {
+        lv_area_t la, ra;
+        lv_obj_get_coords(label, &la);
+        lv_obj_get_coords(reading, &ra);
+        CAPTURE(la.y1, la.y2, ra.y1, ra.y2);
+        CHECK(std::abs((ra.y1 + ra.y2) - (la.y1 + la.y2)) <= 2);
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AMS unit view: a rail the view draws no art for keeps its pill in the row",
+                 "[ams][tray][unit-art][happy_hare]") {
+    // A twelve-gate ERCF has art on the overview, but the unit view stands its spools on the
+    // plain rail: the pill takes its own width in the row, or it is pushed off the column.
+    auto mock = std::make_unique<AmsBackendMock>(12);
+    mock->set_unit_model("ERCF");
+    REQUIRE(mock->start().success());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    const auto info = AmsState::instance().system_info();
+    REQUIRE(info);
+    REQUIRE(info->units.size() == 1);
+    REQUIRE(helix::ui::unit_art_available(*info, 0));
+    REQUIRE_FALSE(helix::ui::ams_detail_layout::unit_view_draws_art(*info, 0, 12));
+    AmsDetailWidgets w;
+    w.env_indicator = lv_obj_create(test_screen());
+    lv_obj_set_floating(w.env_indicator, true);
+    ams_detail_pre_show_env_indicator(w, 0);
+    CHECK_FALSE(lv_obj_is_floating(w.env_indicator));
+    lv_obj_delete(w.env_indicator);
+    AmsState::instance().set_backend(nullptr);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots it was on",
                  "[ams][tray][ui_integration][unit-art][lane-picker]") {
     namespace at = helix::ui::ams_tray;
