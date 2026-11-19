@@ -3,3 +3,12 @@ assets/gcode/** linguist-vendored
 assets/test_gcodes/** linguist-vendored
 *.gcode linguist-vendored
 tests/fixtures/gcode_edits/** -text
+
+# Generated from translations/*.yml: the translation packs (make translations) and
+# the CJK font bake (make regen-text-fonts). Two branches that both regenerated them
+# would conflict on output nobody resolves by hand, so a merge keeps this side's copy
+# (the helix-generated driver, which `make`'s dependency check and `make setup`
+# configure) and the merge hooks rebuild what it left stale
+# (.githooks/lib/regen-generated.sh).
+ui_xml/translations/*.xml merge=helix-generated
+assets/fonts/cjk/** merge=helix-generated

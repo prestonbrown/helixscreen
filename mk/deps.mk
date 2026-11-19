@@ -41,6 +41,17 @@ endif
 		git config core.hooksPath .githooks; \
 		echo "$(GREEN)✓ Git pre-commit hooks enabled (auto-format with clang-format)$(RESET)"; \
 	fi
+	@$(HELIX_GIT_MERGE_DRIVER)
+
+# The merge driver .gitattributes names for generated files: a merge keeps this
+# side's copy, and the merge hooks rebuild it (.githooks/lib/regen-generated.sh).
+# Git reads drivers only from config, so each clone sets it once.
+define HELIX_GIT_MERGE_DRIVER
+if [ "$$(git config merge.helix-generated.driver 2>/dev/null)" != true ]; then \
+	git config merge.helix-generated.name "keep this side; the merge hooks regenerate it" && \
+	git config merge.helix-generated.driver true; \
+fi
+endef
 
 # Auto-install missing dependencies (interactive, requires confirmation)
 install-deps:
@@ -665,6 +676,7 @@ $(VENV_PYTHON):
 .PHONY: setup-hooks
 setup-hooks:
 	$(ECHO) "$(CYAN)Setting up git hooks...$(RESET)"
+	$(Q)$(HELIX_GIT_MERGE_DRIVER)
 	$(Q)if [ -f ".githooks/pre-commit" ]; then \
 		git config core.hooksPath .githooks; \
 		echo "$(GREEN)✓ Git hooks enabled (.githooks/pre-commit)$(RESET)"; \
