@@ -67,26 +67,26 @@ run_hook() { # push TIP to a remote that has BASE
         _ "$ROOT" "$TIP" "$BASE" "$HOOK"
 }
 
-@test "a tip the land-gate passed skips the sweep and still runs ESP32 and drift" {
+@test "a tip the land-gate passed skips the sweep and the ESP32 check, and still asks drift" {
     stamp "$TIP"
     run_hook
     [ "$status" -eq 0 ]
     contains "make land-gate passed ${TIP:0:9}" "$output"
     lacks "ran: quality-checks" "$output"
-    contains "ran: esp32_syntax_check" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 
-@test "from a dirty tree, a gated tip skips the sweep and the clang gate" {
+@test "from a dirty tree, a gated tip makes no throwaway checkout and runs only drift" {
     stamp "$TIP"
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
-    contains "throwaway checkout" "$output"
+    lacks "throwaway checkout" "$output"
     contains "make land-gate passed ${TIP:0:9}" "$output"
     lacks "ran: quality-checks" "$output"
     lacks "ran: check_clang_diagnostics" "$output"
-    contains "ran: esp32_syntax_check" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 
@@ -96,6 +96,7 @@ run_hook() { # push TIP to a remote that has BASE
     [ "$status" -eq 0 ]
     lacks "land-gate passed" "$output"
     contains "ran: quality-checks" "$output"
+    contains "ran: esp32_syntax_check" "$output"
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
@@ -137,7 +138,7 @@ run_hook() { # push TIP to a remote that has BASE
     [ "$status" -eq 0 ]
     contains "make land-gate passed ${TIP:0:9} on gate.invalid; skipping" "$output"
     lacks "ran: quality-checks" "$output"
-    contains "ran: esp32_syntax_check" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
     [ "$(cat "$BATS_TEST_TMPDIR/ssh-calls")" = "$(printf 'down.invalid\ngate.invalid')" ]
     grep -q "^host gate.invalid" "$HELIX_LAND_GATE_STAMP_DIR/$TIP"
@@ -188,11 +189,11 @@ run_hook() { # push TIP to a remote that has BASE
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
-    contains "throwaway checkout" "$output"
+    lacks "throwaway checkout" "$output"
     contains "make land-gate passed ${TIP:0:9} on gate.invalid" "$output"
     lacks "ran: quality-checks" "$output"
     lacks "ran: check_clang_diagnostics" "$output"
-    contains "ran: esp32_syntax_check" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 

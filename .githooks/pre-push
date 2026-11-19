@@ -34,15 +34,16 @@
 # leave a main, release/* or tag commit unswept that way is refused; push the
 # protected ref alone, or last.
 #
-# A tip `make land-gate` passed skips the quality sweep and its clang/GCC
-# divergence gate: the gate ran quality-checks.sh on exactly that commit
-# (.githooks/lib/land-gate-stamp.sh). The pass counts from this clone, from
-# another clone on this host, or from a gate host named in HELIX_LAND_GATE_HOSTS
-# (build-hosts.env), asked over ssh when nothing here matches. A stamp names a
-# commit, not a tree, so it counts the same from a dirty tree, whose push is
-# swept in a throwaway checkout of that commit. The ESP32 syntax check and
-# patch drift still run; the gate has no ESP32 check, and drift describes this
-# tree's lib/, not the commit.
+# A tip `make land-gate` passed runs only patch drift
+# (.githooks/lib/land-gate-stamp.sh). That gate ran quality-checks.sh, the
+# clang/GCC divergence gate inside it, and esp32_syntax_check.py --require over
+# the branch since its merge-base with origin/main, which covers every firmware
+# unit the pushed range reaches, on exactly that commit. Patch drift is the one
+# question it did not answer: drift describes this tree's lib/, not the
+# commit. The pass counts from this clone, from another clone on this host, or
+# from a gate host named in HELIX_LAND_GATE_HOSTS (build-hosts.env), asked over
+# ssh when nothing here matches. A stamp names a commit, not a tree, so it
+# counts the same from a dirty tree, and no throwaway checkout is made.
 #
 # Doc anchors are not checked here: `make check-doc-anchors` is advisory, takes
 # over a minute, and blocks nothing, so a push would wait on a report it ignores.
@@ -115,9 +116,11 @@ if [ -z "${HELIX_PREPUSH_FULL:-}" ]; then
         GATE_PASSED=1
     fi
 fi
-gate_passed_note() {
-    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
-}
+if [ -n "$GATE_PASSED" ]; then
+    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and ESP32 check it ran (HELIX_PREPUSH_FULL=1 runs them)"
+    prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || exit 1
+    exit 0
+fi
 
 # Code that compiles on the host can still fail on the ESP32 image: int32_t is
 # long on Xtensa and the image builds -fno-exceptions. This syntax-checks the
@@ -135,14 +138,10 @@ TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . | head -1)"
 
 if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
     STATUS=0
-    if [ -n "$GATE_PASSED" ]; then
-        gate_passed_note
-    else
-        echo "🚦 pre-push: $SWEEP_NOTE"
-        # Drift is asked once, below, where patches the push ships can be told
-        # apart from drift the push does not explain.
-        env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
-    fi
+    echo "🚦 pre-push: $SWEEP_NOTE"
+    # Drift is asked once, below, where patches the push ships can be told
+    # apart from drift the push does not explain.
+    env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
     esp32_syntax_check "$REPO_ROOT" || STATUS=1
     exit "$STATUS"
@@ -209,14 +208,10 @@ done
 # never built. Reporting green off an unbuilt tree would be a vacuous pass, so
 # the gate declines - correctly - and the question moves below with patch drift.
 STATUS=0
-if [ -n "$GATE_PASSED" ]; then
-    gate_passed_note
-else
-    echo "🚦 pre-push: $SWEEP_NOTE"
-    ( cd "$ISOLATED/tree" \
-        && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
-           ./scripts/quality-checks.sh ) || STATUS=$?
-fi
+echo "🚦 pre-push: $SWEEP_NOTE"
+( cd "$ISOLATED/tree" \
+    && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
+       ./scripts/quality-checks.sh ) || STATUS=$?
 
 esp32_syntax_check "$ISOLATED/tree" || STATUS=1
 
@@ -228,7 +223,7 @@ fi
 
 prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
 
-if [ -z "$GATE_PASSED" ] && [ -z "$WORK_BRANCHES_ONLY" ] &&
+if [ -z "$WORK_BRANCHES_ONLY" ] &&
     [ -f "$REPO_ROOT/scripts/check_clang_diagnostics.py" ]; then
     echo ""
     echo "🐉 Checking clang/GCC divergence in your working tree (it has the compile database)..."
