@@ -4923,6 +4923,7 @@
   <translation tag="attempt {}" de="Versuch {}" en="attempt {}" es="intento {}" fr="essai {}" it="tentativo {}" ja="試行 {}" pt="tentativa {}" ru="попытка {}" zh="第 {} 次尝试"/>
   <translation tag="auto" de="auto" en="auto" es="auto" fr="auto" it="auto" ja="自動" pt="auto" ru="авто" zh="自动"/>
   <translation tag="bed" de="Bett" en="bed" es="cama" fr="plateau" it="piano" ja="ベッド" pt="mesa" ru="стол" zh="热床"/>
+  <translation tag="buffer|Neutral" de="Mittelstellung" en="buffer|Neutral" es="Centrado" fr="Centré" it="Centrato" ja="中立" pt="Centrado" ru="Нейтрален" zh="中位"/>
   <translation tag="busy" de="belegt" en="busy" es="ocupado" fr="occupé" it="occupato" ja="ビジー状態" pt="ocupado" ru="занят" zh="正忙"/>
   <translation tag="by" de="von" en="by" es="de" fr="par" it="di" ja="作成者:" pt="por" ru="автор:" zh="作者："/>
   <translation tag="by Preston Brown" de="von Preston Brown" en="by Preston Brown" es="por Preston Brown" fr="par Preston Brown" it="di Preston Brown" ja="by Preston Brown" pt="por Preston Brown" ru="от Preston Brown" zh="by Preston Brown"/>

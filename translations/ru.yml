@@ -5081,6 +5081,7 @@ translations:
   attempt {}: 'попытка {}'
   auto: авто
   bed: стол
+  buffer|Neutral: Нейтрален
   busy: 'занят'
   by: 'автор:'
   by Preston Brown: от Preston Brown

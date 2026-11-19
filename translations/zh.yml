@@ -4993,6 +4993,7 @@ translations:
   attempt {}: '第 {} 次尝试'
   auto: 自动
   bed: 热床
+  buffer|Neutral: 中位
   busy: '正忙'
   by: '作者：'
   by Preston Brown: by Preston Brown

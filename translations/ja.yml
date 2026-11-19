@@ -4993,6 +4993,7 @@ translations:
   attempt {}: '試行 {}'
   auto: 自動
   bed: ベッド
+  buffer|Neutral: 中立
   busy: 'ビジー状態'
   by: '作成者:'
   by Preston Brown: by Preston Brown

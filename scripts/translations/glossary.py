@@ -31,7 +31,7 @@ GLOSSARY_GROUPS: dict[str, list[str]] = {
         "Slots", "Lanes", "Gates", "Feeders", "Tools", "Toolheads",
     ],
     "Filament features": ["Endless Spool", "Filament Mapping", "Assigned Tool"],
-    "Filament buffer": ["Buffer", "Filament Buffer", "Compressed", "Expanded", "Neutral"],
+    "Filament buffer": ["Buffer", "Filament Buffer", "Compressed", "Expanded", "buffer|Neutral"],
     "Actions": [
         "Save", "Cancel", "Close", "Delete", "Edit", "Retry",
         "Install", "Uninstall", "Update", "Print", "Pause", "Resume",
@@ -123,8 +123,10 @@ translation agents (the relevant column is injected into their prompts).
   sense). Its states are a spring pair: **Compressed** is pushed in, **Expanded**
   is pulled out under tension, so Expanded renders as stretched (de `Gedehnt`, fr
   `Étiré`, es `Estirado`, it `Esteso`, pt `Esticado`, zh `拉伸`), never as
-  relaxed or as swollen. **Neutral** is shared with the LED white-tone label and
-  keeps a word that fits both.
+  relaxed or as swollen. The buffer's middle position has its own context key,
+  `buffer|Neutral` (translate only the text after the bar), so it can say
+  centered (zh `中位`, de `Mittelstellung`) while plain `Neutral` stays the LED
+  white tone.
 
 ## Glossary
 """
@@ -168,7 +170,9 @@ def generate_glossary_markdown(yaml_dir: Path) -> str:
         lines.append(header_row)
         lines.append(sep_row)
         for term, vals in rows:
-            lines.append(f"| {term} | {' | '.join(vals)} |")
+            # A context key ("buffer|Neutral") carries a bar that would split the cell.
+            cells = [c.replace("|", "\\|") for c in [term, *vals]]
+            lines.append(f"| {' | '.join(cells)} |")
         missing.extend(skipped)
     if missing:
         lines.append("\n<!-- Terms not yet translated in every locale (skipped): "

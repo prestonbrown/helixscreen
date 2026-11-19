@@ -5005,6 +5005,7 @@ translations:
   attempt {}: 'essai {}'
   auto: auto
   bed: plateau
+  buffer|Neutral: Centré
   busy: 'occupé'
   by: 'par'
   by Preston Brown: par Preston Brown

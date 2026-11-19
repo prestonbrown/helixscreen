@@ -76,8 +76,10 @@ translation agents (the relevant column is injected into their prompts).
   sense). Its states are a spring pair: **Compressed** is pushed in, **Expanded**
   is pulled out under tension, so Expanded renders as stretched (de `Gedehnt`, fr
   `Étiré`, es `Estirado`, it `Esteso`, pt `Esticado`, zh `拉伸`), never as
-  relaxed or as swollen. **Neutral** is shared with the LED white-tone label and
-  keeps a word that fits both.
+  relaxed or as swollen. The buffer's middle position has its own context key,
+  `buffer|Neutral` (translate only the text after the bar), so it can say
+  centered (zh `中位`, de `Mittelstellung`) while plain `Neutral` stays the LED
+  white tone.
 
 ## Glossary
 
@@ -126,7 +128,7 @@ translation agents (the relevant column is injected into their prompts).
 | Filament Buffer | Filamentpuffer | Búfer de filamento | Tampon de filament | Buffer filamento | フィラメントバッファー | Buffer de filamento | Буфер филамента | 耗材缓冲器 |
 | Compressed | Komprimiert | Comprimido | Comprimé | Compresso | 圧縮 | Comprimido | Сжат | 压缩 |
 | Expanded | Gedehnt | Estirado | Étiré | Esteso | 伸長 | Esticado | Растянут | 拉伸 |
-| Neutral | Neutral | Neutro | Neutre | Neutro | ニュートラル | Neutro | Нейтральный | 中性 |
+| buffer\|Neutral | Mittelstellung | Centrado | Centré | Centrato | 中立 | Centrado | Нейтрален | 中位 |
 
 ### Actions
 

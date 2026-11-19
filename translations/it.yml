@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'tentativo {}'
   auto: auto
   bed: piano
+  buffer|Neutral: Centrato
   busy: 'occupato'
   by: 'di'
   by Preston Brown: di Preston Brown

@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'intento {}'
   auto: auto
   bed: cama
+  buffer|Neutral: Centrado
   busy: 'ocupado'
   by: 'de'
   by Preston Brown: por Preston Brown

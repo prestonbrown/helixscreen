@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'Versuch {}'
   auto: auto
   bed: Bett
+  buffer|Neutral: Mittelstellung
   busy: 'belegt'
   by: 'von'
   by Preston Brown: von Preston Brown

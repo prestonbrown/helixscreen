@@ -4857,6 +4857,7 @@
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
   <translation tag="bed" zh="热床"/>
+  <translation tag="buffer|Neutral" zh="中位"/>
   <translation tag="busy" zh="正忙"/>
   <translation tag="by" zh="作者："/>
   <translation tag="by Preston Brown" zh="by Preston Brown"/>

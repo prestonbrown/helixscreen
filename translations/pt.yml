@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'tentativa {}'
   auto: auto
   bed: mesa
+  buffer|Neutral: Centrado
   busy: 'ocupado'
   by: 'por'
   by Preston Brown: por Preston Brown
