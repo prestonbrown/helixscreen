@@ -5,6 +5,7 @@
 #include "ui_spool_canvas_internal.h"
 
 #include "lvgl/lvgl.h"
+#include "spool_spin.h"
 #include "spool_vents.h"
 
 namespace helix::ui {
@@ -32,6 +33,15 @@ static void spool_spin_anim_cb(void* var, int32_t value) {
     redraw_spool_pixels(data);
 }
 
+int spool_canvas_phase_step(const SpoolSpin& spin) {
+    // The tray draws the unit's back to the right of each flange and its lanes leave by the
+    // front wall, below the spool. A vent phase turns the face clockwise on screen, from the back
+    // toward down: against spool_payout_turn's sense.
+    constexpr float kOutletBack = -1.0f;
+    constexpr float kOutletUp = -1.0f;
+    return -spool_payout_turn(kOutletBack, kOutletUp) * spin.direction;
+}
+
 void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin) {
     SpoolCanvasData* data = spool_canvas_data(canvas);
     if (!data || spin == data->spin)
@@ -46,7 +56,7 @@ void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin) {
 
     // Starts from the current phase, so a change of speed never jumps the vents.
     const int32_t from = data->vent_phase;
-    const int32_t to = from + spin.direction * phases;
+    const int32_t to = from + spool_canvas_phase_step(spin) * phases;
     lv_anim_t anim;
     lv_anim_init(&anim);
     lv_anim_set_var(&anim, canvas);

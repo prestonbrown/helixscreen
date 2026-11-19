@@ -19,6 +19,14 @@ uint16_t spool_spin_step_ms(float filament_mm_s) {
     return static_cast<uint16_t>(std::lround(clamped * 1000.0f / kSpoolSpinPhasesPerTurn));
 }
 
+int spool_payout_turn(float outlet_back, float outlet_up) {
+    // An outlet near level counts as below and one near plumb as in front, so a unit whose
+    // outlets sit level with or under its spools turns them all one way.
+    const bool front = outlet_back <= std::abs(outlet_up) * 0.5f;
+    const bool below = outlet_up <= std::abs(outlet_back) * 0.5f;
+    return front == below ? 1 : -1;
+}
+
 namespace {
 
 /// The feed in mm/s from the live extruder velocity, 0 when unknown or retracting.

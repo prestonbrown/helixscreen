@@ -103,6 +103,10 @@ SpoolView spool_canvas_get_view(lv_obj_t* canvas);
  */
 void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin);
 
+/// Vent phases a turning tray spool steps per phase of @p spin: paying out turns its front edge
+/// down toward the tray's outlets (spool_payout_turn), winding back turns it up; 0 when still.
+int spool_canvas_phase_step(const SpoolSpin& spin);
+
 /**
  * @brief Create a glow layer: an image the caller places behind a spool,
  *        centered on it and sized like it.

@@ -141,7 +141,8 @@ int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
 /// bake has the vents apart turns; a stopped spool holds its angle.
 void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin);
 
-/// How far lane @p lane's spool has turned, in degrees, wrapped to a turn.
+/// How far lane @p lane's near flange has turned in its own plane, in degrees within
+/// (-180, 180]: positive from the unit's back toward up, so its front edge moves down.
 float unit_art_lane_spin_angle(lv_obj_t* art, int lane);
 
 /// The image drawing lane @p lane's turning vents, or nullptr before it first turns.

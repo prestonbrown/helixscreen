@@ -43,6 +43,13 @@ inline constexpr float kSpoolSpinLoadFeedMmS = 150.0f;
 /// both turn at this rate.
 uint16_t spool_spin_step_ms(float filament_mm_s);
 
+/// Which way a spool's face turns to pay filament out toward an outlet at (@p outlet_back,
+/// @p outlet_up) from its axis, in the face's own plane with u toward the unit's back and v up:
+/// +1 turns from u toward v, so the front edge moves down; -1 turns the other way. The filament
+/// leaves from the side facing the outlet and runs toward it; winding back turns the other way.
+/// An outlet near level with the axis counts as below it, one near plumb under it as in front.
+int spool_payout_turn(float outlet_back, float outlet_up);
+
 /// Everything the rotation of one lane's spool depends on.
 struct SpoolSpinInput {
     int lane = -1;

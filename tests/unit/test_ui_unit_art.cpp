@@ -809,14 +809,22 @@ TEST_CASE_METHOD(
     const auto start = spin_pixels(art, 3);
     process_lvgl(1000);
     const float turned = unit_art_lane_spin_angle(art, 3);
-    // At print flow the floor sets the pace: a whole turn in kSpoolSpinFloorTurnS at most.
+    // At print flow the floor sets the pace: a whole turn in kSpoolSpinFloorTurnS at most. A
+    // feed turns the face positively: its front edge moves down toward the outlet.
     CHECK(turned >= 360.0f / kSpoolSpinFloorTurnS * 0.8f);
-    CHECK(turned <= 360.0f / kSpoolSpinCapTurnS);
+    CHECK(turned <= 180.0f);
     const bool redrawn = spin_pixels(art, 3) != start;
     CHECK(redrawn);
     // Only the feeding lane turns.
     CHECK(unit_art_lane_spin_obj(art, 0) == nullptr);
     CHECK(unit_art_lane_spin_angle(art, 0) == 0.0f);
+
+    // The ACE's outlets stand in front of and below its spools: paying out turns the flange's
+    // front edge down, from its back toward up, and winding back turns it the other way.
+    unit_art_set_lane_spin(art, 3, SpoolSpin{-1, feeding_spin(3, 400).step_ms});
+    const float before_retract = unit_art_lane_spin_angle(art, 3);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) < before_retract);
 
     unit_art_set_lane_spin(art, 3, SpoolSpin{});
     const float held = unit_art_lane_spin_angle(art, 3);

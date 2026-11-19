@@ -74,6 +74,7 @@ struct LaneSpin {
     bool load_failed = false;
     SpoolSpin spin;
     float angle = 0.0f;      ///< degrees turned, toward paying out
+    int payout_turn = 1;     ///< the flange's sense of paying out (spool_payout_turn)
     float anim_base = 0.0f;  ///< the angle the running animation started from
     uint32_t last_frame = 0; ///< tick of the last frame drawn
 };
@@ -654,6 +655,15 @@ bool load_spin_layers(ArtData* data, int lane, LaneSpin& spin) {
         spdlog::debug("[UnitArt] no turning vents for {}", stem);
         return false;
     }
+    // The outlet in the flange's own plane (u toward the back, v up) sets which way paying
+    // out turns: mid + ey * u + ez * v = outlet, from the spool's middle, the depth the
+    // outlet stands at under it.
+    const float det = g.ey_x * g.ez_y - g.ez_x * g.ey_y;
+    const float dx = g.outlet_x - (g.far_x + g.near_x) / 2;
+    const float dy = g.outlet_y - (g.far_y + g.near_y) / 2;
+    if (std::abs(det) > 1e-9f)
+        spin.payout_turn =
+            spool_payout_turn((g.ez_y * dx - g.ez_x * dy) / det, (g.ey_x * dy - g.ey_y * dx) / det);
     spin.load_failed = false;
     return true;
 }
@@ -728,13 +738,11 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
     lv_image_cache_drop(frame);
 
     // The flange's basis maps (u, v) on its unit disc to the drawing: near + ey * u + ez * v.
-    // A turn of the angle moves the vents from ez toward ey, so a spool paying out carries its
-    // lower edge forward, toward its outlet.
+    // The vents turn by the face angle, from u toward v when it grows.
     const float det = g.ey_x * g.ez_y - g.ez_x * g.ey_y;
     if (std::abs(det) < 1e-9f)
         return;
-    const float rad = spin.angle * 3.14159265f / 180.0f;
-    const float cs = std::cos(rad), sn = std::sin(rad);
+    const tray::FlangeTurn turn = tray::flange_turn((float)spin.payout_turn * spin.angle);
     const float k = spin.baked_w; // shares to baked pixels
     const bool filled = images.filled;
     // The vents are baked centered on a flange's center.
@@ -758,7 +766,8 @@ void render_spin(lv_obj_t* art, ArtData* data, int lane) {
             const float dx = sx - g.near_x, dy = sy - g.near_y;
             const float u = (g.ez_y * dx - g.ez_x * dy) / det;
             const float v = (g.ey_x * dy - g.ey_y * dx) / det;
-            const float ru = u * cs - v * sn, rv = u * sn + v * cs;
+            float ru = 0, rv = 0;
+            tray::flange_unturn(turn, u, v, ru, rv);
             const float bx = (g.ey_x * ru + g.ez_x * rv) * k + vents_cx;
             const float by = (g.ey_y * ru + g.ez_y * rv) * k + vents_cy;
             Premul out = face;
@@ -1368,8 +1377,13 @@ float unit_art_lane_spin_angle(lv_obj_t* art, int lane) {
     ArtData* data = art ? data_of(art) : nullptr;
     if (!data || lane < 0 || lane >= (int)data->spins.size())
         return 0.0f;
-    const float a = std::fmod(data->spins[static_cast<size_t>(lane)].angle, 360.0f);
-    return a < 0.0f ? a + 360.0f : a;
+    const LaneSpin& spin = data->spins[static_cast<size_t>(lane)];
+    float a = std::fmod((float)spin.payout_turn * spin.angle, 360.0f);
+    if (a > 180.0f)
+        a -= 360.0f;
+    else if (a <= -180.0f)
+        a += 360.0f;
+    return a;
 }
 
 lv_obj_t* unit_art_lane_spin_obj(lv_obj_t* art, int lane) {

@@ -248,3 +248,24 @@ TEST_CASE_METHOD(LVGLTestFixture, "A hidden spool does not keep an animation run
     spool_canvas_set_spin(canvas, helix::ui::SpoolSpin{1, 40});
     CHECK(lv_anim_count_running() == before);
 }
+
+TEST_CASE("spool spin: paying out turns the side facing the outlet toward it", "[spool_spin]") {
+    // Faces drawn with the unit's back at +u and up at +v; +1 turns u toward v.
+    CHECK(spool_payout_turn(-1.0f, -1.0f) == 1); // outlet front and below: front edge goes down
+    CHECK(spool_payout_turn(1.0f, -1.0f) == -1); // back and below: back edge goes down
+    CHECK(spool_payout_turn(-1.0f, 1.0f) == -1); // front and above: front edge goes up
+    CHECK(spool_payout_turn(1.0f, 1.0f) == 1);   // back and above: back edge goes up
+    // Level in front counts as below, and plumb under the axis as in front, either side of 0.
+    CHECK(spool_payout_turn(-1.6f, 0.01f) == 1);
+    CHECK(spool_payout_turn(0.01f, -1.0f) == 1);
+    CHECK(spool_payout_turn(-0.01f, -1.0f) == 1);
+}
+
+TEST_CASE("spool spin: a tray spool pays out toward its front wall and winds back away from it",
+          "[spool_spin]") {
+    // A vent phase turns the tray face clockwise on screen, its back to the right: feeding
+    // steps the phases down, so the front edge falls toward the tray's outlets.
+    CHECK(spool_canvas_phase_step(SpoolSpin{1, 40}) == -1);
+    CHECK(spool_canvas_phase_step(SpoolSpin{-1, 40}) == 1);
+    CHECK(spool_canvas_phase_step(SpoolSpin{}) == 0);
+}
