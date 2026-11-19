@@ -26,7 +26,9 @@
 static constexpr int kAmsDetailMaxSlots = helix::kAmsMaxSlots;
 /// How many times a unit view lays a unit out again to fit its path: the fit can step the unit
 /// down through several sizes. The AMS panel and the overview's unit pages share it.
-static constexpr int kAmsDetailMaxRelayoutPasses = 4;
+namespace helix::ui {
+inline constexpr int kAmsDetailMaxRelayoutPasses = 4;
+} // namespace helix::ui
 
 /// Widget pointers resolved from an ams_unit_detail component
 struct AmsDetailWidgets {
