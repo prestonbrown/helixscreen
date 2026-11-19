@@ -57,15 +57,14 @@ def parse_test(src: str) -> dict:
         block(src, "kNoMachineControlFiles[] = {", "};"))]
     markers = [unescape(s) for s in STRING_RE.findall(
         block(src, "bool declares_a_control(const std::string& xml) {", "if (xml.find"))]
-    derived_start = src.find("kDerivedGuards[] = {")
+    # kDerivedGuards entries are {binding, proof}; each may be split across
+    # adjacent C++ string literals, which concatenate.
     derived = []
-    if derived_start >= 0:
+    if src.find("kDerivedGuards[] = {") >= 0:
         body = block(src, "kDerivedGuards[] = {", "};")
-        # Adjacent C++ string literals concatenate.
-        for entry in re.split(r'",\s*\n', body):
-            parts = STRING_RE.findall(entry + '"')
-            if parts:
-                derived.append("".join(unescape(p) for p in parts))
+        lit = r'(?:"(?:[^"\\]|\\.)*"\s*)+'
+        for binding, _proof in re.findall(r"\{\s*(" + lit + r"),\s*(" + lit + r")\}", body):
+            derived.append("".join(unescape(p) for p in STRING_RE.findall(binding)))
     raw = re.search(r'bind\.find\("((?:[^"\\]|\\.)*)"\) == std::string::npos', src)
     if not raw:
         raise ValueError(f"{TEST_PATH}: cannot find the raw print subject the binds are checked for")

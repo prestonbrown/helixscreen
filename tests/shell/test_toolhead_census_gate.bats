@@ -30,9 +30,10 @@ constexpr const char* kDisabled = "state=\"disabled\"";
 constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
 constexpr const char* kGuardAttributeName = "moves_machine=\"";
 constexpr const char* kSocketGuard = "moves_machine=\"$";
-constexpr const char* kDerivedGuards[] = {
-    "<bind_state_if_eq subject=\"save_blocked\" state=\"disabled\" "
-    "ref_value=\"1\"/>",
+constexpr DerivedGuard kDerivedGuards[] = {
+    {"<bind_state_if_eq subject=\"save_blocked\" state=\"disabled\" "
+     "ref_value=\"1\"/>",
+     "save_blocked follows the print"},
 };
 constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/motion.xml", 1},

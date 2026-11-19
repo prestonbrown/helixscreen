@@ -105,6 +105,13 @@ sizes) is one button guarded by `z_offset_save_motion_blocked`, published beside
 counts that binding as a guard (`kDerivedGuards` in `tests/unit/test_job_holds_machine.cpp`),
 so the buttons stay classified exactly as they were with `moves_machine="true"`.
 
+Why not `moves_machine`: that attribute binds the button to `machine_motion_blocked`
+unconditionally, so it would grey a per-material Save during the very print it exists for.
+Two buttons (one guarded, one not) would fork the UI and leave an unguarded path. The derived
+subject keeps one button whose guard is exactly the route's answer, and the census allowlist
+(`kDerivedGuards`, each entry naming its proving test) keeps that form from becoming a
+general escape hatch.
+
 **Primary material for a print the screen starts:** the tool that prints the most by
 weight (`primary_material_for_file()`, reusing `print_cost::file_tool_grams()` and the
 footer's per-tool grams), else the first filament. HelixScreen's macro takes it through
