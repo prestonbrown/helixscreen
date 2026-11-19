@@ -5,6 +5,7 @@
 
 #include "app_globals.h"
 #include "led/led_controller.h"
+#include "material_z_offset_state.h"
 #include "printer_state.h"
 #include "sensor_manager.h"
 #include "tool_state.h"
@@ -20,6 +21,7 @@ void dispatch_status_frame(const StatusFrame& frame, std::optional<uint64_t> kli
     get_printer_state().update_from_status(status, frame.eventtime, frame.from_cached_snapshot,
                                            klippy_epoch, frame.whole_objects);
     ToolState::instance().update_from_status(status);
+    material_zoffset::MaterialZOffsetState::instance().update_from_status(status);
 
     // The fan chips follow the tool the nozzle reading follows, and the aux chip
     // leaves out every tool's own fans.

@@ -4,6 +4,9 @@
 
 #include "core/text_io.h"
 #include "filament_database.h"
+#include "moonraker_types.h"
+#include "print_cost.h"
+#include "print_start_inputs.h"
 #include "printer_discovery.h"
 #include "z_offset_persistence.h"
 
@@ -345,8 +348,10 @@ std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view materi
     if (!p || !p->hint_macro) {
         return {};
     }
-    auto key = p->key(material);
-    if (!key || text_io::trim(material).empty()) {
+    if (text_io::trim(material).empty()) {
+        return fmt::format("SET_GCODE_VARIABLE MACRO={} VARIABLE=next VALUE='\"\"'", p->hint_macro);
+    }
+    if (!p->key(material)) {
         return {};
     }
     // The material travels as a Python string literal, so it must not carry
@@ -642,6 +647,34 @@ std::string primary_material(const std::vector<ToolMaterial>& tools) {
         }
     }
     return {};
+}
+
+std::string primary_material_for_file(const FileMetadata& metadata,
+                                      const std::vector<double>& footer_grams, float diameter_mm) {
+    const FilePalette palette = file_palette_from_metadata(metadata);
+    auto material_of = [&](int tool) -> std::string {
+        const size_t i = tool < 0 ? 0 : static_cast<size_t>(tool);
+        if (i < palette.materials.size() && !palette.materials[i].empty()) {
+            return palette.materials[i];
+        }
+        return tool < 0 ? first_filament(metadata.filament_type) : std::string();
+    };
+    std::vector<ToolMaterial> tools;
+    const auto grams = print_cost::file_tool_grams(metadata, material_of(-1), diameter_mm);
+    const bool per_tool = std::any_of(grams.begin(), grams.end(),
+                                      [](const print_cost::ToolGrams& g) { return g.tool >= 0; });
+    if (!per_tool && !footer_grams.empty()) {
+        for (size_t i = 0; i < footer_grams.size(); ++i) {
+            tools.push_back(
+                {static_cast<int>(i), footer_grams[i], material_of(static_cast<int>(i))});
+        }
+    } else {
+        for (const auto& g : grams) {
+            tools.push_back({g.tool, g.grams, material_of(g.tool)});
+        }
+    }
+    tools.push_back({-1, 0.0, material_of(-1)}); // no grams at all: the first filament
+    return primary_material(tools);
 }
 
 std::string first_filament(std::string_view filament_type) {

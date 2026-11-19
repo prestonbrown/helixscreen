@@ -10,6 +10,7 @@
  */
 
 #include "material_z_offset.h"
+#include "moonraker_types.h"
 #include "printer_discovery.h"
 
 #include <string>
@@ -249,6 +250,8 @@ TEST_CASE("material zoffset: meshes and the screen's material hint", "[material_
     CHECK(mz::start_hint_gcode(helix, "PETG") ==
           "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"PETG\"'");
     CHECK(mz::start_hint_gcode(helix, "PA/CF").empty());
+    CHECK(mz::start_hint_gcode(helix, " ") ==
+          "SET_GCODE_VARIABLE MACRO=_HELIX_MATERIAL VARIABLE=next VALUE='\"\"'");
     // The vendor start macro takes the material from the slicer only.
     CHECK(mz::start_hint_gcode(vars, "PETG").empty());
 }
@@ -268,6 +271,16 @@ TEST_CASE("material zoffset: the primary material", "[material_zoffset]") {
     CHECK(mz::primary_material({TM{0, 0.0, ""}, TM{1, 0.0, "ASA"}, TM{2, 0.0, "PLA"}}) == "ASA");
     CHECK(mz::primary_material({{-1, 30.0, "PETG"}}) == "PETG");
     CHECK(mz::primary_material({}).empty());
+
+    SECTION("from a sliced file") {
+        FileMetadata md;
+        md.filament_type = "PLA;PETG";
+        CHECK(mz::primary_material_for_file(md, {}, 1.75f) == "PLA");
+        CHECK(mz::primary_material_for_file(md, {2.0, 30.0}, 1.75f) == "PETG");
+        md.filament_weights = {25.0, 4.0};
+        // The metadata's own per-tool grams win over the footer's.
+        CHECK(mz::primary_material_for_file(md, {2.0, 30.0}, 1.75f) == "PLA");
+    }
 
     CHECK(mz::first_filament("PLA;PETG") == "PLA");
     CHECK(mz::first_filament(" PETG ") == "PETG");

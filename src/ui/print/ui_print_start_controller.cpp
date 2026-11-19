@@ -36,6 +36,7 @@
 #include "input_sensor_manager.h"
 #include "json_utils.h"
 #include "lvgl.h"
+#include "material_z_offset_state.h"
 #include "pre_start_exclude.h"
 #include "print_3mf.h"
 #include "print_job_ref.h"
@@ -235,6 +236,18 @@ void PrintStartController::execute_print_start() {
     // print start takes the map, these are what decide this print.
     helix::PrintStartParams start_params = print_start_params();
 
+    // With Z offset by material on, the start macro applies the material this
+    // file prints most of, rather than the slicer's first filament.
+    std::string primary_material;
+    if (helix::material_zoffset::MaterialZOffsetState::instance().active()) {
+        const helix::PrintStartContext facts = gather_print_start_context();
+        if (facts.metadata) {
+            primary_material = helix::material_zoffset::primary_material_for_file(
+                *facts.metadata, facts.tool_grams,
+                printer_state_.get_discovery().filament_diameter_mm());
+        }
+    }
+
     // Timelapse application lives SOLELY in
     // PrintPreparationManager::start_print(), which dispatches the timelapse
     // RuntimeCommand in BOTH directions (on/off). Writing it here too would
@@ -260,7 +273,7 @@ void PrintStartController::execute_print_start() {
 
     auto start_now = [this, ps, prep_manager, filename_to_print, path = path_, thumbnail_path,
                       on_started, on_cancelled, update_button, show_detail, exclude_picks,
-                      scan_key = file_scan_key(), start_params]() {
+                      scan_key = file_scan_key(), start_params, primary_material]() {
         // Navigate to print status panel IMMEDIATELY (optimistic navigation)
         // The busy overlay will show on top during download/upload operations.
         // On failure, we'll navigate back to the detail overlay.
@@ -277,6 +290,11 @@ void PrintStartController::execute_print_start() {
                 hide_detail_view_();
             }
             navigate_to_print_status_();
+        }
+
+        if (!primary_material.empty()) {
+            helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
+                get_moonraker_api(), primary_material);
         }
 
         prep_manager->start_print(
@@ -334,6 +352,10 @@ void PrintStartController::execute_print_start() {
                         // unwind the navigation and re-show the file view it belongs to.
                         if (!success && on_cancelled) {
                             on_cancelled();
+                        }
+                        if (!success) {
+                            helix::material_zoffset::MaterialZOffsetState::instance()
+                                .note_screen_start_failed(get_moonraker_api());
                         }
                         if (success) {
                             // Deliberately does NOT end preparation: the RPC

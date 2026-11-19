@@ -24,6 +24,8 @@
 #include <string_view>
 #include <vector>
 
+struct FileMetadata;
+
 namespace helix {
 class PrinterDiscovery;
 } // namespace helix
@@ -114,7 +116,8 @@ std::optional<WritePlan> write_plan(const PrinterDiscovery& hw, const Table& tab
 std::string config_section(const PrinterDiscovery& hw);
 
 /// G-code that tells the start macro which material a print the screen starts
-/// uses, or empty where the row takes the material from the slicer only.
+/// uses, or empty where the row takes the material from the slicer only. An
+/// empty @p material clears a hint a start that did not go ahead left behind.
 std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view material);
 
 /// Whether the row loads a stored mesh per material.
@@ -167,6 +170,12 @@ struct ToolMaterial {
 /// lower tool; the first named material when no tool has grams. Empty when
 /// nothing names one.
 std::string primary_material(const std::vector<ToolMaterial>& tools);
+
+/// The primary material of a sliced file: per-tool grams from its metadata
+/// (print_cost::file_tool_grams), else @p footer_grams (per tool, from the
+/// G-code footer), each tool named from the file's filament_type list.
+std::string primary_material_for_file(const FileMetadata& metadata,
+                                      const std::vector<double>& footer_grams, float diameter_mm);
 
 /// The first filament a file names: the first entry of a ';'-separated
 /// filament_type list. Empty when none.

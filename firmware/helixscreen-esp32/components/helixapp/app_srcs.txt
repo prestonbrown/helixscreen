@@ -246,6 +246,7 @@ src/printer/macro_param_cache.cpp
 src/printer/macro_param_defaults.cpp
 src/printer/macro_params.cpp
 src/printer/material_z_offset.cpp
+src/printer/material_z_offset_state.cpp
 src/printer/mount_feed_sequence.cpp
 src/printer/openams_status_parse.cpp
 src/printer/pause_cause.cpp
