@@ -117,7 +117,9 @@ std::string display_family(std::string_view type);
  * The fillers are the variant affixes the table marks filled, the ones that change how the
  * filament prints (is_filled_grade()): "PLA-CF" stays "PLA-CF" and "Silk PLA-CF" reads
  * "PLA-CF", while finishes and ratings drop ("Silk PLA" reads "PLA", "PLA-HS" reads "PLA").
- * Spelled as compose_family_type() spells a family and a variant. Empty for an empty @p type.
+ * Spelled as compose_family_type() spells a family and a variant, the family as the material
+ * database names it ("pla-cf" reads "PLA-CF"). A filled name whose family the database does
+ * not know ("Wood-CF", "Foo-CF") stands as typed. Empty for an empty @p type.
  */
 // NAMESPACE_OK: module convention - extract_base_material lives in namespace filament
 std::string display_grade(std::string_view type);

@@ -124,6 +124,19 @@ TEST_CASE("filled grade keeps its fillers and drops finishes and ratings",
     CHECK(filament::display_grade("") == "");
 }
 
+TEST_CASE("filled grade reads hand-typed names once, filler and all",
+          "[filament][family][derivation][short-label]") {
+    CHECK(filament::display_grade("silk pla-cf") == "PLA-CF");
+    CHECK(filament::display_grade("pla-cf") == "PLA-CF");
+    CHECK(filament::display_grade("PETG CF") == "PETG-CF");
+    // Nothing the database knows to reduce to: the name stands as typed, its filler once.
+    CHECK(filament::display_grade("CF") == "CF");
+    // A finish drops even with no polymer named.
+    CHECK(filament::display_grade("Silk CF") == "CF");
+    CHECK(filament::display_grade("Wood-CF") == "Wood-CF");
+    CHECK(filament::display_grade("Foo-CF") == "Foo-CF");
+}
+
 TEST_CASE("family derivation strips known variant PREFIXES", "[filament][family][derivation]") {
     // Left-prefix walking alone cannot reach these: the base polymer is not a
     // prefix of the string.
