@@ -84,7 +84,7 @@ The drawing's size comes from the view scale (`include/path_view_scale.h`): it t
 
 Each lane's number stands alone, in one row, on the unit's face over its outlet, shrunk to the outlets' pitch where it is wider. A lane with no spool draws none in its bay, and its number is outlined: the badges' dark fill with a ring round it. A ghost lane (a spool taken out with its identity kept) draws its spool see-through and grayed, with dashed rims on both flanges (`laneN_rim`, in the lane's own place in the depth). A lane a finger is down on is outlined whole: solid bright rims on both its flanges (the same `laneN_rim` layer) and a ring on its number. Where the outlets stand closer than a finger's width (28 px), the lanes are not each a tap target: a tap anywhere on the drawing opens a picker of the unit's lanes (`FilamentSlotPicker`), and a chosen row opens that lane's menu as a tap on it would.
 
-A unit def declares where each lane's prep sensor stands with `kit.sensor_region(scene, lane, "prep", points)`; the build bakes its outline into `ArtLaneGeom::prep`, and the art draws it red only when that sensor reports a fault (`sensor_faults`, over the front layer). Box Turtle (its drive blocks), QuattroBox (its feeder blocks) and Night Owl (its pods) declare one.
+A unit def declares where each lane's prep sensor stands with `kit.sensor_region(scene, lane, "prep", points)`; the build bakes its outline into `ArtLaneGeom::prep`, and the art tints it the lane's filament color while the lane holds filament and red when that sensor reports a fault (`sensor_faults`, over the front layer). Box Turtle (its drive blocks), QuattroBox (its feeder blocks) and Night Owl (its pods) declare one.
 
 ## The live tray
 

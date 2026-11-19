@@ -474,6 +474,24 @@ bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
         return false;
     helix::ui::baked_art_draw(ctx.layer, body, f.rail.x, f.rail.y);
     data->rail_drawn = true;
+    if (f.buffer_in_hub) {
+        // The buffer's meter rides on the selector, in a hub-colored plate over the art's
+        // lower right corner.
+        const int32_t h = LV_MAX(10, LV_MIN(f.hub_h, f.rail.h / 2));
+        const int32_t w = hub_buffer_glyph_width(h);
+        const int32_t inset = LV_MAX(2, h / 6);
+        lv_area_t plate = {f.rail.x + f.rail.w - inset - w, f.rail.y + f.rail.h - inset - h,
+                           f.rail.x + f.rail.w - inset, f.rail.y + f.rail.h - inset};
+        lv_draw_fill_dsc_t fill;
+        lv_draw_fill_dsc_init(&fill);
+        fill.color = data->theme.color_hub_bg;
+        fill.opa = LV_OPA_COVER;
+        fill.radius = data->theme.border_radius;
+        lv_draw_fill(ctx.layer, &fill, &plate);
+        draw_hub_buffer_glyph(ctx, plate);
+        data->hits.buffer = plate;
+        data->hits.buffer_valid = true;
+    }
     data->rail_left = f.rail.x - ctx.geo.x_off;
     data->rail_top = f.rail.y - ctx.geo.y_off;
     data->rail_w = f.rail.w;
@@ -701,9 +719,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     paint_tubes(layer, plan, pal);
     if (f.through.w > 0)
         draw_through_art(ctx, f.through);
-    draw_offpage_stubs(ctx, f);
-
     draw_hub_section(ctx, f);
+    draw_offpage_chips(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f);
     else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer

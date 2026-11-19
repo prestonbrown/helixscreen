@@ -17,6 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -230,6 +231,14 @@ const SensorBand* band_at(const PathPlan& plan, float x, float y) {
     return nullptr;
 }
 
+// The round toolhead-sensor dot on the head at column @p x.
+const SensorBand* head_dot_at(const PathPlan& plan, float x) {
+    for (int i = 0; i < plan.band_count; i++)
+        if (plan.bands[i].dot && std::fabs(plan.bands[i].at.x - x) < 0.5f)
+            return &plan.bands[i];
+    return nullptr;
+}
+
 SpanStyle style_a() {
     return {TubeWall::Active, lv_color_hex(0x112233), true, true};
 }
@@ -419,7 +428,7 @@ TEST_CASE("FilamentPath plan: hub-edge bands are painted after the hub box",
     CHECK_FALSE(band_at(plan, 200, 272)->on_box_edge);
 }
 
-TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn unit alone",
+TEST_CASE("FilamentPath plan: the hub's sensor reads the same over a drawn unit or not",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);
     load_active(*d, 1, PathSegment::NOZZLE);
@@ -431,17 +440,61 @@ TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn u
                 return &plan.bands[i];
         return nullptr;
     };
-    SECTION("no drawing: the loaded hub reads loaded") {
-        const SensorBand* b = hub_band();
-        REQUIRE(b != nullptr);
-        CHECK(b->state == BandState::Active);
+    const SensorBand* plain = hub_band();
+    REQUIRE(plain != nullptr);
+    CHECK(plain->state == BandState::Active);
+    d->art_sensors = true;
+    const SensorBand* drawn = hub_band();
+    REQUIRE(drawn != nullptr);
+    CHECK(drawn->state == BandState::Active);
+}
+
+TEST_CASE("FilamentPath plan: under a drawn unit each lane shows one sensor mark",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    load_active(*d, 1, PathSegment::NOZZLE);
+    d->view_hub_h = 24;
+    d->art_sensors = true;
+    d->art_draws_prep = false;
+    for (int i = 0; i < 4; i++)
+        d->slot_has_prep_sensor[i] = d->slot_has_load_sensor[i] = true;
+    const PathPlan& plan = plan_for(*d);
+    for (int i = 0; i < 4; i++) {
+        int marks = 0;
+        for (int b = 0; b < plan.band_count; b++)
+            marks += std::fabs(plan.bands[b].at.x - (50.0f + 100 * i)) < 1.0f;
+        CAPTURE(i);
+        CHECK(marks == 1);
     }
-    SECTION("a drawing: plain until it faults") {
-        d->art_sensors = true;
-        const SensorBand* b = hub_band();
-        REQUIRE(b != nullptr);
-        CHECK(b->state == BandState::Empty);
+}
+
+TEST_CASE("FilamentPath plan: under a drawn unit a prep-only lane's mark lies along its edge",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    load_active(*d, 1, PathSegment::NOZZLE);
+    d->view_hub_h = 24;
+    d->art_sensors = true;
+    d->art_draws_prep = false;
+    d->art_edge_slope = 0.2f;
+    for (int i = 0; i < 4; i++) {
+        d->slot_has_prep_sensor[i] = true;
+        d->slot_has_load_sensor[i] = false;
     }
+    const PathPlan& plan = plan_for(*d);
+    for (int i = 0; i < 4; i++) {
+        CAPTURE(i);
+        const SensorBand* mark = nullptr;
+        for (int b = 0; b < plan.band_count; b++)
+            if (std::fabs(plan.bands[b].at.x - (50.0f + 100 * i)) < 1.0f)
+                mark = &plan.bands[b];
+        REQUIRE(mark != nullptr);
+        // Tilted with the edge, not square across the tube.
+        CHECK(std::fabs(mark->tangent.x) > 0.1f);
+    }
+    // The loaded lane's mark takes its filament's state.
+    for (int b = 0; b < plan.band_count; b++)
+        if (std::fabs(plan.bands[b].at.x - 150.0f) < 1.0f)
+            CHECK(plan.bands[b].state != BandState::Empty);
 }
 
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
@@ -571,7 +624,7 @@ TEST_CASE("FilamentPath plan: fill and error follow the segment the filament rea
     }
 }
 
-TEST_CASE("FilamentPath plan: the LINEAR selector passage is painted under the box",
+TEST_CASE("FilamentPath plan: the LINEAR selector passage runs hidden under the box",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::LINEAR);
     load_active(*d, 2, PathSegment::OUTPUT);
@@ -585,8 +638,8 @@ TEST_CASE("FilamentPath plan: the LINEAR selector passage is painted under the b
     for (int i = 0; i < r.path.count; i++) {
         if (near(seg_start(r.path.segs[i]), 250, 44) && near(seg_end(r.path.segs[i]), 250, 84)) {
             found = true;
-            CHECK(r.style[i].painted);
-            CHECK(r.style[i].filled);
+            // Hidden like a hub's: painted, it would cross the bar's label.
+            CHECK_FALSE(r.style[i].painted);
         }
     }
     CHECK(found);
@@ -1103,8 +1156,9 @@ TEST_CASE("FilamentPath plan: idle PARALLEL tools are one stroke each through th
     }
     REQUIRE(plan.band_count == 4);
     for (int i = 0; i < 4; i++) {
-        const SensorBand* b = band_at(plan, 50.0f + 100 * i, sensor_y);
+        const SensorBand* b = head_dot_at(plan, 50.0f + 100 * i);
         REQUIRE(b != nullptr);
+        CHECK(b->at.y == Catch::Approx(inlet));
         CHECK(b->state == BandState::Empty);
     }
 }
@@ -1130,7 +1184,7 @@ TEST_CASE("FilamentPath plan: PARALLEL tubes hang from below their spools",
         CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, (float)entry_y));
         CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i,
                    (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y));
-        CHECK(band_at(plan, 50.0f + 100 * i, (float)rows.sensor_y) != nullptr);
+        CHECK(head_dot_at(plan, 50.0f + 100 * i) != nullptr);
     }
 
     // An edge too low to leave room above the sensor is ignored.
@@ -1173,7 +1227,7 @@ TEST_CASE("FilamentPath plan: a PARALLEL entry sensor clamps the tube below its 
     CHECK(r1.style[0].filled);
     CHECK_FALSE(r1.style[1].filled);
     CHECK_FALSE(r1.style[2].filled);
-    const SensorBand* toolhead = band_at(plan, 150, (float)rows.sensor_y);
+    const SensorBand* toolhead = head_dot_at(plan, 150);
     REQUIRE(toolhead != nullptr);
     CHECK(toolhead->state == BandState::Empty);
     // The mounted lane is filled all the way down.
@@ -1253,12 +1307,12 @@ TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
     REQUIRE(coalesce(plan.routes[2], strokes, 16) == 1);
     CHECK(strokes[0].style.wall == TubeWall::Active);
     CHECK(strokes[0].style.filled);
-    const SensorBand* mounted = band_at(plan, 250, sensor_y);
+    const SensorBand* mounted = head_dot_at(plan, 250);
     REQUIRE(mounted != nullptr);
     CHECK(mounted->state == BandState::Active);
 
     // A docked tool loaded to its sensor keeps a band in its own color.
-    const SensorBand* docked = band_at(plan, 50, sensor_y);
+    const SensorBand* docked = head_dot_at(plan, 50);
     REQUIRE(docked != nullptr);
     CHECK(docked->state == BandState::Loaded);
     CHECK(lv_color_eq(docked->fill, lv_color_hex(kSlotColors[0])));
@@ -1287,7 +1341,7 @@ TEST_CASE("FilamentPath plan: the active lane's empty tube does not glow",
         const PathPlan& plan = parallel_plan(*d);
         CHECK(plan.active_route == 0);
         check_route_empty(plan.routes[0]);
-        const SensorBand* b = band_at(plan, 50, 198);
+        const SensorBand* b = head_dot_at(plan, 50);
         REQUIRE(b != nullptr);
         CHECK(b->state == BandState::Empty);
     }
@@ -1585,87 +1639,6 @@ TEST_CASE("FilamentPath offpage: the drying flag belongs to the side that holds 
     CHECK_FALSE(g.stubs[1].drying);
 }
 
-TEST_CASE("FilamentPath offpage: a stub is a parallel diagonal outside the outermost lane",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    const LinearHubFrame f = frame_with_offpage(*d, 2, false, 3, false);
-    const pg::PathPoint* left_lane = f.hub_fan[0].pts;
-    const pg::PathPoint* right_lane = f.hub_fan[3].pts;
-    const OffpageStub& left = f.stubs[0];
-    const OffpageStub& right = f.stubs[1];
-    REQUIRE(left.present);
-    REQUIRE(right.present);
-
-    // Same slope as the outermost lane of its side: the diagonals are parallel.
-    CHECK(slope_of(left.pts[1], left.pts[2]) ==
-          Catch::Approx(slope_of(left_lane[1], left_lane[2])));
-    CHECK(slope_of(right.pts[1], right.pts[2]) ==
-          Catch::Approx(slope_of(right_lane[1], right_lane[2])));
-    // The left stub leans the lane's way: down and toward the hub.
-    CHECK(left.pts[2].x > left.pts[1].x);
-    CHECK(right.pts[2].x < right.pts[1].x);
-
-    // Its entry sits beyond the outermost lane's entry, on the outer side.
-    CHECK(left.pts[3].x < left_lane[3].x);
-    CHECK(right.pts[3].x > right_lane[3].x);
-    // It drops straight into the hub's top edge from the same height every lane does.
-    const float hub_top = (float)(f.hub_y - f.hub_h / 2);
-    CHECK(left.pts[3].y == Catch::Approx(hub_top));
-    CHECK(left.pts[2].x == Catch::Approx(left.pts[3].x));
-    CHECK(left.pts[2].y == Catch::Approx(left_lane[2].y));
-    CHECK(right.pts[3].y == Catch::Approx(hub_top));
-    CHECK(right.pts[2].y == Catch::Approx(left_lane[2].y));
-}
-
-TEST_CASE("FilamentPath offpage: both stubs' runs sit at one height and keep their lanes' slopes",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    // A hub off the middle of the lane row gives the two sides different slopes.
-    BaseGeometry g = geometry();
-    g.center_x = 130;
-    const LinearHubFrame f = frame_with_offpage(*d, 2, false, 3, false, g);
-    REQUIRE(f.stubs[0].present);
-    REQUIRE(f.stubs[1].present);
-
-    const float left_lane = slope_of(f.hub_fan[0].pts[1], f.hub_fan[0].pts[2]);
-    const float right_lane = slope_of(f.hub_fan[3].pts[1], f.hub_fan[3].pts[2]);
-    REQUIRE(std::fabs(left_lane - right_lane) > 0.1f);
-
-    CHECK(f.stubs[0].pts[1].y == Catch::Approx(f.stubs[1].pts[1].y));
-    CHECK(f.stubs[0].pts[0].y == Catch::Approx(f.stubs[1].pts[0].y));
-    CHECK(f.stubs[0].label_cy == f.stubs[1].label_cy);
-    CHECK(slope_of(f.stubs[0].pts[1], f.stubs[0].pts[2]) == Catch::Approx(left_lane));
-    CHECK(slope_of(f.stubs[1].pts[1], f.stubs[1].pts[2]) == Catch::Approx(right_lane));
-    // The run never rises above the lanes' bends.
-    const float highest_bend = std::min(f.hub_fan[0].pts[1].y, f.hub_fan[3].pts[1].y);
-    CHECK(f.stubs[0].pts[1].y >= highest_bend - 0.01f);
-
-    // The same rise whichever sides a page shows.
-    const LinearHubFrame left_only = frame_with_offpage(*d, 2, false, 0, false, g);
-    CHECK(left_only.stubs[0].pts[1].y == Catch::Approx(f.stubs[0].pts[1].y));
-}
-
-TEST_CASE("FilamentPath offpage: the drops land inside the widened hub box",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    const LinearHubFrame plain = frame_with_offpage(*d, 0, false, 0, false);
-    const LinearHubFrame f = frame_with_offpage(*d, 1, false, 1, false);
-    REQUIRE(f.stubs[0].present);
-    REQUIRE(f.stubs[1].present);
-
-    CHECK(f.hub_box_w > plain.hub_box_w);
-    const float left_edge = (float)f.center_x - f.hub_box_w / 2.0f;
-    const float right_edge = (float)f.center_x + f.hub_box_w / 2.0f;
-    CHECK(f.stubs[0].pts[3].x > left_edge);
-    CHECK(f.stubs[1].pts[3].x < right_edge);
-    // Every real lane still lands inside, between the two stubs.
-    for (int i = 0; i < 4; i++) {
-        CAPTURE(i);
-        CHECK(f.hub_fan[i].pts[3].x > f.stubs[0].pts[3].x);
-        CHECK(f.hub_fan[i].pts[3].x < f.stubs[1].pts[3].x);
-    }
-}
-
 TEST_CASE("FilamentPath offpage: the lanes and the hub keep their places from page to page",
           "[filament-path][plan][offpage]") {
     auto d = make_data(helix::PathTopology::HUB);
@@ -1685,35 +1658,6 @@ TEST_CASE("FilamentPath offpage: the lanes and the hub keep their places from pa
             CHECK(right_only.hub_fan[i].pts[k].x == Catch::Approx(both.hub_fan[i].pts[k].x));
         }
     }
-}
-
-TEST_CASE("FilamentPath offpage: the horizontal run is short and stays out of the edge columns",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    const BaseGeometry g = geometry();
-
-    const LinearHubFrame f = frame_with_offpage(*d, 2, false, 2, false);
-    for (int side = 0; side < 2; side++) {
-        CAPTURE(side);
-        const OffpageStub& s = f.stubs[side];
-        REQUIRE(s.present);
-        // Level, outward of the diagonal, and no longer than about 5/6 of the hub width.
-        CHECK(s.pts[0].y == Catch::Approx(s.pts[1].y));
-        const float run = std::fabs(s.pts[0].x - s.pts[1].x);
-        CHECK(run <= d->theme.hub_width * 5 / 6 + 0.5f);
-        CHECK(run >= 10.0f - 0.5f);
-        CHECK(((side == 0) ? (s.pts[0].x < s.pts[1].x) : (s.pts[0].x > s.pts[1].x)));
-        CHECK(s.pts[0].x >= 0);
-        CHECK(s.pts[0].x <= g.width);
-    }
-
-    // An overlaid control on each edge pulls the run back from it.
-    d->edge_reserve = 12;
-    const LinearHubFrame narrow = frame_with_offpage(*d, 2, false, 2, false);
-    CHECK(narrow.stubs[0].pts[0].x >= 12 - 0.5f);
-    CHECK(narrow.stubs[1].pts[0].x <= g.width - 12 + 0.5f);
-    CHECK(std::fabs(narrow.stubs[0].pts[0].x - narrow.stubs[0].pts[1].x) <
-          std::fabs(f.stubs[0].pts[0].x - f.stubs[0].pts[1].x));
 }
 
 TEST_CASE("FilamentPath offpage: no hub box, no stub", "[filament-path][plan][offpage]") {
@@ -1748,32 +1692,58 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_area_t box;
     REQUIRE(ui_filament_path_canvas_get_hub_box(w, &box));
     CHECK(area_eq(box, d->hits.hub));
-    // The stubs widened it past the plain hub.
+    // The chips stand beside it: the hub is the plain one, as wide and in the same place.
     ui_filament_path_canvas_set_offpage_units(w, 0, false, 0, false);
     lv_area_t plain;
     REQUIRE(ui_filament_path_canvas_get_hub_box(w, &plain));
-    CHECK(lv_area_get_width(&box) > lv_area_get_width(&plain));
-    // Same center either way.
-    CHECK((box.x1 + box.x2) / 2 == (plain.x1 + plain.x2) / 2);
-    CHECK(box.y1 == plain.y1);
+    CHECK(area_eq(box, plain));
 }
 
-TEST_CASE("FilamentPath offpage: a label with no room is dropped and the stub drawn bare",
+TEST_CASE("FilamentPath offpage: a chip stands beside the hub, centered on it, inside the canvas",
           "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    const LinearHubFrame roomy = frame_with_offpage(*d, 2, false, 2, false);
-    CHECK(roomy.stubs[0].labeled);
-    CHECK(roomy.stubs[1].labeled);
+    const lv_area_t hub = {100, 50, 200, 70};
+    const lv_area_t left = offpage_chip_rect(0, hub, 40, 20, 6, 0, 400);
+    CHECK(left.x2 == hub.x1 - 6);
+    CHECK(left.x1 == left.x2 - 40);
+    CHECK((left.y1 + left.y2) / 2 == (hub.y1 + hub.y2) / 2);
+    const lv_area_t right = offpage_chip_rect(1, hub, 40, 20, 6, 0, 400);
+    CHECK(right.x1 == hub.x2 + 6);
+    // Short of room it keeps inside the bounds.
+    const lv_area_t tight = offpage_chip_rect(0, hub, 40, 20, 6, 80, 400);
+    CHECK(tight.x1 == 80);
+}
 
-    // The edge columns leave less than a run and a gap beside the diagonal.
-    d->edge_reserve = 180;
-    const LinearHubFrame tight = frame_with_offpage(*d, 2, true, 2, true);
-    for (const OffpageStub& s : tight.stubs) {
-        REQUIRE(s.present);
-        CHECK_FALSE(s.labeled);
-        CHECK(s.label_w == 0);
-        CHECK(s.glyph_w == 0);
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath offpage: a tap on a chip pages to its side, nothing crosses a tube",
+                 "[filament-path][plan][offpage]") {
+    lv_obj_t* w = make_canvas(test_screen(), static_cast<int>(helix::PathTopology::HUB));
+    ui_filament_path_canvas_set_offpage_units(w, 2, false, 3, true);
+    static int tapped = -1;
+    tapped = -1;
+    ui_filament_path_canvas_set_offpage_callback(
+        w, [](int side, void*) { tapped = side; }, nullptr);
+    render(*this, w);
+
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    for (int side = 0; side < 2; ++side) {
+        CAPTURE(side);
+        REQUIRE(d->hits.offpage_valid[side]);
+        const lv_area_t& chip = d->hits.offpage[side];
+        // Beside the hub on its own side, on the hub's rows: no lane reaches it.
+        if (side == 0)
+            CHECK(chip.x2 < d->hits.hub.x1);
+        else
+            CHECK(chip.x1 > d->hits.hub.x2);
+        CHECK(chip.y1 >= d->hits.hub.y1 - 1);
+        CHECK(chip.y2 <= d->hits.hub.y2 + 1);
     }
+    UITest::init(test_screen());
+    const lv_area_t right = d->hits.offpage[1];
+    REQUIRE(UITest::click_at((right.x1 + right.x2) / 2, (right.y1 + right.y2) / 2));
+    process_lvgl(20);
+    CHECK(tapped == 1);
+    UITest::cleanup();
 }
 
 TEST_CASE("FilamentPath offpage: a fixed hub is sized for its widest unit",
@@ -1803,9 +1773,7 @@ TEST_CASE("FilamentPath offpage: a fixed hub is sized for its widest unit",
     const LinearHubFrame wide_stub = compute_linear_hub_frame(*wide, geometry(), kGlyphTop);
     REQUIRE(narrow_stub.stubs[0].present);
     REQUIRE(wide_stub.stubs[0].present);
-    CHECK(narrow_stub.hub_box_w >= 3 * 22 + 2 * 8 + 2 * 22);
-    CHECK(narrow_stub.stubs[0].pts[3].x - (200 - narrow_stub.hub_box_w / 2.0f) ==
-          Catch::Approx(8.0f));
+    CHECK(narrow_stub.hub_box_w >= 3 * 22 + 2 * 8);
 }
 
 TEST_CASE("FilamentPath offpage: the hub box is identical on every page of one hub",
@@ -1837,12 +1805,11 @@ TEST_CASE("FilamentPath offpage: the hub box is identical on every page of one h
         CHECK(f->hub_y == four.hub_y);
         CHECK(f->hub_h == four.hub_h);
     }
-    // The lanes of a narrower unit enter inside the box, and the stubs drop at its ends.
+    // The lanes of a narrower unit enter inside the box.
     const float left = (float)four.center_x - four.hub_box_w / 2.0f;
     const float right = (float)four.center_x + four.hub_box_w / 2.0f;
     CHECK(one.hub_fan[0].pts[3].x > left);
     CHECK(one.hub_fan[0].pts[3].x < right);
-    CHECK(one.stubs[0].pts[3].x == Catch::Approx(four.stubs[0].pts[3].x));
 
     // A hub of fewer lanes is its own box.
     const LinearHubFrame small = frame_of(2, 2, 1, 1);
@@ -1864,107 +1831,6 @@ TEST_CASE("FilamentPath offpage: the hub box is identical on every page of one h
         return frame_with_offpage(*d, 1, false, 1, false, g).hub_box_w;
     };
     CHECK(with_pitch(120) != with_pitch(40));
-}
-
-TEST_CASE("FilamentPath offpage: a fixed hub's stubs lie the same on every page of one hub",
-          "[filament-path][plan][offpage]") {
-    auto frame_of = [](int lanes) {
-        auto d = make_data(helix::PathTopology::HUB);
-        d->slot_count = lanes;
-        d->fixed_hub_lanes = 4;
-        d->fixed_hub_pitch = 100;
-        d->show_bypass = true;
-        BaseGeometry g;
-        g.width = 400;
-        g.height = 240;
-        g.slot_count = lanes;
-        g.center_x = 200;
-        for (int i = 0; i < lanes; i++)
-            g.slot_x[i] = 200 + (int)((i - (lanes - 1) / 2.0f) * 100);
-        return frame_with_offpage(*d, 1, false, 1, false, g);
-    };
-    // A one-lane unit has no lane on one side of the hub at all; its stubs must still lean
-    // the way the four-lane unit's lanes do, not at the steepest slope the rules allow.
-    const LinearHubFrame four = frame_of(4);
-    const LinearHubFrame one = frame_of(1);
-    for (int side = 0; side < 2; side++) {
-        CAPTURE(side);
-        for (int k = 0; k < 4; k++) {
-            CAPTURE(k);
-            CHECK(one.stubs[side].pts[k].x == Catch::Approx(four.stubs[side].pts[k].x));
-            CHECK(one.stubs[side].pts[k].y == Catch::Approx(four.stubs[side].pts[k].y));
-        }
-    }
-}
-
-TEST_CASE("FilamentPath offpage: each stub leans like the shown unit's outermost lane",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    d->fixed_hub_lanes = 4;
-    d->fixed_hub_pitch = 100;
-    d->show_bypass = true;
-    // The spools sit left of the hub's center line, as with an env chip on their right.
-    BaseGeometry g = geometry();
-    g.height = 240;
-    g.center_x = 200;
-    for (int i = 0; i < 4; i++)
-        g.slot_x[i] = 50 + 100 * i - 40;
-    const LinearHubFrame f = frame_with_offpage(*d, 1, false, 1, false, g);
-    REQUIRE(f.stubs[0].present);
-    REQUIRE(f.stubs[1].present);
-
-    const pg::MergeLaneOut& left_lane = f.hub_fan[0];
-    const pg::MergeLaneOut& right_lane = f.hub_fan[3];
-    const float left_slope = slope_of(left_lane.pts[1], left_lane.pts[2]);
-    const float right_slope = slope_of(right_lane.pts[1], right_lane.pts[2]);
-    REQUIRE(std::fabs(left_slope - right_slope) > 0.05f);
-
-    auto min_gap = [](const OffpageStub& stub, const pg::MergeLaneOut& lane) {
-        float best = 1e9f;
-        for (int i = 0; i <= 20; i++) {
-            const float t = i / 20.0f;
-            const float sx = stub.pts[1].x + (stub.pts[2].x - stub.pts[1].x) * t;
-            const float sy = stub.pts[1].y + (stub.pts[2].y - stub.pts[1].y) * t;
-            for (int k = 0; k <= 200; k++) {
-                const float u = k / 200.0f;
-                const float lx = lane.pts[1].x + (lane.pts[2].x - lane.pts[1].x) * u;
-                const float ly = lane.pts[1].y + (lane.pts[2].y - lane.pts[1].y) * u;
-                best = std::min(best, std::hypot(sx - lx, sy - ly));
-            }
-        }
-        return best;
-    };
-    CHECK(slope_of(f.stubs[0].pts[1], f.stubs[0].pts[2]) == Catch::Approx(left_slope));
-    CHECK(slope_of(f.stubs[1].pts[1], f.stubs[1].pts[2]) == Catch::Approx(right_slope));
-    CHECK(min_gap(f.stubs[0], left_lane) > 4.0f);
-    CHECK(min_gap(f.stubs[1], right_lane) > 4.0f);
-    // Level, as always.
-    CHECK(f.stubs[0].pts[1].y == Catch::Approx(f.stubs[1].pts[1].y));
-}
-
-TEST_CASE("FilamentPath offpage: the edge columns bind only on the rows a control shares",
-          "[filament-path][plan][offpage]") {
-    auto d = make_data(helix::PathTopology::HUB);
-    d->edge_reserve = 180;
-    const LinearHubFrame everywhere = frame_with_offpage(*d, 1, false, 1, false);
-    REQUIRE(everywhere.stubs[0].present);
-    // No rows named: the columns hold on every row and leave no room for a label.
-    CHECK_FALSE(everywhere.stubs[0].labeled);
-
-    const float run_y = everywhere.stubs[0].pts[1].y;
-    // The control sits well below the stub's rows: the label has the whole width.
-    d->keepout_y0 = (int32_t)run_y + 60;
-    d->keepout_y1 = (int32_t)run_y + 120;
-    const LinearHubFrame apart = frame_with_offpage(*d, 1, false, 1, false);
-    CHECK(apart.stubs[0].labeled);
-    CHECK(apart.stubs[1].labeled);
-
-    // Moved onto the stub's rows, it binds again.
-    d->keepout_y0 = (int32_t)run_y - 10;
-    d->keepout_y1 = (int32_t)run_y + 10;
-    const LinearHubFrame level = frame_with_offpage(*d, 1, false, 1, false);
-    CHECK_FALSE(level.stubs[0].labeled);
-    CHECK_FALSE(level.stubs[1].labeled);
 }
 
 // ============================================================================

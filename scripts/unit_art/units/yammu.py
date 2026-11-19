@@ -78,6 +78,9 @@ def _drawer(sc, z_floor, zc, colors, first_lane, c, detail):
         for i, xc in enumerate(CENTERS_X):
             lane = first_lane + row + i
             spool.draw_spool(sc, (xc, y, zc), SPOOL_R, colors[lane], c, lane, detail=detail)
+            # A lane leaves its drawer through the floor under its spool, so the back pair's
+            # columns stand clear of the front pair's.
+            kit.outlet(sc, lane, (xc, y, z_floor))
 
 
 def _skirt(sc, detail):

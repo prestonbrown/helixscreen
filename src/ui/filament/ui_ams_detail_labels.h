@@ -28,6 +28,9 @@ bool spool_centre(lv_obj_t* slot, lv_point_t origin, float& x, float& y, int32_t
 void clear_translate(lv_obj_t* obj);
 /// Whether the shown unit stands in a physical tray.
 bool unit_has_physical_tray();
+/// Whether @p unit_index stands in a physical tray: the backend's own feeders have one, or the
+/// unit is one a shell identifies.
+bool unit_has_physical_tray(int unit_index);
 /// Whether the unit view draws a tray (3D spools) under its spools.
 bool draws_tray();
 /// The unit a view shows: the whole-backend view of a one-unit system counts as that unit.

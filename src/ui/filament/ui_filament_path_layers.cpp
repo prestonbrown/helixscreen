@@ -140,6 +140,8 @@ void layered_render_overlay(lv_obj_t* obj, FilamentPathData* data) {
     layer.buf_area = buf_area;
     layer._clip_area = buf_area;
     layer.phy_clip_area = buf_area;
+    data->layers.painted_x = buf_area.x1;
+    data->layers.painted_y = buf_area.y1 + overhang;
     render_overlay_content(obj, &layer, data);
     lv_canvas_finish_layer(data->layers.overlay_canvas, &layer);
 }
@@ -238,7 +240,13 @@ void layered_release_buffer(FilamentPathData* data) {
 }
 
 void layered_on_draw(lv_obj_t* obj, FilamentPathData* data) {
-    if (data->layers.refresh_deferred)
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    const bool moved = data->layers.render_count > 0 &&
+                       (a.x1 != data->layers.painted_x || a.y1 != data->layers.painted_y);
+    if (moved)
+        layered_schedule_repaint(obj, data);
+    else if (data->layers.refresh_deferred)
         data->layers.refresh_timer.schedule_once([obj]() { layered_refresh(obj); });
 }
 
@@ -251,7 +259,12 @@ namespace {
 // overlay canvas's overhang above the widget (user data = the widget).
 void overhang_ext_draw_cb(lv_event_t* e) {
     auto* widget = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
-    lv_event_set_ext_draw_size(e, layered_overhang(lv_obj_get_height(widget)));
+    // A widget pulled up over the spool box by a negative top margin stands that far above its
+    // container too, and its container must let it draw there.
+    const int32_t margin = lv_obj_get_style_margin_top(widget, LV_PART_MAIN);
+    const bool container = lv_event_get_current_target_obj(e) != widget;
+    lv_event_set_ext_draw_size(e, layered_overhang(lv_obj_get_height(widget)) +
+                                      (container ? std::max<int32_t>(0, -margin) : 0));
 }
 
 } // namespace

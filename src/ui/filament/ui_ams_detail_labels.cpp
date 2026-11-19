@@ -57,6 +57,10 @@ helix::ui::WidgetRef s_layout_view;
 // Under a view scale: the size a unit settled at for its row and screen, and the smallest seen
 // too tall for it (fit_scaled_unit()). A new view starts them afresh.
 SpoolHeightCap s_settled, s_too_big;
+/// The last size tried for a row and how far its path ran over: with the size now drawn, a
+/// line through the two gives the next size better than the one-step estimate.
+SpoolHeightCap s_tried;
+int32_t s_tried_overflow = 0;
 helix::ui::PathViewScale s_view_scale;
 
 /// The column the unit view and its path stand in, or null where they have none: the AMS
@@ -228,6 +232,7 @@ void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art) {
     if (!s_layout_view.get() || view != s_layout_view.get()) {
         s_settled = {};
         s_too_big = {};
+        s_tried = {};
         s_spool_cap = {};
     }
     s_layout_view = view;
@@ -352,9 +357,25 @@ bool fit_scaled_unit(int32_t overflow, float fan_growth, const SpoolHeightCap& l
     // It never shrinks below a third of its row's size, and never grows to get there.
     const bool over = overflow > kOverflowSlack;
     const int32_t floor_spool = over ? std::min(layout.spool / 3, now) : layout.spool / 3;
-    const int32_t spool =
-        std::clamp<int32_t>((int32_t)std::floor((float)now * (1.0f + e)), floor_spool,
+    float estimate = (float)now * (1.0f + e);
+    // A second size tried at this row: the overflow it gave against the one now gives the
+    // path's real response to the unit's size.
+    if (same_key(s_tried, layout) && s_tried.spool != now) {
+        const float per_px = (float)(s_tried_overflow - overflow) / (float)(s_tried.spool - now);
+        if (per_px > 0.05f)
+            estimate = (float)now - (float)overflow / per_px;
+    }
+    s_tried = layout;
+    s_tried.spool = now;
+    s_tried_overflow = overflow;
+    int32_t spool =
+        std::clamp<int32_t>((int32_t)std::floor(estimate), floor_spool,
                             std::max(floor_spool, std::min(layout.spool, s_too_big.spool - 1)));
+    // A row that rounds to a size above the cap it was given draws no smaller for the same
+    // cap again: ask below what it drew by as much as it overshot.
+    if (over && same_key(s_spool_cap, layout) && s_spool_cap.spool > 0 && now > s_spool_cap.spool &&
+        spool >= s_spool_cap.spool)
+        spool = std::max(floor_spool, s_spool_cap.spool - (now - s_spool_cap.spool));
     if (spool == now || (over && spool > now) || (!over && spool <= now + 1)) {
         // Settled: the cap is the size it shows.
         s_settled = layout;
@@ -516,6 +537,16 @@ int32_t place_unit_labels() {
     // Each label takes the room its whole text asks, as far as its neighbours allow.
     helix::ui::ams_over_lane_label_spans(shown_x, row_of, text_w, shown, label_gap, 0.0f, row_w,
                                          span);
+    // A lane's climate reading stands over its label, so a row of labels steps up past the
+    // tallest reading too.
+    int32_t reading_h = 0;
+    for (int k = 0; k < shown && rows > 1; ++k) {
+        lv_obj_t* reading = ui_ams_slot_get_lane_humidity(s_tray.slot[lane_of[k]]);
+        if (reading && !lv_obj_is_hidden(reading)) {
+            lv_obj_update_layout(reading);
+            reading_h = std::max(reading_h, lv_obj_get_height(reading) + 1);
+        }
+    }
     for (int k = 0; k < shown; ++k) {
         lv_obj_t* label = ui_ams_slot_get_material_label(s_tray.slot[lane_of[k]]);
         // A centered label takes all the room either side allows evenly, so a longer name
@@ -530,7 +561,8 @@ int32_t place_unit_labels() {
         lv_obj_update_layout(label);
         lv_area_t la;
         lv_obj_get_coords(label, &la);
-        const int32_t row_step = lv_area_get_height(&la) + theme_manager_get_spacing("space_xxs");
+        const int32_t row_step =
+            lv_area_get_height(&la) + reading_h + theme_manager_get_spacing("space_xxs");
         // Its middle over the spool, or slid toward the side with room.
         const float middle = shown_x[k] + (float)(span[k].right - span[k].left) / 2.0f;
         lv_obj_set_style_translate_x(
@@ -794,6 +826,7 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     const int32_t reach = std::max<int32_t>(0, cc.y1 - (int32_t)std::floor(highest) + 1);
     // DECLARATIVE_OK: as above
     lv_obj_set_style_margin_top(canvas, -reach, LV_PART_MAIN);
+    lv_obj_refresh_ext_draw_size(lv_obj_get_parent(canvas));
     fill_container(reach);
     lv_obj_update_layout(lv_obj_get_parent(canvas));
     lv_obj_update_layout(s_tray.container);

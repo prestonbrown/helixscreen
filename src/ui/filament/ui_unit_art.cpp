@@ -262,6 +262,7 @@ constexpr lv_opa_t kDimOpa = 150;         ///< how far a missing bay's spool fad
 constexpr lv_opa_t kGhostAlpha = 110;     ///< how opaque a ghost spool is drawn
 constexpr lv_opa_t kGhostGray = 70;       ///< how much of its color a ghost keeps against gray
 constexpr lv_opa_t kSensorFaultOpa = 225; ///< how strongly a faulted sensor's region reddens
+constexpr lv_opa_t kSensorSeenOpa = 110;  ///< the subtle tint of a sensor that sees filament
 
 /// Color a lane's stack. A lane with no silhouette of its own dims by fading each layer of its
 /// stack toward the card, which over an opaque pixel is the card laid over it at kDimOpa.
@@ -385,7 +386,8 @@ void draw_press_outline(lv_event_t* e) {
             draw_flange_rims(lv_event_get_layer(e), a, data, lane, /*solid=*/true);
 }
 
-/// Draws each lane's drawn prep sensor red where it reports a fault, over the whole drawing.
+/// Draws each lane's drawn prep sensor over the whole drawing: red where it reports a fault,
+/// tinted the lane's filament color where it sees filament, left as drawn while empty.
 void draw_sensor_faults(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     lv_obj_t* art = lv_obj_get_parent(lv_obj_get_parent(obj));
@@ -397,13 +399,16 @@ void draw_sensor_faults(lv_event_t* e) {
     const Content c = content_of(data, lv_area_get_width(&a), lv_area_get_height(&a));
     lv_draw_triangle_dsc_t tri;
     lv_draw_triangle_dsc_init(&tri);
-    tri.color = theme_manager_get_color("danger");
-    tri.opa = kSensorFaultOpa;
     lv_layer_t* layer = lv_event_get_layer(e);
     for (size_t i = 0; i < data->lanes.size() && (int)i < data->geom->lanes; ++i) {
         const tray::ArtLaneGeom& g = data->geom->lane[i];
-        if (!data->lanes[i].mark.prep_fault || g.prep_n < 3)
+        const LaneImages& lane = data->lanes[i];
+        const bool fault = lane.mark.prep_fault;
+        const bool seen = lane.filled && !lane.mark.absent;
+        if ((!fault && !seen) || g.prep_n < 3)
             continue;
+        tri.color = fault ? theme_manager_get_color("danger") : lane.filament;
+        tri.opa = fault ? kSensorFaultOpa : kSensorSeenOpa;
         const auto pt = [&](int k) {
             return lv_point_precise_t{(lv_value_precise_t)(a.x1 + c.x + g.prep[2 * k] * c.w),
                                       (lv_value_precise_t)(a.y1 + c.y + g.prep[2 * k + 1] * c.w)};

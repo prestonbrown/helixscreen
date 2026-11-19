@@ -230,7 +230,7 @@ class AmsPanel : public PanelBase {
     // === Dynamic Slot State ===
 
     int current_slot_count_ = 0; ///< Number of slots currently created
-    static constexpr int kMaxRelayoutPasses = 2;
+    static constexpr int kMaxRelayoutPasses = 4;
     int relayout_passes_ = 0; ///< how deep create_slots() is in laying a too-tall unit out again
     bool relayout_pending_ = false; ///< a relayout_if_capped() pass is queued
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots

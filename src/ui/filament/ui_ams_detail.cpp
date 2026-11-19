@@ -95,9 +95,22 @@ const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
     return backend ? view_shell(backend->get_system_info(), unit_index, has_dryer) : nullptr;
 }
 
-bool unit_has_physical_tray() {
+namespace {
+/// The unit the detail view lays out (ams_detail_create_slots()); -1 for a whole backend.
+int s_view_unit = -1;
+} // namespace
+
+bool unit_has_physical_tray(int unit_index) {
     auto* backend = helix::AmsState::instance().get_backend(0);
-    return !backend || backend->has_physical_tray();
+    if (!backend || backend->has_physical_tray())
+        return true;
+    // A backend whose own feeders have no housing can still carry a unit that does (an ACE
+    // beside a Snapmaker's feeders): a unit identified as a known one has its tray.
+    return view_shell(unit_index, false) != nullptr;
+}
+
+bool unit_has_physical_tray() {
+    return unit_has_physical_tray(s_view_unit);
 }
 
 /// The lid the unit's climate data calls for: any reading gets glass. Asked
@@ -113,7 +126,7 @@ tray::LidMode unit_lid_mode(int unit_index) {
             unit = info.units[u];
         dryer = helix::dryer_info(*backend, u).supported;
     }
-    return tray::lid_mode(unit, unit_has_physical_tray(), dryer);
+    return tray::lid_mode(unit, unit_has_physical_tray(unit_index), dryer);
 }
 
 /// Under per-lane lids each lane's humidity sits above its label.
@@ -256,6 +269,7 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                                             int unit_index, lv_event_cb_t click_cb,
                                             void* user_data) {
     AmsDetailSlotResult result;
+    s_view_unit = unit_index;
 
     if (!w.slot_grid)
         return result;
@@ -488,6 +502,12 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
         lv_obj_t* slot = slot_widgets[i];
         if (!slot)
             continue;
+        // The measured remaining length stands on a tray's front, which the art has not got:
+        // over the drawing it would fall on the lane numbers.
+        if (lv_obj_t* remaining = lv_obj_find_by_name(slot, "lane_remaining")) {
+            // DECLARATIVE_OK: as the spool below, per drawn lane
+            lv_obj_set_style_opa(remaining, geom ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
+        }
         if (lv_obj_t* spool = lv_obj_find_by_name(slot, "lane_spool")) {
             // DECLARATIVE_OK: the art draws this lane's spool; the slot stays its tap target
             lv_obj_set_style_opa(spool, geom ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
@@ -515,12 +535,22 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     for (int i = 0; i < n; ++i)
         lane_cy += (geom->lane[i].box_y0 + geom->lane[i].box_y1) / 2;
     lane_cy /= (float)n;
-    const float width = n > 1 ? (cx[n - 1] - cx[0]) / (lane_mid_x(n - 1) - lane_mid_x(0))
-                              : 2 * tray::kSpoolFlangeRadius * (float)s_tray.spool_size /
-                                    (geom->lane[0].box_y1 - geom->lane[0].box_y0);
+    float width = n > 1 ? (cx[n - 1] - cx[0]) / (lane_mid_x(n - 1) - lane_mid_x(0))
+                        : 2 * tray::kSpoolFlangeRadius * (float)s_tray.spool_size /
+                              (geom->lane[0].box_y1 - geom->lane[0].box_y0);
+    // A drawing whose spools stand closer than the slots never grows past its container: it
+    // stands centered on the lanes instead, and the lane picker covers lanes that come out
+    // narrower than a finger.
+    const float drawn_share = geom->drawn[2] - geom->drawn[0];
+    const float room = (float)lv_obj_get_content_width(container);
+    const bool capped = drawn_share > 0.0f && room > 0.0f && width * drawn_share > room;
+    if (capped)
+        width = room / drawn_share;
     const int32_t w = (int32_t)std::lround(width);
     const int32_t h = (int32_t)std::lround(width / geom->aspect);
-    const int32_t x = (int32_t)std::lround(cx[0] - lane_mid_x(0) * width);
+    const float lanes_mid = (lane_mid_x(0) + lane_mid_x(n - 1)) / 2;
+    const int32_t x = capped ? (int32_t)std::lround((cx[0] + cx[n - 1]) / 2 - lanes_mid * width)
+                             : (int32_t)std::lround(cx[0] - lane_mid_x(0) * width);
     const int32_t y = (int32_t)std::lround(cy - lane_cy * width);
     lv_obj_set_size(art, w, h);
     lv_obj_set_pos(art, x, y);
@@ -613,7 +643,8 @@ void set_lane_picking(const helix::ui::WidgetRef slot_widgets[], int n, const Un
 }
 
 /// Anchors the linked-lanes bracket over the unit to its drawing: each lane's tick drops to its
-/// label's top, or to its spool's where it shows no label. With no drawing, or a unit whose
+/// label's top. A lane with no label stops at the labels' row, so its tick never runs down over
+/// the unit; with no label on any lane, at its spool's top. With no drawing, or a unit whose
 /// lanes are not the system's first, the bracket keeps the slot row.
 void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_widgets[], int n,
                          lv_point_t origin, const UnitViewArt* art) {
@@ -634,7 +665,7 @@ void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
             break;
         }
         x[i] = origin.x + (int32_t)std::lround(s_tray.label_x[i]);
-        y[i] = origin.y + art->lane[i].y1;
+        y[i] = INT32_MIN;
         lv_obj_t* label = ui_ams_slot_get_material_label(slot_widgets[i]);
         if (label && s_tray.label_shown[i] && !lv_obj_is_hidden(label)) {
             lv_area_t la;
@@ -642,6 +673,13 @@ void anchor_linked_lanes(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
             y[i] = la.y1 - 1;
         }
     }
+    // The labels' nearest row: the lowest label top.
+    int32_t row = INT32_MIN;
+    for (int i = 0; i < count; ++i)
+        row = std::max(row, y[i]);
+    for (int i = 0; i < count; ++i)
+        if (y[i] == INT32_MIN)
+            y[i] = row != INT32_MIN ? row : origin.y + art->lane[i].y1;
     ui_endless_spool_arrows_set_lane_anchors(bracket, x, y, count);
 }
 
@@ -736,6 +774,26 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         s_tray.lane_x[i] = cx[i] - skew / 2;
     const float spacing = n > 1 ? s_tray.lane_x[1] - s_tray.lane_x[0] : tray::spool_pitch(size);
     const float half = tray::lane_lid_half_width(spacing, box);
+    // Where the lanes feed heads of their own, the heads below carry the tool tags, and a tag
+    // over a spool needs room to read as its own: twice its width of the row. Closer, the
+    // tags crowd each other and the labels, and give way to the heads'.
+    auto* tag_backend = helix::AmsState::instance().get_backend();
+    const helix::PathTopology tag_topo =
+        tag_backend ? (unit_index >= 0 ? tag_backend->get_unit_topology(unit_index)
+                                       : tag_backend->get_topology())
+                    : helix::PathTopology::HUB;
+    const bool heads_carry_tags =
+        tag_topo == helix::PathTopology::PARALLEL || tag_topo == helix::PathTopology::MIXED;
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* tag = lv_obj_find_by_name(slot_widgets[i], "tool_badge");
+        if (!tag)
+            continue;
+        lv_obj_update_layout(tag);
+        const bool fits =
+            !heads_carry_tags || n < 2 || 2.0f * (float)lv_obj_get_width(tag) <= spacing;
+        // DECLARATIVE_OK: measured layout; the tags step aside where the lanes crowd them
+        lv_obj_set_style_opa(tag, fits ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
+    }
 
     // The spools stand on the floor: their mid-depth centre is RISE/2 above the
     // front-plane centre, whose flange bottom sits the floor gap above FB.
@@ -933,11 +991,17 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
         lv_obj_update_layout(w.env_indicator);
         lv_area_t a;
         lv_obj_get_coords(w.env_indicator, &a);
-        const int32_t left = origin.x + std::max<int32_t>(art.drawn.x2 - tuck,
-                                                          (int32_t)std::lround(badge_end) + tuck);
+        int32_t left = origin.x + std::max<int32_t>(art.drawn.x2 - tuck,
+                                                    (int32_t)std::lround(badge_end) + tuck);
+        int32_t bottom = origin.y + art.drawn.y2 + tuck;
+        // Where the row has no room beside the drawing the pill stands over its right end
+        // instead, whole, rather than running off the view's edge.
+        lv_area_t view;
+        lv_obj_get_coords(lv_obj_get_parent(w.env_indicator), &view);
+        left = std::max(view.x1, std::min(left, view.x2 - lv_area_get_width(&a)));
+        bottom = std::min(bottom, view.y2);
         lv_obj_set_style_translate_x(w.env_indicator, left - a.x1, LV_PART_MAIN);
-        lv_obj_set_style_translate_y(w.env_indicator, origin.y + art.drawn.y2 + tuck - a.y2,
-                                     LV_PART_MAIN);
+        lv_obj_set_style_translate_y(w.env_indicator, bottom - a.y2, LV_PART_MAIN);
     } else if (shell && w.env_indicator && !lv_obj_is_hidden(w.env_indicator)) {
         const int32_t tuck = theme_manager_get_spacing("space_sm");
         // DECLARATIVE_OK: measured layout; the pill's place depends on the drawn unit

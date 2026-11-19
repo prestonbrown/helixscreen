@@ -41,6 +41,14 @@ TubePalette tube_palette(const FilamentPathData& data) {
     return {t.color_idle, t.color_accent, pulsed_error_color(data), t.color_bg, t.tube_gauge};
 }
 
+lv_area_t offpage_chip_rect(int side, const lv_area_t& hub, int32_t w, int32_t h, int32_t gap,
+                            int32_t min_x, int32_t max_x) {
+    const int32_t cy = (hub.y1 + hub.y2) / 2;
+    int32_t x1 = side == 0 ? hub.x1 - gap - w : hub.x2 + gap;
+    x1 = std::clamp(x1, min_x, std::max(min_x, max_x - w));
+    return {x1, cy - h / 2, x1 + w, cy - h / 2 + h};
+}
+
 std::string offpage_label_text(int count) {
     char buf[48];
     snprintf(buf, sizeof(buf), tr_plural("1 unit", "%d units", static_cast<uint64_t>(count)),
@@ -48,130 +56,7 @@ std::string offpage_label_text(int count) {
     return buf;
 }
 
-namespace {
-
-// Text width in the canvas's label font; 0 with no font (a frame built outside a widget).
-int32_t stub_text_width(const FilamentPathData& data, const char* text) {
-    if (!data.theme.label_font || !text || !text[0])
-        return 0;
-    lv_point_t size;
-    lv_text_get_size(&size, text, data.theme.label_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-    return size.x;
-}
-
-// The drying glyph's width in the small icon font; 0 when that font is unavailable.
-int32_t drying_glyph_width(const char* glyph, const lv_font_t* icon_font) {
-    if (!icon_font || !glyph)
-        return 0;
-    lv_point_t size;
-    lv_text_get_size(&size, glyph, icon_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-    return size.x;
-}
-
-constexpr int32_t kStubMinDiagonal = 16;
-constexpr float kStubMinDiagonalRun = 4.0f;
-constexpr float kFlatSlope = 0.01f;
-
-// How far one side's diagonal may climb above the lanes' approach row: it stays below the
-// lanes' sensors, as every lane's does.
-float side_rise(const pg::MergeFanInfo& fan, float slope) {
-    float diagonal_dx = std::max((float)kStubMinDiagonal, fan.entry_step * 1.5f);
-    const float room = fan.approach_y - fan.min_bend_y;
-    if (slope > kFlatSlope && room > 0.0f)
-        diagonal_dx = std::min(diagonal_dx, room / slope);
-    diagonal_dx = std::max(diagonal_dx, kStubMinDiagonalRun);
-    return slope * diagonal_dx;
-}
-
-// The one rise both sides' stubs use, so their runs and labels sit level: the smaller of
-// what each side allows. A side whose lanes run flat has no diagonal to level against.
-float stub_rise(const pg::MergeFanInfo& fan) {
-    const float room = std::max(0.0f, fan.approach_y - fan.min_bend_y);
-    float rise = -1.0f;
-    float steepest = 0.0f;
-    for (const float slope : {fan.slope_left, fan.slope_right}) {
-        if (slope <= kFlatSlope)
-            continue;
-        const float r = side_rise(fan, slope);
-        rise = rise < 0.0f ? r : std::min(rise, r);
-        steepest = std::max(steepest, slope);
-    }
-    if (rise < 0.0f)
-        return 0.0f;
-    // The steeper side keeps a diagonal of at least a few pixels.
-    return std::min(room, std::max(rise, steepest * kStubMinDiagonalRun));
-}
-
-// dy/dx of a lane's diagonal, 0 when it has none (a straight drop or a flat jog).
-float lane_diagonal_slope(const pg::MergeLaneOut& lane) {
-    const float dx = std::fabs(lane.pts[2].x - lane.pts[1].x);
-    const float dy = lane.pts[2].y - lane.pts[1].y;
-    return dx > 1.0f && dy > 0.5f ? dy / dx : 0.0f;
-}
-
-// Lay one side's stub out of the fan's shared numbers. @p side is 0 for the left of the
-// hub and 1 for the right; @p rise is the page's common rise.
-void layout_offpage_stub(OffpageStub& stub, int side, int count, bool drying,
-                         const FilamentPathData& data, const BaseGeometry& g,
-                         const pg::MergeFanInfo& fan, int32_t hub_top, int32_t gap, float rise) {
-    // The run's nominal length scales with the hub box, which scales with the breakpoint.
-    constexpr int32_t kMinRun = 10;
-    const int32_t nominal_run = LV_MAX(kMinRun, data.theme.hub_width * 5 / 6);
-
-    const float dir = side == 0 ? -1.0f : 1.0f;
-    const float slope = side == 0 ? fan.slope_left : fan.slope_right;
-    const float entry_x = side == 0 ? fan.entry_left : fan.entry_right;
-
-    // The diagonal stays parallel to the outermost lane on its side, so its horizontal
-    // extent follows from the shared rise.
-    float diagonal_dx = std::max((float)kStubMinDiagonal, fan.entry_step * 1.5f);
-    float run_y = fan.approach_y;
-    if (slope > kFlatSlope && rise > 0.0f) {
-        diagonal_dx = rise / slope;
-        run_y = fan.approach_y - rise;
-    }
-    const float diagonal_x = entry_x + dir * diagonal_dx;
-
-    const char* glyph = drying ? helix::ui::icon::lookup_codepoint("heat_wave") : nullptr;
-    const int32_t glyph_w = drying_glyph_width(glyph, theme_manager_get_font("icon_font_sm"));
-    const std::string text = offpage_label_text(count);
-    const int32_t text_w = stub_text_width(data, text.c_str());
-    const int32_t full_label_w = text_w + (glyph_w > 0 ? glyph_w + gap : 0);
-
-    // The label and the run both stay clear of the widget's edge columns, on the rows a
-    // control there shares with them. A label needs a run of at least kMinRun and its own
-    // width and gap beyond it; a canvas with no such room (the smallest screens, where the
-    // hub spans the spools) draws the stub bare.
-    const int32_t half_h =
-        (data.theme.label_font ? lv_font_get_line_height(data.theme.label_font) : 16) / 2;
-    const bool shares_rows =
-        data.keepout_y1 <= data.keepout_y0 || (run_y + (float)half_h >= (float)data.keepout_y0 &&
-                                               run_y - (float)half_h <= (float)data.keepout_y1);
-    const int32_t keep_clear = shares_rows ? data.edge_reserve : 0;
-    const float room_out = side == 0 ? diagonal_x - (float)(g.x_off + keep_clear)
-                                     : (float)(g.x_off + g.width - keep_clear) - diagonal_x;
-    const bool labeled = room_out >= (float)(kMinRun + gap + full_label_w);
-    const int32_t label_w = labeled ? full_label_w : 0;
-    const float run =
-        labeled ? std::clamp(room_out - (float)(label_w + gap), (float)kMinRun, (float)nominal_run)
-                : std::clamp(room_out, 0.0f, (float)nominal_run);
-
-    stub.present = true;
-    stub.labeled = labeled;
-    stub.count = count;
-    stub.drying = drying;
-    stub.pts[0] = {diagonal_x + dir * run, run_y};
-    stub.pts[1] = {diagonal_x, run_y};
-    stub.pts[2] = {entry_x, fan.approach_y};
-    stub.pts[3] = {entry_x, (float)hub_top};
-    stub.label_w = label_w;
-    stub.glyph_w = labeled ? glyph_w : 0;
-    stub.label_cy = (int32_t)std::lround(run_y);
-    const int32_t run_end = (int32_t)std::lround(stub.pts[0].x);
-    stub.label_x = side == 0 ? run_end - gap - label_w : run_end + gap;
-}
-
-} // namespace
+namespace {} // namespace
 
 int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
                       const LinearHubFrame& f) {
@@ -186,8 +71,6 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
 namespace {
 // A slope no fan reaches: the diagonals take the whole height between the lanes and the hub.
 constexpr float kSmoothFanSlope = 1.0e4f;
-// The straight leg a fan's fillet keeps at each end of a diagonal (build_merge_fan's reserve).
-constexpr float kFanLegRoom = 8.0f + 4.0f;
 // A lane this close to its hub entry drops straight in under a view scale.
 constexpr float kStraightLaneSlack = 2.5f;
 // Room above the rail art for the lanes to bend in from their slots, as a share of the height.
@@ -356,6 +239,14 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
             return false;
         if (data.view_hub_h <= 0)
             return true;
+        // A pass-through unit's own drawing needs its room between the lanes and the hub.
+        if (has_through_art(data) && f.through.w <= 0)
+            return false;
+        // Whatever stands between, the head stands clear below where the lanes leave the
+        // unit: their bands, a run of tube and the room over the head.
+        const int32_t head_top = toolhead_top_y(nozzle, data.theme.extruder_scale);
+        if (head_top - f.prep_band_y < 6 * f.sensor_r + kBandThickness)
+            return false;
         // Under a view scale the lanes keep room to converge smoothly into the hub (one and a
         // half hub heights), the hub keeps the room over the head, and a buffer on the trunk
         // its even gaps: as much room over it as the bypass merge and toolhead band take
@@ -365,8 +256,8 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
             return false;
         // No lane's diagonal leans flatter than kFanMinSlope, its fillets' straight legs
         // aside: a flatter one reads as a step sideways just above the hub.
-        const bool fan = data.topology == static_cast<int>(PathTopology::HUB) &&
-                         !data.hub_on_toolhead && !f.hub_stacked;
+        const bool fan =
+            data.topology == static_cast<int>(PathTopology::HUB) && !data.hub_on_toolhead;
         for (int i = 0; fan && i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
             const pg::MergeLaneOut& lane = f.hub_fan[i];
             const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
@@ -375,14 +266,13 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         }
         if (f.output_y + 3 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
             return false;
+
         return !wants_buffer || f.buffer_y - f.cap_h / 2 - f.output_y >= 3 * r;
     };
     const int32_t own = g.height;
     // Under a view scale the answer is the least height that lays it out, so a unit above
     // can take what the path leaves; otherwise a canvas that fits keeps its own.
-    // A pass-through unit's own drawing takes the room the canvas has, so there the canvas
-    // keeps its height as without a scale.
-    const bool least = data.view_hub_h > 0 && !has_through_art(data);
+    const bool least = data.view_hub_h > 0;
     if (own <= 0 || (!least && fits(own)))
         return own;
     if (least) {
@@ -397,11 +287,14 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
                                   data.theme.extruder_scale) -
                    g.y_off;
         };
+        // The search reaches well past a canvas the unit has squeezed: its own height says
+        // nothing about what the path needs.
+        const int32_t ceiling = std::max(own * 4, data.view_hub_h * 24);
         int32_t h = data.view_hub_h;
         const int32_t stack = data.view_hub_h * 5 / 2 + 3 * data.theme.sensor_radius;
-        while (h <= own * 4 && head_room(h) < stack)
+        while (h <= ceiling && head_room(h) < stack)
             h += 2;
-        for (; h <= own * 4; h += 2)
+        for (; h <= ceiling; h += 2)
             if (fits(h))
                 return h;
         return own;
@@ -445,10 +338,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.cap_h = data.view_cap_h > 0 ? data.view_cap_h : buffer_capsule_height(f.hub_h);
     const int32_t buf_box_h = f.cap_h;
     // A buffer riding in the hub box takes no room on the trunk. A selector drawn as its rail
-    // art has no box to carry it: its buffer keeps its control on the trunk.
+    // art carries it on the art itself.
     f.rail = rail_art_rect(data, g);
-    f.buffer_in_hub =
-        data.buffer_present && data.buffer_in_hub && !data.hub_on_toolhead && f.rail.w == 0;
+    f.buffer_in_hub = data.buffer_present && data.buffer_in_hub && !data.hub_on_toolhead;
     const bool trunk_buffer = data.buffer_present && !f.buffer_in_hub;
     const bool hub_unit = !linear && !data.hub_on_toolhead;
     // The lanes' fan needs a band's room between where they leave the spools and the hub top.
@@ -696,10 +588,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const bool scaled = data.view_hub_h > 0;
     const int32_t entry_spacing = scaled ? separation + 2 : 22;
     const int32_t entry_margin = scaled ? f.sensor_r + 2 : 8;
-    // Off-page stubs take an entry beside the outermost lanes on BOTH sides while either
-    // exists, so the lanes sit where they do whichever side a page has a stub on.
-    const bool stubs = !data.hub_on_toolhead && (data.offpage_before > 0 || data.offpage_after > 0);
-    const int reserve = stubs ? 1 : 0;
+    const int reserve = 0;
     // A fixed hub is fitted to the fan of the widest unit it will carry, laid out at the
     // lane pitch of that unit, and drawn at that width whichever unit is shown: the box
     // stands still while the unit above it changes.
@@ -722,7 +611,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     }
     const pg::MergeLaneIn* fit_in = fixed ? widest : fan_in;
     const int fit_n = fixed ? hub_lanes : fan_n;
-    const int32_t want_w = (hub_lanes > 1 || stubs)
+    const int32_t want_w = hub_lanes > 1
                                ? (hub_lanes - 1 + 2 * reserve) * entry_spacing + 2 * entry_margin
                                : theme.hub_width;
     const int32_t slot_span =
@@ -732,6 +621,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     if (fixed)
         max_width = LV_MAX(max_width, want_w);
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
+    // Under a view scale the hub is only as wide as its entries: the lanes converge into it,
+    // and the path takes the height their diagonals need rather than a wider hub.
+    if (scaled && !fixed)
+        max_width = min_width;
     if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked) {
         // Borrow unused output-run height before widening the hub. Keep the
         // buffer/bypass area clear and leave on-toolhead hubs in place.
@@ -756,11 +649,29 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // that the bypass merges and the toolhead band sits in the clear room above the head.
     // The room is sized for the buffer the hub still carries: art in the selector's slot
     // has already taken it away.
-    // Under a view scale the hub always stands that room over the head: the lanes' fan takes
-    // whatever height is left above it, and nothing below stretches with the canvas.
+    // Under a view scale the hub stands just below the lanes' fan: the fan takes the height its
+    // diagonals need, and whatever the canvas has past that goes to the trunk from the hub down
+    // to the head.
     const int32_t roomy_top = glyph_top - room_under_hub(f.has_buffer) - f.hub_h;
     if (!data.hub_on_toolhead && (hub_top > roomy_top || data.view_hub_h > 0)) {
-        hub_top = LV_MAX(LV_MAX(roomy_top, lanes_top), art_floor);
+        int32_t top = roomy_top;
+        if (scaled && fit_n > 1) {
+            // The entries at the hub's least width, and each lane's run to its own.
+            const float usable = (float)(min_width - 2 * entry_margin);
+            const float step = usable / (float)(fit_n - 1);
+            float run = 0.0f, start = -1e9f;
+            for (int i = 0; i < fit_n; ++i) {
+                const float entry = (float)f.center_x - usable / 2.0f + step * (float)i;
+                run = std::max(run, std::fabs(entry - fit_in[i].slot_x));
+                start = std::max(start, fit_in[i].start_y);
+            }
+            const float drop =
+                std::max(1.5f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom) +
+                (float)f.sensor_r;
+            top = std::min(roomy_top,
+                           (int32_t)std::ceil(std::max(start, (float)f.prep_band_y) + drop));
+        }
+        hub_top = LV_MAX(LV_MAX(top, lanes_top), art_floor);
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
         place_under_unit(f.output_y);
@@ -778,10 +689,6 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.hub_box_w = (int32_t)std::ceil(pg::merge_fan_width(
         fit_in, fit_n, (float)f.center_x, (float)tube_end_y, (float)min_width, (float)max_width,
         (float)entry_margin, /*fillet_r=*/8.0f, max_slope, (float)separation, reserve));
-    // Under a view scale a hub under its own lanes spans them, so each lane drops straight
-    // into its entry instead of stepping a few pixels sideways just above the box.
-    if (scaled && !fixed && !stubs && fit_n > 1 && slot_span + 2 * entry_margin >= f.hub_box_w)
-        f.hub_box_w = slot_span + 2 * entry_margin;
     pg::MergeFanInfo fan_info;
     pg::build_merge_fan(fan_in, fan_n, (float)f.center_x, (float)hub_top, (float)f.hub_box_w,
                         (float)entry_margin, /*fillet_r=*/8.0f, max_slope, f.hub_fan, reserve,
@@ -794,34 +701,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             for (int k = 1; k < 4; ++k)
                 lane.pts[k].x = lane.pts[0].x;
     }
-    if (stubs) {
-        // A fixed hub's stubs follow the fan of its widest unit, so a unit with no lane on
-        // one side (or fewer lanes) does not change where the stubs go or how they lean.
-        pg::MergeFanInfo stub_info = fan_info;
-        if (fixed) {
-            pg::MergeLaneOut widest_out[FilamentPathData::kMaxSlots];
-            pg::build_merge_fan(widest, hub_lanes, (float)f.center_x, (float)hub_top,
-                                (float)f.hub_box_w, (float)entry_margin, /*fillet_r=*/8.0f,
-                                max_slope, widest_out, reserve, &stub_info);
-        }
-        // Each stub leans like the shown unit's outermost lane on its side, so the gap to
-        // that lane stays constant. A side with no diagonal lane keeps the fan's slope.
-        if (fan_n > 0) {
-            const float left = lane_diagonal_slope(f.hub_fan[0]);
-            const float right = lane_diagonal_slope(f.hub_fan[fan_n - 1]);
-            if (left > 0.0f && f.hub_fan[0].pts[3].x < (float)f.center_x - 1.0f)
-                stub_info.slope_left = left;
-            if (right > 0.0f && f.hub_fan[fan_n - 1].pts[3].x > (float)f.center_x + 1.0f)
-                stub_info.slope_right = right;
-        }
-        const int32_t gap = f.sensor_r + 2;
-        const float rise = stub_rise(stub_info);
-        if (data.offpage_before > 0)
-            layout_offpage_stub(f.stubs[0], 0, data.offpage_before, data.offpage_before_drying,
-                                data, g, stub_info, hub_top, gap, rise);
-        if (data.offpage_after > 0)
-            layout_offpage_stub(f.stubs[1], 1, data.offpage_after, data.offpage_after_drying, data,
-                                g, stub_info, hub_top, gap, rise);
+    // Units on the hub's other pages: a chip beside the hub, drawn with it.
+    if (!data.hub_on_toolhead) {
+        f.stubs[0] = {data.offpage_before > 0, data.offpage_before, data.offpage_before_drying};
+        f.stubs[1] = {data.offpage_after > 0, data.offpage_after, data.offpage_after_drying};
     }
     // The buffer stands centered on the trunk between the hub and the head.
     if (f.has_buffer && !roomy)
@@ -1043,16 +926,16 @@ void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, 
     pg::PathPoint p0, p1;
     band_segment(band, gauge, p0, p1);
     if (band.dot) {
-        // A small dot on the tube, ringed dark so it reads on whatever art it stands on, and
-        // small enough to leave the art round it.
+        // A sensor drawn round, small enough to leave the art round it: a faint light halo keeps
+        // it legible on a head of its own color.
         const int32_t r = LV_MAX(3, gauge / 2 + 1);
         const int32_t x = (int32_t)std::lround(band.at.x), y = (int32_t)std::lround(band.at.y);
         lv_draw_fill_dsc_t fill;
         lv_draw_fill_dsc_init(&fill);
         fill.radius = LV_RADIUS_CIRCLE;
-        fill.color = lv_color_black();
-        fill.opa = LV_OPA_80;
-        const lv_area_t ring = {x - r - 2, y - r - 2, x + r + 2, y + r + 2};
+        fill.color = lv_color_white();
+        fill.opa = LV_OPA_30;
+        const lv_area_t ring = {x - r - 1, y - r - 1, x + r + 1, y + r + 1};
         lv_draw_fill(layer, &fill, &ring);
         fill.color = color;
         fill.opa = LV_OPA_COVER;
@@ -1129,11 +1012,6 @@ namespace {
 // The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
 // outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
 // to judge.
-// Under a drawn unit a sensor's mark shows only a fault, plain otherwise, as the unit's own
-// sensors do; without one every mark keeps its loaded and empty states.
-BandState only_faults(const FilamentPathData& data, BandState state) {
-    return data.art_sensors && state != BandState::Error ? BandState::Empty : state;
-}
 
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
@@ -1146,12 +1024,8 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
-    const int before = plan.band_count;
-    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
-             only_faults(data, state), fill, /*on_box_edge=*/true);
-    // Under a view scale the hub's sensor is a dot on its outlet edge, like the head's.
-    if (data.view_hub_h > 0 && plan.band_count > before)
-        plan.bands[plan.band_count - 1].dot = true;
+    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
+             /*on_box_edge=*/true);
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1200,8 +1074,7 @@ void append_trunk(PathPlan& plan, Route& r, const Lane& lane, const LinearHubFra
     append_line(r, cx, (float)f.toolhead_y, cx, (float)f.inlet_y, lane.style(PathSegment::NOZZLE));
     if (data.has_toolhead_sensor && on_head) {
         const int before = plan.band_count;
-        add_band_at_end(plan, BandKind::Trunk, r,
-                        only_faults(data, lane.band(PathSegment::TOOLHEAD)), lane.color);
+        add_band_at_end(plan, BandKind::Trunk, r, lane.band(PathSegment::TOOLHEAD), lane.color);
         if (plan.band_count > before)
             plan.bands[plan.band_count - 1].dot = true;
     }
@@ -1334,13 +1207,18 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
             add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::PREP), lane.color);
             append_line(*r, x, (float)rows.prep_y, x, (float)sensor_y,
                         lane.style(PathSegment::LANE));
-            if (data.has_toolhead_sensor)
-                add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::TOOLHEAD),
-                                lane.color);
         } else {
-            r = &start_lane(out, lane, x, entry_y, sensor_y, data.has_toolhead_sensor);
+            r = &start_lane(out, lane, x, entry_y, sensor_y, /*has_sensor=*/false);
         }
         append_line(*r, x, (float)sensor_y, x, nozzle_top, lane.style(PathSegment::NOZZLE));
+        // Each head's own sensor is the round dot at its filament inlet, as on a hub's head:
+        // the lane's color while it sees filament, red on a fault.
+        if (data.has_toolhead_sensor) {
+            const int before = out.band_count;
+            add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::TOOLHEAD), lane.color);
+            if (out.band_count > before)
+                out.bands[out.band_count - 1].dot = true;
+        }
         if (lane.on)
             out.active_route = i;
     }
@@ -1437,17 +1315,30 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float start_y = (float)lane_start_y(data, f, i);
         const float band_y = (float)lane_band_y(data, f, i);
         append_line(r, x, start_y, x, band_y, lane.style(PathSegment::SPOOL));
-        if (data.slot_has_prep_sensor[i] && !(data.art_sensors && data.art_draws_prep)) {
-            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, lane.band(PathSegment::PREP),
-                     s.color, f.prep_on_box_edge && band_y == start_y);
-        }
-        // Leaving a drawn unit, the load sensor is a short marker where the tube leaves it,
-        // lying along the unit's bottom edge: plain unless that sensor reports a fault.
-        if (data.art_sensors && data.slot_has_load_sensor[i]) {
-            const float k = data.art_edge_slope;
-            const float norm = std::sqrt(1.0f + k * k);
-            add_band(out, BandKind::Lane, {x, start_y}, {-k / norm, 1.0f / norm},
-                     data.lane_load_fault[i] ? BandState::Error : BandState::Empty, s.color, false);
+        // Leaving a drawn unit, a lane shows one sensor mark: a short marker where its tube
+        // leaves the unit, lying along the unit's bottom edge as drawn. It stands for the load
+        // sensor, or for the prep sensor where the lane has no load sensor and the art draws
+        // no prep region; the lane's color while it sees filament, red on a fault, plain
+        // while empty. A lane with neither sensor has no mark. Without a drawing the prep
+        // sensor is a band across the tube.
+        const BandState prep = lane.band(PathSegment::PREP);
+        if (data.art_sensors) {
+            const bool load = data.slot_has_load_sensor[i];
+            const bool prep_mark = !load && data.slot_has_prep_sensor[i] && !data.art_draws_prep;
+            if (load || prep_mark) {
+                const float k = data.art_edge_slope;
+                const float norm = std::sqrt(1.0f + k * k);
+                // A prep fault the art cannot show reddens the one mark too.
+                const bool prep_fault = prep == BandState::Error && !data.art_draws_prep;
+                const BandState state = data.lane_load_fault[i] || prep_fault ? BandState::Error
+                                        : load ? lane.band(PathSegment::LANE)
+                                               : prep;
+                add_band(out, BandKind::Lane, {x, start_y}, {-k / norm, 1.0f / norm}, state,
+                         s.color, false);
+            }
+        } else if (data.slot_has_prep_sensor[i]) {
+            add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, prep, s.color,
+                     f.prep_on_box_edge && band_y == start_y);
         }
         if (straight)
             append_line(r, x, band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));
@@ -1475,8 +1366,10 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
-            // Painted: the selector is translucent, so the tube shows through it.
-            append_line(r, x, hub_top, (float)f.output_x, hub_bot, lane.style(PathSegment::HUB));
+            // Hidden through the selector, as through a hub: drawn over it, the tube would cross
+            // the bar's label.
+            append_line(r, x, hub_top, (float)f.output_x, hub_bot,
+                        unpainted(lane.style(PathSegment::HUB)));
         } else {
             pg::PathPoint pts[4] = {f.hub_fan[i].pts[0], f.hub_fan[i].pts[1], f.hub_fan[i].pts[2],
                                     f.hub_fan[i].pts[3]};

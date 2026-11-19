@@ -841,6 +841,9 @@ void AmsPanel::create_slots(int count) {
         create_slots(count);
         --relayout_passes_;
     }
+    // The path may have moved under its unit without changing size: the bypass spool stands
+    // on its merge line wherever that now is.
+    update_bypass_spool_position();
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {

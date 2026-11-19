@@ -32,20 +32,17 @@ namespace helix::ui::fpath {
 // parallel to the outermost real lane on its side, and a drop into the hub's top.
 struct OffpageStub {
     bool present = false;
-    int count = 0;        ///< units it stands for
-    bool drying = false;  ///< one of them is drying
-    bool labeled = false; ///< the label has room; without it the stub is drawn bare
-    /// Outer end of the run, start of the diagonal, its end where the drop begins,
-    /// and where the drop meets the hub's top edge.
-    pg::PathPoint pts[4];
-    int32_t label_x = 0;  ///< left edge of the label block (glyph, then text)
-    int32_t label_cy = 0; ///< center line of the label block
-    int32_t label_w = 0;  ///< block width, glyph included
-    int32_t glyph_w = 0;  ///< the drying glyph's width, 0 when there is none
+    int count = 0;       ///< units it stands for
+    bool drying = false; ///< one of them is drying
 };
 
 /// The label an off-page stub carries: "N units", "1 unit" for one.
 std::string offpage_label_text(int count);
+
+/// Where an off-page chip stands beside the hub box @p hub: left of it for @p side 0, right
+/// for 1, @p gap away, vertically centered on it, @p w by @p h, kept within [min_x, max_x].
+lv_area_t offpage_chip_rect(int side, const lv_area_t& hub, int32_t w, int32_t h, int32_t gap,
+                            int32_t min_x, int32_t max_x);
 
 /// Where a selector rail's head-on art is drawn; w == 0 when the canvas draws the bar instead.
 struct RailArtRect {
@@ -55,7 +52,9 @@ struct RailArtRect {
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
 /// The flattest a hub fan's diagonal leans under a view scale, as its drop over its run.
-inline constexpr float kFanMinSlope = 0.75f;
+inline constexpr float kFanMinSlope = 0.6f;
+/// The straight leg a fan's fillet keeps at each end of a diagonal (build_merge_fan's reserve).
+inline constexpr float kFanLegRoom = 8.0f + 4.0f;
 
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
 /// under 14 px so its end marks stay legible.
@@ -133,8 +132,7 @@ struct LinearHubFrame {
     // On-toolhead mode: the passthrough selector keeps the unit's position
     // while the hub box moves down to hug the toolhead.
     int32_t selector_y = 0;
-    // Off-page stubs: [0] left of the hub, [1] right. The hub is widened to hold their
-    // entries whenever either side has one.
+    // Units on other pages of this hub: [0] earlier (a chip left of the hub), [1] later.
     OffpageStub stubs[2];
 
     SlotRenderStates states;
@@ -448,10 +446,9 @@ lv_color_t band_color(const SensorBand& band, const TubePalette& pal);
 /// The bands on a hub/selector edge; called after the boxes are drawn.
 void paint_box_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal);
 
-/// The frame's off-page stubs: a dashed polyline in the idle tube color, then the label
-/// (a drying glyph before it when one of the units is drying). Called before the hub box
-/// so the box covers the end of each drop.
-void draw_offpage_stubs(const RenderCtx& ctx, const LinearHubFrame& f);
+/// The frame's off-page chips beside the hub box drawn this pass ("+1 unit"), each a tap
+/// target recorded in the widget's hits.
+void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f);
 
 // Clamp band: a short rounded bar across the tube.
 inline constexpr int32_t kBandExtra = 10;    // band length = gauge + kBandExtra

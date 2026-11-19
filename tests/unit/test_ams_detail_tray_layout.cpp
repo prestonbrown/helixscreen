@@ -27,6 +27,7 @@
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
+#include "src/ui/filament/ui_ams_detail_labels.h"
 #include "src/ui/filament/ui_ams_detail_tray.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
@@ -1234,6 +1235,36 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap
     }
 }
 
+namespace {
+/// A backend whose own feeders have no housing (a Snapmaker's), carrying a unit a shell knows.
+class TraylessBackend : public AmsBackendMock {
+  public:
+    using AmsBackendMock::AmsBackendMock;
+    helix::BackendTraits traits() const override {
+        helix::BackendTraits t = AmsBackendMock::traits();
+        t.has_physical_tray = false;
+        return t;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "AMS unit view: a unit a shell knows has its tray on any backend",
+                 "[ams][tray][unit-art]") {
+    auto mock = std::make_unique<TraylessBackend>(4);
+    mock->set_afc_mode(true);
+    mock->set_ace_identity();
+    REQUIRE(mock->start().success());
+    REQUIRE_FALSE(mock->has_physical_tray());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    const auto info = AmsState::instance().system_info();
+    REQUIRE(info);
+    REQUIRE(helix::ui::tray::unit_shell_for(*info, 0) != nullptr);
+    CHECK(helix::ui::ams_detail_layout::unit_has_physical_tray(0));
+    AmsState::instance().set_backend(nullptr);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots it was on",
                  "[ams][tray][ui_integration][unit-art][lane-picker]") {
     namespace at = helix::ui::ams_tray;
@@ -1327,8 +1358,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     // At 480x272 even a unit at half its size leaves too little, and the head gives up the rest.
     CHECK(head.y2 <= screen.y2);
     CHECK(head.y2 <= cc.y2);
+    // A path a pixel or two past the foot still shows whole (the fit's slack).
     if (!smallest)
-        CHECK(lv_area_get_height(&cc) >= need);
+        CHECK(lv_area_get_height(&cc) >= need - 2);
     // The hub stands clear of every lane's number.
     auto* cd = helix::ui::fpath::get_data(canvas);
     REQUIRE((cd != nullptr && cd->hits.hub_valid));
@@ -1581,7 +1613,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
     const int32_t tuck = theme_manager_get_spacing("space_sm");
     CHECK(pa.x1 > last.x2);
-    CHECK(pa.y2 == aa.y1 + drawn.y2 + tuck);
+    // At the drawing's foot, or the view's bottom where the foot stands lower.
+    lv_area_t view;
+    lv_obj_get_coords(lv_obj_get_parent(pill), &view);
+    CHECK(pa.y2 == std::min(aa.y1 + drawn.y2 + tuck, view.y2));
+    CHECK(pa.x2 <= view.x2);
 }
 
 TEST_CASE_METHOD(
