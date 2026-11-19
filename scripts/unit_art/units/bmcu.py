@@ -88,8 +88,10 @@ def _body(scene, detail):
                 sc.poly([(W + 0.001, y + 0.011 * math.cos(2 * math.pi * i / 10), z + 0.011 * math.sin(2 * math.pi * i / 10)) for i in range(10)], SHADOW)
     for xc in CENTERS:
         _lever(sc, xc, detail)
-    for xc in CENTERS:
+    for lane, xc in enumerate(CENTERS):
         _fitting(sc, xc)
+        # Each lane's filament leaves through its module's push-fit fitting on top.
+        kit.outlet(scene, lane, (xc * SCALE, TOP_D / 2 * SCALE, (H + 0.07) * SCALE))
 
 
 def draw_art(scene, colors, tier):
