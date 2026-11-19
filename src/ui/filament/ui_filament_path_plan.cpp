@@ -642,22 +642,13 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             const float step = usable / (float)(fit_n - 1);
             // Each lane from its own start: a lane leaving lower runs a shorter way in.
             float need = -1e9f;
-            pg::PathPoint src[FilamentPathData::kMaxSlots], sink[FilamentPathData::kMaxSlots];
-            float highest = 1e9f;
             for (int i = 0; i < fan_n; ++i) {
                 const float offset = (float)i - (float)(fan_n - 1) / 2.0f;
                 const float run = std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x);
                 const float start = std::max(fan_in[i].start_y, (float)f.prep_band_y);
                 need = std::max(need, start + std::max(0.75f * (float)f.hub_h,
                                                        run * kFanMinSlope + 2.0f * kFanLegRoom));
-                src[i] = {fan_in[i].slot_x, start};
-                sink[i] = {(float)f.center_x + step * offset, 0.0f};
-                highest = std::min(highest, start);
             }
-            // And the tube router's least span for the ribbon it lays, where that is more.
-            if (const float span = lanes_required_span(src, sink, fan_n, (float)separation);
-                span >= 0.0f)
-                need = std::max(need, highest + span);
             top = std::min(roomy_top, (int32_t)std::ceil(need + (float)f.sensor_r));
         }
         hub_top = LV_MAX(LV_MAX(top, lanes_top), art_floor);
@@ -764,14 +755,6 @@ bool route_lanes(const pg::PathPoint* sources, pg::MergeLaneOut* out, int n, flo
         }
     }
     return true;
-}
-
-float lanes_required_span(const pg::PathPoint* sources, const pg::PathPoint* sinks, int n,
-                          float clearance) {
-    if (n <= 0 || n > tr::kMaxTraces)
-        return -1.0f;
-    const tr::Bus bus{sources, sinks, n};
-    return tr::required_span(&bus, 1, scaled_router(clearance, kFanMinSlope));
 }
 
 int32_t head_scale_within_height(int32_t scale, float max_h) {
@@ -921,18 +904,11 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
         // spread from the others needs, no flatter than a hub's lanes.
         const ParallelRows r = parallel_rows(data, g);
         const int32_t head_top = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).top;
-        // The tube router's least span for the ribbon out to the heads.
-        const int lanes = LV_MIN(g.slot_count, FilamentPathData::kMaxSlots);
-        pg::PathPoint src[FilamentPathData::kMaxSlots], sink[FilamentPathData::kMaxSlots];
-        bool spread = false;
-        for (int i = 0; i < lanes; i++) {
-            src[i] = {(float)g.slot_x[i], (float)r.entry_y};
-            sink[i] = {(float)parallel_head_x(data, g, r, i), 0.0f};
-            spread |= std::fabs(sink[i].x - src[i].x) > 1.0f;
-        }
-        const float lean =
-            spread ? std::max(0.0f, lanes_required_span(src, sink, lanes, lane_clearance(data)))
-                   : 0.0f;
+        float spread = 0.0f;
+        for (int i = 0; i < LV_MIN(g.slot_count, FilamentPathData::kMaxSlots); i++)
+            spread =
+                std::max(spread, (float)std::abs(parallel_head_x(data, g, r, i) - g.slot_x[i]));
+        const float lean = spread > 1.0f ? spread * kFanMinSlope + 2.0f * kFanLegRoom : 0.0f;
         return (float)(head_top - r.entry_y) >= std::max(run_units(6.0f, 9.2f), lean);
     };
     const int32_t ceiling = std::max(g.height * 4, data.view_hub_h * 24);
