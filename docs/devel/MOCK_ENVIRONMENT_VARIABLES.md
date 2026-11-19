@@ -822,7 +822,7 @@ A mode that stands for a real product keeps `HELIX_AMS_GATES` inside the lane co
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `HELIX_MOCK_INDX_TOOLS` | `6` | Tools, 2-10. The last one is listed in `no_heat_tools` (a pen) |
-| `HELIX_MOCK_INDX_FAULT` | unset | `seat_suspect` (T1 may be half seated), `docks_uncalibrated`, `unrecognized` (no `CHANGE_TOOL`, the "macros not recognized" state), or `kalico` (`[indx]` in configfile only, not in the object list) |
+| `HELIX_MOCK_INDX_FAULT` | unset | `seat_suspect` (T1 may be half seated), `docks_uncalibrated`, `unrecognized` (no `CHANGE_TOOL`, the "macros not recognized" state), `refuse_unhomed` (a custom `CHANGE_TOOL` that refuses every change while XYZ is unhomed, with the macro's own error, instead of homing), or `kalico` (`[indx]` in configfile only, not in the object list) |
 | `HELIX_MOCK_INDX_SPOOL_MACROS` | off | The #1333 reporter's shape: each `T<n>` declares `spool_id` and its template calls `SET_ACTIVE_SPOOL` |
 
 ```bash

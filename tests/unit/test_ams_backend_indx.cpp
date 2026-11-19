@@ -16,15 +16,20 @@
 #include "../test_helpers/scoped_language.h"
 #include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_indx.h"
 #include "ams_error_bridge.h"
 #include "ams_state.h"
+#include "fault_surface_correlation.h"
 #include "filament_accounting.h"
+#include "gcode_error_router.h"
 #include "macro_param_cache.h"
+#include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
+#include "rpc_error_correlation.h"
 
 #include <any>
 #include <string>
@@ -649,6 +654,49 @@ TEST_CASE_METHOD(IndxFixture, "INDX device: a calibration reports when it ends",
         CHECK(calls == 1);
         CHECK(last.success());
     }
+}
+
+// A custom CHANGE_TOOL may refuse (one that never homes inside a change). The
+// change is sent as is, and the refusal reaches the user whole: its last words
+// say what to do. Real MoonrakerAPI, mock client and GcodeErrorRouter.
+TEST_CASE_METHOD(LVGLTestFixture, "INDX: a CHANGE_TOOL refusal reaches the user in full",
+                 "[ams][indx][toolchange][errors]") {
+    const std::string refusal = "CHANGE_TOOL refused: XYZ is not homed. Inspect the printer and "
+                                "run G28 deliberately before changing tools.";
+    rpc_error_correlation::clear_for_test();
+    fault_surface_correlation::clear_for_test();
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(KlippyState::READY);
+    client.connect("ws://mock/websocket", []() {}, []() {});
+    MoonrakerAPI api{client, state};
+    {
+        RecordingIndx b{&api, &client};
+        b.set_discovery(discover(indx_objects()));
+        b.feed(active(0));
+        helix::ui::RecoveryModalPresenter presenter(&api);
+        GcodeErrorRouter router(&api, &client, presenter);
+        std::vector<std::string> errors;
+        helix::ui::set_test_notification_error_hook(
+            [&errors](const std::string& m) { errors.push_back(m); });
+
+        // Klipper's order: the `!!` copy reaches the console, then the rpc fails.
+        client.force_next_gcode_console_reply("T1", "!! " + refusal);
+        client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR, refusal, "T1");
+        REQUIRE(b.change_tool(1).success());
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(400);
+        helix::ui::UpdateQueue::instance().drain();
+
+        CHECK(errors == std::vector<std::string>{refusal});
+        helix::ui::set_test_notification_error_hook(nullptr);
+    }
+    client.stop_temperature_simulation();
+    client.disconnect();
+    MacroParamCache::instance().clear();
+    rpc_error_correlation::clear_for_test();
+    fault_surface_correlation::clear_for_test();
 }
 
 // ============================================================================
