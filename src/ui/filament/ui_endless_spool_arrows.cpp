@@ -58,6 +58,12 @@ struct EndlessSpoolArrowsData {
     int32_t slot_width = kDefaultSlotWidth;
     int32_t slot_overlap = 0; // Overlap between slots in pixels (for 5+ slots)
     int32_t slot_offset = 0;  // Left offset of the slot row, as the slot grid lays it out
+    // Lanes anchored to a drawing (ui_endless_spool_arrows_set_lane_anchors): each lane's
+    // column and the row its tick ends on, from the widget's top left, so they move with it.
+    // None: the slot row's.
+    int anchor_count = 0;
+    int32_t anchor_x[helix::kAmsMaxSlots] = {};
+    int32_t anchor_y[helix::kAmsMaxSlots] = {};
 
     // The relation to draw; the draw callback lays it out against slot_count
     helix::printer::EndlessSpoolConfig config;
@@ -408,8 +414,8 @@ static void draw_arrow_down(lv_layer_t* layer, int32_t tip_x, int32_t tip_y, lv_
 // - Route line at top of widget (y_route)
 // - Vertical lines down to bottom edge (y_bottom) which is just above slots
 // - Arrowheads point down toward slots
-static void draw_routed_arrow(lv_layer_t* layer, int32_t src_x, int32_t dst_x, int32_t y_bottom,
-                              int32_t y_route, int32_t head_size,
+static void draw_routed_arrow(lv_layer_t* layer, int32_t src_x, int32_t dst_x, int32_t src_bottom,
+                              int32_t y_bottom, int32_t y_route, int32_t head_size,
                               const std::vector<int32_t>& gap_xs, lv_color_t color,
                               int32_t line_width) {
     // Path: horizontal at route height -> vertical down from source -> vertical down to target with
@@ -420,7 +426,7 @@ static void draw_routed_arrow(lv_layer_t* layer, int32_t src_x, int32_t dst_x, i
              line_width);
 
     // Vertical line from route down to source slot position (no arrow - this is the "from" side)
-    draw_line(layer, src_x, y_route, src_x, y_bottom, color, line_width);
+    draw_line(layer, src_x, y_route, src_x, src_bottom, color, line_width);
 
     // Vertical line from route height down toward target
     // Leave room for arrowhead at target
@@ -433,14 +439,14 @@ static void draw_routed_arrow(lv_layer_t* layer, int32_t src_x, int32_t dst_x, i
 
 // Draw a bracket: one bar over the members, a tick down to each, ending in a dot.
 // No arrowhead - an unordered group has no direction.
-static void draw_bracket(lv_layer_t* layer, const std::vector<int32_t>& member_xs, int32_t y_bottom,
-                         int32_t y_route, const std::vector<int32_t>& gap_xs, lv_color_t color,
-                         int32_t line_width) {
+static void draw_bracket(lv_layer_t* layer, const std::vector<int32_t>& member_xs,
+                         const std::vector<int32_t>& member_bottoms, int32_t y_route,
+                         const std::vector<int32_t>& gap_xs, lv_color_t color, int32_t line_width) {
     draw_bar(layer, member_xs, y_route, gap_xs, color, line_width);
-    const int32_t dot_y = y_bottom - kDotRadius;
-    for (int32_t x : member_xs) {
-        draw_line(layer, x, y_route, x, dot_y, color, line_width);
-        draw_dot(layer, x, dot_y, color, kDotRadius);
+    for (size_t i = 0; i < member_xs.size(); ++i) {
+        const int32_t dot_y = member_bottoms[i] - kDotRadius;
+        draw_line(layer, member_xs[i], y_route, member_xs[i], dot_y, color, line_width);
+        draw_dot(layer, member_xs[i], dot_y, color, kDotRadius);
     }
 }
 
@@ -488,10 +494,19 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
         return;
     }
 
+    const auto anchored = [&](const EndlessSpoolColumn& column) {
+        return column.slot >= 0 && column.slot < data->anchor_count;
+    };
     const auto column_x = [&](const EndlessSpoolColumn& column) {
-        return get_slot_center_x(column.slot, data->slot_count, data->slot_width,
-                                 data->slot_overlap, x_off) +
+        return (anchored(column) ? obj_coords.x1 + data->anchor_x[column.slot]
+                                 : get_slot_center_x(column.slot, data->slot_count,
+                                                     data->slot_width, data->slot_overlap, x_off)) +
                column.offset_px;
+    };
+    // An anchored lane's tick runs down to its anchor; any other ends at the widget's foot.
+    const auto column_bottom = [&](const EndlessSpoolColumn& column) {
+        return anchored(column) ? std::max(y_bottom, y_off + data->anchor_y[column.slot])
+                                : y_bottom;
     };
 
     for (const auto& mark : marks) {
@@ -504,15 +519,18 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
         }
 
         if (mark.kind == EndlessSpoolMarkKind::Arrow) {
-            draw_routed_arrow(layer, column_x(mark.columns[0]), column_x(mark.columns[1]), y_bottom,
+            draw_routed_arrow(layer, column_x(mark.columns[0]), column_x(mark.columns[1]),
+                              column_bottom(mark.columns[0]), column_bottom(mark.columns[1]),
                               y_route, mark.head_px, gap_xs, data->arrow_color, data->line_width);
         } else {
-            std::vector<int32_t> member_xs;
+            std::vector<int32_t> member_xs, member_bottoms;
             member_xs.reserve(mark.columns.size());
+            member_bottoms.reserve(mark.columns.size());
             for (const auto& column : mark.columns) {
                 member_xs.push_back(column_x(column));
+                member_bottoms.push_back(column_bottom(column));
             }
-            draw_bracket(layer, member_xs, y_bottom, y_route, gap_xs, data->arrow_color,
+            draw_bracket(layer, member_xs, member_bottoms, y_route, gap_xs, data->arrow_color,
                          data->line_width);
         }
     }
@@ -523,6 +541,19 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
 // ============================================================================
 // Event Handlers
 // ============================================================================
+
+// Anchored ticks reach below the widget, down to the drawing they connect.
+static void endless_spool_arrows_ext_draw_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    EndlessSpoolArrowsData* data = get_data(obj);
+    if (!data || data->anchor_count <= 0)
+        return;
+    const int32_t height = lv_obj_get_height(obj);
+    int32_t reach = 0;
+    for (int i = 0; i < data->anchor_count; ++i)
+        reach = std::max(reach, data->anchor_y[i] - height);
+    lv_event_set_ext_draw_size(e, reach + kDotRadius);
+}
 
 static void endless_spool_arrows_delete_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
@@ -563,6 +594,8 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
+                        nullptr);
 
     spdlog::debug("[EndlessSpoolArrows] Created widget via XML");
     return obj;
@@ -642,6 +675,8 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
+    lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
+                        nullptr);
 
     spdlog::debug("[EndlessSpoolArrows] Created widget programmatically");
     return obj;
@@ -679,6 +714,29 @@ void ui_endless_spool_arrows_set_slot_offset(lv_obj_t* obj, int32_t offset) {
         data->slot_offset = offset;
         lv_obj_invalidate(obj);
     }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_endless_spool_arrows_set_lane_anchors(lv_obj_t* obj, const int32_t* x, const int32_t* y,
+                                              int count) {
+    auto* data = get_data(obj);
+    if (!data)
+        return;
+    count = std::clamp(count, 0, helix::kAmsMaxSlots);
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    bool same = data->anchor_count == count;
+    for (int i = 0; same && i < count; ++i)
+        same = data->anchor_x[i] == x[i] - coords.x1 && data->anchor_y[i] == y[i] - coords.y1;
+    if (same)
+        return;
+    data->anchor_count = count;
+    for (int i = 0; i < count; ++i) {
+        data->anchor_x[i] = x[i] - coords.x1;
+        data->anchor_y[i] = y[i] - coords.y1;
+    }
+    lv_obj_refresh_ext_draw_size(obj);
+    lv_obj_invalidate(obj);
 }
 
 void ui_endless_spool_arrows_set_groups(lv_obj_t* obj,

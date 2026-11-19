@@ -307,6 +307,24 @@ MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::js
 
 } // namespace
 
+std::string other_unit_family(const nlohmann::json& settings) {
+    struct Row {
+        const char* section; ///< a config section that only this hardware's install defines
+        const char* family;  ///< the vendor string Happy Hare gives the hardware
+    };
+    static constexpr Row kRows[] = {
+        // Bunny Box (a QIDI Box run by Happy Hare): a red and a white LED per slot.
+        {"led qidi_slot_0", "QIDI"},
+    };
+    if (!settings.is_object())
+        return {};
+    for (const Row& row : kRows) {
+        if (settings.contains(row.section))
+            return row.family;
+    }
+    return {};
+}
+
 std::vector<MachineUnit> read_machine_units(const nlohmann::json& settings,
                                             const nlohmann::json& live_mmu_machine) {
     std::vector<MachineUnit> units;
@@ -322,6 +340,10 @@ std::vector<MachineUnit> read_machine_units(const nlohmann::json& settings,
             config && config->is_object() && !config->empty()) {
             units.push_back(read_machine_unit(settings, *config));
         }
+    }
+    for (MachineUnit& unit : units) {
+        if (tio::to_upper(unit.vendor) == "OTHER")
+            unit.family = other_unit_family(settings);
     }
     return units;
 }

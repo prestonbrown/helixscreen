@@ -32,20 +32,17 @@ namespace helix::ui::fpath {
 // parallel to the outermost real lane on its side, and a drop into the hub's top.
 struct OffpageStub {
     bool present = false;
-    int count = 0;        ///< units it stands for
-    bool drying = false;  ///< one of them is drying
-    bool labeled = false; ///< the label has room; without it the stub is drawn bare
-    /// Outer end of the run, start of the diagonal, its end where the drop begins,
-    /// and where the drop meets the hub's top edge.
-    pg::PathPoint pts[4];
-    int32_t label_x = 0;  ///< left edge of the label block (glyph, then text)
-    int32_t label_cy = 0; ///< center line of the label block
-    int32_t label_w = 0;  ///< block width, glyph included
-    int32_t glyph_w = 0;  ///< the drying glyph's width, 0 when there is none
+    int count = 0;       ///< units it stands for
+    bool drying = false; ///< one of them is drying
 };
 
 /// The label an off-page stub carries: "N units", "1 unit" for one.
 std::string offpage_label_text(int count);
+
+/// Where an off-page chip stands beside the hub box @p hub: left of it for @p side 0, right
+/// for 1, @p gap away, vertically centered on it, @p w by @p h, kept within [min_x, max_x].
+lv_area_t offpage_chip_rect(int side, const lv_area_t& hub, int32_t w, int32_t h, int32_t gap,
+                            int32_t min_x, int32_t max_x);
 
 /// Where a selector rail's head-on art is drawn; w == 0 when the canvas draws the bar instead.
 struct RailArtRect {
@@ -54,6 +51,14 @@ struct RailArtRect {
 
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
+/// The flattest a hub fan's diagonal leans under a view scale, as its drop over its run.
+inline constexpr float kFanMinSlope = 0.35f;
+/// Under a view scale a fan's fillets are this round, so its diagonals bend late and short.
+inline constexpr float kScaledFanFillet = 4.0f;
+/// The straight leg a scaled fan's fillet keeps at each end of a diagonal (build_merge_fan's
+/// reserve: the fillet and its slack).
+inline constexpr float kFanLegRoom = kScaledFanFillet + 4.0f;
+
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
 /// under 14 px so its end marks stay legible.
 inline int32_t buffer_capsule_height(int32_t hub_h) {
@@ -74,11 +79,12 @@ struct BufferControlGeometry {
     int32_t thumb_w = 0; ///< the thumb, cap_h + 6 tall
     int32_t thumb_h = 0;
 };
-BufferControlGeometry buffer_control_geometry(int32_t cap_h);
+/// A @p max_w > 0 caps the whole control's width, the track taking the cut.
+BufferControlGeometry buffer_control_geometry(int32_t cap_h, int32_t max_w = 0);
 
 /// What a tap on the control at (@p cx, @p cy) opens the detail from: the capsule, its
 /// button and the thumb's glow, with 4 px to spare.
-lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h);
+lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h, int32_t max_w = 0);
 
 struct LinearHubFrame {
     // Vertical layout (absolute display coords)
@@ -91,8 +97,8 @@ struct LinearHubFrame {
     int32_t output_y = 0;
     int32_t toolhead_y = 0;
     int32_t nozzle_y = 0;
-    // The toolhead glyph's scale: the theme's, or smaller on a canvas too short to fit the hub
-    // between the lanes and a full-size head.
+    // The toolhead glyph's scale: the view scale's, or with none the theme's, smaller on a
+    // canvas too short to fit the hub between the lanes and a full-size head.
     int32_t tool_scale = 0;
     int32_t inlet_y = 0; // the head's filament inlet, where the tube ends
     int32_t head_x = 0;  // the toolhead glyph's column, its inlet on center_x
@@ -105,6 +111,9 @@ struct LinearHubFrame {
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
+    int32_t cap_h = 0; // the buffer capsule's height
+    // The buffer's state is drawn inside the hub box: no capsule on the trunk.
+    bool buffer_in_hub = false;
     // No room on the trunk for the buffer: the selector's or hub's outlet band shows its reading.
     bool sync_on_output = false;
 
@@ -126,8 +135,7 @@ struct LinearHubFrame {
     // On-toolhead mode: the passthrough selector keeps the unit's position
     // while the hub box moves down to hug the toolhead.
     int32_t selector_y = 0;
-    // Off-page stubs: [0] left of the hub, [1] right. The hub is widened to hold their
-    // entries whenever either side has one.
+    // Units on other pages of this hub: [0] earlier (a chip left of the hub), [1] later.
     OffpageStub stubs[2];
 
     SlotRenderStates states;
@@ -275,6 +283,13 @@ struct MixedFrame {
     pg::MergeLaneOut hub_fan[FilamentPathData::kMaxSlots];
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
     RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
+    // Each direct lane's own head; spread a head's width apart from the shared one where the
+    // lanes stand closer than that. A hub lane's entry is its column (its outlet under a view
+    // scale).
+    int32_t head_x[FilamentPathData::kMaxSlots] = {};
+    // The shared head's center X: under the hub, or apart from it where the hub stands where
+    // its lanes meet and the trunk leans to the head.
+    int32_t shared_head_x = 0;
 
     SlotRenderStates states;
 };
@@ -286,6 +301,14 @@ struct ParallelRows {
     int32_t entry_y, prep_y, sensor_y, toolhead_y, tool_scale;
 };
 ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g);
+/// Under a view scale, the least height a PARALLEL or MIXED path lays out in: each lane's run
+/// to its full-size head, a shared hub and a pass-through unit's drawing; 0 without a scale.
+int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g);
+/// Where lane @p i's own head stands in a PARALLEL view: under its lane, or, where the lanes
+/// stand closer than a head's width, spread evenly at a head's width apart, centered under the
+/// lanes and kept inside the canvas; its tube bends out to it.
+int32_t parallel_head_x(const FilamentPathData& data, const BaseGeometry& g,
+                        const ParallelRows& rows, int i);
 
 enum class TubeWall : uint8_t { Plain, Active, Error };
 
@@ -316,6 +339,7 @@ struct SensorBand {
     BandState state;
     lv_color_t fill;          // the lane's filament color (Loaded)
     bool on_box_edge = false; // straddles a hub/selector edge: painted over the box
+    bool dot = false;         // a round dot, ringed dark, instead of a band across the tube
 };
 
 inline constexpr int kMaxRoutes = FilamentPathData::kMaxSlots + 2; // lanes + trunk + bypass
@@ -440,10 +464,9 @@ lv_color_t band_color(const SensorBand& band, const TubePalette& pal);
 /// The bands on a hub/selector edge; called after the boxes are drawn.
 void paint_box_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal);
 
-/// The frame's off-page stubs: a dashed polyline in the idle tube color, then the label
-/// (a drying glyph before it when one of the units is drying). Called before the hub box
-/// so the box covers the end of each drop.
-void draw_offpage_stubs(const RenderCtx& ctx, const LinearHubFrame& f);
+/// The frame's off-page chips beside the hub box drawn this pass ("+1 unit"), each a tap
+/// target recorded in the widget's hits.
+void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f);
 
 // Clamp band: a short rounded bar across the tube.
 inline constexpr int32_t kBandExtra = 10;    // band length = gauge + kBandExtra

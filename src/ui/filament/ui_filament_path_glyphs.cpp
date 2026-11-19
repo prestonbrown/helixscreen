@@ -12,7 +12,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 
-#include "buffer_reading.h"
+#include "hub_buffer_meter.h"
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -66,35 +66,55 @@ void draw_shaded_dot(lv_layer_t* layer, int32_t cx, int32_t cy, lv_color_t color
 
 } // namespace
 
+namespace {
+constexpr int32_t kGearPad = 2;
+
+// The gear for a hub box @p height tall: a short box takes the smaller one, so the gear stays
+// about as tall as the box.
+const lv_font_t* hub_gear_font(int32_t height) {
+    const lv_font_t* font = theme_manager_get_font("icon_font_sm");
+    if (font && lv_font_get_line_height(font) > height + 4) {
+        if (const lv_font_t* xs = theme_manager_get_font("icon_font_xs"))
+            font = xs;
+    }
+    return font;
+}
+} // namespace
+
 int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width, int32_t height,
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
-                     lv_opa_t bg_opa, bool interactive) {
+                     lv_opa_t bg_opa, bool interactive, HubBoxExtras* extras) {
     lv_layer_t* layer = ctx.layer;
     lv_color_t text_color = ctx.data->theme.color_text;
     const lv_font_t* font = ctx.data->theme.label_font;
     int32_t radius = ctx.data->theme.border_radius;
+    const bool gear_outside = extras && extras->gear_outside;
+    const int32_t slot_w = extras ? extras->slot_w : 0;
+    constexpr int32_t kLabelPad = 4;
 
-    // Tappable affordance: a small gear glyph inside the box's right edge,
-    // vertically centered with the label, signals that the box opens a context
-    // menu. The box grows, about its center, until the centered label and the
-    // gear both fit inside.
-    const lv_font_t* icon_font = interactive ? theme_manager_get_font("icon_font_sm") : nullptr;
-    constexpr int32_t kGearPad = 2;
+    // Tappable affordance: a small gear glyph, vertically centered with the label, signals
+    // that the box opens a context menu. Inside the box's right edge the box grows, about its
+    // center, until the centered label and the gear both fit; outside it, the box holds only
+    // the label and the slot.
+    const lv_font_t* icon_font = interactive ? hub_gear_font(height) : nullptr;
     int32_t gear_w = 0;
     int32_t gear_h = 0;
+    int32_t label_w = 0;
+    if (label && label[0] && font) {
+        lv_point_t lbl_sz;
+        lv_text_get_size(&lbl_sz, label, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        label_w = lbl_sz.x;
+    }
     if (icon_font) {
         gear_h = lv_font_get_line_height(icon_font);
         lv_point_t gear_sz;
         lv_text_get_size(&gear_sz, ICON_SETTINGS, icon_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
         gear_w = gear_sz.x > 0 ? gear_sz.x : gear_h; // defensive fallback
-        int32_t label_w = 0;
-        if (label && label[0] && font) {
-            lv_point_t lbl_sz;
-            lv_text_get_size(&lbl_sz, label, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-            label_w = lbl_sz.x;
-        }
-        width = LV_MAX(width, label_w + 2 * (gear_w + 2 * kGearPad));
     }
+    const int32_t gear_in = icon_font && !gear_outside ? gear_w + 2 * kGearPad : 0;
+    width = gear_outside ? LV_MAX(width, label_w + 2 * kLabelPad + slot_w)
+            : icon_font  ? LV_MAX(width, label_w + 2 * gear_in + slot_w)
+                         : width;
 
     // Background
     lv_draw_fill_dsc_t fill_dsc;
@@ -114,7 +134,13 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     border_dsc.radius = radius;
     lv_draw_border(layer, &border_dsc, &box_area);
 
-    // Label
+    // The slot stands at the box's right end, left of a gear inside it.
+    const int32_t slot_right = box_area.x2 - gear_in;
+    if (extras)
+        extras->slot = {slot_right - slot_w, box_area.y1, slot_right, box_area.y2};
+
+    // Label: centered in what the slot and a gear inside the box leave on their left; with
+    // neither, in the box.
     if (label && label[0] && font) {
         lv_draw_label_dsc_t label_dsc;
         lv_draw_label_dsc_init(&label_dsc);
@@ -124,10 +150,13 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         label_dsc.text = label;
 
         int32_t font_h = lv_font_get_line_height(font);
-        lv_area_t label_area = {cx - width / 2, cy - font_h / 2, cx + width / 2, cy + font_h / 2};
+        const int32_t right = slot_w > 0 ? slot_right - slot_w : box_area.x2;
+        const int32_t left = slot_w > 0 ? box_area.x1 + gear_in : box_area.x1;
+        lv_area_t label_area = {left, cy - font_h / 2, right, cy + font_h / 2};
         lv_draw_label(layer, &label_dsc, &label_area);
     }
 
+    int32_t gear_right = box_area.x2;
     if (icon_font) {
         lv_draw_label_dsc_t gear_dsc;
         lv_draw_label_dsc_init(&gear_dsc);
@@ -136,67 +165,97 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         gear_dsc.opa = LV_OPA_COVER;
         gear_dsc.text = ICON_SETTINGS;
         gear_dsc.align = LV_TEXT_ALIGN_RIGHT;
-        lv_area_t gear_area = {box_area.x1, cy - gear_h / 2, box_area.x2 - kGearPad,
-                               cy + gear_h / 2};
+        if (gear_outside)
+            gear_right = box_area.x2 + 2 * kGearPad + gear_w;
+        lv_area_t gear_area = {box_area.x1, cy - gear_h / 2,
+                               gear_outside ? gear_right : box_area.x2 - kGearPad, cy + gear_h / 2};
         lv_draw_label(layer, &gear_dsc, &gear_area);
     }
+    if (extras)
+        extras->gear_right = gear_right;
     return width;
 }
 
-void draw_offpage_stubs(const RenderCtx& ctx, const LinearHubFrame& f) {
-    const ThemeCache& theme = ctx.data->theme;
-    for (const OffpageStub& stub : f.stubs) {
+void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
+    FilamentPathData* data = ctx.data;
+    const ThemeCache& theme = data->theme;
+    data->hits.offpage_valid[0] = data->hits.offpage_valid[1] = false;
+    const lv_font_t* font = theme.label_font;
+    if (!font || !data->hits.hub_valid)
+        return;
+    const lv_area_t hub = data->hits.hub;
+    const int32_t pad = LV_MAX(4, f.hub_h / 4);
+    const int32_t gap = f.sensor_r + 2;
+    const int32_t h = f.hub_h;
+    const lv_font_t* icon_font = theme_manager_get_font("icon_font_sm");
+    const char* glyph = helix::ui::icon::lookup_codepoint("heat_wave");
+    const auto text_w = [](const char* text, const lv_font_t* fnt) {
+        lv_point_t size;
+        lv_text_get_size(&size, text, fnt, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        return size.x;
+    };
+    for (int side = 0; side < 2; ++side) {
+        const OffpageStub& stub = f.stubs[side];
         if (!stub.present)
             continue;
-
-        lv_draw_line_dsc_t line;
-        lv_draw_line_dsc_init(&line);
-        line.color = theme.color_idle;
-        line.width = theme.line_width_idle;
-        line.opa = LV_OPA_COVER;
-        // LVGL's software renderer dashes only horizontal and vertical lines, so the dashes
-        // are cut here: one phase runs the whole stub, through both bends.
-        for (const pg::DashPiece& piece :
-             pg::dash_polyline(stub.pts, 4, (float)(theme.line_width_idle * 3),
-                               (float)(theme.line_width_idle * 2))) {
-            line.p1.x = piece.a.x;
-            line.p1.y = piece.a.y;
-            line.p2.x = piece.b.x;
-            line.p2.y = piece.b.y;
-            lv_draw_line(ctx.layer, &line);
+        const int32_t glyph_w = stub.drying && icon_font && glyph ? text_w(glyph, icon_font) : 0;
+        const int32_t extra = glyph_w > 0 ? glyph_w + pad / 2 : 0;
+        // "+2 units" where it fits beside the hub, inside the canvas and clear of the edge
+        // controls on the hub's rows; "+2" where it does not.
+        const bool shares_rows = data->keepout_y1 <= data->keepout_y0 ||
+                                 (hub.y2 >= data->keepout_y0 && hub.y1 <= data->keepout_y1);
+        const int32_t keep = shares_rows ? data->edge_reserve : 0;
+        const int32_t min_x = ctx.geo.x_off + keep;
+        const int32_t max_x = ctx.geo.x_off + ctx.geo.width - keep;
+        std::string text = "+" + offpage_label_text(stub.count);
+        int32_t w = text_w(text.c_str(), font) + 2 * pad + extra;
+        lv_area_t chip = offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
+        const bool clear = side == 0 ? chip.x2 <= hub.x1 - gap / 2 : chip.x1 >= hub.x2 + gap / 2;
+        if (!clear) {
+            text = "+" + std::to_string(stub.count);
+            w = text_w(text.c_str(), font) + 2 * pad + extra;
+            chip = offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
         }
 
-        const lv_font_t* font = theme.label_font;
-        if (!font || !stub.labeled)
-            continue;
-        int32_t x = stub.label_x;
-        if (stub.glyph_w > 0) {
-            const lv_font_t* icon_font = theme_manager_get_font("icon_font_sm");
-            const char* glyph = helix::ui::icon::lookup_codepoint("heat_wave");
-            if (icon_font && glyph) {
-                lv_draw_label_dsc_t glyph_dsc;
-                lv_draw_label_dsc_init(&glyph_dsc);
-                glyph_dsc.color = theme.color_warning;
-                glyph_dsc.font = icon_font;
-                glyph_dsc.text = glyph;
-                const int32_t h = lv_font_get_line_height(icon_font);
-                lv_area_t area = {x, stub.label_cy - h / 2, x + stub.glyph_w,
-                                  stub.label_cy + h / 2};
-                lv_draw_label(ctx.layer, &glyph_dsc, &area);
-            }
-            x += stub.glyph_w + (f.sensor_r + 2);
+        lv_draw_fill_dsc_t fill;
+        lv_draw_fill_dsc_init(&fill);
+        fill.color = theme.color_hub_bg;
+        fill.opa = LV_OPA_COVER;
+        fill.radius = LV_RADIUS_CIRCLE;
+        lv_draw_fill(ctx.layer, &fill, &chip);
+        lv_draw_border_dsc_t border;
+        lv_draw_border_dsc_init(&border);
+        border.color = theme.color_hub_border;
+        border.width = 1;
+        border.radius = LV_RADIUS_CIRCLE;
+        lv_draw_border(ctx.layer, &border, &chip);
+
+        int32_t x = chip.x1 + pad;
+        if (glyph_w > 0) {
+            lv_draw_label_dsc_t glyph_dsc;
+            lv_draw_label_dsc_init(&glyph_dsc);
+            glyph_dsc.color = theme.color_warning;
+            glyph_dsc.font = icon_font;
+            glyph_dsc.text = glyph;
+            const int32_t gh = lv_font_get_line_height(icon_font);
+            const int32_t cy = (chip.y1 + chip.y2) / 2;
+            lv_area_t area = {x, cy - gh / 2, x + glyph_w, cy + gh / 2};
+            lv_draw_label(ctx.layer, &glyph_dsc, &area);
+            x += extra;
         }
-        const std::string text = offpage_label_text(stub.count);
-        lv_draw_label_dsc_t label_dsc;
-        lv_draw_label_dsc_init(&label_dsc);
-        label_dsc.color = theme.color_muted;
-        label_dsc.font = font;
-        label_dsc.text = text.c_str();
-        label_dsc.text_local = true;
-        const int32_t h = lv_font_get_line_height(font);
-        lv_area_t area = {x, stub.label_cy - h / 2, stub.label_x + stub.label_w + 4,
-                          stub.label_cy + h / 2};
-        lv_draw_label(ctx.layer, &label_dsc, &area);
+        lv_draw_label_dsc_t label;
+        lv_draw_label_dsc_init(&label);
+        label.color = theme.color_text;
+        label.font = font;
+        label.text = text.c_str();
+        label.text_local = true;
+        const int32_t lh = lv_font_get_line_height(font);
+        const int32_t cy = (chip.y1 + chip.y2) / 2;
+        lv_area_t area = {x, cy - lh / 2, chip.x2 - pad + 1, cy + lh / 2};
+        lv_draw_label(ctx.layer, &label, &area);
+
+        data->hits.offpage[side] = chip;
+        data->hits.offpage_valid[side] = true;
     }
 }
 
@@ -315,11 +374,7 @@ void tension_spring(lv_layer_t* layer, int32_t x1, int32_t x2, int32_t y, int32_
 } // namespace
 
 float buffer_tension_position(const FilamentPathData& d) {
-    if (d.buffer_bias > -1.5f)
-        return std::clamp(d.buffer_bias, -1.0f, 1.0f);
-    return d.buffer_state == 1   ? kSwitchedBufferBias
-           : d.buffer_state == 2 ? -kSwitchedBufferBias
-                                 : 0.0f;
+    return helix::ui::buffer_meter_position(d.buffer_bias, d.buffer_state);
 }
 
 lv_color_t buffer_thumb_color(const FilamentPathData& d) {
@@ -335,7 +390,7 @@ lv_color_t buffer_thumb_color(const FilamentPathData& d) {
 }
 
 void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
-                         lv_area_t* hit) {
+                         lv_area_t* hit, int32_t max_w) {
     const FilamentPathData& d = *ctx.data;
     const ThemeCache& t = d.theme;
     lv_layer_t* layer = ctx.layer;
@@ -343,7 +398,7 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
     const lv_color_t thumb_color = buffer_thumb_color(d);
 
     const int32_t stroke = cap_h >= 16 ? 2 : 1;
-    const BufferControlGeometry geo = buffer_control_geometry(cap_h);
+    const BufferControlGeometry geo = buffer_control_geometry(cap_h, max_w);
     const int32_t half = geo.half;
     const int32_t cell = geo.cell;
     const int32_t radius = cap_h / 2;
@@ -388,7 +443,35 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
     tension_spring(layer, bx - glyph_w / 2 + 1, bx + glyph_w / 2 - 1, cy, LV_MAX(2, glyph_w / 4), 3,
                    t.color_text, stroke);
 
-    *hit = buffer_control_hit(cx, cy, cap_h);
+    *hit = buffer_control_hit(cx, cy, cap_h, max_w);
+}
+
+namespace {
+// The meter's fill for the buffer's state (buffer_meter_tone).
+lv_color_t hub_meter_color(const FilamentPathData& d) {
+    switch (helix::ui::buffer_meter_tone(d.buffer_fault_state >= 1, buffer_tension_position(d))) {
+    case helix::ui::BufferMeterTone::Fault:
+        return d.theme.color_error;
+    case helix::ui::BufferMeterTone::Compressed:
+        return d.theme.color_accent;
+    case helix::ui::BufferMeterTone::Expanded:
+        return d.theme.color_warning;
+    case helix::ui::BufferMeterTone::Centered:
+        break;
+    }
+    return d.theme.color_success;
+}
+} // namespace
+
+int32_t hub_buffer_glyph_width(int32_t hub_h) {
+    return helix::ui::buffer_meter_slot_width(hub_h);
+}
+
+void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot) {
+    const FilamentPathData& d = *ctx.data;
+    helix::ui::draw_buffer_meter(
+        ctx.layer, slot, buffer_tension_position(d),
+        {d.theme.color_bg, d.theme.color_hub_border, d.theme.color_text, hub_meter_color(d)});
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)

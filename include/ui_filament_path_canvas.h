@@ -159,6 +159,21 @@ void ui_filament_path_canvas_set_slot_width(lv_obj_t* obj, int32_t width);
  */
 void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid);
 
+/// The slot grid the canvas lays its lanes out from, or nullptr before one is set.
+lv_obj_t* ui_filament_path_canvas_get_slot_grid(lv_obj_t* obj);
+
+/// Lanes that leave a unit's drawing: @p on, whether the drawing shows the lanes' prep sensors
+/// (@p draws_prep: no prep band on the tubes then), the slope of the unit's bottom edge (dy
+/// over dx) each load sensor's marker lies along, and which lanes' load sensors report a
+/// fault (@p load_fault, @p n lanes). Only faults show.
+void ui_filament_path_canvas_set_art_sensors(lv_obj_t* obj, bool on, bool draws_prep,
+                                             float edge_slope, const bool* load_fault, int n);
+
+/// How much taller the path at its least height grows, in pixels, as the unit above it (and so
+/// its lanes' spread from the hub) grows by a fraction e: this times e. What the hub fan's
+/// flattest allowed slope asks of the lanes that run sideways into the hub; 0 when none do.
+float ui_filament_path_canvas_fan_growth(lv_obj_t* obj);
+
 /**
  * @brief Set the active slot (whose path is highlighted)
  *
@@ -378,38 +393,37 @@ void ui_filament_path_canvas_set_buffer_callback(lv_obj_t* obj, filament_path_bu
 /**
  * @brief Set the units of this unit's hub that sit on other pages of a paging screen
  *
- * On a HUB layout each non-zero side draws one dashed stub on the hub: a hint of a lane
- * running outward, labeled "N units", with a drying glyph before the label when one of
- * them is drying. The hub box is widened to hold the stubs' entries.
+ * On a HUB layout each non-zero side draws a chip beside the hub, "+N units", with a drying
+ * glyph before the text when one of them is drying; a tap on it reaches the callback
+ * ui_filament_path_canvas_set_offpage_callback() registers.
  *
- * @param before units on earlier pages (the stub left of the hub); 0 for none
+ * @param before units on earlier pages (the chip left of the hub); 0 for none
  * @param before_drying one of those is drying
- * @param after units on later pages (the stub right of the hub); 0 for none
+ * @param after units on later pages (the chip right of the hub); 0 for none
  * @param after_drying one of those is drying
  */
 void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool before_drying,
                                                int after, bool after_drying);
 
+namespace helix::ui {
+struct PathViewScale;
+}
 /**
- * @brief Keep the hub where it is from one unit to the next
+ * @brief Size the hub, buffer, tube, sensors and head from one view scale
  *
- * For a screen that pages through the units of one hub. With @p lanes > 0 the hub, buffer
- * and toolhead stand on the widget's center line (not the center of the shown unit's
- * spools) and the hub box is sized for @p lanes lanes at @p lane_pitch px apart (0 takes
- * the shown unit's own pitch), so the box is the same whichever unit is shown and swapping
- * the unit swaps its lanes and nothing downstream. 0 lanes centers the hub on the spools
- * and sizes it for the unit.
+ * The head keeps the scale's size at every canvas height (it never shrinks to make room), and
+ * a scale with buffer_in_hub draws the buffer's state inside the hub box. A scale with unit 0
+ * returns the widget to its theme sizes.
  */
-void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch = 0);
+void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::PathViewScale& scale);
 
 /**
  * @brief Keep @p px columns clear at both ends of the widget, over a band of rows
  *
  * Controls overlaid on the widget's edges (the paging arrows) sit there; the off-page
- * stubs and their labels stop short of them wherever they would share rows with a
- * control. @p y_top and @p y_bottom are the rows the controls span, in absolute display
- * coordinates; with @p y_bottom <= @p y_top the reserve holds on every row. 0 px clears
- * nothing.
+ * chips stop short of them wherever they would share rows with a control. @p y_top and @p y_bottom
+ * are the rows the controls span, in absolute display coordinates; with @p y_bottom <= @p y_top the
+ * reserve holds on every row. 0 px clears nothing.
  */
 void ui_filament_path_canvas_set_edge_reserve(lv_obj_t* obj, int32_t px, int32_t y_top = 0,
                                               int32_t y_bottom = 0);
@@ -660,6 +674,16 @@ void ui_filament_path_canvas_set_toolhead_sensor(lv_obj_t* obj, bool has_sensor)
 typedef void (*hub_callback_t)(lv_point_t click_pt, void* user_data);
 void ui_filament_path_canvas_set_hub_callback(lv_obj_t* obj, hub_callback_t cb, void* user_data);
 
+/// A tap on an off-page chip beside the hub: @p side 0 for the units on earlier pages, 1 for
+/// later ones.
+typedef void (*offpage_callback_t)(int side, void* user_data);
+void ui_filament_path_canvas_set_offpage_callback(lv_obj_t* obj, offpage_callback_t cb,
+                                                  void* user_data);
+
+/// Whether a tap on the hub has actions to offer (a selector's menu): only then does the hub
+/// carry its gear. True until set.
+void ui_filament_path_canvas_set_hub_actions(lv_obj_t* obj, bool has_actions);
+
 #ifdef __cplusplus
 }
 #endif
@@ -728,6 +752,8 @@ struct ParallelTapLayout {
     int32_t sensor_y = 0;        ///< A lane owns at least everything above this row
     int32_t lane_half_width = 0; ///< A lane's reach either side of its column
     lv_area_t head{};            ///< A head glyph's drawn bounds, x relative to its column
+    /// Each head's center x where the heads stand apart from their lanes; null: under them.
+    const int32_t* head_x = nullptr;
 };
 
 /**

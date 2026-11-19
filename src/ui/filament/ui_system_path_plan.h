@@ -63,8 +63,8 @@ struct SystemPathData {
     // box the unit view draws for the system reading, so its label and severity
     // come from ams_detail_buffer_box().
     bool has_buffer = false;
-    int buffer_fault = 0; // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
-    char buffer_label[8] = {};
+    int buffer_fault = 0;         // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
+    float buffer_position = 0.0f; // buffer_meter_position(): +1 compressed .. -1 expanded
 
     // Per-unit hub (several-toolhead layout): units carrying the same non-zero
     // group are on one physical hub; 0 is a unit on a hub of its own. The plan
@@ -74,7 +74,7 @@ struct SystemPathData {
     // Per-unit buffer under that unit's hub, in the same terms as buffer_*.
     bool unit_has_buffer[kMaxUnits] = {};
     int unit_buffer_fault[kMaxUnits] = {};
-    char unit_buffer_label[kMaxUnits][8] = {};
+    float unit_buffer_position[kMaxUnits] = {};
 
     // Per-unit tool routing (mixed topology support)
     int unit_tool_count[kMaxUnits] = {};     // Tools per unit (BT=4, OpenAMS=1)
@@ -101,6 +101,8 @@ struct SystemPathData {
     lv_color_t color_error;
     lv_color_t color_bg;
     lv_color_t color_accent;
+    lv_color_t color_success; // the buffer meter's fill, centered
+    lv_color_t color_warning; // the buffer meter's fill, expanded
 
     ToolheadStyle toolhead_style = ToolheadStyle::DEFAULT; // effective style, read each draw
 
@@ -141,6 +143,13 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
 /// of the label font plus space_xs when that fits in @p room. When it does not,
 /// the box keeps @p base_h and @p labeled says to draw it without text.
 int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled);
+
+/// What a hub box says.
+inline constexpr const char* kHubLabel = "HUB";
+
+/// The width a hub box needs for its label, and for the buffer's meter beside it when
+/// @p with_buffer, in a box @p box_h tall; never less than two thirds of hub_width.
+int32_t junction_label_w(const SystemPathData& data, int32_t box_h, bool with_buffer);
 
 /// The single-toolhead buffer box on the trunk: its center, height and
 /// whether its label fits.

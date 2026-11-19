@@ -48,7 +48,9 @@ struct LaneImages {
     lv_obj_t* body = nullptr; ///< the lane's spool stack less its filament, when baked so
     lv_obj_t* glow = nullptr; ///< its spool's soft light, just behind it; hidden unless marked
     lv_obj_t* dim = nullptr;  ///< its spool's silhouette in the card's color; hidden unless marked
+    lv_obj_t* rim = nullptr;  ///< a dashed ring round its spool's near flange: a ghost's mark
     lv_color_t filament = {}; ///< the live filament color the tint takes
+    bool filled = false;      ///< the lane holds filament, so its tint and shading show
     UnitArtLaneMark mark;
 };
 
@@ -65,6 +67,9 @@ struct ArtData {
     lv_obj_t* glow = nullptr;  // WIDGET_PTR_OK: child of this widget, gone with it
     lv_draw_buf_t* glow_buf = nullptr;
     uint64_t glow_key = 0;
+    /// Rings round a pressed lane's flanges, drawn over the flat image so a press never
+    /// rebuilds it.
+    lv_obj_t* press = nullptr; // WIDGET_PTR_OK: child of this widget, gone with it
 
     const tray::UnitArtGeom* geom = nullptr; ///< where the drawing's spools stand
     int32_t mask_w = 0, mask_h = 0;
@@ -98,6 +103,9 @@ void box_blur(std::vector<uint8_t>& px, int line_len, int lines, int step, int l
         }
     }
 }
+
+void draw_ghost_rim(lv_event_t* e);
+void draw_sensor_faults(lv_event_t* e);
 
 ArtData* data_of(lv_obj_t* art) {
     return static_cast<ArtData*>(lv_obj_get_user_data(art));
@@ -158,6 +166,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->front = nullptr;
     data->glow = nullptr;
     data->glow_key = 0;
+    data->press = nullptr;
     data->carriage = nullptr;
     data->carriage_flat = nullptr;
     data->carriage_gate = 0;
@@ -212,12 +221,32 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
             lv_obj_set_name(images.dim, (name + "_dim").c_str());
             set_lane_visible(images.dim, false);
         }
+        if (marked) {
+            // A ghost's dashed rim, in the lane's own place in the depth: nearer lanes cover it.
+            images.rim = lv_obj_create(data->layers);
+            lv_obj_remove_style_all(images.rim);
+            lv_obj_set_size(images.rim, lv_pct(100), lv_pct(100));
+            lv_obj_set_clickable(images.rim, false);
+            lv_obj_set_name(images.rim, (name + "_rim").c_str());
+            lv_obj_set_user_data(images.rim, reinterpret_cast<void*>(static_cast<intptr_t>(lane)));
+            lv_obj_add_event_cb(images.rim, draw_ghost_rim, LV_EVENT_DRAW_MAIN, nullptr);
+            set_lane_visible(images.rim, false);
+        }
         // DECLARATIVE_OK: each lane's colour is per-widget live data.
         lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
         data->lanes[static_cast<size_t>(lane)] = images;
     }
     data->front = add_layer(data->layers, base + "_front.png");
     lv_obj_set_name(data->front, "front");
+    if (data->geom && data->tier == UnitArtTier::Full) {
+        // A faulted sensor shows over everything it is drawn in.
+        lv_obj_t* faults = lv_obj_create(data->layers);
+        lv_obj_remove_style_all(faults);
+        lv_obj_set_size(faults, lv_pct(100), lv_pct(100));
+        lv_obj_set_clickable(faults, false);
+        lv_obj_set_name(faults, "sensor_faults");
+        lv_obj_add_event_cb(faults, draw_sensor_faults, LV_EVENT_DRAW_MAIN, nullptr);
+    }
     if (data->track) {
         data->carriage = add_layer(data->layers, base + "_carriage.png");
         data->carriage_flat = lv_image_create(art);
@@ -229,17 +258,26 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     data->built_lanes = lane_count;
 }
 
-constexpr lv_opa_t kDimOpa = 150; ///< how far a missing bay's spool fades into the card
+constexpr lv_opa_t kDimOpa = 150;         ///< how far a missing bay's spool fades into the card
+constexpr lv_opa_t kGhostAlpha = 110;     ///< how opaque a ghost spool is drawn
+constexpr lv_opa_t kGhostGray = 70;       ///< how much of its color a ghost keeps against gray
+constexpr lv_opa_t kSensorFaultOpa = 225; ///< how strongly a faulted sensor's region reddens
+constexpr lv_opa_t kSensorSeenOpa = 110;  ///< the subtle tint of a sensor that sees filament
 
 /// Color a lane's stack. A lane with no silhouette of its own dims by fading each layer of its
 /// stack toward the card, which over an opaque pixel is the card laid over it at kDimOpa.
 void apply_lane_colors(LaneImages& lane) {
     const bool fade = lane.mark.dim && !lane.dim;
     const lv_color_t card = theme_manager_get_color("card_bg");
+    // A ghost keeps a trace of its color, grayed, and is see-through: what stands behind it
+    // shows.
+    const lv_color_t gray =
+        lv_color_mix(theme_manager_get_color("text_muted"), lane.filament, kGhostGray);
+    const lv_color_t filament = lane.mark.ghost ? gray
+                                : fade          ? lv_color_mix(card, lane.filament, kDimOpa)
+                                                : lane.filament;
     // DECLARATIVE_OK: each lane's colour is per-widget live data.
-    lv_obj_set_style_image_recolor(
-        lane.color, fade ? lv_color_mix(card, lane.filament, kDimOpa) : lane.filament,
-        LV_PART_MAIN);
+    lv_obj_set_style_image_recolor(lane.color, filament, LV_PART_MAIN);
     for (lv_obj_t* layer : {lane.body, lane.shade}) {
         if (!layer)
             continue;
@@ -247,6 +285,17 @@ void apply_lane_colors(LaneImages& lane) {
         lv_obj_set_style_image_recolor(layer, card, LV_PART_MAIN);
         lv_obj_set_style_image_recolor_opa(layer, fade ? kDimOpa : LV_OPA_TRANSP, LV_PART_MAIN);
     }
+    for (lv_obj_t* layer : {lane.body, lane.color, lane.shade}) {
+        if (layer)
+            // DECLARATIVE_OK: per-lane state with no subject behind it.
+            lv_obj_set_style_image_opa(layer, lane.mark.ghost ? kGhostAlpha : LV_OPA_COVER,
+                                       LV_PART_MAIN);
+    }
+    // A bay with no spool draws none: its spool, filament and shading all go.
+    if (lane.body)
+        set_lane_visible(lane.body, !lane.mark.absent);
+    set_lane_visible(lane.color, lane.filled && !lane.mark.absent);
+    set_lane_visible(lane.shade, lane.filled && !lane.mark.absent);
 }
 
 /// The lanes' marks, folded into the flat image's key so a new mark builds a new image.
@@ -255,6 +304,9 @@ uint64_t marks_key(const ArtData* data) {
     for (const LaneImages& lane : data->lanes) {
         key = (key ^ (lane.mark.glow ? lv_color_to_u32(lane.mark.color) + 1u : 0u)) * kFnvPrime;
         key = (key ^ (lane.mark.dim ? 1u : 0u)) * kFnvPrime;
+        key = (key ^ (lane.mark.absent ? 2u : 0u) ^ (lane.mark.ghost ? 4u : 0u) ^
+               (lane.mark.prep_fault ? 8u : 0u)) *
+              kFnvPrime;
     }
     key = (key ^ lv_color_to_u32(theme_manager_get_color("card_bg"))) * kFnvPrime;
     return key;
@@ -269,6 +321,106 @@ Content content_of(const ArtData* data, int32_t w, int32_t h) {
     const float aspect = data->geom ? data->geom->aspect : 1.0f;
     const float dw = std::min((float)w, (float)h * aspect);
     return {((float)w - dw) / 2, ((float)h - dw / aspect) / 2, dw};
+}
+
+/// Draws rims round both of @p lane's spool's flanges in @p a, the drawing's area, each
+/// flange's disc of radius 1 in the lane's (ey, ez) basis: dashed and muted, or @p solid
+/// and bright.
+void draw_flange_rims(lv_layer_t* layer, const lv_area_t& a, const ArtData* data, int lane,
+                      bool solid) {
+    const Content c = content_of(data, lv_area_get_width(&a), lv_area_get_height(&a));
+    const tray::ArtLaneGeom& g = data->geom->lane[lane];
+    float fx = g.near_x, fy = g.near_y;
+    const auto at = [&](float t) {
+        const float sx = fx + g.ey_x * std::cos(t) + g.ez_x * std::sin(t);
+        const float sy = fy + g.ey_y * std::cos(t) + g.ez_y * std::sin(t);
+        return lv_point_precise_t{(lv_value_precise_t)(a.x1 + c.x + sx * c.w),
+                                  (lv_value_precise_t)(a.y1 + c.y + sy * c.w)};
+    };
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init(&line);
+    line.color = theme_manager_get_color(solid ? "text" : "text_muted");
+    line.width = solid ? 2 : c.w > 300 ? 2 : 1;
+    line.round_start = line.round_end = true;
+    constexpr int kDashes = 18;
+    constexpr int kSteps = 3; // per dash, so a dash follows the curve
+    for (const auto& [x, y] : {std::pair{g.far_x, g.far_y}, std::pair{g.near_x, g.near_y}}) {
+        fx = x;
+        fy = y;
+        for (int d = 0; d < kDashes; ++d) {
+            const float t0 = 2.0f * 3.14159265f * (float)d / kDashes;
+            // Half the period, dash then gap; a solid rim fills the whole period.
+            const float span = (solid ? 2.0f : 1.0f) * 3.14159265f / kDashes;
+            for (int k = 0; k < kSteps; ++k) {
+                line.p1 = at(t0 + span * (float)k / kSteps);
+                line.p2 = at(t0 + span * (float)(k + 1) / kSteps);
+                lv_draw_line(layer, &line);
+            }
+        }
+    }
+}
+
+/// A ghost lane's layer: dashed rims in the lane's own place in the depth.
+void draw_ghost_rim(lv_event_t* e) {
+    lv_obj_t* rim = lv_event_get_target_obj(e);
+    lv_obj_t* art = lv_obj_get_parent(lv_obj_get_parent(rim));
+    const ArtData* data = art ? data_of(art) : nullptr;
+    const int lane = (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(rim));
+    if (!data || !data->geom || lane < 0 || lane >= data->geom->lanes)
+        return;
+    lv_area_t a;
+    lv_obj_get_coords(rim, &a);
+    draw_flange_rims(lv_event_get_layer(e), a, data, lane, /*solid=*/false);
+}
+
+/// Over the whole drawing: solid rims round each lane a finger is down on.
+void draw_press_outline(lv_event_t* e) {
+    lv_obj_t* press = lv_event_get_target_obj(e);
+    const ArtData* data = data_of(lv_obj_get_parent(press));
+    if (!data || !data->geom)
+        return;
+    lv_area_t a;
+    lv_obj_get_coords(press, &a);
+    for (int lane = 0; lane < data->geom->lanes && lane < (int)data->lanes.size(); ++lane)
+        if (data->lanes[static_cast<size_t>(lane)].mark.outline)
+            draw_flange_rims(lv_event_get_layer(e), a, data, lane, /*solid=*/true);
+}
+
+/// Draws each lane's drawn prep sensor over the whole drawing: red where it reports a fault,
+/// tinted the lane's filament color where it sees filament, left as drawn while empty.
+void draw_sensor_faults(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    lv_obj_t* art = lv_obj_get_parent(lv_obj_get_parent(obj));
+    const ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom)
+        return;
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    const Content c = content_of(data, lv_area_get_width(&a), lv_area_get_height(&a));
+    lv_draw_triangle_dsc_t tri;
+    lv_draw_triangle_dsc_init(&tri);
+    lv_layer_t* layer = lv_event_get_layer(e);
+    for (size_t i = 0; i < data->lanes.size() && (int)i < data->geom->lanes; ++i) {
+        const tray::ArtLaneGeom& g = data->geom->lane[i];
+        const LaneImages& lane = data->lanes[i];
+        const bool fault = lane.mark.prep_fault;
+        const bool seen = lane.filled && !lane.mark.absent;
+        if ((!fault && !seen) || g.prep_n < 3)
+            continue;
+        tri.color = fault ? theme_manager_get_color("danger") : lane.filament;
+        tri.opa = fault ? kSensorFaultOpa : kSensorSeenOpa;
+        const auto pt = [&](int k) {
+            return lv_point_precise_t{(lv_value_precise_t)(a.x1 + c.x + g.prep[2 * k] * c.w),
+                                      (lv_value_precise_t)(a.y1 + c.y + g.prep[2 * k + 1] * c.w)};
+        };
+        // The region is convex: a fan from its first corner fills it.
+        for (int k = 1; k + 1 < g.prep_n; ++k) {
+            tri.p[0] = pt(0);
+            tri.p[1] = pt(k);
+            tri.p[2] = pt(k + 1);
+            lv_draw_triangle(layer, &tri);
+        }
+    }
 }
 
 /// Masks lane @p i's color and shading to the filament wound at @p pct percent, or lifts
@@ -396,6 +548,8 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     const bool glow_shown = data->glow && !lv_obj_is_hidden(data->glow);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, true); // the glow must not bake into the drawing
+    if (data->press)
+        lv_obj_set_hidden(data->press, true); // nor a press
     // The carriage moves on its own, so it stays out of the flat image.
     if (data->carriage) {
         lv_obj_set_hidden(data->carriage, true);
@@ -404,6 +558,8 @@ void flatten(lv_obj_t* art, ArtData* data, uint64_t key) {
     lv_draw_buf_t* snap = lv_snapshot_take(art, LV_COLOR_FORMAT_ARGB8888);
     if (glow_shown)
         lv_obj_set_hidden(data->glow, false);
+    if (data->press)
+        lv_obj_set_hidden(data->press, false);
     if (!snap) {
         if (data->carriage)
             lv_obj_set_hidden(live_carriage(data), false);
@@ -648,8 +804,7 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         apply_fill_mask(data, static_cast<int>(i), lane.filled ? pct : 100, w, h);
         key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
         key = (key ^ static_cast<uint64_t>(data->lanes[i].mask_pct)) * kFnvPrime;
-        set_lane_visible(data->lanes[i].color, lane.filled);
-        set_lane_visible(data->lanes[i].shade, lane.filled);
+        data->lanes[i].filled = lane.filled;
         if (lane.filled)
             data->lanes[i].filament = lv_color_hex(lane.color);
         apply_lane_colors(data->lanes[i]);
@@ -686,6 +841,16 @@ bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& 
     spool = {px(g.box_x0), py(g.box_y0), px(g.box_x1), py(g.box_y1)};
     outlet = {px(g.outlet_x), py(g.outlet_y)};
     return true;
+}
+
+bool unit_art_draws_prep(lv_obj_t* art) {
+    ArtData* data = art ? data_of(art) : nullptr;
+    if (!data || !data->geom)
+        return false;
+    for (int i = 0; i < data->geom->lanes; ++i)
+        if (data->geom->lane[i].prep_n >= 3)
+            return true;
+    return false;
 }
 
 bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out) {
@@ -777,6 +942,8 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
             lv_obj_set_style_image_recolor(lane.glow, lane.mark.color, LV_PART_MAIN);
             lv_obj_set_style_image_recolor_opa(lane.glow, LV_OPA_COVER, LV_PART_MAIN);
         }
+        if (lane.rim)
+            set_lane_visible(lane.rim, lane.mark.ghost);
         if (lane.dim) {
             set_lane_visible(lane.dim, lane.mark.dim);
             // DECLARATIVE_OK: a missing bay fades into the card it stands on.
@@ -787,6 +954,17 @@ void unit_art_set_lane_marks(lv_obj_t* art, const std::vector<UnitArtLaneMark>& 
         apply_lane_colors(lane);
     }
     flatten(art, data, data->lane_key ^ marks_key(data));
+    if (!data->press && data->geom) {
+        data->press = lv_obj_create(art);
+        lv_obj_remove_style_all(data->press);
+        lv_obj_set_size(data->press, lv_pct(100), lv_pct(100));
+        lv_obj_set_name(data->press, "press_outline");
+        lv_obj_set_clickable(data->press, false);
+        // DECLARATIVE_OK: a draw hook; the outline follows the drawing's own geometry
+        lv_obj_add_event_cb(data->press, draw_press_outline, LV_EVENT_DRAW_MAIN, nullptr);
+    }
+    if (data->press)
+        lv_obj_invalidate(data->press);
 }
 
 UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane) {

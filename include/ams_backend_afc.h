@@ -1438,7 +1438,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     std::set<std::string> acknowledged_lane_errors_;
 
     /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
-    [[nodiscard]] SlotError lane_error_locked() const;
+    /// @p lane's error from AFC's latest message, with the lane sensor that message names.
+    [[nodiscard]] SlotError lane_error_locked(const std::string& lane) const;
+    /// Errored lanes whose error places no sensor read AFC's latest message again: the
+    /// sentence can arrive in a later frame than the lane's Error status.
+    void rederive_lane_sensors_locked();
 
     /// Acknowledges the errors @p lanes still show, once AFC accepted the
     /// RESET_FAILURE that cleared them. Main thread, mutex_ not held.

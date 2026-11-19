@@ -27,6 +27,7 @@
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
+#include "src/ui/filament/ui_ams_detail_labels.h"
 #include "src/ui/filament/ui_ams_detail_tray.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
@@ -68,6 +69,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
   public:
     /// A tool changer has no housing, and flat spools stand in none, so build()
     /// finds no tray for either.
+    static constexpr int kAllLanesEmpty = -2;
     void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false,
                bool openams = false, bool buffer = false, int empty_lane = -1) {
         helix::Config::get_instance()->set<std::string>("/ams/spool_style", flat_ ? "flat" : "3d");
@@ -86,13 +88,10 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         REQUIRE(mock->start().success());
         if (buffer)
             mock->set_unit_buffer_health(0, BufferHealth{});
-        if (empty_lane >= 0) {
-            SlotInfo info = mock->get_slot_info(empty_lane);
-            info.status = SlotStatus::EMPTY;
-            info.material.clear();
-            info.color_name.clear();
-            REQUIRE(helix::test::apply_edit(*mock, empty_lane, info).success());
-            mock->force_slot_status(empty_lane, SlotStatus::EMPTY);
+        // A bare bay: no filament and nothing known about a spool; kAllLanesEmpty bares them all.
+        for (int i = 0; i < gates; ++i) {
+            if (empty_lane == i || empty_lane == kAllLanesEmpty)
+                mock->force_slot_cleared(i);
         }
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);
@@ -190,6 +189,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                 continue;
             lv_area_t a;
             lv_obj_get_coords(badge, &a);
+            lv_obj_get_transformed_area(badge, &a, LV_OBJ_POINT_TRANSFORM_FLAG_RECURSIVE);
             badges.push_back(a);
         }
         REQUIRE(badges.size() >= 2);
@@ -617,6 +617,13 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS tool changer: each tube hangs from ju
         // The tube's cap stands on the flange: clear of the spool, with no gap.
         CHECK((float)tube_top >= flange_bottom - 1);
         CHECK((float)tube_top <= flange_bottom + 1);
+        // With no unit around them the spools still grow to the view's scale where it is
+        // larger than the theme's spool.
+        const int32_t theme = theme_manager_get_spacing("ams_slot_spool_size");
+        if (size.first == 800)
+            CHECK(lv_area_get_width(&a) > theme);
+        else
+            CHECK(lv_area_get_width(&a) >= theme);
     }
 }
 
@@ -804,13 +811,17 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
-                 "EMU: a lid per box, spools lifted off its base, numbers right of each lane",
+                 "EMU: a lid per box, spools lifted off its base, a number by each lane",
                  "[ams][tray][ui_integration][unit-art]") {
     unit_name_ = "EMU EMU_1";
     build("passive", 2); // a reading for the whole unit, which would put one lid over the row
     CHECK(lid_ == tray::LidMode::PerLane);
     lv_obj_t* badges = lv_obj_find_by_name(panel_obj_, "badge_layer");
     REQUIRE(badges != nullptr);
+    // Over the baked art each number stands centered over its own lane; over the drawn box,
+    // right of it.
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    const bool on_art = drawing && !lv_obj_is_hidden(drawing);
     for (int i = 0; i < 2; ++i) {
         CAPTURE(i);
         lv_area_t sa, ba;
@@ -819,7 +830,10 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         const float flange_bottom =
             (sa.y1 + sa.y2) / 2.0f + tray::kSpoolFlangeRadius * lv_area_get_width(&sa) - origin_.y;
         CHECK(box_.fb - flange_bottom > tray::kSpoolFloorGap + 3);
-        CHECK(ba.x1 + ba.x2 > sa.x1 + sa.x2);
+        if (on_art)
+            CHECK(std::abs((ba.x1 + ba.x2) - (sa.x1 + sa.x2)) <= 2);
+        else
+            CHECK(ba.x1 + ba.x2 > sa.x1 + sa.x2);
     }
     lv_area_t g;
     lv_obj_get_coords(slot_grid_, &g);
@@ -1156,8 +1170,12 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(rows() == 1);
 
     // Lane 1 fills, with no unit refresh, with a name wider than the room between its
-    // neighbours: its label shows, in a second row that stays inside the unit row.
+    // neighbours: its label shows, in a second row that stays inside the unit row. A drawn
+    // unit that fills its column is laid out again a size smaller for the row, so the labels
+    // are read afresh.
     set_lane_live(1, "ABS-GF");
+    labels = over_lane_labels();
+    REQUIRE(labels.size() == 4);
     CHECK_FALSE(lv_obj_is_hidden(labels[1]));
     CHECK(at::s_tray.leader_count == ticks + 1);
     REQUIRE(rows() == 2);
@@ -1173,8 +1191,78 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 
     // And empty it again.
     set_lane_live(1, nullptr);
+    labels = over_lane_labels();
+    REQUIRE(labels.size() == 4);
     CHECK(lv_obj_is_hidden(labels[1]));
     CHECK(at::s_tray.leader_count == ticks);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: a unit with every lane empty stays below its column's top",
+                 "[ams][tray][ui_integration][unit-art]") {
+    // With no labels over it the drawing has nothing holding it down: the fit must keep its
+    // top on screen, not only the path's foot.
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
+          /*buffer=*/false, /*empty_lane=*/kAllLanesEmpty);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_t* column = container_;
+    while (column &&
+           !(lv_obj_get_name(column) && std::string(lv_obj_get_name(column)) == "left_column"))
+        column = lv_obj_get_parent(column);
+    REQUIRE(column != nullptr);
+    lv_area_t col, art, drawn;
+    lv_obj_get_coords(column, &col);
+    lv_obj_get_coords(drawing, &art);
+    REQUIRE(helix::ui::unit_art_drawn_area(drawing, drawn));
+    CHECK(art.y1 + drawn.y1 >= col.y1 - 2);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: lane numbers stand in one row, readable or as dots",
+                 "[ams][tray][ui_integration][unit-art][lane-badges]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    int dots = 0;
+    int32_t cy[4] = {};
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
+        REQUIRE(badge != nullptr);
+        lv_obj_t* number = lv_obj_find_by_name(badge, "slot_badge_label");
+        REQUIRE(number != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(badge, &a);
+        const int32_t full_w = lv_area_get_width(&a);
+        lv_obj_get_transformed_area(badge, &a, LV_OBJ_POINT_TRANSFORM_FLAG_RECURSIVE);
+        cy[i] = (a.y1 + a.y2) / 2;
+        if (lv_obj_get_style_opa(number, LV_PART_MAIN) == LV_OPA_TRANSP) {
+            // A dot, small and with no number.
+            ++dots;
+            CHECK(lv_area_get_width(&a) <= 10);
+        } else {
+            // A number no smaller than it reads.
+            CHECK(lv_area_get_width(&a) * 10 >= full_w * 7 - 10);
+        }
+    }
+    // One unit is all numbers or all dots, on one row along the unit's edge: no stairstep.
+    CHECK((dots == 0 || dots == 4));
+    for (int i = 1; i < 3; ++i) {
+        CAPTURE(i, cy[i - 1], cy[i], cy[i + 1]);
+        CHECK(std::abs(cy[i + 1] - 2 * cy[i] + cy[i - 1]) <= 2);
+    }
+    check_badges_apart(4);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap at any size",
@@ -1217,6 +1305,102 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap
     }
 }
 
+namespace {
+/// A backend whose own feeders have no housing (a Snapmaker's), carrying a unit a shell knows.
+class TraylessBackend : public AmsBackendMock {
+  public:
+    using AmsBackendMock::AmsBackendMock;
+    helix::BackendTraits traits() const override {
+        helix::BackendTraits t = AmsBackendMock::traits();
+        t.has_physical_tray = false;
+        return t;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "AMS unit view: a unit a shell knows has its tray on any backend",
+                 "[ams][tray][unit-art]") {
+    auto mock = std::make_unique<TraylessBackend>(4);
+    mock->set_afc_mode(true);
+    mock->set_ace_identity();
+    REQUIRE(mock->start().success());
+    REQUIRE_FALSE(mock->has_physical_tray());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    const auto info = AmsState::instance().system_info();
+    REQUIRE(info);
+    REQUIRE(helix::ui::tray::unit_shell_for(*info, 0) != nullptr);
+    CHECK(helix::ui::ams_detail_layout::unit_has_physical_tray(0));
+    AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots it was on",
+                 "[ams][tray][ui_integration][unit-art][lane-picker]") {
+    namespace at = helix::ui::ams_tray;
+    host_at(0);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_send_event(slot(1), LV_EVENT_PRESSED, nullptr);
+    REQUIRE(at::s_tray.pressed_lane == 1);
+    // A new lane count rebuilds the slots under the finger: no release reaches the old ones.
+    lv_obj_t* old = slot(1);
+    lv_subject_set_int(AmsState::instance().get_slot_count_subject(), 5);
+    process_lvgl(20);
+    CHECK(old != slot(1));
+    CHECK(at::s_tray.pressed_lane == -1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: lanes narrower than a finger are picked from a list",
+                 "[ams][tray][ui_integration][unit-art][lane-picker]") {
+    const int unit = GENERATE(0, 2); // Box Turtle, OpenAMS's AMS 2 Pro
+    const int size = GENERATE(range(0, kHostSizes));
+    CAPTURE(unit);
+    host_at(size);
+    unit_name_ = unit == 0 ? "Box Turtle 1" : "AMS2";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/unit == 2,
+          /*buffer=*/unit == 2);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    // Each lane's number stands centered over its outlet: their spacing is the lanes' pitch.
+    int32_t pitch = INT32_MAX;
+    for (int i = 1; i < 4; ++i) {
+        lv_area_t a, b;
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i - 1)), &a);
+        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &b);
+        pitch = std::min<int32_t>(pitch, std::abs((b.x1 + b.x2) - (a.x1 + a.x2)) / 2);
+    }
+    CAPTURE(pitch);
+    if (std::abs(pitch - 28) <= 1)
+        SKIP("pitch on the threshold");
+    const bool narrow = pitch < 28;
+    CHECK(lv_obj_is_clickable(drawing) == narrow);
+    for (int i = 0; i < 4; ++i)
+        CHECK(lv_obj_is_clickable(slot(i)) == !narrow);
+    if (!narrow)
+        return;
+    // A second backend numbers its lanes from 0 too; the picker lists only this unit's.
+    auto other = std::make_unique<AmsBackendMock>(4);
+    other->set_operation_delay(0);
+    other->start();
+    helix::AmsState::instance().add_backend(std::move(other));
+    lv_obj_send_event(drawing, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(20);
+    lv_obj_t* card = lv_obj_find_by_name(lv_screen_active(), "filament_picker_card");
+    REQUIRE(card != nullptr);
+    lv_obj_t* rows = lv_obj_find_by_name(card, "filament_picker_rows");
+    REQUIRE(rows != nullptr);
+    CHECK(lv_obj_get_child_count(rows) == 4);
+    lv_obj_delete(lv_obj_get_parent(card));
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit art: the path below gets the height its stack needs, the head on screen",
                  "[ams][tray][ui_integration][unit-art][art-fit]") {
@@ -1244,8 +1428,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     // At 480x272 even a unit at half its size leaves too little, and the head gives up the rest.
     CHECK(head.y2 <= screen.y2);
     CHECK(head.y2 <= cc.y2);
+    // A path a pixel or two past the foot still shows whole (the fit's slack).
     if (!smallest)
-        CHECK(lv_area_get_height(&cc) >= need);
+        CHECK(lv_area_get_height(&cc) >= need - 2);
     // The hub stands clear of every lane's number.
     auto* cd = helix::ui::fpath::get_data(canvas);
     REQUIRE((cd != nullptr && cd->hits.hub_valid));
@@ -1437,8 +1622,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         band_minus_start[i] = band - start;
         lv_area_t ba;
         lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &ba);
-        CHECK(ba.x1 > aa.x1 + outlet.x);
-        CHECK(std::abs((ba.y1 + ba.y2) / 2 - band) <= 1);
+        // The number stands on the unit's face, centered over its outlet, above the foot.
+        CHECK(std::abs((ba.x1 + ba.x2) / 2 - (aa.x1 + outlet.x)) <= 1);
+        CHECK((float)ba.y2 <= edge_y);
         // The lane's number sits centered in its circle.
         lv_obj_t* number =
             lv_obj_find_by_name(ui_ams_slot_get_status_badge(slot(i)), "slot_badge_label");
@@ -1488,37 +1674,6 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         lowest_start = std::max(lowest_start, start);
     }
     CHECK(path->lane_entry_offset + g.y1 == lowest_start);
-    // A number standing below the foot, past its own layer, is still drawn: by the path.
-    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
-    // The lowest number, which hangs past the unit row.
-    int lowest_lane = 0;
-    lv_area_t low;
-    lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(0)), &low);
-    for (int i = 1; i < 4; ++i) {
-        lv_area_t a;
-        lv_obj_get_coords(ui_ams_slot_get_status_badge(slot(i)), &a);
-        if (a.y2 > low.y2) {
-            low = a;
-            lowest_lane = i;
-        }
-    }
-    REQUIRE(low.y2 > cc.y2);
-    REQUIRE(canvas != nullptr);
-    lv_obj_t* screen = lv_obj_get_screen(canvas);
-    lv_area_t sc;
-    lv_obj_get_coords(screen, &sc);
-    auto badge_color_at = [&](bool shown) {
-        lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(lowest_lane)), !shown);
-        lv_draw_buf_t* shot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
-        REQUIRE(shot != nullptr);
-        const auto* px = static_cast<const uint8_t*>(
-            lv_draw_buf_goto_xy(shot, (low.x1 + low.x2) / 2 - sc.x1, low.y2 - 2 - sc.y1));
-        const uint32_t rgb = (uint32_t)px[2] << 16 | (uint32_t)px[1] << 8 | px[0];
-        lv_draw_buf_destroy(shot);
-        return rgb;
-    };
-    CHECK(badge_color_at(true) != badge_color_at(false));
-    lv_obj_set_hidden(ui_ams_slot_get_status_badge(slot(lowest_lane)), false);
     // The readout tucks low over the drawing's end, clear of the last number.
     lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
     REQUIRE(pill != nullptr);
@@ -1528,7 +1683,11 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_get_coords(lv_obj_get_child(badges, -1), &last);
     const int32_t tuck = theme_manager_get_spacing("space_sm");
     CHECK(pa.x1 > last.x2);
-    CHECK(pa.y2 == aa.y1 + drawn.y2 + tuck);
+    // At the drawing's foot, or the view's bottom where the foot stands lower.
+    lv_area_t view;
+    lv_obj_get_coords(lv_obj_get_parent(pill), &view);
+    CHECK(pa.y2 == std::min(aa.y1 + drawn.y2 + tuck, view.y2));
+    CHECK(pa.x2 <= view.x2);
 }
 
 TEST_CASE_METHOD(

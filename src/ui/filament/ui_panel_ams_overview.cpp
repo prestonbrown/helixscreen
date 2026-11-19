@@ -246,6 +246,9 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
         // and trip lv_inv_area assertions in LVGL 9.
         lv_obj_add_event_cb(detail_path_canvas_, &AmsOverviewPanel::on_path_layout_changed,
                             LV_EVENT_SIZE_CHANGED, this);
+        // The "+N units" chips beside the hub page to the units they count.
+        ui_filament_path_canvas_set_offpage_callback(detail_path_canvas_,
+                                                     &AmsOverviewPanel::on_offpage_chip, this);
     }
     if (page_dots_) {
         lv_obj_add_event_cb(page_dots_, &AmsOverviewPanel::on_page_dots_resized,
@@ -425,10 +428,14 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
 
     const auto snapshot = AmsState::instance().system_info();
     const AmsSystemInfo& info = *snapshot;
-    auto pages = helix::ui::build_unit_pages(info, [&](int pos) {
-        const DryerInfo dryer = helix::dryer_info(*backend, info.units[pos].unit_index);
-        return dryer.supported && dryer.active;
-    });
+    // The pages run in the order the overview's cards stand in.
+    auto pages = helix::ui::build_unit_pages(
+        info,
+        [&](int pos) {
+            const DryerInfo dryer = helix::dryer_info(*backend, info.units[pos].unit_index);
+            return dryer.supported && dryer.active;
+        },
+        ams_draw::compute_system_tool_layout(info, backend).display_order);
     if (pages.empty()) {
         show_overview();
         return;
@@ -497,22 +504,9 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
     helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
 
     if (detail_path_canvas_) {
-        // The hub box is sized for the widest unit of this hub, at the lane pitch that
-        // unit's slot row has, so it holds still as the pages go by.
-        int hub_lanes = 0;
-        for (const auto& other : pages_) {
-            if (other.group == page.group && other.unit_index < static_cast<int>(info.units.size()))
-                hub_lanes = std::max(hub_lanes, info.units[other.unit_index].slot_count);
-        }
-        int32_t lane_pitch = 0;
-        if (hub_lanes > 0 && detail_widgets_.slot_grid) {
-            lv_obj_t* slot_area = lv_obj_get_parent(detail_widgets_.slot_grid);
-            lv_obj_update_layout(slot_area);
-            const AmsSlotLayout widest =
-                helix::ui::ams_detail_slot_layout(lv_obj_get_content_width(slot_area), hub_lanes);
-            lane_pitch = widest.slot_width - widest.overlap;
-        }
-        ui_filament_path_canvas_set_fixed_hub(detail_path_canvas_, hub_lanes, lane_pitch);
+        // Each unit's lanes converge into a hub sized for them, as on the single-unit panel.
+        // The hub stays on the centered unit's center line, so paging changes only its width,
+        // and only where the lane counts differ.
         ui_filament_path_canvas_set_offpage_units(detail_path_canvas_, page.same_hub_before,
                                                   page.drying_before, page.same_hub_after,
                                                   page.drying_after);
@@ -531,6 +525,16 @@ void AmsOverviewPanel::step_page(int delta) {
     if (!backend)
         return;
     show_current_page(backend->get_system_info(), /*relayout=*/false);
+}
+
+void AmsOverviewPanel::on_offpage_chip(int side, void* user_data) {
+    auto* self = static_cast<AmsOverviewPanel*>(user_data);
+    if (!self)
+        return;
+    if (side == 0)
+        self->prev_page();
+    else
+        self->next_page();
 }
 
 bool AmsOverviewPanel::next_page() {
@@ -1379,6 +1383,15 @@ void helix::ui::open_ams_detail_panel() {
         if (lv_obj_t* panel = detail.get_panel()) {
             push_ams_overlay(panel, &detail, &AmsPanel::run_close);
         }
+    });
+}
+
+void helix::ui::hand_ams_panel_to_overview(lv_obj_t* panel_root) {
+    helix::ui::queue_update("AMS::hand_to_overview", [panel_root]() {
+        if (!panel_root || !helix::nav::is_in_stack(panel_root))
+            return;
+        helix::nav::close_overlay(panel_root);
+        navigate_to_ams_panel();
     });
 }
 

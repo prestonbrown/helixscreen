@@ -28,27 +28,33 @@ bool spool_centre(lv_obj_t* slot, lv_point_t origin, float& x, float& y, int32_t
 void clear_translate(lv_obj_t* obj);
 /// Whether the shown unit stands in a physical tray.
 bool unit_has_physical_tray();
+/// Whether @p unit_index stands in a physical tray: the backend's own feeders have one, or the
+/// unit is one a shell identifies.
+bool unit_has_physical_tray(int unit_index);
 /// Whether the unit view draws a tray (3D spools) under its spools.
 bool draws_tray();
 /// The unit a view shows: the whole-backend view of a one-unit system counts as that unit.
 int view_unit(const helix::AmsSystemInfo& info, int unit_index);
+/// Where the unit view stands the unit's own drawing (enclosed with a @p dryer) for its
+/// @p lanes: its geometry, or null when the tray draws the unit.
+const tray::UnitArtGeom* unit_view_art_geom(const helix::AmsSystemInfo& info, int unit_index,
+                                            int lanes, bool dryer);
 
 // Defined in ui_ams_detail_labels.cpp.
 
 /// The unit ams_detail_create_slots() lays out, which a spool size cap is kept for.
-void set_layout_unit(int unit_index);
+/// @p path_art: the unit is tray-drawn and its path draws its selector, which needs room.
+void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art);
+/// The spools are drawn at @p size: a cap within a pixel of it becomes it.
+void note_drawn_spool_size(int32_t size);
 /// The rows the labels over a drawn unit's @p count slots take, estimated at the slots' pitch
 /// in @p layout across @p slot_area, to reserve their height.
 int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
                          const AmsSlotLayout& layout, lv_obj_t* slot_area);
-/// How far below where lane @p lane's tube leaves a drawn unit's bottom edge its sensor band
-/// and number stand.
-int32_t art_lane_band_drop(int lane);
+/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands.
+int32_t art_lane_band_drop();
 /// Marks each lane of the unit view's art as its slot shows it.
 void refresh_unit_view_marks();
-/// How the lane numbers under the art stand, their left edges at @p left.
-helix::ui::AmsLaneBadgeLayout art_badge_layout(const helix::ui::WidgetRef slots[],
-                                               const float left[], int n);
 /// Lays the labels over the unit out from s_tray; returns the highest top any reaches,
 /// INT32_MAX with none.
 int32_t place_unit_labels();

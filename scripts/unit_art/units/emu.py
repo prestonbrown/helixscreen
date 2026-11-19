@@ -42,7 +42,11 @@ def centers(lanes):
     return [PITCH / 2 + i * PITCH for i in range(lanes)]
 
 
-def _arch(z0, steps=24):
+# Fine enough that the shells' highlight moves smoothly over the curve instead of in bands.
+ARCH_STEPS = 72
+
+
+def _arch(z0, steps=ARCH_STEPS):
     """The housing's side outline from the front at height z0, over the top, down the back to z0."""
     pts = [(0.0, z0), (0.0, ARCH_Z)]
     pts += [(ARCH_R - ARCH_R * math.cos(math.pi * i / steps), ARCH_Z + ARCH_R * math.sin(math.pi * i / steps)) for i in range(1, steps)]
@@ -75,7 +79,8 @@ def _box(sc, x0, x1, xc, color, lane, c, cam, detail):
     a, b = x0 + WALL, x1 - WALL
     sc.poly([(a, 0.0, BLACK_TOP), (b, 0.0, BLACK_TOP), (b, D, BLACK_REAR), (a, D, BLACK_REAR)], INTERIOR)
     kit.lid_back(sc, UPPER, a, b, INTERIOR, 1.0, 1.0)
-    _side(sc, a, UPPER, RED, cam)
+    # The inside of the left wall, in the housing's shadow: an empty housing reads as hollow.
+    _side(sc, a, UPPER, kit.scale(RED, 0.45), cam)
     spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, color, c, lane, detail=detail)
     _box_right_side(sc, x1, cam)
     sc.poly(kit.rrect_front(x0, x1, BASE_Z, BLACK_TOP, 0.0, 0.0), kit.shade(cam, BLACK, (0, -1, 0), amb=0.8, dif=0.4, spec=0))

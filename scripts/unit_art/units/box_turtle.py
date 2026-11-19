@@ -98,11 +98,13 @@ def draw_art(sc, colors, tier, rear_posts_to=None):
         _honeycomb(sc, 0.05, D - 0.05, PANEL_Z0, PANEL_Z1, lambda a, b: (w + 0.002, a, b))
     for z in (TOP - 0.004, PANEL_Z1 + 0.012, PANEL_Z0 - 0.012):
         sc.line([(0.06, -0.003, z), (w - 0.06, -0.003, z)], RAIL_LINE, 0.003)
-    for xc in centers(len(colors)):
+    for lane, xc in enumerate(centers(len(colors))):
         roller = [(xc - 0.09, 0.05), (xc - 0.09, 0.1), (xc + 0.09, 0.1), (xc + 0.09, 0.05)][::-1]
         sc.prism(roller, TOP, TOP + 0.03, ROLLER, amb=0.9, dif=0.5, spec=0.3, power=14)
         hub = [(xc - 0.035, 0.035), (xc - 0.035, 0.115), (xc + 0.035, 0.115), (xc + 0.035, 0.035)]
         sc.prism(hub[::-1], TOP, TOP + 0.055, HUB, amb=0.75, dif=0.5, spec=0.1)
+        # The drive block in front of each spool holds the lane's trigger (prep) sensor.
+        kit.sensor_region(sc, lane, "prep", [(a, b, z) for a, b in hub for z in (TOP, TOP + 0.055)])
         sc.poly([(a, b, TOP + 0.055) for a, b in hub], kit.shift(HUB, 25))
         if detail:
             sc.line([(xc, 0.075, TOP + 0.055), (xc, 0.075, TOP + 0.17)], STALK, 0.008)

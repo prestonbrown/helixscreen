@@ -201,6 +201,7 @@ class LaneGeometry:
     core: float
     box: tuple
     outlet: tuple
+    prep: tuple = ()  # the prep sensor's region as drawn: its outline's corners, x, y in turn
 
 
 def art_drawn_box(scene):
@@ -242,6 +243,34 @@ def art_bottom_edge(scene):
     return (a[0], a[1], b[0], b[1])
 
 
+def _hull(points):
+    """The convex hull of points, at most MAX_REGION_POINTS corners, counter-clockwise."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    hull = lower[:-1] + upper[:-1]
+    if len(hull) > MAX_REGION_POINTS:
+        raise ValueError(f"a sensor region's outline has {len(hull)} corners, more than {MAX_REGION_POINTS}")
+    return hull
+
+
+# The most corners a baked sensor region keeps (ArtLaneGeom::prep).
+MAX_REGION_POINTS = 8
+
+
 def art_lane_geometry(scene, lane_count):
     """Each lane's spool and outlet in scene, or [] when the drawing has no spool per lane."""
     if any(lane not in scene.spools for lane in range(lane_count)):
@@ -267,7 +296,9 @@ def art_lane_geometry(scene, lane_count):
         box = (min(far[0], near[0]) - hx, min(far[1], near[1]) - hy, max(far[0], near[0]) + hx, max(far[1], near[1]) + hy)
         xc = (sp["far"][0] + sp["near"][0]) / 2
         point = scene.outlets.get(lane, (xc, 0.0, 0.0))
-        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point)))
+        prep = _hull([share(p) for p in scene.sensors.get(lane, {}).get("prep", [])])
+        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point),
+                                tuple(v for p in prep for v in p)))
     return out
 
 
@@ -340,10 +371,13 @@ def _geometry_rows(unit):
         def f(v):
             return f"{v:.5f}f"
 
-        lane_rows = [
-            "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
-            for g in geometry
-        ]
+        def lane_row(g):
+            fields = [f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)]
+            if g.prep:
+                fields += ["{" + ", ".join(f(v) for v in g.prep) + "}", str(len(g.prep) // 2)]
+            return "{" + ", ".join(fields) + "}"
+
+        lane_rows = [lane_row(g) for g in geometry]
         rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows,
                      scene.stacks_hold_more_than_spools(), scene.lane_order()))
     return rows

@@ -14,6 +14,7 @@
 #include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "fault_path_position.h"
 #include "filament_variants.h"
 #include "gcode_help.h"
 #include "gcode_response_lines.h"
@@ -1943,6 +1944,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
         } else if (msg_text != last_seen_message_) {
             // New or changed message - update dedup tracker
             last_seen_message_ = msg_text;
+            rederive_lane_sensors_locked();
 
             // The seed answers one question — is the text at the queue head
             // the one a previous session already surfaced — so it is spent
@@ -2201,8 +2203,11 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
             rearm_acknowledged_lanes_locked(std::string());
         }
         if (error_state_) {
-            // Use unlocked helper since we're already holding mutex_
-            error_segment_ = compute_filament_segment_unlocked();
+            // Where AFC's own sentence places the stop, when it names one: the toolhead
+            // sensors arrive in a later object of the same frame, so the sensors read here can
+            // lag the fault. Otherwise the furthest sensor reached (mutex_ already held).
+            const auto said = faultpath::fault_position(last_seen_message_);
+            error_segment_ = said ? *said : compute_filament_segment_unlocked();
         } else {
             error_segment_ = PathSegment::NONE;
         }
@@ -2482,7 +2487,7 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     if (data.status) {
         if (*data.status == "Error") {
             if (acknowledged_lane_errors_.count(lane_name) == 0) {
-                slot.error = lane_error_locked();
+                slot.error = lane_error_locked(lane_name);
                 spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name,
                               slot_index, slot.error->message);
             }
@@ -5097,7 +5102,7 @@ void AmsBackendAfc::acknowledge_lane_errors(const std::vector<std::string>& lane
 void AmsBackendAfc::rearm_acknowledged_lanes_locked(const std::string& lane) {
     auto rearm = [this](const std::string& name) {
         if (auto* entry = slots_.get_mut(slots_.index_of(name))) {
-            entry->info.error = lane_error_locked();
+            entry->info.error = lane_error_locked(name);
         }
     };
     if (acknowledged_lane_errors_.count(lane) != 0) {
@@ -5118,11 +5123,27 @@ std::string AmsBackendAfc::lane_named_by_locked(const std::string& message) cons
     return slots_.index_of(first) >= 0 ? first : std::string();
 }
 
-SlotError AmsBackendAfc::lane_error_locked() const {
+SlotError AmsBackendAfc::lane_error_locked(const std::string& lane) const {
     SlotError err;
     err.message = last_seen_message_.empty() ? "Lane error" : last_seen_message_;
     err.severity = (last_message_type_ == "warning") ? SlotError::WARNING : SlotError::ERROR;
+    std::vector<std::string> lanes;
+    for (int i = 0; i < slots_.slot_count(); ++i)
+        lanes.push_back(slots_.name_of(i));
+    err.sensor =
+        faultpath::lane_sensor_at(last_seen_message_, lane, lane == current_lane_name_, lanes);
     return err;
+}
+
+void AmsBackendAfc::rederive_lane_sensors_locked() {
+    for (int i = 0; i < slots_.slot_count(); ++i) {
+        auto* entry = slots_.get_mut(i);
+        if (!entry || !entry->info.error || entry->info.error->sensor != LaneSensor::NONE)
+            continue;
+        const SlotError now = lane_error_locked(slots_.name_of(i));
+        if (now.sensor != LaneSensor::NONE)
+            entry->info.error = now;
+    }
 }
 
 void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_success) {

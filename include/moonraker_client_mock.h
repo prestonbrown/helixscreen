@@ -2800,6 +2800,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::string vendor;    ///< spool_vendor, from SET_FILAMENT_INFO
         int extruder_temp = 0; ///< 0 = none, from AFC_SET_SPOOL_TEMP
         int bed_temp = 0;      ///< 0 = none
+        int fault = 0;         ///< 2 = short of its load sensor, 3 = of the toolhead's post-gear
     };
     mutable std::mutex afc_mutex_;
     std::vector<AfcLane> afc_lanes_;

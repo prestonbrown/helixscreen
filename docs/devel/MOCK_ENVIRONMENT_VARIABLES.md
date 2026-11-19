@@ -781,7 +781,7 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `afc_bmcu`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -805,6 +805,7 @@ Select the mock AMS topology/type.
 | `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB (a VirtualSelector), 4 lanes |
 | `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: model `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
 | `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
+| `afc_bmcu` | 1 | AFC BMCU (`BMCU BMCU_1`), HUB, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
@@ -1174,7 +1175,7 @@ HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --tes
 
 ### `HELIX_MOCK_AMS_FILL`
 
-Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
+Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool; `ghost` takes the spool out but keeps what is known about it (a ghosted lane). The AFC Box Turtle mock (`HELIX_MOCK_AMS=afc`) reads `empty` and `ghost` too, and also `loadfault`: the lane stands in error with AFC's sentence for a lane that never reached its load sensor, one line per faulted lane. `toolfault` puts AFC in error with the loaded lane short of the toolhead's post-gear sensor. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
 
 | Property | Value |
 |----------|-------|

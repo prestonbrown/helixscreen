@@ -69,6 +69,33 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel open paints the filament path once",
         CHECK(data->layers.render_count == 1);
     }
 
+    SECTION("a canvas that moves paints again where it stands") {
+        // Its picture is drawn at absolute screen coordinates.
+        lv_area_t before, after;
+        lv_obj_get_coords(canvas, &before);
+        lv_obj_set_style_margin_top(canvas, -12, LV_PART_MAIN);
+        lv_obj_update_layout(lv_obj_get_screen(canvas));
+        lv_refr_now(nullptr);
+        process_lvgl(200);
+        lv_obj_get_coords(canvas, &after);
+        REQUIRE(after.y1 != before.y1);
+        CHECK(data->layers.render_count == 2);
+    }
+
+    SECTION("a canvas pulled up over the unit draws all the way up") {
+        // Its container lets it draw above itself by the canvas's overhang and its pull.
+        lv_obj_t* container = lv_obj_get_parent(canvas);
+        const auto ext = [&] {
+            int32_t size = 0;
+            lv_obj_send_event(container, LV_EVENT_REFR_EXT_DRAW_SIZE, &size);
+            return size;
+        };
+        lv_obj_set_style_margin_top(canvas, 0, LV_PART_MAIN);
+        const int32_t flush = ext();
+        lv_obj_set_style_margin_top(canvas, -40, LV_PART_MAIN);
+        CHECK(ext() == flush + 40);
+    }
+
     SECTION("a state change after the open still paints") {
         ui_filament_path_canvas_set_filament_color(canvas, 0x12AB34);
         process_lvgl(100);

@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /**
  * @file fault_path_position.h
@@ -26,6 +27,12 @@ namespace helix::faultpath {
 /// Where the filament had reached when the fault was raised, or nullopt when
 /// no provider recognises @p message.
 [[nodiscard]] std::optional<PathSegment> fault_position(std::string_view message);
+
+/// Which of lane @p lane_name's own sensors the fault in @p message is at: read from the
+/// message's lines that name the lane; a message naming none of @p lanes ("Current lane not
+/// loaded") speaks for the current lane (@p current). NONE when no provider places it.
+[[nodiscard]] LaneSensor lane_sensor_at(std::string_view message, std::string_view lane_name,
+                                        bool current, const std::vector<std::string>& lanes);
 
 /// @p message with the recognising provider's text diagram removed, unchanged
 /// when no provider recognises it.

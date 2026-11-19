@@ -158,6 +158,9 @@ struct ArtLaneGeom {
     float wound, core;
     float box_x0, box_y0, box_x1, box_y1;
     float outlet_x, outlet_y;
+    /// The lane's prep sensor as drawn: prep_n corners (x, y in turn), 0 where it is not drawn.
+    float prep[16] = {};
+    int prep_n = 0;
 };
 
 /// A unit drawing's lanes at one lane count: its aspect (width over height), what the drawing

@@ -181,8 +181,8 @@ needed for the drawing, so klipper_openams (which publishes nothing else) draws 
 
 The overview's unit view pages through the units: those units are consecutive pages of one
 hub group, and paging swaps the unit and its lanes while the hub, the lane's FPS box and the
-toolhead stay where they are. The group's other units show as dashed stubs ("N units", with a
-dryer glyph when one is drying) on either side of the hub. See "The unit view" in
+toolhead stay where they are. The group's other units show as chips on either side of the hub
+("+N units", with a dryer glyph when one is drying); a tap on one pages to them. See "The unit view" in
 `FILAMENT_MANAGEMENT.md` for the page model.
 
 ## Slot identity

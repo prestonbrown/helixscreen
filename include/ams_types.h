@@ -850,9 +850,15 @@ inline PathSegment path_segment_from_afc_sensors(bool prep_sensor, bool hub_sens
  * AFC populates from per-lane status; Happy Hare maps system-level
  * errors to the active gate.
  */
+/// A lane's own sensors, where a lane fault can be placed: the entry (prep) sensor, and the
+/// load sensor between it and the hub.
+enum class LaneSensor { NONE, PREP, LOAD };
+
 struct SlotError {
     std::string message;                                     ///< Human-readable error description
     enum Severity { INFO, WARNING, ERROR } severity = ERROR; ///< Error severity level
+    /// The lane sensor the fault is at, where the firmware says (faultpath::lane_sensor_at).
+    LaneSensor sensor = LaneSensor::NONE;
 };
 
 /**

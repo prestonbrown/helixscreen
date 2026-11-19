@@ -68,6 +68,11 @@ void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, f
 /// @p n points of a unit's real lid profile at plane @p x, front to back.
 void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                         PointF* out, int n);
+/// Sample @p i of @p n of a unit's lid profile, front to back: its depth share and height.
+ProfilePoint shell_cap_sample(const UnitShell& shell, int i, int n);
+/// The samples (of @p n) where the lid's flat top starts and ends, front to back, judged by the
+/// profile's height: on screen the back of a level top stands higher than its front.
+bool shell_lid_top_run(const UnitShell& shell, int n, int& first, int& last);
 /// Where the body's top edge lies under @p upper, a point of the lid's end at plane @p x.
 PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                    PointF upper);

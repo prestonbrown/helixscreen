@@ -276,6 +276,32 @@ TEST_CASE("Happy Hare machine units read the vendor where each version keeps it"
     CHECK(happy_hare::read_machine_units(v3_settings, json::object())[0].vendor == "ERCF");
 }
 
+TEST_CASE("Happy Hare: a vendor-Other unit is named by the hardware its config defines",
+          "[happy_hare][status_parse][hh_v4]") {
+    // Bunny Box runs a QIDI Box under Happy Hare as `mmu_vendor: Other`, with no display_name;
+    // its config defines a red and white LED per slot as `[led qidi_slot_<n>]`.
+    json settings = {{"mmu_machine", {{"mmu_vendor", "Other"}, {"num_gates", 4}}},
+                     {"temperature_sensor box1_env", json::object()}};
+    for (int i = 0; i < 4; ++i)
+        settings["led qidi_slot_" + std::to_string(i)] = json::object();
+    const auto units = happy_hare::read_machine_units(settings, json::object());
+    REQUIRE(units.size() == 1);
+    CHECK(units[0].vendor == "Other");
+    CHECK(units[0].family == "QIDI");
+    // Happy Hare runs it as "Other": nothing that drives it changes.
+    CHECK_FALSE(units[0].gear_rotates_spool);
+
+    // Without those objects an "Other" unit stays unnamed, and a named vendor is its own.
+    settings.erase("led qidi_slot_0");
+    settings.erase("led qidi_slot_1");
+    settings.erase("led qidi_slot_2");
+    settings.erase("led qidi_slot_3");
+    CHECK(happy_hare::read_machine_units(settings, json::object())[0].family.empty());
+    const json ercf = {{"mmu_machine", {{"mmu_vendor", "ERCF"}}},
+                       {"led qidi_slot_0", json::object()}};
+    CHECK(happy_hare::read_machine_units(ercf, json::object())[0].family.empty());
+}
+
 TEST_CASE("Happy Hare layout: each tunable is read from its v4 section",
           "[happy_hare][status_parse][hh_v4]") {
     const json fx = test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");

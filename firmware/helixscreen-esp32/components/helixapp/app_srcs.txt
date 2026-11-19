@@ -798,6 +798,7 @@ src/ui/components/ui_search_debounce.cpp
 src/core/coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
 src/ui/components/ui_switch.cpp
+src/ui/filament/hub_buffer_meter.cpp
 src/ui/filament/ui_system_path_canvas.cpp
 src/ui/filament/ui_system_path_plan.cpp
 src/ui/filament/ui_toolhead_badge.cpp
@@ -852,6 +853,7 @@ src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp
 src/ui/filament/ui_ams_detail_labels.cpp
+src/ui/filament/path_view_scale.cpp
 src/ui/filament/ui_ams_detail_tray.cpp
 src/system/helix_paths.cpp
 src/printer/filament_slot_override_store.cpp

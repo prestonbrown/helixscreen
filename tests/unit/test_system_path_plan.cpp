@@ -68,12 +68,17 @@ PathPlan& plan_of(const SystemPathData& d) {
     return plan;
 }
 
-// The band whose center sits on the stem at @p x.
+// The band on the line leaving the unit whose stem stands at @p x: the nearest one under the
+// cards, the line leaning toward the hub from there.
 const SensorBand* stem_band(const PathPlan& plan, float x) {
-    for (int i = 0; i < plan.band_count; i++)
-        if (std::fabs(plan.bands[i].at.x - x) < 0.5f && plan.bands[i].at.y < 100)
-            return &plan.bands[i];
-    return nullptr;
+    const SensorBand* best = nullptr;
+    for (int i = 0; i < plan.band_count; i++) {
+        const SensorBand& b = plan.bands[i];
+        if (b.at.y < 100 && std::fabs(b.at.x - x) < 40.0f &&
+            (!best || std::fabs(b.at.x - x) < std::fabs(best->at.x - x)))
+            best = &b;
+    }
+    return best;
 }
 
 // A segment of the route ends exactly at @p p.
@@ -139,8 +144,10 @@ TEST_CASE("Overview layout: the toolheads stand on their glyph-bottom line",
     auto d = multi();
     const SysLayout single = compute_sys_layout(*d, AREA);
     CHECK(single.nozzle_y == 346);
-    CHECK(single.hub_y + single.hub_h / 2 == 213);
-    CHECK(single.merge_y == 117);
+    // One toolhead: the lines start converging just under the cards, and the hub stands nearer
+    // the cards than the toolhead, leaving the long straight run to the head.
+    CHECK(single.merge_y - single.entry_y < (single.nozzle_y - single.entry_y) / 10);
+    CHECK(single.hub_y - single.entry_y < single.nozzle_y - single.hub_y);
 
     d->total_tools = 3;
     const SysLayout row = compute_sys_layout(*d, AREA);
@@ -239,7 +246,8 @@ TEST_CASE("Overview plan: an idle system keeps an idle trunk with its toolhead b
     REQUIRE(plan.trunk_route == 2);
     const Route& trunk = plan.routes[2];
     CHECK(contiguous(trunk.path));
-    CHECK(near(seg_start(trunk.path.segs[0]), 200, 213, 0.5f));
+    const SysLayout L = compute_sys_layout(*d, AREA);
+    CHECK(near(seg_start(trunk.path.segs[0]), 200, (float)(L.hub_y + L.hub_h / 2), 0.5f));
     CHECK(near(seg_end(trunk.path.segs[trunk.path.count - 1]), 200, 315, 0.5f));
     REQUIRE(plan.band_count == 3);
     CHECK(plan.bands[2].state == BandState::Empty);
@@ -884,25 +892,25 @@ TEST_CASE("Overview plan: a junction with every card scrolled off still draws it
     CHECK(routes_ending_at(p->plan, (float)hub.tool_x, nozzle_top) == 1);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry label and severity",
+TEST_CASE_METHOD(LVGLTestFixture, "Overview canvas: the buffer setters carry position and severity",
                  "[system_path][filament_path][hub_groups]") {
     lv_obj_t* canvas = ui_system_path_canvas_create(lv_screen_active());
     REQUIRE(canvas != nullptr);
     const SystemPathData* data = system_path_data(canvas);
     REQUIRE(data != nullptr);
 
-    helix::ui::ui_system_path_canvas_set_buffer(canvas, true, 2, "BUF");
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, true, 2, 0.8f);
     CHECK(data->has_buffer);
     CHECK(data->buffer_fault == 2);
-    CHECK(std::string(data->buffer_label) == "BUF");
-    helix::ui::ui_system_path_canvas_set_buffer(canvas, false, 0, "");
+    CHECK(data->buffer_position == 0.8f);
+    helix::ui::ui_system_path_canvas_set_buffer(canvas, false, 0, 0.0f);
     CHECK_FALSE(data->has_buffer);
 
-    helix::ui::ui_system_path_canvas_set_unit_hub(canvas, 3, 2, true, 1, "FPS");
+    helix::ui::ui_system_path_canvas_set_unit_hub(canvas, 3, 2, true, 1, -0.5f);
     CHECK(data->unit_hub_group[3] == 2);
     CHECK(data->unit_has_buffer[3]);
     CHECK(data->unit_buffer_fault[3] == 1);
-    CHECK(std::string(data->unit_buffer_label[3]) == "FPS");
+    CHECK(data->unit_buffer_position[3] == -0.5f);
     CHECK_FALSE(data->unit_has_buffer[2]);
     lv_obj_delete(canvas);
 }
@@ -1267,13 +1275,10 @@ TEST_CASE("Overview plan: every labelled box on the mock rigs is tall enough for
             CHECK(L.hub_h >= d.label_line_h);
         }
         if (!L.multi_tool) {
-            // At micro the trunk from the hub down to the toolhead's top is too short for a
-            // labelled buffer box, so that one box goes bare.
+            // The hub stands high, so even at micro the trunk below it holds a full-height box.
             const TrunkBuffer b = trunk_buffer(d, L);
-            const bool micro = std::string(rig.name).find("micro") != std::string::npos;
-            CHECK(b.labeled == !micro);
-            if (b.labeled)
-                CHECK(b.h >= d.label_line_h);
+            CHECK(b.labeled);
+            CHECK(b.h >= d.label_line_h);
         }
     }
 }
@@ -1391,5 +1396,77 @@ TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",
                 CHECK(std::fabs(ax * by - ay * bx) / (la * lb) < 0.02f);
             }
         }
+    }
+}
+
+TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig has room",
+          "[system_path][route_spacing]") {
+    // Where its neighbors leave room a route is one straight line from under its unit.
+    int straight = 0;
+    // A level run with square bends reads as a cable harness, not a line converging on its
+    // nozzle. The full-size rigs have the room to lean every run; the route spacing cases
+    // above hold them apart.
+    for (const Rig& rig : mock_rigs()) {
+        if (std::string(rig.name).find("micro") != std::string::npos)
+            continue;
+        CAPTURE(rig.name);
+        const SystemPathData& d = *rig.data;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        if (!L.multi_tool)
+            continue;
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        int leaning = 0, level = 0;
+        for (int i = 0; i < plan.route_count; i++) {
+            const Route& r = plan.routes[i];
+            for (int k = 0; k < r.path.count; k++) {
+                const pg::PathSeg& s = r.path.segs[k];
+                if (s.type != pg::PathSeg::LINE || !r.style[k].painted)
+                    continue;
+                const float dx = std::fabs(s.p1.x - s.p0.x), dy = std::fabs(s.p1.y - s.p0.y);
+                if (dx < 2 * (float)d.tube_gauge)
+                    continue;
+                (dy < 1.0f ? level : leaning)++;
+            }
+        }
+        CHECK(leaning > 0);
+        CHECK(level == 0);
+        for (int i = 0; i < plan.route_count; i++) {
+            const pg::PathSeg& first = plan.routes[i].path.segs[0];
+            if (first.type == pg::PathSeg::LINE && std::fabs(first.p1.x - first.p0.x) > 1.0f &&
+                std::fabs(first.p1.y - first.p0.y) > 1.0f)
+                ++straight;
+        }
+    }
+    CHECK(straight > 0);
+}
+
+TEST_CASE("Overview plan: one toolhead's lines run straight from each unit to the hub",
+          "[system_path][filament_path]") {
+    // No elbow and no flat run: each line leaves its unit on the diagonal it keeps to the hub.
+    auto d = multi();
+    const SysLayout L = compute_sys_layout(*d, AREA);
+    const PathPlan& plan = plan_of(*d);
+    const float hub_top = (float)(L.hub_y - L.hub_h / 2);
+    for (int u = 0; u < 2; u++) {
+        CAPTURE(u);
+        const Route& r = plan.routes[u];
+        const pg::PathPoint a = seg_start(r.path.segs[0]);
+        float dx = 0, dy = 0;
+        for (int k = 0; k < r.path.count; k++) {
+            const pg::PathSeg& s = r.path.segs[k];
+            if (s.p0.y >= hub_top - 0.5f)
+                break;
+            REQUIRE(s.type == pg::PathSeg::LINE);
+            const float sx = s.p1.x - s.p0.x, sy = s.p1.y - s.p0.y;
+            if (dx == 0 && dy == 0) {
+                dx = sx;
+                dy = sy;
+            }
+            CHECK(std::fabs(dx * sy - dy * sx) / (std::hypot(dx, dy) * std::hypot(sx, sy)) < 0.01f);
+        }
+        CHECK(std::fabs(dx) > 1.0f); // a diagonal, not a drop
+        CHECK(a.y < hub_top);
     }
 }

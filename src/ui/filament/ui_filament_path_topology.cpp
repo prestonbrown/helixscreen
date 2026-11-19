@@ -68,11 +68,8 @@ BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data) 
 
     // Center X: prefer midpoint of slot bounds so hub/selector/nozzle stay
     // aligned with the spool grid even when the grid is narrower than the
-    // canvas (e.g. environment indicator present). A fixed hub stands on the
-    // widget's own center line instead, which no unit's box or chip can move.
-    if (data->fixed_hub_lanes > 0) {
-        g.center_x = g.x_off + g.width / 2;
-    } else if (g.slot_count >= 2) {
+    // canvas (e.g. environment indicator present).
+    if (g.slot_count >= 2) {
         g.center_x = (g.slot_x[0] + g.slot_x[g.slot_count - 1]) / 2;
     } else if (g.slot_count == 1) {
         g.center_x = g.slot_x[0];
@@ -179,7 +176,7 @@ enum class ToolPass : uint8_t { Glyph, Badge };
 void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, int i,
                         const ParallelRows& rows, ToolPass pass) {
     const FilamentPathData* data = ctx.data;
-    int32_t slot_x = ctx.geo.slot_x[i];
+    int32_t slot_x = parallel_head_x(*data, ctx.geo, rows, i);
     const SlotRenderState& s = states[i];
     const int32_t toolhead_y = rows.toolhead_y;
     const int32_t tool_scale = rows.tool_scale;
@@ -298,7 +295,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     if (pass == ToolPass::Badge) {
         char tool_label[16];
         format_tool_badge_label(data, hub_badge_lane, hub_tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+        draw_tool_badge(ctx, f.shared_head_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
                         f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
@@ -307,7 +304,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     std::optional<lv_color_t> noz_color;
     if (any_hub_at_nozzle)
         noz_color = hub_nozzle_color;
-    draw_toolhead(ctx.layer, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+    draw_toolhead(ctx.layer, f.shared_head_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
                   f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
 }
 
@@ -315,7 +312,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
 void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i, ToolPass pass) {
     const FilamentPathData* data = ctx.data;
     const SlotRenderState& s = f.states[i];
-    int32_t slot_x = ctx.geo.slot_x[i];
+    int32_t slot_x = f.head_x[i];
 
     if (pass == ToolPass::Badge) {
         char tool_label[16];
@@ -474,6 +471,24 @@ bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
         return false;
     helix::ui::baked_art_draw(ctx.layer, body, f.rail.x, f.rail.y);
     data->rail_drawn = true;
+    if (f.buffer_in_hub) {
+        // The buffer's meter rides on the selector, in a hub-colored plate over the art's
+        // lower right corner.
+        const int32_t h = LV_MAX(10, LV_MIN(f.hub_h, f.rail.h / 2));
+        const int32_t w = hub_buffer_glyph_width(h);
+        const int32_t inset = LV_MAX(2, h / 6);
+        lv_area_t plate = {f.rail.x + f.rail.w - inset - w, f.rail.y + f.rail.h - inset - h,
+                           f.rail.x + f.rail.w - inset, f.rail.y + f.rail.h - inset};
+        lv_draw_fill_dsc_t fill;
+        lv_draw_fill_dsc_init(&fill);
+        fill.color = data->theme.color_hub_bg;
+        fill.opa = LV_OPA_COVER;
+        fill.radius = data->theme.border_radius;
+        lv_draw_fill(ctx.layer, &fill, &plate);
+        draw_hub_buffer_glyph(ctx, plate);
+        data->hits.buffer = plate;
+        data->hits.buffer_valid = true;
+    }
     data->rail_left = f.rail.x - ctx.geo.x_off;
     data->rail_top = f.rail.y - ctx.geo.y_off;
     data->rail_w = f.rail.w;
@@ -564,8 +579,9 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
 
     // On-toolhead mode draws the passthrough selector first, in its classic
-    // spot under the lanes, full slot width like LINEAR's selector.
-    if (data->hub_on_toolhead) {
+    // spot under the lanes, full slot width like LINEAR's selector; a unit whose drawing shows
+    // its own selector has none drawn again (its tap target is the hub on the head below).
+    if (data->hub_on_toolhead && !data->art_sensors) {
         int32_t sel_w = data->theme.hub_width;
         if (data->slot_count > 1) {
             int32_t first_slot_x = g.slot_x[0];
@@ -587,16 +603,29 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
         data->hits.hub_valid = true;
     }
 
+    // Under a view scale the gear stands outside the box's right edge, so the box keeps to the
+    // lanes it gathers; a buffer riding in the hub shows its state in a slot at the box's right
+    // end, and a tap there opens the buffer's detail.
+    const bool hub_interactive =
+        data->hub_callback != nullptr && data->hub_has_actions && !data->fixed_selector;
+    HubBoxExtras extras;
+    extras.gear_outside = data->view_hub_h > 0;
+    extras.slot_w = f.buffer_in_hub ? hub_buffer_glyph_width(f.hub_h) : 0;
     hub_w = draw_hub_box(ctx, f.center_x, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
-                         hub_label, hub_opa,
-                         /*interactive=*/data->hub_callback != nullptr && !data->fixed_selector);
+                         hub_label, hub_opa, /*interactive=*/hub_interactive, &extras);
+    if (f.buffer_in_hub && lv_area_get_width(&extras.slot) > 0) {
+        draw_hub_buffer_glyph(ctx, extras.slot);
+        data->hits.buffer = extras.slot;
+        data->hits.buffer_valid = true;
+    }
 
     // Single source of truth for the selector/hub hit-test: record the exact
     // box we just drew (absolute display coords), gear included. On-toolhead
-    // mode recorded the SELECTOR box above; the head hub is not a control.
-    if (!data->hub_on_toolhead) {
-        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2, f.center_x + hub_w / 2,
-                          f.hub_y + f.hub_h / 2};
+    // mode recorded the SELECTOR box above; the head hub is a control only where no selector
+    // is drawn (a unit drawing its own).
+    if (!data->hub_on_toolhead || data->art_sensors) {
+        data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
+                          LV_MAX(f.center_x + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
         data->hits.hub_valid = true;
     }
 }
@@ -615,7 +644,11 @@ void record_outlet_buffer_hit(FilamentPathData* data, const LinearHubFrame& f) {
 // from the hub chip so the two read as one family.
 void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     lv_area_t hit{};
-    draw_buffer_tension(ctx, f.center_x, f.buffer_y, buffer_capsule_height(f.hub_h), &hit);
+    const int32_t cap_h = f.cap_h > 0 ? f.cap_h : buffer_capsule_height(f.hub_h);
+    // Under a view scale the capsule stays narrower than the hub over it.
+    const int32_t max_w =
+        ctx.data->view_hub_h > 0 ? hub_box_width(*ctx.data, ctx.geo, f) * 4 / 5 : 0;
+    draw_buffer_tension(ctx, f.center_x, f.buffer_y, cap_h, &hit, max_w);
     ctx.data->hits.buffer = hit;
     ctx.data->hits.buffer_valid = true;
 }
@@ -685,9 +718,8 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     paint_tubes(layer, plan, pal);
     if (f.through.w > 0)
         draw_through_art(ctx, f.through);
-    draw_offpage_stubs(ctx, f);
-
     draw_hub_section(ctx, f);
+    draw_offpage_chips(ctx, f);
     if (feeds && f.has_buffer)
         draw_buffer_section(ctx, f);
     else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer

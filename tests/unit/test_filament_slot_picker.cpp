@@ -95,6 +95,33 @@ TEST_CASE_METHOD(SlotPickerFixture, "The slot picker shows one row per slot", "[
     CHECK(hidden(find("cancel_choice")));
 }
 
+TEST_CASE_METHOD(SlotPickerFixture,
+                 "An empty slot reads Empty; a ghost shows the spool it remembers, dimmed",
+                 "[slot_picker]") {
+    std::vector<AvailableSlot> s = slots(3);
+    s[1].is_empty = true;
+    s[1].material.clear();
+    s[2].is_empty = true;
+    s[2].ghost = true;
+    s[2].material = "ASA";
+    show(s, {});
+    lv_obj_t* empty = find("filament_picker_row_1");
+    lv_obj_t* ghost = find("filament_picker_row_2");
+    REQUIRE(empty != nullptr);
+    REQUIRE(ghost != nullptr);
+    CHECK(text_of(empty, "slot_material") == "Empty");
+    CHECK(hidden(lv_obj_find_by_name(empty, "swatch")));
+    CHECK_FALSE(hidden(lv_obj_find_by_name(empty, "empty_ring")));
+    CHECK(text_of(ghost, "slot_material") == "ASA");
+    CHECK_FALSE(hidden(lv_obj_find_by_name(ghost, "swatch")));
+    CHECK(hidden(lv_obj_find_by_name(ghost, "empty_ring")));
+    const lv_opa_t full = lv_obj_get_style_opa(find("filament_picker_row_0"), LV_PART_MAIN);
+    const lv_opa_t dim_empty = lv_obj_get_style_opa(empty, LV_PART_MAIN);
+    const lv_opa_t dim_ghost = lv_obj_get_style_opa(ghost, LV_PART_MAIN);
+    CHECK(dim_empty < dim_ghost);
+    CHECK(dim_ghost < full);
+}
+
 TEST_CASE_METHOD(SlotPickerFixture, "The slot picker lists rows in the order given, with reasons",
                  "[slot_picker]") {
     FilamentSlotPicker::Options options;

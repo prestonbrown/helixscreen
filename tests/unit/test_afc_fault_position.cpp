@@ -28,14 +28,19 @@
  */
 
 #include "afc_fault_position.h"
+#include "fault_path_position.h"
 
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
+using helix::LaneSensor;
+using helix::afc::afc_fault_lane_sensor;
 using helix::afc::afc_fault_position;
 using helix::afc::afc_strip_position_diagram;
+using helix::faultpath::lane_sensor_at;
 
 namespace {
 
@@ -219,4 +224,37 @@ TEST_CASE("CRLF art rows are still recognised", "[afc][fault][position]") {
                             "TRG   LOAD   HUB   TOOL.";
     REQUIRE(afc_strip_position_diagram(msg) ==
             "filament did not trigger hub sensor, CHECK FILAMENT PATH\r");
+}
+
+// ============================================================================
+// The lane sensor at fault
+// ============================================================================
+
+TEST_CASE("AFC's two lane load faults are at the load sensor", "[afc][fault][sensor]") {
+    // Both fire with the prep switch made and the load switch never reached.
+    CHECK(afc_fault_lane_sensor(kMsgTrigger) == LaneSensor::LOAD);
+    CHECK(afc_fault_lane_sensor(kMsgNotLoaded) == LaneSensor::LOAD);
+    // Faults past the lane are at no lane sensor.
+    CHECK(afc_fault_lane_sensor(kMsgHub) == LaneSensor::NONE);
+    CHECK(afc_fault_lane_sensor(kMsgPreGear) == LaneSensor::NONE);
+    CHECK(afc_fault_lane_sensor(kMsgPostGear) == LaneSensor::NONE);
+}
+
+TEST_CASE("a lane fault reaches only the lane its lines name", "[afc][fault][sensor]") {
+    const std::vector<std::string> lanes{"lane1", "lane2", "lane10"};
+    const std::string msg = "lane1" + kMsgTrigger;
+    CHECK(lane_sensor_at(msg, "lane1", false, lanes) == LaneSensor::LOAD);
+    // Not lane2's, even as the current lane, and not a lane whose name merely contains it.
+    CHECK(lane_sensor_at(msg, "lane2", true, lanes) == LaneSensor::NONE);
+    CHECK(lane_sensor_at("lane10" + kMsgTrigger, "lane1", false, lanes) == LaneSensor::NONE);
+    // Several lanes, one line each: each lane reads its own line.
+    const std::string both = "lane1 filament did not trigger hub sensor\nlane2" + kMsgTrigger;
+    CHECK(lane_sensor_at(both, "lane1", false, lanes) == LaneSensor::NONE);
+    CHECK(lane_sensor_at(both, "lane2", false, lanes) == LaneSensor::LOAD);
+}
+
+TEST_CASE("a lane fault naming no lane is the current lane's", "[afc][fault][sensor]") {
+    const std::vector<std::string> lanes{"lane1", "lane2"};
+    CHECK(lane_sensor_at(kMsgNotLoaded, "lane2", true, lanes) == LaneSensor::LOAD);
+    CHECK(lane_sensor_at(kMsgNotLoaded, "lane1", false, lanes) == LaneSensor::NONE);
 }

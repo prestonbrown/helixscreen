@@ -2381,9 +2381,10 @@ void AmsBackendMock::set_afc_mode(bool enabled) {
         if (lane_count <= 0)
             lane_count = 4;
 
-        // Configure system info for AFC Box Turtle
+        // Configure system info for AFC Box Turtle. The name is the one AFC itself gives, so the
+        // panel's header reads as it does on a printer.
         system_info_.type = AmsType::AFC;
-        system_info_.type_name = "AFC (Mock)";
+        system_info_.type_name = "AFC";
         system_info_.version = "1.0.32-mock";
         system_info_.total_slots = lane_count;
 

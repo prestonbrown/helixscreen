@@ -218,13 +218,15 @@ void FilamentSlotPicker::publish(const Options& options, const std::vector<std::
     for (std::size_t k = 0; k < rows_.size(); ++k) {
         const helix::AvailableSlot& slot = slots_[rows_[k]];
         s_row_label.set_string(k, helix::slot_row_label(slot, slots_));
-        s_row_material.set_string(k, slot.is_empty ? std::string(lv_tr("Empty")) : slot.material);
+        s_row_material.set_string(k, slot.is_empty && !slot.ghost ? std::string(lv_tr("Empty"))
+                                                                  : slot.material);
         s_row_reason.set_string(k, k < reasons.size() ? reasons[k] : std::string{});
         s_row_color.set_color(k, slot.color_rgb);
         s_row_colors.set_string(k, slot.multi_color_hexes);
         s_row_finish.set_string(k, helix::filament_finish_name(slot.finish));
         s_row_selected.set_int(k, same_slot(slot, current_selection_) ? 1 : 0);
-        s_row_empty.set_int(k, slot.is_empty ? 1 : 0);
+        // 1: an empty bay; 2: a ghost, the spool it remembers drawn dimmed.
+        s_row_empty.set_int(k, slot.ghost ? 2 : slot.is_empty ? 1 : 0);
         s_row_warn.set_int(
             k, !slot.is_empty && !expected_material_.empty() && !slot.material.empty() &&
                        !helix::FilamentMapper::materials_match(expected_material_, slot.material)

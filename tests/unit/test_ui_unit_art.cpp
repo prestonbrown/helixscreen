@@ -246,6 +246,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens its layers once siz
           lv_color_to_u32(lv_color_hex(0x00ff00)));
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a press is drawn over the image, not baked in",
+                 "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 120, 90);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+    lv_obj_t* flat = lv_obj_get_child(art, 1);
+    const void* before = lv_image_get_src(flat);
+
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].outline = true;
+    unit_art_set_lane_marks(art, marks);
+    CHECK(lv_image_get_src(flat) == before);
+    CHECK(unit_art_lane_mark(art, 1).outline);
+    lv_obj_t* press = lv_obj_find_by_name(art, "press_outline");
+    REQUIRE(press != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(press));
+
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(lv_image_get_src(flat) == before);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: hides itself with no art", "[ams][unit-art]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
     AmsSystemInfo info;
@@ -592,10 +614,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     for (int lane = 0; lane < 4; ++lane) {
         const std::string n = "lane" + std::to_string(lane);
         // A spool-only stack dims by recoloring itself, with no layer of its own.
-        for (const char* part : {"_glow", "_body", "_tint", "_shade"})
+        // Its ghost rim stands in its own place in the depth, so nearer lanes cover it.
+        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_rim"})
             want.push_back(n + part);
     }
     want.push_back("front");
+    // A faulted sensor shows over everything it is drawn in.
+    want.push_back("sensor_faults");
     CHECK(unit_art_compose_order(art) == want);
 
     // A thumbnail carries each lane's stack but no marks.
