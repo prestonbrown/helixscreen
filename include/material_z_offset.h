@@ -24,7 +24,7 @@
 #include <string_view>
 #include <vector>
 
-struct FileMetadata;
+struct FileMetadata; // NAMESPACE_OK: moonraker_types.h declares it at global scope
 
 namespace helix {
 class PrinterDiscovery;

@@ -111,6 +111,24 @@ std::map<std::string, double> MoonrakerClientMock::initial_material_zoffset_valu
     return {};
 }
 
+std::map<std::string, std::string> MoonrakerClientMock::material_zoffset_config_files() {
+    if (material_zoffset_mock() != MaterialZOffsetMock::StartPrintVars) {
+        return {};
+    }
+    // Where Jacobean's K2 Kalico keeps the table, so a Save can edit it.
+    return {{"printer.cfg", "[include overrides.cfg]\n\n[printer]\nkinematics: corexy\n"},
+            {"overrides.cfg", "[gcode_macro _START_PRINT_VARS]\n"
+                              "# per-material first-layer offsets\n"
+                              "variable_offset_PLA: 0\n"
+                              "variable_offset_PETG: 0.04\n"
+                              "variable_offset_ABS: -0.02\n"
+                              "variable_offset_ASA: 0\n"
+                              "variable_offset_DEFAULT: 0\n"
+                              "variable_offset_PROBE: 0\n"
+                              "variable_heat_soak: 0 # minutes\n"
+                              "gcode:\n"}};
+}
+
 json MoonrakerClientMock::material_zoffset_status_json() const {
     std::lock_guard<std::mutex> lock(material_zoffset_mutex_);
     json status = json::object();

@@ -1006,6 +1006,7 @@ src/calibration/motor_ripple_view.cpp
 # MOCK: src/mock/moonraker_client_mock.cpp
 # MOCK: src/mock/moonraker_client_mock_files.cpp
 # MOCK: src/mock/moonraker_client_mock_history.cpp
+# MOCK: src/mock/moonraker_client_mock_material_zoffset.cpp
 # MOCK: src/mock/moonraker_client_mock_objects.cpp
 # MOCK: src/mock/moonraker_client_mock_print.cpp
 # MOCK: src/mock/moonraker_client_mock_queue.cpp

@@ -294,7 +294,7 @@ void PrintStartController::execute_print_start() {
 
         if (!primary_material.empty()) {
             helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
-                get_moonraker_api(), primary_material);
+                api_, primary_material);
         }
 
         prep_manager->start_print(
@@ -341,10 +341,11 @@ void PrintStartController::execute_print_start() {
                 exclude_picks),
             // Completion callback
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
-            [update_button, show_detail, on_cancelled, ps](bool success, const std::string& error) {
+            [update_button, show_detail, on_cancelled, ps, api = api_](bool success,
+                                                                       const std::string& error) {
                 helix::ui::queue_update(
                     "PrintStartController::execute_print_start",
-                    [success, error, update_button, show_detail, on_cancelled, ps]() {
+                    [success, error, update_button, show_detail, on_cancelled, ps, api]() {
                         // Not end_without_print(): that runs before any navigation, and
                         // refreshes the button and reports the cancel together. Here every
                         // failure reports the cancel, an abandoned start (no error) included,
@@ -355,7 +356,7 @@ void PrintStartController::execute_print_start() {
                         }
                         if (!success) {
                             helix::material_zoffset::MaterialZOffsetState::instance()
-                                .note_screen_start_failed(get_moonraker_api());
+                                .note_screen_start_failed(api);
                         }
                         if (success) {
                             // Deliberately does NOT end preparation: the RPC

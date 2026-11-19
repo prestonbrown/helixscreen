@@ -3125,24 +3125,18 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.
     GcodeResult gcode_u1_purifier(const std::string& gcode);
 
-    // ---- Z offset by material (HELIX_MOCK_MATERIAL_ZOFFSET) ----
-    // start_print_vars: a K2-style [gcode_macro _START_PRINT_VARS] table the
-    // start macro applies; helix_macro: HelixScreen's HELIX_MATERIAL_OFFSET
-    // with its [save_variables] store. Each print start applies the material's
-    // offset the way that start macro does.
+    // Z offset by material: moonraker_client_mock_material_zoffset.cpp.
   public:
     enum class MaterialZOffsetMock { None, StartPrintVars, HelixMacro };
-    /// The HELIX_MOCK_MATERIAL_ZOFFSET mode.
     static MaterialZOffsetMock material_zoffset_mock();
-    /// The table objects' status: the macro, save_variables, _HELIX_MATERIAL.
     json material_zoffset_status_json() const;
+    /// The config files the start_print_vars mode serves; empty otherwise.
+    static std::map<std::string, std::string> material_zoffset_config_files();
 
   private:
     void append_material_zoffset_objects(json& objects) const;
     GcodeResult gcode_material_zoffset(const std::string& gcode);
-    /// What the mode's start macro does at print start for a file of @p filament_type.
     void apply_material_zoffset_at_start(const std::string& filament_type);
-    /// The mode's starting table, status key -> mm.
     static std::map<std::string, double> initial_material_zoffset_values();
     mutable std::mutex material_zoffset_mutex_;
     std::map<std::string, double> material_zoffset_values_ = initial_material_zoffset_values();

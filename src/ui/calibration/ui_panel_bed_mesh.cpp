@@ -51,6 +51,7 @@
 #include "standard_macros.h"
 #include "system/subject_registry.h"
 #include "temperature_controller.h"
+#include "temperature_rules.h"
 #include "theme_manager.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
@@ -1684,7 +1685,7 @@ bool BedMeshPanel::offer_material_mesh() {
         helix::settings::MaterialZOffsetOverlay::kMaterials.begin() + 1,
         helix::settings::MaterialZOffsetOverlay::kMaterials.end());
     const auto offer = helix::material_zoffset::MaterialZOffsetState::instance().mesh_offer(
-        materials, target_deci / 10);
+        materials, helix::temperature_rules::deci_to_degrees(target_deci));
     if (!offer) {
         return false;
     }
