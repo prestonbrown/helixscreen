@@ -52,6 +52,11 @@ class MaterialZOffsetState {
     /// A new discovery: drop the last printer's table and re-read the row.
     void on_discovery(const PrinterDiscovery& hw);
 
+    /// The printer this state served is gone (a switch, a reconnect): expire
+    /// every pending callback, drop queued saves and the file the search
+    /// found, so nothing of the old printer reaches the next one.
+    void reset_printer_scope();
+
     /// Fold a status frame in. Main thread.
     void update_from_status(const nlohmann::json& status);
 
@@ -60,9 +65,12 @@ class MaterialZOffsetState {
     /// Store the setting and switch the start macro to match, where it has a
     /// printer-side switch.
     void set_enabled(IMoonrakerAPI* api, bool on);
-    /// Switch the start macro on when the setting is on and it reads off (a
-    /// fresh [save_variables] file, or a switch written elsewhere).
+    /// Send the setting to the start macro's printer-side switch when the two
+    /// disagree, either way (a fresh [save_variables] file, a switch written
+    /// elsewhere, or a send that never landed).
     void reconcile(IMoonrakerAPI* api);
+    /// The printer-side switch is on while this screen's setting is off.
+    [[nodiscard]] bool switch_disagrees() const;
     /// The start macro applies per-material offsets at print start whatever
     /// the setting says, so no save may fold the live offset into the probe.
     [[nodiscard]] bool start_macro_applies() const;
@@ -94,7 +102,7 @@ class MaterialZOffsetState {
     /// main thread with a user-facing message: success, or why it failed.
     /// Saves run one at a time, in the order asked, whichever surface asked.
     using Done = helix::SharedCallback<void(bool ok, const std::string& message)>;
-    void save_offset(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
+    void save_offset(const std::string& material, int microns, Done done);
 
     /// The bed mesh profile a fresh mesh is offered under after a calibration:
     /// {material, profile} for the material whose usual bed temperature is
@@ -118,15 +126,14 @@ class MaterialZOffsetState {
     [[nodiscard]] bool material_known() const;
     void send_enable(IMoonrakerAPI* api, bool on);
     void run_next_save();
-    void run_save(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
-    void write_config_file(IMoonrakerAPI* api, const std::string& material, int microns,
-                           const std::string& message, Done done);
-    void edit_and_upload(IMoonrakerAPI* api, const std::string& path, const std::string& section,
+    void run_save(const std::string& material, int microns, Done done);
+    void write_config_file(const std::string& material, int microns, const std::string& message,
+                           Done done);
+    void edit_and_upload(const std::string& path, const std::string& section,
                          const std::string& material, int microns, const std::string& message,
                          Done done, helix::SharedCallback<void(const std::string&)> fail,
                          int attempts);
     void locate_config_file(
-        IMoonrakerAPI* api,
         helix::SharedCallback<void(const std::string& path, const std::string& error)> then);
 
     Table table_;

@@ -5020,6 +5020,8 @@ translations:
   Z Movement: Движение Z
   Z Offset: Z Offset
   Z Offset by Material: "Z-Offset по материалу"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "Z-Offset по материалу здесь выключен, но на принтере был ещё включён, поэтому это смещение включает смещение материала. Теперь он выключен на принтере; нажмите «Сохранить» ещё раз, чтобы записать смещение в зонд."
   Z Probe: Z-зонд
   Z Range: Диапазон Z
   Z Tilt Adjust...: Регулировка наклона Z...

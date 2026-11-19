@@ -152,7 +152,7 @@ void MaterialZOffsetOverlay::edit_offset(const std::string& row_material) {
     config.on_confirm = [material](float v) {
         const int microns = static_cast<int>(std::lround(static_cast<double>(v) * 1000.0));
         material_zoffset::MaterialZOffsetState::instance().save_offset(
-            get_moonraker_api(), material, microns, [](bool ok, const std::string& message) {
+            material, microns, [](bool ok, const std::string& message) {
                 ToastManager::instance().show(ok ? ToastSeverity::SUCCESS : ToastSeverity::ERROR,
                                               message.c_str(), ok ? 2500 : 5000);
             });

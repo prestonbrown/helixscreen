@@ -4797,6 +4797,7 @@
   <translation tag="Z Movement" pt="Movimento Z"/>
   <translation tag="Z Offset" pt="Z Offset"/>
   <translation tag="Z Offset by Material" pt="Z-Offset por material"/>
+  <translation tag="Z Offset by Material is off here but was still on on the printer, so this offset includes a material&apos;s. It is now switched off on the printer; tap Save again to store the offset in the probe." pt="Z-Offset por material está desligado aqui mas ainda estava ligado na impressora, então este offset inclui o de um material. Agora está desligado na impressora; toque em Salvar de novo para gravar o offset na sonda."/>
   <translation tag="Z Probe" pt="Sonda Z"/>
   <translation tag="Z Range" pt="Alcance Z"/>
   <translation tag="Z Tilt Adjust..." pt="Ajuste de inclinação Z..."/>

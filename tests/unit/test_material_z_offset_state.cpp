@@ -46,12 +46,16 @@ class MaterialStateFixture : public LVGLUITestFixture {
         helix::SettingsManager::instance().init_subjects();
         helix::SettingsManager::instance().set_z_offset_save_mode(0);
         state().init_subjects();
+        previous_api_ = get_moonraker_api();
+        set_moonraker_api(&api); // saves resolve the api at each step
         helix::zoffset::deinit_save_available_subject();
         helix::zoffset::init_save_available_subject(true);
     }
 
     ~MaterialStateFixture() override {
         state().set_enabled(nullptr, false);
+        state().reset_printer_scope();
+        set_moonraker_api(previous_api_);
         get_printer_state().set_hardware(helix::PrinterDiscovery{});
         state().on_discovery(get_printer_state().get_discovery());
         helix::zoffset::deinit_save_available_subject();
@@ -104,7 +108,7 @@ class MaterialStateFixture : public LVGLUITestFixture {
     std::pair<bool, std::string> save(const std::string& material, int microns) {
         bool finished = false;
         std::pair<bool, std::string> result;
-        state().save_offset(&api, material, microns, [&](bool ok, const std::string& message) {
+        state().save_offset(material, microns, [&](bool ok, const std::string& message) {
             finished = true;
             result = {ok, message};
         });
@@ -117,6 +121,7 @@ class MaterialStateFixture : public LVGLUITestFixture {
     }
 
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    helix::IMoonrakerAPI* previous_api_ = nullptr;
     helix::ui::SaveConfigWatch watch;
     helix::test::GcodeRecordingApi api{client, get_printer_state()};
 };
@@ -332,6 +337,9 @@ TEST_CASE_METHOD(MaterialStateFixture,
         CHECK_FALSE(sent_anything_that_folds_or_restarts());
     }
     SECTION("machine-wide: the guard holds and a tap that gets through is refused") {
+        // The macro switched off: nothing owns the offset but the probe.
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}});
+        REQUIRE_FALSE(state().start_macro_applies());
         REQUIRE(helix::zoffset::save_available());
         CHECK(lv_subject_get_int(guard) == 1);
         helix::zoffset::save_dirty_offsets_shared();
@@ -414,6 +422,14 @@ TEST_CASE_METHOD(MaterialStateFixture,
     state().set_enabled(&api, false);
     CHECK(api.sent.back() == "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=0");
 
+    SECTION("off in this screen but on on the printer: reconciled off") {
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 1}}}}}});
+        REQUIRE(state().switch_disagrees());
+        api.sent.clear();
+        state().reconcile(&api);
+        CHECK(api.sent == std::vector<std::string>{
+                              "SAVE_VARIABLE VARIABLE=helix_material_offset_enabled VALUE=0"});
+    }
     SECTION("on in this screen but off on the printer: not active, and reconciled") {
         state().set_enabled(nullptr, true);
         status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}});
@@ -553,8 +569,8 @@ TEST_CASE_METHOD(MaterialStateFixture,
             {{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", vars}});
         api.hold_acks = true; // both reach the file before either live write answers
         int finished = 0;
-        state().save_offset(&api, "PETG", 80, [&](bool, const std::string&) { ++finished; });
-        state().save_offset(&api, "", -30, [&](bool, const std::string&) { ++finished; });
+        state().save_offset("PETG", 80, [&](bool, const std::string&) { ++finished; });
+        state().save_offset("", -30, [&](bool, const std::string&) { ++finished; });
         for (int i = 0; i < 50 && finished < 2; ++i) {
             api.ack_held();
             process_lvgl(20);
@@ -577,9 +593,10 @@ TEST_CASE_METHOD(MaterialStateFixture,
             editing.set_config_files(
                 {{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", changed}});
         };
+        set_moonraker_api(&editing);
         bool finished = false;
         bool ok = false;
-        state().save_offset(&editing, "PETG", 80, [&](bool good, const std::string&) {
+        state().save_offset("PETG", 80, [&](bool good, const std::string&) {
             finished = true;
             ok = good;
         });
@@ -588,5 +605,43 @@ TEST_CASE_METHOD(MaterialStateFixture,
         const std::string after = editing.get_uploaded_config("overrides.cfg").value_or("");
         CHECK(after.find("variable_offset_PLA: 0.050") != std::string::npos);
         CHECK(after.find("variable_offset_PETG: 0.080") != std::string::npos);
+        set_moonraker_api(&api);
     }
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: a save in flight does not outlive the printer",
+                 "[material_zoffset]") {
+    helix::IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+    const std::string vars = "[gcode_macro _START_PRINT_VARS]\nvariable_offset_PETG: 0.02\n";
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    enable();
+    status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.02}}}});
+    api.set_config_files({{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", vars}});
+    api.hold_acks = true;
+    bool old_done = false;
+    state().save_offset("PETG", 80, [&](bool, const std::string&) { old_done = true; });
+    REQUIRE(api.held_acks.size() == 1); // the save is in flight
+
+    // The switch: the old printer's api goes away, then its answer arrives late.
+    state().reset_printer_scope();
+    set_moonraker_api(nullptr);
+    api.ack_held();
+    process_lvgl(100);
+    CHECK_FALSE(old_done);
+    CHECK(api.get_uploaded_config("overrides.cfg") == vars); // the late answer touched nothing
+
+    // The next printer keeps its section elsewhere, and its saves still run.
+    set_moonraker_api(&api);
+    api.hold_acks = false;
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.02}}}});
+    api.set_config_files({{"printer.cfg", "[include other.cfg]\n"}, {"other.cfg", vars}});
+    bool done = false;
+    state().save_offset("PETG", 90, [&](bool, const std::string&) { done = true; });
+    REQUIRE(wait_until([&] { return done; }, 3000));
+    CHECK(api.get_uploaded_config("other.cfg").value_or("").find("variable_offset_PETG: 0.090") !=
+          std::string::npos);
+    set_moonraker_api(previous);
 }

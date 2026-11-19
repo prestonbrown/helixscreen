@@ -4932,6 +4932,8 @@ translations:
   Z Movement: Z 轴移动
   Z Offset: Z 偏移
   Z Offset by Material: "按材料 Z 偏移"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "此处按材料 Z 偏移已关闭，但打印机上仍为开启，因此这个偏移包含了某种材料的偏移。现已在打印机上关闭；再次点击保存即可将偏移保存到探针。"
   Z Probe: Z 探针
   Z Range: Z 范围
   Z Tilt Adjust...: 正在调整Z倾斜...

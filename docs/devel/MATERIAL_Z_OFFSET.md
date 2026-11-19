@@ -78,6 +78,15 @@ cannot be complete: a loaded file over 1 MB (`printer.cfg` and literal includes 
 judged by the listing's size or by what was read), or the 64-file cap reached with files
 still unread. The path is cached for the session.
 
+**A printer switch.** `reset_printer_scope()` runs from `on_discovery()` and from
+`PrinterSession::teardown_printer_scope()`: it invalidates the state's lifetime guard, so
+every pending callback for the old printer is skipped, drops queued saves, clears the
+in-flight flag, the cached file path and the table. The shared HTTP executors are not
+stopped on a switch (`HttpExecutor::stop_all()` runs only at app shutdown), so an old
+printer's answer can still arrive afterwards; the expired guard is what makes it run nothing.
+No step keeps the api it started with: each resolves `get_moonraker_api()` when it runs and
+stops if there is none, because the switch destroys the old one.
+
 **Writing.** Saves run one at a time, whichever surface asked (`save_offset()` queues them),
 so a print Save and a Settings edit of the same file cannot upload each other's line away.
 Each write reads the file, edits it, and reads it again just before uploading: Moonraker has
@@ -91,8 +100,9 @@ second time.
 
 HelixScreen's macro applies nothing unless `helix_material_offset_enabled` is 1 in
 `[save_variables]`. `MaterialZOffsetState::set_enabled()` writes it with the setting
-(`enable_gcode()`), and `reconcile()` (when Settings opens) writes 1 where the setting is on
-and the printer reads 0. The row is `active()` only once the switch reads on, so a value is
+(`enable_gcode()`), and `reconcile()` (when Settings opens, and when a Save finds the switch
+on while the setting is off) writes the setting's value wherever the printer disagrees,
+either way, so a send that never landed is corrected. The row is `active()` only once the switch reads on, so a value is
 never saved per material while the macro ignores the table. The vendor row has no switch:
 its start macro applies the table on every print.
 

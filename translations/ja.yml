@@ -4932,6 +4932,8 @@ translations:
   Z Movement: Z移動
   Z Offset: Zオフセット
   Z Offset by Material: "素材別 Z-Offset"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "素材別 Z-Offset はここではオフですが、プリンター側ではまだオンだったため、このオフセットには素材の分が含まれています。プリンター側でもオフにしました。もう一度保存をタップするとプローブに保存します。"
   Z Probe: Zプローブ
   Z Range: Z 範囲
   Z Tilt Adjust...: Zチルト調整中...

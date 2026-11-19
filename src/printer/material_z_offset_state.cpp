@@ -116,9 +116,21 @@ void MaterialZOffsetState::bump() {
     }
 }
 
-void MaterialZOffsetState::on_discovery(const PrinterDiscovery& discovered) {
-    table_ = {};
+void MaterialZOffsetState::reset_printer_scope() {
+    // Expires every callback still pending for the old printer: its late
+    // answers then run nothing, neither a save's next step nor the search
+    // setting config_file_.
+    lifetime_.invalidate();
+    pending_saves_.clear();
+    save_running_ = false;
     config_file_.clear();
+    table_ = {};
+    print_first_.clear();
+    print_seen_ = false;
+}
+
+void MaterialZOffsetState::on_discovery(const PrinterDiscovery& discovered) {
+    reset_printer_scope();
     if (supported(discovered)) {
         spdlog::info("[MaterialZOffset] Per-material Z offset row: {}{}", provider_name(discovered),
                      write_ready(discovered) ? "" : " (needs setup)");
@@ -163,9 +175,15 @@ void MaterialZOffsetState::set_enabled(IMoonrakerAPI* api, bool on) {
 }
 
 void MaterialZOffsetState::reconcile(IMoonrakerAPI* api) {
-    if (enabled() && status() == Status::Ready && table_.enabled != true) {
-        send_enable(api, true);
+    // Both ways: a switch-off that never landed is corrected as surely as a
+    // switch-on, so the printer ends up obeying this screen's setting.
+    if (status() == Status::Ready && table_.enabled != enabled()) {
+        send_enable(api, enabled());
     }
+}
+
+bool MaterialZOffsetState::switch_disagrees() const {
+    return !enable_gcode(hw(), true).empty() && table_.enabled == true && !enabled();
 }
 
 void MaterialZOffsetState::send_enable(IMoonrakerAPI* api, bool on) {
@@ -276,12 +294,11 @@ MaterialZOffsetState::mesh_offer(const std::vector<std::string>& materials, int 
     return std::make_pair(material, profile);
 }
 
-void MaterialZOffsetState::save_offset(IMoonrakerAPI* api, const std::string& material, int microns,
-                                       Done done) {
+void MaterialZOffsetState::save_offset(const std::string& material, int microns, Done done) {
     // One save at a time, whichever surface asked: two edits of the same file
     // interleaved would each upload the other's line away.
-    pending_saves_.push_back([this, api, material, microns, done]() {
-        run_save(api, material, microns, [this, done](bool ok, const std::string& message) {
+    pending_saves_.push_back([this, material, microns, done]() {
+        run_save(material, microns, [this, done](bool ok, const std::string& message) {
             if (done) {
                 done(ok, message);
             }
@@ -302,11 +319,19 @@ void MaterialZOffsetState::run_next_save() {
     next();
 }
 
-void MaterialZOffsetState::run_save(IMoonrakerAPI* api, const std::string& material, int microns,
-                                    Done done) {
+void MaterialZOffsetState::run_save(const std::string& material, int microns, Done done) {
+    // Every step resolves the api when it runs: a printer switch destroys the
+    // one a queued or late step would otherwise have kept.
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        if (done) {
+            done(false, lv_tr("No printer connection"));
+        }
+        return;
+    }
     auto plan = write_plan(hw(), table_, material, microns);
     const std::string name = material.empty() ? display_name(kDefaultKey) : material;
-    if (!api || !plan) {
+    if (!plan) {
         if (done) {
             done(false,
                  fmt::format(fmt::runtime(lv_tr("{} cannot be stored on this printer.")), name));
@@ -323,9 +348,9 @@ void MaterialZOffsetState::run_save(IMoonrakerAPI* api, const std::string& mater
                  provider_name(hw()));
 
     const bool edits_file = plan->edits_config_file;
-    auto after_gcode = [this, api, material, microns, message, edits_file, done]() {
+    auto after_gcode = [this, material, microns, message, edits_file, done]() {
         if (edits_file) {
-            write_config_file(api, material, microns, message, done);
+            write_config_file(material, microns, message, done);
         } else if (done) {
             done(true, message);
         }
@@ -347,8 +372,8 @@ void MaterialZOffsetState::run_save(IMoonrakerAPI* api, const std::string& mater
                        0, false, nullptr, /*caller_surfaces_errors=*/true);
 }
 
-void MaterialZOffsetState::write_config_file(IMoonrakerAPI* api, const std::string& material,
-                                             int microns, const std::string& message, Done done) {
+void MaterialZOffsetState::write_config_file(const std::string& material, int microns,
+                                             const std::string& message, Done done) {
     const std::string section = config_section(hw());
     auto fail = [done](const std::string& why) {
         spdlog::warn("[MaterialZOffset] Config file not written: {}", why);
@@ -356,27 +381,32 @@ void MaterialZOffsetState::write_config_file(IMoonrakerAPI* api, const std::stri
             done(false, fmt::format(fmt::runtime(lv_tr("Applied for this session only: {}")), why));
         }
     };
-    locate_config_file(api, [this, api, section, material, microns, message, done,
-                             fail](const std::string& path, const std::string& error) {
+    locate_config_file([this, section, material, microns, message, done,
+                        fail](const std::string& path, const std::string& error) {
         if (path.empty()) {
             fail(error);
             return;
         }
-        edit_and_upload(api, path, section, material, microns, message, done, fail, kEditAttempts);
+        edit_and_upload(path, section, material, microns, message, done, fail, kEditAttempts);
     });
 }
 
-void MaterialZOffsetState::edit_and_upload(IMoonrakerAPI* api, const std::string& path,
-                                           const std::string& section, const std::string& material,
-                                           int microns, const std::string& message, Done done,
+void MaterialZOffsetState::edit_and_upload(const std::string& path, const std::string& section,
+                                           const std::string& material, int microns,
+                                           const std::string& message, Done done,
                                            helix::SharedCallback<void(const std::string&)> fail,
                                            int attempts) {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        fail(lv_tr("No printer connection"));
+        return;
+    }
     // Read fresh: the file may have changed since the search found it.
     api->transfers().download_file(
         "config", path,
         lifetime_.bg_cb(
             "MaterialZOffset::config_read",
-            [this, api, path, section, material, microns, message, done, fail,
+            [this, path, section, material, microns, message, done, fail,
              attempts](const std::string& content) {
                 ConfigEdit edit = edit_config_text(content, section, material, microns);
                 if (!edit.text) {
@@ -387,24 +417,34 @@ void MaterialZOffsetState::edit_and_upload(IMoonrakerAPI* api, const std::string
                 // Moonraker has no conditional upload, so read once more right
                 // before writing: another writer's change since the first read
                 // is redone on top of, never uploaded away.
+                IMoonrakerAPI* api = get_moonraker_api();
+                if (!api) {
+                    fail(lv_tr("No printer connection"));
+                    return;
+                }
                 api->transfers().download_file(
                     "config", path,
                     lifetime_.bg_cb(
                         "MaterialZOffset::config_reread",
-                        [this, api, path, section, material, microns, message, done, fail, attempts,
+                        [this, path, section, material, microns, message, done, fail, attempts,
                          content, text = *edit.text](const std::string& now) {
                             if (now != content) {
                                 if (attempts > 1) {
                                     spdlog::info("[MaterialZOffset] {} changed while saving; "
                                                  "editing it again",
                                                  path);
-                                    edit_and_upload(api, path, section, material, microns, message,
-                                                    done, fail, attempts - 1);
+                                    edit_and_upload(path, section, material, microns, message, done,
+                                                    fail, attempts - 1);
                                 } else {
                                     fail(fmt::format(
                                         fmt::runtime(lv_tr("{} kept changing while saving")),
                                         path));
                                 }
+                                return;
+                            }
+                            IMoonrakerAPI* api = get_moonraker_api();
+                            if (!api) {
+                                fail(lv_tr("No printer connection"));
                                 return;
                             }
                             api->transfers().upload_file(
@@ -432,7 +472,6 @@ void MaterialZOffsetState::edit_and_upload(IMoonrakerAPI* api, const std::string
 }
 
 void MaterialZOffsetState::locate_config_file(
-    IMoonrakerAPI* api,
     helix::SharedCallback<void(const std::string& path, const std::string& error)> then) {
     if (!config_file_.empty()) {
         then(config_file_, {});
@@ -445,7 +484,7 @@ void MaterialZOffsetState::locate_config_file(
     // Walk printer.cfg's includes, so a backup copy of the section that nothing
     // loads (printer-20261118_101500.cfg) does not count as a second one.
     Scan* raw = scan.get();
-    raw->next = [this, api, raw]() {
+    raw->next = [this, raw]() {
         if (raw->queue.empty() || raw->visited.size() >= kMaxScannedFiles) {
             // A search stopped by the cap has not seen every loaded file, so
             // one holder so far proves nothing: refuse rather than guess.
@@ -489,6 +528,11 @@ void MaterialZOffsetState::locate_config_file(
             raw->next();
             return;
         }
+        IMoonrakerAPI* api = get_moonraker_api();
+        if (!api) {
+            raw->then({}, lv_tr("No printer connection"));
+            return;
+        }
         auto held = raw->shared_from_this();
         api->transfers().download_file(
             "config", path,
@@ -528,6 +572,11 @@ void MaterialZOffsetState::locate_config_file(
                 }));
     };
 
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        then({}, lv_tr("No printer connection"));
+        return;
+    }
     api->files().list_files(
         "config", "", true,
         lifetime_.bg_cb("MaterialZOffset::scan_list",

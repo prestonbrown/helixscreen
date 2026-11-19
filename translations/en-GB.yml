@@ -4911,6 +4911,8 @@ translations:
   Z Movement: ''
   Z Offset: ''
   Z Offset by Material: ''
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : ''
   Z Probe: ''
   Z Range: ''
   Z Tilt Adjust...: ''
