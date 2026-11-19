@@ -218,25 +218,28 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
         const OffpageStub& stub = f.stubs[side];
         if (!stub.present)
             continue;
-        const int32_t glyph_w =
+        const int32_t drying_w =
             stub.drying && icon_font && glyph ? helix::ui::text_width(glyph, icon_font) : 0;
-        const int32_t extra = glyph_w > 0 ? glyph_w + pad / 2 : 0;
         // "+2 units" where it fits beside the hub, inside the canvas and clear of the edge
-        // controls on the hub's rows; "+2" where it does not.
+        // controls on the hub's rows; "+2" where it does not; "+2" without its glyph, or no
+        // chip at all, before it covers the hub.
         const bool shares_rows = data->keepout_y1 <= data->keepout_y0 ||
                                  (hub.y2 >= data->keepout_y0 && hub.y1 <= data->keepout_y1);
         const int32_t keep = shares_rows ? data->edge_reserve : 0;
         const int32_t min_x = ctx.geo.x_off + keep;
         const int32_t max_x = ctx.geo.x_off + ctx.geo.width - keep;
-        const auto rect_for = [&](const std::string& text) {
-            const int32_t w = helix::ui::text_width(text.c_str(), font) + 2 * pad + extra;
-            return offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
-        };
-        const std::string text = offpage_chip_text(stub.count, [&](const std::string& t) {
-            const lv_area_t chip = rect_for(t);
-            return side == 0 ? chip.x2 <= hub.x1 - gap / 2 : chip.x1 >= hub.x2 + gap / 2;
-        });
-        const lv_area_t chip = rect_for(text);
+        const std::string long_text = "+" + offpage_label_text(stub.count);
+        const std::string short_text = "+" + std::to_string(stub.count);
+        const OffpageChipFit fit =
+            fit_offpage_chip(side, hub, helix::ui::text_width(long_text.c_str(), font),
+                             helix::ui::text_width(short_text.c_str(), font),
+                             drying_w > 0 ? drying_w + pad / 2 : 0, pad, h, gap, min_x, max_x);
+        if (!fit.shown)
+            continue;
+        const std::string& text = fit.long_text ? long_text : short_text;
+        const lv_area_t& chip = fit.rect;
+        const int32_t glyph_w = fit.glyph ? drying_w : 0;
+        const int32_t extra = glyph_w > 0 ? glyph_w + pad / 2 : 0;
 
         // A drying unit among them leads the text with a heat-wave glyph.
         const int32_t x = chip.x1 + pad;

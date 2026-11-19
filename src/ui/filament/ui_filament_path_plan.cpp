@@ -51,6 +51,26 @@ lv_area_t offpage_chip_rect(int side, const lv_area_t& hub, int32_t w, int32_t h
     return {x1, cy - h / 2, x1 + w, cy - h / 2 + h};
 }
 
+OffpageChipFit fit_offpage_chip(int side, const lv_area_t& hub, int32_t long_w, int32_t short_w,
+                                int32_t glyph_extra, int32_t pad, int32_t h, int32_t gap,
+                                int32_t min_x, int32_t max_x) {
+    struct Form {
+        bool long_text, glyph;
+    };
+    const Form forms[] = {{true, true}, {false, true}, {false, false}};
+    for (const Form& form : forms) {
+        if (!form.glyph && glyph_extra == 0)
+            continue; // the same as the form before it
+        const int32_t w =
+            (form.long_text ? long_w : short_w) + 2 * pad + (form.glyph ? glyph_extra : 0);
+        const lv_area_t r = offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
+        const bool clear = side == 0 ? r.x2 <= hub.x1 - gap / 2 : r.x1 >= hub.x2 + gap / 2;
+        if (clear)
+            return {true, form.long_text, form.glyph && glyph_extra > 0, r};
+    }
+    return {};
+}
+
 std::string offpage_label_text(int count) {
     char buf[48];
     snprintf(buf, sizeof(buf), tr_plural("1 unit", "%d units", static_cast<uint64_t>(count)),

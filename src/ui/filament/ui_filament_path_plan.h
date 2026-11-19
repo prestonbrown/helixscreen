@@ -46,6 +46,23 @@ template <typename Fits> std::string offpage_chip_text(int count, Fits&& fits) {
     return fits(text) ? text : "+" + std::to_string(count);
 }
 
+/// How an off-page chip fits beside the hub box: which text and whether its glyph, and where.
+struct OffpageChipFit {
+    bool shown = false;     ///< false: no form of it stands clear of the hub
+    bool long_text = false; ///< "+N units"; else "+N"
+    bool glyph = false;     ///< the leading heat-wave glyph
+    lv_area_t rect{};
+};
+
+/// Fits the chip on @p side of @p hub (offpage_chip_rect()): the first of "+N units" with its
+/// glyph, "+N" with it, then "+N" alone, that stands @p gap / 2 clear of the hub within
+/// [@p min_x, @p max_x]. Text widths @p long_w and @p short_w, the glyph and its spacing
+/// @p glyph_extra (0 with none), @p pad each side. A chip no form of which clears the hub is
+/// not shown: it never covers the hub.
+OffpageChipFit fit_offpage_chip(int side, const lv_area_t& hub, int32_t long_w, int32_t short_w,
+                                int32_t glyph_extra, int32_t pad, int32_t h, int32_t gap,
+                                int32_t min_x, int32_t max_x);
+
 /// What a count chip draws in: its fill and 1 px ring, and its text's color, font and line.
 struct CountPillStyle {
     lv_color_t bg, border, text;

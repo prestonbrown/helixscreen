@@ -1926,6 +1926,40 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath offpage: a chip squeezed by the paging arrows never covers the hub",
+                 "[filament-path][plan][offpage]") {
+    lv_obj_t* w = make_canvas(test_screen(), static_cast<int>(helix::PathTopology::HUB));
+    // Drying units on both sides: each chip leads with the heat-wave glyph.
+    ui_filament_path_canvas_set_offpage_units(w, 6, true, 3, true);
+    render(*this, w);
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    const lv_area_t hub0 = d->hits.hub;
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    // The arrows' room ends a short chip's width from the hub: "+6" fits there, "+6" and its
+    // glyph do not.
+    const int32_t reserve = GENERATE(10, 20, 30, 40);
+    CAPTURE(reserve);
+    ui_filament_path_canvas_set_edge_reserve(w, hub0.x1 - c.x1 - reserve);
+    render(*this, w);
+
+    const lv_area_t& hub = d->hits.hub;
+    for (int side = 0; side < 2; ++side) {
+        CAPTURE(side);
+        if (!d->hits.offpage_valid[side])
+            continue;
+        const lv_area_t& chip = d->hits.offpage[side];
+        CHECK((chip.x2 < hub.x1 || chip.x1 > hub.x2));
+        // Nor into the arrows' room on the hub's rows.
+        CHECK(chip.x1 >= c.x1 + d->edge_reserve);
+        CHECK(chip.x2 <= c.x2 + 1 - d->edge_reserve);
+    }
+    if (d->hits.offpage_valid[0] && d->hits.offpage_valid[1])
+        CHECK(d->hits.offpage[0].x2 < d->hits.offpage[1].x1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
                  "FilamentPath taps: a finger-sized hub, meter or chip never takes a lane's tap",
                  "[filament-path][canvas][offpage]") {
     // As short as the unit view's path on a small screen, under its view scale: the hub, its
