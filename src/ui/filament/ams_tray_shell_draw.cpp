@@ -42,9 +42,11 @@ void build_lid(const ShellView& view, const TrayBox& unit_box, float lid_h, floa
     if (view.shell) {
         shell_cap_polyline(unit_box, *view.shell, view.spool_size, x0, lid.left, kCapPoints);
         shell_cap_polyline(unit_box, *view.shell, view.spool_size, x1, lid.right, kCapPoints);
+        shell_lid_top_run(*view.shell, kCapPoints, lid.top_first, lid.top_last);
     } else {
         cap_polyline(unit_box, lid_h, x0, lid.left, kCapPoints);
         cap_polyline(unit_box, lid_h, x1, lid.right, kCapPoints);
+        lid.top_first = lid.top_last = -1;
     }
     // Monotone-chain hull; the right cap is the left one shifted along x.
     PointF pts[2 * kCapPoints];
@@ -150,19 +152,11 @@ void stroke_cheek(const ShellView& view, lv_layer_t* layer, lv_point_t o, float 
 /// The lid's top edges across the row: where its flat top starts and ends.
 void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t color,
                     lv_opa_t opa) {
-    float crest = lid.right[0].y;
-    for (int i = 1; i < kCapPoints; ++i)
-        crest = std::min(crest, lid.right[i].y);
-    int first = -1, last = -1;
-    for (int i = 0; i < kCapPoints; ++i) {
-        if (lid.right[i].y <= crest + 1.0f) {
-            first = first < 0 ? i : first;
-            last = i;
-        }
-    }
-    edge(layer, o, lid.left[first], lid.right[first], color, opa);
-    if (last != first)
-        edge(layer, o, lid.left[last], lid.right[last], color, opa);
+    if (lid.top_first < 0)
+        return;
+    edge(layer, o, lid.left[lid.top_first], lid.right[lid.top_first], color, opa);
+    if (lid.top_last != lid.top_first)
+        edge(layer, o, lid.left[lid.top_last], lid.right[lid.top_last], color, opa);
 }
 
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
