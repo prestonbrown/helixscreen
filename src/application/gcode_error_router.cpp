@@ -249,12 +249,11 @@ std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
     // bounds a runaway line to a few wrapped lines and keeps the text inside
     // the notification history's fixed-size row. The cut backs off to a
     // UTF-8 lead byte so it never splits a codepoint.
-    constexpr size_t kMaxLen = 240;
     constexpr const char* kEllipsis = "...";
-    if (text.size() <= kMaxLen) {
+    if (text.size() <= kToastTextMaxBytes) {
         return text;
     }
-    size_t cut = kMaxLen - std::char_traits<char>::length(kEllipsis);
+    size_t cut = kToastTextMaxBytes - std::char_traits<char>::length(kEllipsis);
     while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80) {
         --cut;
     }
