@@ -4568,6 +4568,7 @@
   <translation tag="Uptime" zh="运行时长"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" zh="请使用 AFC 的映射命令添加或移动工具"/>
   <translation tag="Use Android native keyboard for text input" zh="使用 Android 原生键盘进行文本输入"/>
+  <translation tag="Use Another Toolhead" zh="使用另一个工具头"/>
   <translation tag="Use DHCP" zh="使用 DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" zh="使用 G10/G11 固件回抽"/>
   <translation tag="Use New Address" zh="使用新地址"/>

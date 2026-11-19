@@ -198,6 +198,13 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         // state it rather than inheriting whatever ran last, same rule every
         // other show site follows (RunoutGuidanceModal::set_advisory()).
         modal->set_advisory(false);
+        // Offered as the runout handler offers it: where the filament system can
+        // continue on another head (the U1 mock), for the head on the carriage.
+        AmsBackend* backend = AmsState::instance().get_backend();
+        const int head = backend != nullptr ? std::max(0, backend->get_current_tool()) : 0;
+        modal->set_other_head_offered(helix::ui::RunoutOtherHeadModal::available(head));
+        modal->set_on_use_other_head(
+            [head]() { helix::ui::RunoutOtherHeadModal::show_owned(head); });
         Modal::show_owned(std::move(modal), screen);
         return true;
     }

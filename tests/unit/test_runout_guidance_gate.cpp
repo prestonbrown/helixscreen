@@ -26,6 +26,7 @@
 
 #include "ui_filament_runout_handler.h"
 #include "ui_modal.h"
+#include "ui_runout_guidance_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
@@ -137,6 +138,8 @@ TEST_CASE_METHOD(RunoutGuidanceFixture, "pausing on a real runout shows the guid
 
     CHECK(handler->is_modal_shown_for_pause());
     CHECK(handler->is_modal_visible());
+    // No filament system to move the print to another head (#2137).
+    CHECK(lv_subject_get_int(RunoutGuidanceModal::other_head_offered_subject()) == 0);
 }
 
 TEST_CASE_METHOD(RunoutGuidanceFixture, "pausing with filament present shows nothing",
@@ -267,6 +270,8 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     transition(::PrintState::Printing, ::PrintState::Paused);
     CHECK(handler->is_modal_shown_for_pause());
     CHECK(handler->is_modal_visible());
+    // The U1 can continue on another loaded head (#2137).
+    CHECK(lv_subject_get_int(RunoutGuidanceModal::other_head_offered_subject()) == 1);
 }
 
 // The U1's bed check pauses with exception 532 code 1. That pause is the

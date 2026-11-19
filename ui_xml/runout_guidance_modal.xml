@@ -105,6 +105,16 @@
     <modal_button_row hide_secondary="true" primary_name="btn_ok" primary_text="Close">
       <bind_flag_if_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
     </modal_button_row>
+    <!-- Continue on another loaded toolhead (#2137): offered only while paused and
+         when the filament system can move the rest of the print to another head
+         (runout_other_head_offered, set at show time). Wired programmatically by
+         RunoutGuidanceModal::on_show; it opens RunoutOtherHeadModal. -->
+    <lv_obj name="other_head_row"
+            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            style_pad_bottom="#space_md" flex_flow="row">
+      <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2" flag="hidden"/>
+      <ui_button name="btn_other_head" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
+    </lv_obj>
     <!-- PAUSED BUTTONS ROW (only when paused - hidden when print_state_enum != 2).
          Wired programmatically by RunoutGuidanceModal::on_show: Cancel Print →
          wire_tertiary_button, Resume Print → wire_cancel_button.

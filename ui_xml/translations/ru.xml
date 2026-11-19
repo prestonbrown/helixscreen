@@ -4634,6 +4634,7 @@
   <translation tag="Uptime" ru="Время работы"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ru="Используйте команды назначения AFC, чтобы добавить или переместить инструмент"/>
   <translation tag="Use Android native keyboard for text input" ru="Использовать нативную клавиатуру Android для ввода текста"/>
+  <translation tag="Use Another Toolhead" ru="Другая печатающая головка"/>
   <translation tag="Use DHCP" ru="Использовать DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>
   <translation tag="Use New Address" ru="Использовать новый адрес"/>

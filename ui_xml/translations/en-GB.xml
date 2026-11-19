@@ -114,6 +114,7 @@
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." en-GB="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman."/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en-GB="This wait ends only at its temperature: cancelling takes an emergency stop and a firmware restart."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." en-GB="Upgrade to AFC 1.2.0 or newer for multi-colour spools. It also adds filament names, which otherwise need Spoolman."/>
+  <translation tag="Use Another Toolhead" en-GB="Use Another Toolhead"/>
   <translation tag="Vertical Artifact Check" en-GB="Vertical Artefact Check"/>
   <translation tag="Vertical Artifact Compensation" en-GB="Vertical Artefact Compensation"/>
   <translation tag="WiFi initialization failed: {}" en-GB="WiFi initialisation failed: {}"/>
