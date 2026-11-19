@@ -52,7 +52,7 @@ Next to the offset, the Print Tune overlay can show a line such as "Saved 0.150 
 Use calibration when you first set up a printer, after changing a nozzle, probe or build plate, or whenever the first layer is far off and baby steps are not enough. The panel opens at **Advanced > Z-Offset Calibration**.
 
 1. Make sure nothing is on the bed and the nozzle is clean. HelixScreen asks **Is the bed clear?** first if your last print may still be on the plate.
-2. Optionally turn on **Warm Bed**. The bed heats to 45 degrees C (you can change that with `calibration.warm_bed_temp` in `settings.json`) before calibrating, which accounts for thermal expansion. Leave it off if you only ever print with a cold bed.
+2. Optionally turn on **Warm Bed**. The bed heats to 45 degrees C before calibrating, which accounts for thermal expansion. Leave it off if you only ever print with a cold bed.
 3. Tap **Start**. The printer homes if needed, moves over the center of the plate, and starts the calibration.
 4. Do the paper test. Slide a sheet of paper under the nozzle and use the **+/-** buttons until the paper drags slightly but still moves. Smaller steps are available for the last fine adjustments.
 5. Tap **Accept** when the paper test feels right, or **Abort** to cancel without changing anything.
@@ -97,7 +97,7 @@ Baby steps change the gcode offset while a print is running, so you can nudge th
 
 For what a good or bad first layer looks like, see the symptom table in [Z-Offset / Baby Steps](printing.md#z-offset--baby-steps).
 
-**A limit on how far you can go:** one session of baby-stepping stops about 2 mm from the offset you started at. This stops a stuck button from driving the nozzle into the bed. If you really need more than that, calibrate instead.
+**A limit on how far you can go:** baby steps stop at 2 mm either side of the offset you started from. On the Print Tune overlay the starting point is the offset when you open the overlay, so reopening it starts a new range. On the Z-Offset home widget it is the offset when the widget appeared, and it resets when you save. This stops a stuck button from driving the nozzle into the bed. If you really need more than that, calibrate instead.
 
 ### What the tune hint means
 
@@ -125,7 +125,7 @@ What happens behind the scenes: HelixScreen asks Klipper to write the adjustment
 
 When the Save button never restarts Klipper: on a firmware-managed printer, nothing is sent to Klipper at all, and on tool changers whose firmware persists a tool's offset immediately, a per-tool save may not restart anything. HelixScreen only shows the restart warning when a restart is actually coming.
 
-If your printer's Klipper does not offer the command Klipper uses to fold the offset into the config (`Z_OFFSET_APPLY_PROBE` for a probe, `Z_OFFSET_APPLY_ENDSTOP` for an endstop), HelixScreen refuses to save and says "This printer has no Z_OFFSET_APPLY_PROBE command, so the Z-offset cannot be saved." It does this rather than report a save that kept nothing. This is seen on some Creality firmware that pairs with BTT's Eddy module. You can still calibrate, and you can set the number by hand in your config.
+If your printer's Klipper does not offer the command Klipper uses to fold the offset into the config (`Z_OFFSET_APPLY_PROBE` for a probe, `Z_OFFSET_APPLY_ENDSTOP` for an endstop), HelixScreen refuses to save and says "This printer has no Z_OFFSET_APPLY_PROBE command, so the Z-offset cannot be saved." It does this rather than report a save that kept nothing. HelixScreen checks the printer's command list first, so this appears before anything is changed. You can still calibrate, and you can set the number by hand in your config.
 
 Calibration saves its own result when you tap **Accept**, so you do not need the Save button afterward.
 
@@ -149,7 +149,7 @@ When one of these is detected, HelixScreen changes how it behaves:
 - **The number shown is the stored offset, not Klipper's live one.** On these firmwares Klipper's own value reads 0.000 whenever the printer is idle, even though a real offset is stored. Other interfaces such as Mainsail or Fluidd may show 0.000. HelixScreen shows the stored value while idle, so the number matches what your next print will use. During a print it shows the live value, since baby steps land there first.
 - **Adjustments while idle are applied as an exact value.** Nudging a firmware-managed printer while idle sets the new total offset directly instead of sending a small change on top of zero, which would make the firmware throw away the stored value. You do not need to do anything for this, but it explains why idle changes behave correctly here.
 - **Calibration applies the result and the firmware saves it.** The paper-test routine for these printers applies your final value, and the firmware stores it. Saving to the Klipper config is skipped on purpose, because on these machines it would stack the stored offset on top of the saved one every time and the nozzle would sink closer to the bed with each save.
-- **HelixScreen may send the firmware a one-time setting** while the printer is idle, telling it to apply its stored offset when a print starts. It does this at most once per session and only when the firmware needs it.
+- **HelixScreen turns on the firmware's stored-offset loading once.** On ZMOD it sends `SAVE_ZMOD_DATA LOAD_ZOFFSET=1`, and on Forge-X `SET_MOD PARAM="load_zoffset" VALUE=1`, so the firmware applies the stored offset at print start. It sends it once per printer, only while no print is active, and not at all if the firmware already reports the setting on. If the command fails, HelixScreen tries again the next time it connects. The Helper Script needs nothing and gets nothing.
 - **Scanning probes still calibrate with their own routine.** See [Scanning probes](#scanning-probes-cartographer-beacon-eddy-current).
 
 > **A caveat on Helper Script detection.** The Helper Script is recognized by the wrapper it puts around `SET_GCODE_OFFSET`. Other setups wrap that command too (for logging, limits or per-tool offsets) without storing anything. HelixScreen treats a printer as firmware-managed the moment it sees the wrapper, because treating a saving printer as non-saving is the dangerous mistake. It backs off only when the printer reports its stored variables and there is no stored `zoffset` at all. A printer with such a wrapper and no stored-variables section can therefore keep the Save button hidden even though Klipper would save normally. If that is you, set the offset in your config by hand or use calibration with a probe command.
@@ -167,8 +167,7 @@ Printers with several toolheads have a separate Z offset for each tool, on top o
 - The calibration steps use your probe's own offset. When a probe is shared by all tools, it belongs to one reference tool. HelixScreen asks you to confirm, naming the reference tool, if a different tool is mounted when you start, and does not mount a tool for you.
 - Some tool changers measure every tool's offsets automatically. See [Tool Offsets](calibration.md#tool-offsets) for the automatic procedure, and [Tool changers](filament-tool-changers.md) for hardware notes.
 - **Save buttons are off by default on tool changers**, because a machine-wide save folds the live offset into the probe or endstop underneath every tool at once. One stray tap would change all of them. Turn it on in the [save setting](#the-save-z-offset-buttons-setting) if you really want it. The save then writes the tool offsets (and the machine-wide one if it changed), and a save that restarts Klipper puts your unsaved live offset back once Klipper returns.
-- **Snapmaker U1:** each head's stored offset is re-applied whenever that head is picked up, so a baby step lasts only until the next tool change or the end of the print. Calibration from the Z-Offset panel is refused for the same reason, because its result would land on whichever head is mounted. Use the printer's own [Toolhead Offset Calibration](filament-tool-changers.md#toolhead-offset-calibration) instead.
-- **Creator 5 running Z-Mod:** the firmware applies each head's offset from that head's own stored value, so HelixScreen treats the offset as per head and leaves saving to Z-Mod.
+- **Printers that keep an offset per head (Snapmaker U1, and the Creator 5 when HelixScreen finds Z-Mod's per-head storage):** the Z-Offset calibration panel refuses to accept a result with the message "Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." On the Snapmaker U1 each head's stored offset is re-applied whenever that head is picked up, so a baby step lasts only until the next tool change or the end of the print. Use the printer's own tool offset calibration instead: [Toolhead Offset Calibration](filament-tool-changers.md#toolhead-offset-calibration) on the U1, [Tool Offsets](calibration.md#tool-offsets) elsewhere.
 
 ---
 
@@ -203,11 +202,10 @@ Different build surfaces and materials often want a slightly different first-lay
 - **Firmware-managed printers show the stored offset, not Klipper's.** Mainsail and Fluidd can show 0.000 while idle. That is the firmware clearing its live copy, not a lost offset.
 - **Do not save through another interface on a firmware-managed printer.** Folding the offset into the probe while the firmware also re-applies it stacks the offset on every save. On one printer this took a probe offset from 0.060 to 2.515 mm over five saves and ended with the nozzle on the bed.
 - **Tool changers have per-tool offsets.** A machine-wide save moves every tool at once, which is why saving is off by default there. On a Snapmaker U1, a baby step lasts only until the next tool change.
-- **Baby steps stop about 2 mm from where the session began.** Calibrate if you need more.
+- **Baby steps stop 2 mm from where a run of steps began.** Calibrate if you need more.
 - **Calibration warm-up is only the bed.** The nozzle is not heated by the Z-Offset panel's **Warm Bed** option.
 - **Some firmware cannot save.** If Klipper does not offer the apply command for your setup, HelixScreen says so and does not save.
-- **Delta printers without a probe** have no stepper-based endstop value to save, and are treated as firmware-managed: adjustments are temporary unless something else stores them.
-- **Printer power loss clears the live offset.** If the printer loses power mid-print, anything unsaved is gone along with the print. See [recovering after a power loss](printing.md#recovering-after-a-power-loss) for resuming.
+- **Delta printers without a probe** (and no printer-database entry that says otherwise) are treated as firmware-managed, so HelixScreen offers no Save step. Adjustments are temporary unless something on the printer stores them.
 
 ---
 
