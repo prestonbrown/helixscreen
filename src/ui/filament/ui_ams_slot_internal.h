@@ -78,6 +78,7 @@ struct AmsSlotData {
     lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
     bool label_on_layer = false;         // The label stands on the labels layer, not in the slot
     bool label_spread = false; // ... spread across the width above a drawn unit, material alone
+    bool label_short = false;  // ... spread, and reading its base material only ("PLA")
     lv_obj_t* status_badge_bg = nullptr;    // Status badge background (colored circle)
     lv_obj_t* slot_badge = nullptr;         // Slot number label inside status badge
     lv_obj_t* tool_badge_bg = nullptr;      // Tool badge background (top-left corner)

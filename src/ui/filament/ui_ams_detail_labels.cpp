@@ -221,10 +221,10 @@ SpoolHeightCap natural_spool_layout(int unit, int32_t available_width, int slot_
 } // namespace
 
 namespace {
-/// The width the whole text of @p slot's material label takes.
-int32_t label_whole(lv_obj_t* slot) {
+/// The width the whole text of @p slot's material label takes, in its @p short_form or not.
+int32_t label_whole(lv_obj_t* slot, bool short_form) {
     lv_obj_t* label = ui_ams_slot_get_material_label(slot);
-    return helix::ui::text_width(ui_ams_slot_get_material_text(slot).c_str(),
+    return helix::ui::text_width(ui_ams_slot_get_material_text(slot, short_form).c_str(),
                                  lv_obj_get_style_text_font(label, LV_PART_MAIN),
                                  lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)) +
            1;
@@ -249,10 +249,10 @@ int32_t label_tag_room(lv_obj_t* slot) {
 constexpr int kLabelReadableChars = 3;
 
 /// The width @p slot's material label over a drawn unit asks for: its whole text, or at least
-/// its first kLabelReadableChars characters and an ellipsis.
-int32_t label_need(lv_obj_t* slot) {
+/// its first kLabelReadableChars characters and an ellipsis; in its @p short_form or not.
+int32_t label_need(lv_obj_t* slot, bool short_form) {
     lv_obj_t* label = ui_ams_slot_get_material_label(slot);
-    const std::string text = ui_ams_slot_get_material_text(slot);
+    const std::string text = ui_ams_slot_get_material_text(slot, short_form);
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     const int32_t space = lv_obj_get_style_text_letter_space(label, LV_PART_MAIN);
     const int32_t whole = helix::ui::text_width(text.c_str(), font, space);
@@ -308,10 +308,25 @@ void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art) {
 
 /// The most rows the labels over the lanes take: two on a compact screen, whose height the unit
 /// needs more than a third row of names; the labels shorten instead.
+static bool over_lane_labels_compact() {
+    return helix::widget_size::current_breakpoint() <= UiBreakpoint::Tiny;
+}
+
 static int over_lane_label_max_rows() {
-    return helix::widget_size::current_breakpoint() <= UiBreakpoint::Tiny
-               ? 2
-               : helix::ui::kAmsOverLaneMaxRows;
+    return over_lane_labels_compact() ? 2 : helix::ui::kAmsOverLaneMaxRows;
+}
+
+/// Whether the labels over the lanes at @p x read their base material only: on a compact
+/// screen, where their whole names (@p whole wide) fit in none of its rows.
+static bool over_lane_labels_short(const float x[], const int32_t whole[], int n, int32_t gap,
+                                   float lo, float hi) {
+    if (!over_lane_labels_compact())
+        return false;
+    for (int rows = 1; rows <= over_lane_label_max_rows(); ++rows) {
+        if (helix::ui::ams_over_lane_labels_fit(x, whole, n, gap, lo, hi, rows))
+            return false;
+    }
+    return true;
 }
 
 int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
@@ -321,6 +336,7 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
     // over the drawn spools.
     float x[kAmsDetailMaxSlots];
     int32_t whole[kAmsDetailMaxSlots], need[kAmsDetailMaxSlots];
+    int lane_of[kAmsDetailMaxSlots];
     int shown = 0;
     for (int i = 0; i < count && shown < kAmsDetailMaxSlots; ++i) {
         lv_obj_t* label =
@@ -328,11 +344,18 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
         if (!label || !lane_shows_label(slot_widgets[i]))
             continue;
         x[shown] = (float)(i * (layout.slot_width - layout.overlap));
-        whole[shown] = label_whole(slot_widgets[i]);
-        need[shown++] = label_need(slot_widgets[i]);
+        whole[shown] = label_whole(slot_widgets[i], false);
+        lane_of[shown++] = i;
     }
     const float row_w = (float)lv_obj_get_content_width(slot_area);
     const float start = (float)(layout.centering_offset + layout.slot_width / 2);
+    const bool short_form = over_lane_labels_short(x, whole, shown, gap, -start, row_w - start);
+    for (int k = 0; k < shown; ++k) {
+        lv_obj_t* slot = slot_widgets[lane_of[k]];
+        if (short_form)
+            whole[k] = label_whole(slot, true);
+        need[k] = label_need(slot, short_form);
+    }
     return helix::ui::ams_over_lane_label_rows(x, whole, need, shown, gap, -start, row_w - start,
                                                over_lane_label_max_rows());
 }
@@ -641,13 +664,23 @@ int32_t place_unit_labels() {
         if (!show)
             continue;
         shown_x[shown] = s_tray.label_x[i];
-        need[shown] = label_need(slot) + label_tag_room(slot);
-        text_w[shown] = label_whole(slot) + label_tag_room(slot);
+        text_w[shown] = label_whole(slot, false) + label_tag_room(slot);
         lane_of[shown++] = i;
     }
     const int32_t label_gap = theme_manager_get_spacing("space_xs");
     // Labels keep inside the unit's row.
     const float row_w = (float)lv_obj_get_width(container);
+    const bool short_form = over_lane_labels_short(shown_x, text_w, shown, label_gap, 0.0f, row_w);
+    for (int i = 0; i < n; ++i) {
+        if (s_tray.slot[i])
+            ui_ams_slot_set_label_short(s_tray.slot[i], short_form);
+    }
+    for (int k = 0; k < shown; ++k) {
+        lv_obj_t* slot = s_tray.slot[lane_of[k]];
+        if (short_form)
+            text_w[k] = label_whole(slot, true) + label_tag_room(slot);
+        need[k] = label_need(slot, short_form) + label_tag_room(slot);
+    }
     const int rows = helix::ui::ams_over_lane_label_rows(shown_x, text_w, need, shown, label_gap,
                                                          0.0f, row_w, over_lane_label_max_rows());
     int row_of[kAmsDetailMaxSlots];

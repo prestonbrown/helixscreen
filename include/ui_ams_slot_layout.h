@@ -247,6 +247,23 @@ inline void ams_over_lane_label_spans(const float x[], const int row[], const in
     }
 }
 
+/// Whether labels over lanes at @p x, each asking @p need wide, all get their room in
+/// @p rows rows cycling label by label (k % rows). No label reaches past @p lo or @p hi.
+inline bool ams_over_lane_labels_fit(const float x[], const int32_t need[], int n, int32_t gap,
+                                     float lo, float hi, int rows) {
+    int row[64];
+    AmsLabelSpan span[64];
+    n = std::min(n, 64);
+    for (int k = 0; k < n; ++k)
+        row[k] = k % rows;
+    ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
+    for (int k = 0; k < n; ++k) {
+        if (span[k].left + span[k].right < need[k])
+            return false;
+    }
+    return true;
+}
+
 /**
  * @brief The rows (1 to kAmsOverLaneMaxRows) the labels over lanes at @p x take, rows cycling
  * label by label (k % rows): the fewest that give every label its whole text (@p whole), else
@@ -258,18 +275,9 @@ inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
                                     const int32_t readable[], int n, int32_t gap, float lo,
                                     float hi, int max_rows = kAmsOverLaneMaxRows) {
     max_rows = std::clamp(max_rows, 1, kAmsOverLaneMaxRows);
-    int row[64];
-    AmsLabelSpan span[64];
-    n = std::min(n, 64);
     for (const int32_t* need : {whole, readable}) {
         for (int rows = 1; rows <= max_rows; ++rows) {
-            for (int k = 0; k < n; ++k)
-                row[k] = k % rows;
-            ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
-            bool fits = true;
-            for (int k = 0; k < n && fits; ++k)
-                fits = span[k].left + span[k].right >= need[k];
-            if (fits)
+            if (ams_over_lane_labels_fit(x, need, n, gap, lo, hi, rows))
                 return rows;
         }
     }

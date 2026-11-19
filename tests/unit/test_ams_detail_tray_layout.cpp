@@ -1827,3 +1827,44 @@ TEST_CASE_METHOD(
     helix::ui::ams_detail_sync_slot_states(slots, 4, info);
     CHECK(helix::ui::unit_art_lane_mark(art, 1).dim);
 }
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: on a compact screen, labels too crowded for whole names read the "
+                 "base material",
+                 "[ams][tray][ui_integration][over-lane][short-label]") {
+    // Twelve "Silk PLA" lanes fit no row at 480x272; four do. 800x480 keeps whole names.
+    struct Case {
+        int32_t w, h;
+        int lanes;
+        bool short_form;
+    };
+    const Case c =
+        GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, false}, Case{800, 480, 12, false});
+    CAPTURE(c.w, c.h, c.lanes);
+    helix::test::ScopedGeometry geometry(c.w, c.h);
+    build("passive", c.lanes);
+    for (int i = 0; i < c.lanes; ++i)
+        set_lane_live(i, "Silk PLA");
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+
+    const std::vector<lv_obj_t*> labels = over_lane_labels();
+    REQUIRE((int)labels.size() == c.lanes);
+    int shown = 0;
+    for (int i = 0; i < c.lanes; ++i) {
+        CAPTURE(i);
+        // The lane card's text stays the whole name.
+        CHECK(ui_ams_slot_get_material_text(slot(i), false) == "Silk PLA");
+        if (lv_obj_is_hidden(labels[(size_t)i]))
+            continue;
+        ++shown;
+        const std::string text = lv_label_get_text(labels[(size_t)i]);
+        CAPTURE(text);
+        if (c.short_form)
+            CHECK(text == "PLA");
+        else
+            CHECK(text.rfind("Si", 0) == 0); // whole, or cut to its room
+    }
+    CHECK(shown > 0);
+}
