@@ -24,10 +24,24 @@ struct SpoolSpin {
     }
 };
 
-inline constexpr uint16_t kSpoolSpinPrintStepMs = 240;     ///< printing, flow unknown
-inline constexpr uint16_t kSpoolSpinPrintSlowStepMs = 320; ///< printing, trickling
-inline constexpr uint16_t kSpoolSpinPrintFastStepMs = 120; ///< printing, high flow
-inline constexpr uint16_t kSpoolSpinLoadStepMs = 40;       ///< loading or unloading
+/// Phases in one whole turn of a spool; a phase is 7.5 degrees (spool_vent_phase_count).
+inline constexpr int kSpoolSpinPhasesPerTurn = 48;
+/// How many times faster than the real spool a drawn one turns: a real spool feeding a print
+/// turns too slowly to read as moving.
+inline constexpr float kSpoolSpinVisualMultiplier = 2.0f;
+/// The slowest a feeding spool turns: at least one turn in this many seconds.
+inline constexpr float kSpoolSpinFloorTurnS = 3.5f;
+/// The fastest a spool turns, so its vents never strobe against the frame rate.
+inline constexpr float kSpoolSpinCapTurnS = 1.0f;
+/// The radius filament leaves a typical part-used 1 kg spool at.
+inline constexpr float kSpoolSpinWoundRadiusMm = 80.0f;
+/// A load or unload's feed when the extruder reports none, as the filament unit drives it.
+inline constexpr float kSpoolSpinLoadFeedMmS = 150.0f;
+
+/// The time per vent phase of a spool feeding @p filament_mm_s of filament: the real turn rate
+/// times kSpoolSpinVisualMultiplier, held between the floor and the cap. Tray and art spools
+/// both turn at this rate.
+uint16_t spool_spin_step_ms(float filament_mm_s);
 
 /// Everything the rotation of one lane's spool depends on.
 struct SpoolSpinInput {

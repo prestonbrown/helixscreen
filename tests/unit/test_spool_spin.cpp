@@ -41,26 +41,63 @@ SpoolSpinInput moving(int lane, int current, int target, AmsAction action) {
 }
 
 constexpr SpoolSpin kStill{};
-constexpr SpoolSpin kLoad{1, kSpoolSpinLoadStepMs};
-constexpr SpoolSpin kUnload{-1, kSpoolSpinLoadStepMs};
+
+/// Seconds per whole turn at @p spin's pace.
+float turn_s(const SpoolSpin& spin) {
+    return static_cast<float>(spin.step_ms) * kSpoolSpinPhasesPerTurn / 1000.0f;
+}
+
+/// A feed fast enough to clear the floor and slow enough to stay under the cap.
+constexpr float kMidFeedMmS = 200.0f;
 
 } // namespace
 
-TEST_CASE("spool spin: a printing lane turns slowly, paced by flow when it is known",
+TEST_CASE("spool spin: a feeding spool turns at least once per floor period", "[spool_spin]") {
+    // A real spool at print flow turns once in minutes; the drawn one never slower than the floor.
+    for (float feed : {0.0f, 0.5f, 4.0f, 20.0f}) {
+        CAPTURE(feed);
+        CHECK(turn_s(SpoolSpin{1, spool_spin_step_ms(feed)}) <=
+              Catch::Approx(kSpoolSpinFloorTurnS).margin(0.03f));
+    }
+    CHECK(kSpoolSpinFloorTurnS >= 3.0f);
+    CHECK(kSpoolSpinFloorTurnS <= 4.0f);
+}
+
+TEST_CASE("spool spin: a fast feed is capped so the vents never strobe", "[spool_spin]") {
+    for (float feed : {600.0f, 2000.0f, 1e6f}) {
+        CAPTURE(feed);
+        CHECK(turn_s(SpoolSpin{1, spool_spin_step_ms(feed)}) >=
+              Catch::Approx(kSpoolSpinCapTurnS).margin(0.03f));
+    }
+}
+
+TEST_CASE("spool spin: between floor and cap a spool turns the multiplier faster than real",
+          "[spool_spin]") {
+    const float real_turn_s = 2.0f * 3.14159265f * kSpoolSpinWoundRadiusMm / kMidFeedMmS;
+    const float drawn = turn_s(SpoolSpin{1, spool_spin_step_ms(kMidFeedMmS)});
+    REQUIRE(drawn < kSpoolSpinFloorTurnS);
+    REQUIRE(drawn > kSpoolSpinCapTurnS);
+    CHECK(drawn == Catch::Approx(real_turn_s / kSpoolSpinVisualMultiplier).margin(0.03f));
+    CHECK(kSpoolSpinVisualMultiplier == 2.0f);
+}
+
+TEST_CASE("spool spin: a printing lane turns at the shared rule's pace for its flow",
           "[spool_spin]") {
     auto in = printing_lane(2);
-    CHECK(decide_spool_spin(in) == SpoolSpin{1, kSpoolSpinPrintStepMs});
-
-    in.extruder_velocity_centimm = 100; // 1 mm/s
-    CHECK(decide_spool_spin(in) == SpoolSpin{1, kSpoolSpinPrintSlowStepMs});
-    in.extruder_velocity_centimm = 300;
-    CHECK(decide_spool_spin(in) == SpoolSpin{1, kSpoolSpinPrintStepMs});
-    in.extruder_velocity_centimm = 800;
-    CHECK(decide_spool_spin(in) == SpoolSpin{1, kSpoolSpinPrintFastStepMs});
-    // A retract reads negative: the spool keeps its slow pace rather than twitching.
+    CHECK(decide_spool_spin(in) == SpoolSpin{1, spool_spin_step_ms(0.0f)});
+    in.extruder_velocity_centimm = 400; // 4 mm/s, a typical print
+    CHECK(decide_spool_spin(in) == SpoolSpin{1, spool_spin_step_ms(4.0f)});
+    in.extruder_velocity_centimm = 20000;
+    CHECK(decide_spool_spin(in) == SpoolSpin{1, spool_spin_step_ms(200.0f)});
+    // A retract reads negative: the spool keeps its slowest forward pace rather than twitching.
     in.extruder_velocity_centimm = -2500;
-    CHECK(decide_spool_spin(in) == SpoolSpin{1, kSpoolSpinPrintStepMs});
+    CHECK(decide_spool_spin(in) == SpoolSpin{1, spool_spin_step_ms(0.0f)});
 }
+
+namespace {
+const SpoolSpin kLoad{1, spool_spin_step_ms(kSpoolSpinLoadFeedMmS)};
+const SpoolSpin kUnload{-1, spool_spin_step_ms(kSpoolSpinLoadFeedMmS)};
+} // namespace
 
 TEST_CASE("spool spin: only the lane feeding a running print turns", "[spool_spin]") {
     auto other = printing_lane(2);
