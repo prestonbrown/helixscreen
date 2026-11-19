@@ -17,6 +17,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/ams_state_test_access.h"
+#include "../test_helpers/scoped_geometry.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -129,6 +130,56 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: LINEAR selector hit rect spans 
     REQUIRE(d->hits.hub_valid);
     CHECK(area_eq(d->hits.hub,
                   {cx - sel_w / 2, sel_y - hub_h / 2, cx + sel_w / 2, sel_y + hub_h / 2}));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath: a LINEAR selector bar and its gear end short of the bypass spool",
+                 "[filament-path][plan][hits][bypass]") {
+    // A 12-lane selector on a 480x272 screen's path: the bypass spool stands at the bar's
+    // level, right of its last lane.
+    helix::test::ScopedGeometry micro(480, 272);
+    constexpr int32_t kW = 285;
+    constexpr int32_t kH = 151;
+    lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
+    lv_obj_set_size(w, kW, kH);
+    ui_filament_path_canvas_set_slot_count(w, 12);
+    ui_filament_path_canvas_set_slot_width(w, 20);
+    ui_filament_path_canvas_set_slot_overlap(w, 3);
+    ui_filament_path_canvas_set_topology(w, static_cast<int>(helix::PathTopology::LINEAR));
+    ui_filament_path_canvas_set_view_scale(
+        w, helix::ui::path_view_scale(kH, helix::ui::kPathTubeLimits));
+    ui_filament_path_canvas_set_show_bypass(w, true);
+    ui_filament_path_canvas_set_hub_callback(w, [](lv_point_t, void*) {}, nullptr);
+    ui_filament_path_canvas_set_hub_actions(w, true);
+    render(*this, w);
+
+    const FilamentPathData* d = get_data(w);
+    const LinearHubFrame f = widget_frame(w);
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    int32_t mx = 0;
+    int32_t my = 0;
+    REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, &my));
+    // The spool widget's box, where the panel stands it over the merge point.
+    const int32_t box = helix::ui::bypass_spool_box_size();
+    const int32_t spool_left = mx - box / 2;
+    const int32_t spool_bottom = my - helix::ui::bypass_spool_bottom_above_merge();
+    const int32_t last_lane = c.x1 + get_slot_x(d, 11, c.x1);
+    CAPTURE(spool_left, spool_bottom, box, last_lane, f.hub_y, f.hub_h);
+    // The case at hand: the spool stands at the bar's level, just right of the last lane.
+    REQUIRE(spool_bottom - box <= f.hub_y + f.hub_h / 2);
+    REQUIRE(last_lane < spool_left);
+
+    REQUIRE(d->hits.hub_valid);
+    CAPTURE(d->hits.hub.x1, d->hits.hub.x2);
+    // The bar, gear included, ends before the spool and still takes the last lane's tube.
+    CHECK(d->hits.hub.x2 <= spool_left);
+    CHECK(d->hits.hub.x2 > last_lane);
+    CHECK(d->hits.hub.x1 < c.x1 + get_slot_x(d, 0, c.x1));
+    // The gear stands inside it, so the box the getter reports is the one tapped.
+    lv_area_t hub;
+    REQUIRE(ui_filament_path_canvas_get_hub_box(w, &hub));
+    CHECK(area_eq(hub, d->hits.hub));
 }
 
 // ============================================================================

@@ -292,6 +292,17 @@ inline int32_t rail_carriage_x(const int32_t* slot_x, int slot_count, int active
 /// slot span for a LINEAR selector. Its center is (center_x, hub_y).
 int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const LinearHubFrame& f);
 
+/// The x a LINEAR selector bar and its gear stay left of: the left edge of the box the bypass
+/// spool stands in, where that spool stands at the bar's level; never short of the last lane's
+/// tube. INT32_MAX where nothing stands in the bar's way.
+int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
+                            const LinearHubFrame& f);
+
+/// The hub or selector box as drawn, without its gear: hub_box_width() about center_x, its
+/// right end held to hub_box_right_limit().
+lv_area_t hub_box_area(const FilamentPathData& data, const BaseGeometry& g,
+                       const LinearHubFrame& f);
+
 /// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
 /// kToolheadGlyphBottomRatio of the canvas height.
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);

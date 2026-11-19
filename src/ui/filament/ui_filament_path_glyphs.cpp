@@ -89,7 +89,7 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     lv_color_t text_color = ctx.data->theme.color_text;
     const lv_font_t* font = ctx.data->theme.label_font;
     int32_t radius = ctx.data->theme.border_radius;
-    const bool gear_outside = extras && extras->gear_outside;
+    bool gear_outside = extras && extras->gear_outside;
     const int32_t slot_w = extras ? extras->slot_w : 0;
     constexpr int32_t kLabelPad = 4;
 
@@ -107,6 +107,8 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
         gear_h = lv_font_get_line_height(icon_font);
         const int32_t measured = helix::ui::text_width(ICON_SETTINGS, icon_font);
         gear_w = measured > 0 ? measured : gear_h; // defensive fallback
+        if (gear_outside && cx + width / 2 + 2 * kGearPad + gear_w > extras->max_right)
+            gear_outside = false;
     }
     const int32_t gear_in = icon_font && !gear_outside ? gear_w + 2 * kGearPad : 0;
     width = gear_outside ? LV_MAX(width, label_w + 2 * kLabelPad + slot_w)
