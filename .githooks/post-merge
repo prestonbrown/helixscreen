@@ -2,12 +2,6 @@
 # Mirror of post-commit for the merge path, which does not run post-commit.
 # Drops only the claim this merge's own git process took; a session claim
 # spanning several operations carries that session's pid and must survive.
-if [ -x scripts/helix-claim ]; then
-    scripts/helix-claim release-if-owned-by "$PPID" "worktree:" >/dev/null 2>&1
-fi
-# A clean merge kept this side's generated files (merge=helix-generated in
-# .gitattributes); regenerate the translation packs into a commit of their own.
-if [ -f "$(dirname "$0")/lib/regen-generated.sh" ]; then
-    bash "$(dirname "$0")/lib/regen-generated.sh" --merged
-fi
+[ -x scripts/helix-claim ] || exit 0
+scripts/helix-claim release-if-owned-by "$PPID" "worktree:" >/dev/null 2>&1
 exit 0

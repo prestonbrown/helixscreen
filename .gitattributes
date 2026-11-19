@@ -8,7 +8,8 @@ tests/fixtures/gcode_edits/** -text
 # the CJK font bake (make regen-text-fonts). Two branches that both regenerated them
 # would conflict on output nobody resolves by hand, so a merge keeps this side's copy
 # (the helix-generated driver, which `make`'s dependency check and `make setup`
-# configure) and the merge hooks rebuild what it left stale
-# (.githooks/lib/regen-generated.sh).
+# configure). qc_translation_packs_fresh, run by pre-merge-commit, pre-commit,
+# pre-push and make land-gate, fails packs that no longer match the YAML until
+# `make translations` regenerates them; qc_cjk_fonts does the same for the bake.
 ui_xml/translations/*.xml merge=helix-generated
 assets/fonts/cjk/** merge=helix-generated

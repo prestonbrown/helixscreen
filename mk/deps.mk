@@ -44,7 +44,8 @@ endif
 	@$(HELIX_GIT_MERGE_DRIVER)
 
 # The merge driver .gitattributes names for generated files: a merge keeps this
-# side's copy, and the merge hooks rebuild it (.githooks/lib/regen-generated.sh).
+# side's copy, and the freshness gates (qc_translation_packs_fresh, qc_cjk_fonts)
+# fail it until it is regenerated.
 # Git reads drivers only from config, so each clone sets it once.
 define HELIX_GIT_MERGE_DRIVER
 if [ "$$(git config merge.helix-generated.driver 2>/dev/null)" != true ]; then \

@@ -106,7 +106,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 |--------|---------|
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
-| `ratchet.py` | The shared ratchet verdicts: under the baseline warns (fails only under `HELIX_RATCHET_STRICT=1`); `WARN_EXIT` for bookkeeping warnings |
+| `ratchet.py` | The shared ratchet verdicts: under the baseline lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) except for bookkeeping ratchets; `WARN_EXIT` for their warnings |
 | `ratchet_report.py` | Weekly trend of the bookkeeping ratchets against a week ago and their baselines; `.github/workflows/ratchet-report.yml` |
 | `bats_select.py` | Which `tests/shell/*.bats` files a run needs |
 | `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
@@ -115,6 +115,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `gen_gallery.py` | Regenerates `docs/devel/GALLERY.md` from the doc-image manifest; `--check` exits 1 when stale |
 | `doc_anchors.py` | Resolves `path#scope` doc citations to today's line; `--check` itself always exits 0. Gated as `qc_doc_anchors`: strict, over the docs a change touches (staged at commit, changed since the fork point otherwise); `make check-doc-anchors` sweeps the whole tree |
 | `check_translation_format_specifiers.py` | Fail on translated format strings whose placeholders differ from English |
+| `check_translation_packs_fresh.py` | Fail if the packs in the index are not what the index's `translations/*.yml` generates (`make translations`); also run by `pre-merge-commit` |
 | `check_translation_files.py` | Locale files in Weblate's shape (`--fix`), `locale:` matching the file name, no plural mapping collapsed. Also `tests/python/test_check_translation_files.py` |
 | `check_cjk_font_staleness.sh` + `check_cjk_font_coverage.py` | Fail if the runtime CJK fonts miss a codepoint translations or filenames need |
 | `check_update_queue_leaks.py` | Ratchet on cross-test UpdateQueue leaks vs a baseline |
@@ -225,7 +226,6 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `full-test-run.sh` | `make full-test-run`: unit sweep plus bats, local or on the test host |
 | `land-gate.sh` | `make land-gate`: the pre-landing gate, CI's shard layout on one clean HEAD |
 | `../.githooks/lib/land-gate-stamp.sh` | Writes and reads the land-gate pass stamp |
-| `../.githooks/lib/regen-generated.sh` | After a merge kept one side's generated files, regenerates the translation packs and names a stale CJK bake |
 | `lib/sweep_location.sh` | Local or test host for a gate's C++ sweep |
 | `git-stats.sh` | Comprehensive repo statistics with effort estimation |
 | `benchmark_hosts.sh` | Benchmark host performance for build optimization |

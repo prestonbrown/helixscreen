@@ -1064,11 +1064,13 @@ tree on the isolated path and skips - its designed behaviour, since its first
 configure clones LVGL over the network.
 
 - **The pushed commit passed `make land-gate`** (its stamp, `.githooks/lib/land-gate-stamp.sh`)
-  - only patch drift runs, in seconds and with no throwaway worktree. The gate ran the quality
-  sweep, its clang/GCC divergence gate and `esp32_syntax_check.py --require` over the branch
-  since its merge-base with origin/main, which covers every firmware unit the pushed range
-  reaches. Patch drift is the one question it did not answer: it describes this tree's
-  `lib/`, not the commit. `HELIX_PREPUSH_FULL=1` runs everything anyway.
+  - the quality sweep and its clang/GCC divergence gate are skipped: the gate ran them on that
+  commit. When every pushed ref is main and the pushed range lies inside the range the gate's
+  `esp32` row measured (`merge-base(HEAD, origin/main)..HEAD`, run with `--require`), the
+  ESP32 syntax check is skipped too and only patch drift runs, in seconds, with no throwaway
+  worktree. A push to `release/*` or a tag, or beside another ref, still runs the ESP32
+  check. Patch drift always runs: it describes this tree's `lib/`, not the commit.
+  `HELIX_PREPUSH_FULL=1` runs everything anyway.
 
 Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
 `git push --no-verify` skips the hook. Expect CI to find whatever you skipped.
@@ -1080,8 +1082,9 @@ file-size cap (`check_growth_ratchets.py`), hardcoded pixels (`check_hardcoded_p
 and unreferenced callbacks (`check_orphan_callbacks.py`) never fail a commit, a push,
 `make land-gate` or CI (#2004). Their checkers exit 3 (`ratchet.WARN_EXIT`) when a warning
 is all they found, and `qc_ratchet_verdict` (`scripts/qc/_lib.sh`) prints it and passes. A
-count under its baseline warns at every stage too (`scripts/ratchet.py`;
-`HELIX_RATCHET_STRICT=1` makes it fail, for a run that lowers baselines in bulk).
+count under their baseline passes at every stage too (`ratchet.under_baseline(...,
+bookkeeping=True)`). Every other ratchet keeps its strict under-baseline verdict: lenient at
+commit, failing at the push stages (`HELIX_RATCHET_STRICT=1`) until the baseline is lowered.
 `scripts/ratchet_report.py` prints each one's count against a week ago and its baseline,
 weekly in `.github/workflows/ratchet-report.yml`.
 
@@ -1096,15 +1099,21 @@ other ratchet still fail.
 `ui_xml/translations/*.xml` and `assets/fonts/cjk/**` are generated from
 `translations/*.yml`, so `.gitattributes` merges them with the `helix-generated` driver,
 which keeps this side's copy instead of conflicting (`make` and `make setup` configure it
-in the clone). `.githooks/lib/regen-generated.sh` then regenerates the packs from the
-committed or staged YAML, never the working tree: into the merge commit when the merge
-stopped on a conflict (`pre-commit`, from the index), or into one follow-up commit holding
-only `ui_xml/translations/` after a clean merge in a linked worktree (`post-merge`, from
-HEAD, since git writes a clean merge commit from the tree it merged). The main working tree
-is shared by every session, so it never gets that commit: the hook prints `make
-translations` instead. A pack with uncommitted edits of its own is left as it is and named. A CJK bake that lacks a glyph the merged strings use is named with its
-fix, `make regen-text-fonts`; the merge commit passes it with a warning, and `qc_cjk_fonts`
-fails it everywhere else, `make land-gate` included.
+in the clone). No hook regenerates or commits anything. Two gates hold the result to the
+YAML instead:
+
+- `qc_translation_packs_fresh` (`scripts/check_translation_packs_fresh.py`, about 2 s)
+  regenerates the packs from the index's YAML and generator into a scratch directory, never
+  the working tree, and fails a pack that differs, is missing or no locale generates. It
+  runs at commit when a translation path is staged, at push, in `make land-gate` and in CI,
+  and `.githooks/pre-merge-commit` runs it on a clean merge, which then stops before its
+  commit with the fix: `make translations && git add ui_xml/translations && git commit`. A
+  rebase or cherry-pick that kept one side's packs fails it at the next commit or push the
+  same way.
+- `qc_cjk_fonts` fails a CJK bake that lacks a glyph the strings use: `make
+  regen-text-fonts`, then commit `assets/fonts/cjk/`. A merge commit passes it with a
+  warning, since the bake takes minutes; every other commit, the push and `make land-gate`
+  fail it.
 
 ### Quality Checks
 

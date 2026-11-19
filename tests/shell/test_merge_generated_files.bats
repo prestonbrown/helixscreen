@@ -3,15 +3,16 @@
 #
 # Generated files under merge=helix-generated (.gitattributes): a merge of two
 # branches that both regenerated them keeps one side's copy instead of
-# conflicting, and the merge hooks (.githooks/lib/regen-generated.sh) rebuild
-# the translation packs from the merged YAML: never from the working tree, and
-# never as an automatic commit in the main working tree. The fixture's
-# generator is a stand-in that writes the sorted YAML lines into one pack, and
-# the real hooks run against it.
+# conflicting, and scripts/check_translation_packs_fresh.py fails packs that no
+# longer match the YAML in the index, after a merge, a rebase or a cherry-pick,
+# until they are regenerated. No hook makes a commit. The fixture's generator
+# is a stand-in that writes the sorted YAML lines into one pack, and the real
+# hooks and checker run against it.
 
 load helpers
 
 HOOKS="$BATS_TEST_DIRNAME/../../.githooks"
+CHECKER="$BATS_TEST_DIRNAME/../../scripts/check_translation_packs_fresh.py"
 
 setup() {
     REPO="$BATS_TEST_TMPDIR/repo"
@@ -22,6 +23,7 @@ setup() {
     git -C "$REPO" config merge.helix-generated.driver true
     mkdir -p "$REPO/scripts" "$REPO/translations" "$REPO/ui_xml/translations" "$REPO/assets/fonts/cjk"
     grep 'merge=helix-generated' "$BATS_TEST_DIRNAME/../../.gitattributes" >"$REPO/.gitattributes"
+    cp "$CHECKER" "$REPO/scripts/"
     printf '#!/bin/sh\nexit 0\n' >"$REPO/scripts/quality-checks.sh"
     chmod +x "$REPO/scripts/quality-checks.sh"
     cat >"$REPO/scripts/generate_translations.py" <<'PY'
@@ -31,137 +33,137 @@ ap.add_argument("--yaml-dir", default="translations")
 ap.add_argument("--xml-dir", default="ui_xml/translations")
 a = ap.parse_args()
 lines = sorted(l for f in sorted(pathlib.Path(a.yaml_dir).glob("*.yml")) for l in f.read_text().splitlines())
-out = pathlib.Path(a.xml_dir)
-out.mkdir(parents=True, exist_ok=True)
-(out / "en.xml").write_text("\n".join(lines) + "\n")
+(pathlib.Path(a.xml_dir) / "en.xml").write_text("\n".join(lines) + "\n")
 PY
-    # The bake is binary, as the real .bin faces are, and stale when it is not
-    # the sorted YAML, as a real one lacking a glyph is.
-    cat >"$REPO/scripts/bake.py" <<'PY'
-import pathlib, sys
-lines = sorted(l for f in sorted(pathlib.Path("translations").glob("*.yml")) for l in f.read_text().splitlines())
-want = b"\0" + "\n".join(lines).encode()
-bake = pathlib.Path("assets/fonts/cjk/bake.bin")
-if sys.argv[1:] == ["--write"]:
-    bake.write_bytes(want)
-sys.exit(bake.read_bytes() != want)
-PY
-    printf '#!/bin/sh\nexec python3 scripts/bake.py\n' >"$REPO/scripts/check_cjk_font_staleness.sh"
     printf 'a: one\nm: middle\nz: last\n' >"$REPO/translations/en.yml"
-    printf 'c: de\n' >"$REPO/translations/de.yml"
-    echo notes >"$REPO/notes.txt"
-    regen "$REPO"
+    regen
     git -C "$REPO" add -A
     git -C "$REPO" commit -qm base
-    TREE="$BATS_TEST_TMPDIR/linked"
 }
 
-# What make translations and make regen-text-fonts write, in the fixture.
-regen() { # <tree>
-    (cd "$1" && python3 scripts/generate_translations.py && python3 scripts/bake.py --write) || true
+# What make translations and make regen-text-fonts write, in the fixture. The bake
+# is binary, as the real .bin faces are.
+regen() {
+    (cd "$REPO" && python3 scripts/generate_translations.py &&
+        python3 -c 'import pathlib; p = pathlib.Path("ui_xml/translations/en.xml"); pathlib.Path("assets/fonts/cjk/bake.bin").write_bytes(b"\0" + p.read_bytes())')
 }
 
-branch_adding() { # <tree> <branch> <yaml line> <line it follows>
-    git -C "$1" switch -q -c "$2" main
-    sed -i "/^$4/a $3" "$1/translations/en.yml"
-    regen "$1"
-    git -C "$1" add -A
-    git -C "$1" commit -qm "$2"
+branch_adding() { # <branch> <yaml line> <line it follows>
+    git -C "$REPO" switch -q -c "$1" main
+    sed -i "/^$3/a $2" "$REPO/translations/en.yml"
+    regen
+    git -C "$REPO" add -A
+    git -C "$REPO" commit -qm "$1"
 }
 
-two_branches_in_linked_tree() {
-    git -C "$REPO" worktree add -q --detach "$TREE" main
-    branch_adding "$TREE" left "b: added left" "a:"
-    branch_adding "$TREE" right "n: added right" "m:"
+fresh() { run bash -c 'cd "$1" && python3 scripts/check_translation_packs_fresh.py' _ "$REPO"; }
+
+regen_and_commit() { # the fix the checker names, with what the merge or pick left to conclude
+    regen
+    git -C "$REPO" add ui_xml/translations assets/fonts/cjk
+    git -C "$REPO" commit -q --no-edit -m "regenerate packs"
 }
 
-@test "a clean merge in a linked worktree keeps one side's files and commits regenerated packs after it" {
-    two_branches_in_linked_tree
-    run git -C "$TREE" merge --no-edit left
-    [ "$status" -eq 0 ] || fail "the merge stopped: $output"
+@test "a clean merge conflicts on no generated file and stops before its commit with the fix" {
+    branch_adding left "b: added left" "a:"
+    branch_adding right "n: added right" "m:"
+    run git -C "$REPO" merge --no-edit left
+    [ "$status" -ne 0 ]
     lacks "CONFLICT" "$output"
-    contains "committed ui_xml/translations/ regenerated" "$output"
-    contains "the CJK font bake lacks glyphs" "$output"
-    run git -C "$TREE" show HEAD:ui_xml/translations/en.xml
+    contains "does not match translations/*.yml: en.xml (differs)" "$output"
+    contains "make translations && git add ui_xml/translations && git commit" "$output"
+    [ "$(git -C "$REPO" log -1 --format=%s)" = right ] || fail "the stale merge was committed"
+    git -C "$REPO" rev-parse -q --verify MERGE_HEAD >/dev/null || fail "the merge state was dropped"
+    regen_and_commit
+    git -C "$REPO" rev-parse -q --verify HEAD^2 >/dev/null || fail "HEAD is not the merge commit"
+    run git -C "$REPO" show HEAD:ui_xml/translations/en.xml
     contains "b: added left" "$output"
     contains "n: added right" "$output"
-    [ "$(git -C "$TREE" log -1 --format=%s)" = "chore(i18n): regenerate translation packs after a merge" ]
-    git -C "$TREE" rev-parse -q --verify HEAD^1^2 >/dev/null || fail "the pack commit does not follow the merge"
-    [ -z "$(git -C "$TREE" status --porcelain)" ] || fail "the merge left the tree dirty: $(git -C "$TREE" status --porcelain)"
-}
-
-@test "the follow-up commit holds only packs from committed YAML, and leaves other work uncommitted" {
-    two_branches_in_linked_tree
-    echo "q: uncommitted" >>"$TREE/translations/de.yml"
-    echo "wip" >>"$TREE/notes.txt"
-    echo "scratch" >"$TREE/scratch.txt"
-    run git -C "$TREE" merge --no-edit left
-    [ "$status" -eq 0 ] || fail "$output"
-    [ "$(git -C "$TREE" show --name-only --format= HEAD)" = "ui_xml/translations/en.xml" ]
-    run git -C "$TREE" show HEAD:ui_xml/translations/en.xml
-    lacks "q: uncommitted" "$output"
-    contains "n: added right" "$output"
-    run git -C "$TREE" status --porcelain
-    [ "$output" = "$(printf ' M notes.txt\n M translations/de.yml\n?? scratch.txt')" ] || fail "$output"
-}
-
-@test "a pack with edits of its own keeps them, and the commit still lands" {
-    two_branches_in_linked_tree
-    echo "hand edit" >>"$TREE/ui_xml/translations/en.xml"
-    run git -C "$TREE" merge --no-edit left
-    [ "$status" -eq 0 ] || fail "$output"
-    contains "left these working copies alone" "$output"
-    grep -q "hand edit" "$TREE/ui_xml/translations/en.xml"
-    run git -C "$TREE" show HEAD:ui_xml/translations/en.xml
-    lacks "hand edit" "$output"
-    contains "n: added right" "$output"
-}
-
-@test "the main working tree gets no automatic commit, only the command to run" {
-    branch_adding "$REPO" left "b: added left" "a:"
-    branch_adding "$REPO" right "n: added right" "m:"
-    run git -C "$REPO" merge --no-edit left
-    [ "$status" -eq 0 ] || fail "$output"
-    contains "run 'make translations' and commit ui_xml/translations/" "$output"
-    git -C "$REPO" rev-parse -q --verify HEAD^2 >/dev/null || fail "HEAD is not the merge commit"
-    [ -z "$(git -C "$REPO" status --porcelain)" ] || fail "the main tree was touched"
+    fresh
+    [ "$status" -eq 0 ]
 }
 
 @test "without the driver the same merge conflicts on the generated files" {
     git -C "$REPO" config --unset merge.helix-generated.driver
-    two_branches_in_linked_tree
-    run git -C "$TREE" merge --no-edit left
+    branch_adding left "b: added left" "a:"
+    branch_adding right "n: added right" "m:"
+    run git -C "$REPO" merge --no-edit left
     [ "$status" -ne 0 ]
     contains "CONFLICT (content): Merge conflict in assets/fonts/cjk/bake.bin" "$output"
 }
 
-@test "a merge that stopped on a YAML conflict regenerates the packs into the merge commit from the index" {
-    git -C "$REPO" worktree add -q --detach "$TREE" main
-    branch_adding "$TREE" left "b: added left" "a:"
-    branch_adding "$TREE" right "b: added right" "a:"
-    run git -C "$TREE" merge --no-edit left
-    [ "$status" -ne 0 ]
-    [ "$(git -C "$TREE" diff --name-only --diff-filter=U)" = "translations/en.yml" ] ||
-        fail "more than the YAML conflicted: $(git -C "$TREE" diff --name-only --diff-filter=U)"
-    sed -i '/^<<<<<<< \|^=======$\|^>>>>>>> /d' "$TREE/translations/en.yml"
-    git -C "$TREE" add translations/en.yml
-    echo "q: unstaged" >>"$TREE/translations/en.yml"
-    run git -C "$TREE" commit --no-edit
+@test "a rebase that keeps one side's packs fails the check until they are regenerated" {
+    branch_adding left "b: added left" "a:"
+    branch_adding right "n: added right" "m:"
+    run git -C "$REPO" rebase -q left
     [ "$status" -eq 0 ] || fail "$output"
-    contains "regenerated ui_xml/translations/ into the merge commit" "$output"
-    run git -C "$TREE" show HEAD:ui_xml/translations/en.xml
-    contains "b: added left" "$output"
-    contains "b: added right" "$output"
-    lacks "q: unstaged" "$output"
-    git -C "$TREE" rev-parse -q --verify HEAD^2 >/dev/null || fail "HEAD is not the merge commit"
+    fresh
+    [ "$status" -eq 1 ]
+    contains "en.xml (differs)" "$output"
+    regen_and_commit
+    fresh
+    [ "$status" -eq 0 ]
 }
 
-@test "a fast-forward runs no regeneration" {
-    git -C "$REPO" worktree add -q --detach "$TREE" main
-    branch_adding "$TREE" left "b: added left" "a:"
-    git -C "$TREE" switch -q main 2>/dev/null || git -C "$TREE" checkout -q --detach main
-    run git -C "$TREE" merge --no-edit left
+@test "a cherry-pick that keeps one side's packs fails the check until they are regenerated" {
+    branch_adding left "b: added left" "a:"
+    branch_adding right "n: added right" "m:"
+    run git -C "$REPO" cherry-pick left
+    [ "$status" -eq 0 ] || fail "$output"
+    fresh
+    [ "$status" -eq 1 ]
+    regen_and_commit
+    fresh
     [ "$status" -eq 0 ]
-    lacks "merge:" "$output"
-    [ "$(git -C "$TREE" log -1 --format=%s)" = left ]
+}
+
+@test "the check reads the index, never the working tree" {
+    echo "q: uncommitted" >>"$REPO/translations/en.yml"
+    fresh
+    [ "$status" -eq 0 ] || fail "uncommitted YAML failed it: $output"
+    git -C "$REPO" add translations/en.yml
+    fresh
+    [ "$status" -eq 1 ]
+    regen
+    fresh
+    [ "$status" -eq 1 ] || fail "an unstaged regenerated pack passed it"
+    git -C "$REPO" add ui_xml/translations
+    fresh
+    [ "$status" -eq 0 ]
+}
+
+@test "a pack no locale generates is stale too" {
+    echo "<x/>" >"$REPO/ui_xml/translations/xx.xml"
+    git -C "$REPO" add ui_xml/translations/xx.xml
+    fresh
+    [ "$status" -eq 1 ]
+    contains "xx.xml (no locale generates it)" "$output"
+}
+
+@test "no hook makes a commit: a merge leaves HEAD where git put it" {
+    branch_adding left "b: added left" "a:"
+    git -C "$REPO" switch -q main
+    run git -C "$REPO" merge --no-edit left
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$REPO" log -1 --format=%s)" = left ]
+    [ -z "$(git -C "$REPO" status --porcelain)" ]
+}
+
+@test "the qc gate fails stale packs and triggers on the YAML, the packs and the generator" {
+    echo "q: staged" >>"$REPO/translations/en.yml"
+    git -C "$REPO" add translations/en.yml
+    run bash -c '
+        STAGED_ONLY=true; QC_TMP="$(mktemp -d)"
+        . "$1/scripts/qc/_lib.sh"
+        . "$1/scripts/qc/translation_packs_fresh.sh"
+        cd "$2" && qc_translation_packs_fresh' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
+    [ "$status" -eq 1 ]
+    contains "en.xml (differs)" "$output"
+    cd "$BATS_TEST_DIRNAME/../.." || return 1
+    re="$(qc_trigger translation_packs_fresh)"
+    for p in translations/de.yml ui_xml/translations/de.xml scripts/generate_translations.py \
+        scripts/translations/locale_variants.py scripts/check_translation_packs_fresh.py; do
+        echo "$p" | grep -qE "$re" || fail "$p should trigger"
+    done
+    if echo ui_xml/home_panel.xml | grep -qE "$re"; then fail "a layout should not trigger"; fi
 }
