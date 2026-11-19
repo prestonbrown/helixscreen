@@ -352,9 +352,14 @@ bool fit_scaled_unit(int32_t overflow, float fan_growth, const SpoolHeightCap& l
     // It never shrinks below a third of its row's size, and never grows to get there.
     const bool over = overflow > kOverflowSlack;
     const int32_t floor_spool = over ? std::min(layout.spool / 3, now) : layout.spool / 3;
-    const int32_t spool =
+    int32_t spool =
         std::clamp<int32_t>((int32_t)std::floor((float)now * (1.0f + e)), floor_spool,
                             std::max(floor_spool, std::min(layout.spool, s_too_big.spool - 1)));
+    // A row that rounds to a size above the cap it was given draws no smaller for the same
+    // cap again: ask below what it drew by as much as it overshot.
+    if (over && same_key(s_spool_cap, layout) && s_spool_cap.spool > 0 && now > s_spool_cap.spool &&
+        spool >= s_spool_cap.spool)
+        spool = std::max(floor_spool, s_spool_cap.spool - (now - s_spool_cap.spool));
     if (spool == now || (over && spool > now) || (!over && spool <= now + 1)) {
         // Settled: the cap is the size it shows.
         s_settled = layout;

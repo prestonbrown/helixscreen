@@ -565,6 +565,28 @@ TEST_CASE("Under a view scale a squeezed canvas still learns the height its path
     CHECK(full_size_at(d, g, need, false));
 }
 
+TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entries",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(
+        d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    // Narrower than the lanes' own span: they lean in.
+    CHECK(f.hub_box_w < g.slot_x[3] - g.slot_x[0]);
+    // And every lane leans no flatter than the fan allows: no sideways jog over the hub.
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
+        CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
+    }
+}
+
 TEST_CASE("A path no taller canvas would help asks for no height past its own",
           "[filament-path][hub-stack][art-fit][buffer]") {
     FilamentPathData d;

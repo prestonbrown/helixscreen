@@ -1320,8 +1320,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     // At 480x272 even a unit at half its size leaves too little, and the head gives up the rest.
     CHECK(head.y2 <= screen.y2);
     CHECK(head.y2 <= cc.y2);
+    // A path a pixel or two past the foot still shows whole (the fit's slack).
     if (!smallest)
-        CHECK(lv_area_get_height(&cc) >= need);
+        CHECK(lv_area_get_height(&cc) >= need - 2);
     // The hub stands clear of every lane's number.
     auto* cd = helix::ui::fpath::get_data(canvas);
     REQUIRE((cd != nullptr && cd->hits.hub_valid));

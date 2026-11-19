@@ -71,8 +71,6 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
 namespace {
 // A slope no fan reaches: the diagonals take the whole height between the lanes and the hub.
 constexpr float kSmoothFanSlope = 1.0e4f;
-// The straight leg a fan's fillet keeps at each end of a diagonal (build_merge_fan's reserve).
-constexpr float kFanLegRoom = 8.0f + 4.0f;
 // A lane this close to its hub entry drops straight in under a view scale.
 constexpr float kStraightLaneSlack = 2.5f;
 // Room above the rail art for the lanes to bend in from their slots, as a share of the height.
@@ -258,8 +256,8 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
             return false;
         // No lane's diagonal leans flatter than kFanMinSlope, its fillets' straight legs
         // aside: a flatter one reads as a step sideways just above the hub.
-        const bool fan = data.topology == static_cast<int>(PathTopology::HUB) &&
-                         !data.hub_on_toolhead && !f.hub_stacked;
+        const bool fan =
+            data.topology == static_cast<int>(PathTopology::HUB) && !data.hub_on_toolhead;
         for (int i = 0; fan && i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
             const pg::MergeLaneOut& lane = f.hub_fan[i];
             const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
@@ -622,6 +620,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     if (fixed)
         max_width = LV_MAX(max_width, want_w);
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
+    // Under a view scale the hub is only as wide as its entries: the lanes converge into it,
+    // and the path takes the height their diagonals need rather than a wider hub.
+    if (scaled && !fixed)
+        max_width = min_width;
     if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked) {
         // Borrow unused output-run height before widening the hub. Keep the
         // buffer/bypass area clear and leave on-toolhead hubs in place.
@@ -668,10 +670,6 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     f.hub_box_w = (int32_t)std::ceil(pg::merge_fan_width(
         fit_in, fit_n, (float)f.center_x, (float)tube_end_y, (float)min_width, (float)max_width,
         (float)entry_margin, /*fillet_r=*/8.0f, max_slope, (float)separation, reserve));
-    // Under a view scale a hub under its own lanes spans them, so each lane drops straight
-    // into its entry instead of stepping a few pixels sideways just above the box.
-    if (scaled && !fixed && fit_n > 1 && slot_span + 2 * entry_margin >= f.hub_box_w)
-        f.hub_box_w = slot_span + 2 * entry_margin;
     pg::MergeFanInfo fan_info;
     pg::build_merge_fan(fan_in, fan_n, (float)f.center_x, (float)hub_top, (float)f.hub_box_w,
                         (float)entry_margin, /*fillet_r=*/8.0f, max_slope, f.hub_fan, reserve,

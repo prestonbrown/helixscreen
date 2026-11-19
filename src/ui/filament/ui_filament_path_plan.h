@@ -53,6 +53,8 @@ struct RailArtRect {
 // colors, filament/error state and the HUB merge-fan plan.
 /// The flattest a hub fan's diagonal leans under a view scale, as its drop over its run.
 inline constexpr float kFanMinSlope = 0.75f;
+/// The straight leg a fan's fillet keeps at each end of a diagonal (build_merge_fan's reserve).
+inline constexpr float kFanLegRoom = 8.0f + 4.0f;
 
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
 /// under 14 px so its end marks stay legible.
