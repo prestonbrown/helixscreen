@@ -39,7 +39,7 @@ namespace helix {
  * 2. **Registration is idempotent by name and owner.** Because entries persist, a component whose
  *    `init_subjects()` runs again after a soft restart would otherwise accumulate a
  *    duplicate on every switch. `register_invalidator()` replaces an existing entry with
- *    the same name (keeping its original position).
+ *    the same name and owner (keeping its original position).
  * 3. **Callbacks fire in registration order, not reverse.** `deinit_all()` is LIFO because
  *    destruction order matters. Dropping cached state has no such dependency — invalidators
  *    must not care about each other — so FIFO is used for the more obvious semantics.
