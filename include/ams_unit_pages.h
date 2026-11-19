@@ -29,10 +29,13 @@ struct UnitPage {
 
 /// Pages in display order. Units naming the same non-empty AmsUnit::hub_id form one group
 /// (consecutive pages); an empty hub_id is a group of its own. Groups are ordered by the
-/// first unit of each in info.units; inside a group, info.units order. Absent units
-/// (AmsUnit::absent) get no page. @p is_drying(unit_index) answers the dryer question.
+/// first unit of each in @p order, the positions in info.units the overview's cards stand
+/// in (info.units order when it is empty or the wrong size); inside a group, that order.
+/// Absent units (AmsUnit::absent) get no page. @p is_drying(unit_index) answers the dryer
+/// question.
 std::vector<UnitPage> build_unit_pages(const AmsSystemInfo& info,
-                                       const std::function<bool(int)>& is_drying);
+                                       const std::function<bool(int)>& is_drying,
+                                       const std::vector<int>& order = {});
 
 /// Index of the page showing @p unit_index, or -1.
 int page_of_unit(const std::vector<UnitPage>& pages, int unit_index);

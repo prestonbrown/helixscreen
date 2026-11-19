@@ -360,8 +360,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's page",
                  "[ams][pages][panel][overview]") {
-    // The cards run in nozzle order, so units feeding one extruder sit together there, and the
-    // pages keep the backend's order when no unit names a hub: the two lists disagree.
+    // The cards run in nozzle order, so units feeding one extruder sit together there, unlike
+    // the backend's order; the pages follow the cards.
     install([](PagedFleet& f) {
         f.specs = {{"unit_0", "", false, kSlotsPerUnit, true, "e0"},
                    {"unit_1", "", false, kSlotsPerUnit, true, "e1"},
@@ -382,11 +382,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's pag
         tap(named("back_button"));
         REQUIRE_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     }
-    // At least one unit sits on a card position different from its page.
-    bool differs = false;
+    // The cards are not in the backend's order, and each unit's page is its card's position.
+    REQUIRE(card_units != std::vector<int>({0, 1, 2, 3}));
     for (size_t card = 0; card < card_units.size(); ++card)
-        differs = differs || page_of[card_units[card]] != static_cast<int>(card);
-    REQUIRE(differs);
+        CHECK(page_of[card_units[card]] == static_cast<int>(card));
 
     // Each card opens its own unit, whichever card position and page that is.
     const auto cards = AmsPanelTestAccess::unit_cards(panel());

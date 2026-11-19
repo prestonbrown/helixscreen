@@ -2,11 +2,11 @@
 """QIDI Box: a wide silver base whose sides climb steeply to the rear, under a smoked lid.
 
 Read off QIDI's product renders (front and three-quarter). Four spools stand side by side,
-axles left to right, each in a bay between tall black dividers, its feet in a well of the
-black floor level with the base's front top edge. The lid's front pane is about as tall as the
-base's front; its roof climbs gently to the rear, where the base's sides reach about twice
-their front height. A white slider latch sits on the base's top edge, over
-a darker band across the top of the front.
+axles left to right, each in a bay between tall black dividers, sunk into the base so only its
+upper three fifths shows above the black floor at the base's front top edge. The lid's front
+pane is shallow; its roof climbs gently to the rear and clears the spools, and its sides slope
+down to the base, whose sides climb toward the rear. A white slider latch sits on the base's
+top edge, over a darker band across the top of the front.
 """
 from pathlib import Path
 
@@ -14,21 +14,22 @@ from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
 SPOOL_R = 0.25
-# The renders read the front as about 2.5 spool diameters wide and the base's front as 0.8 of
-# one tall, with the spools wholly above the base. The shared frame holds no taller or wider
-# unit, so the box is drawn a little narrower and lower: the spools' feet dip just behind the
-# base's front edge and the lid's front pane stands a little taller than the base.
+# The spools sink into the base: only their upper three fifths show above its front top edge,
+# and the whole spool stands under the lid, whose front pane is shallower than the base. The
+# renders' base is about a third of the height; the shared frame holds no taller unit, so the
+# lid is lower than that and the base keeps the height the sunken spools need.
 W, D = 1.0, 0.66
-ZF = 0.28  # the base's front top edge, and the floor of the bays
-ZB = 0.58  # the base's side top at the rear
-LID_FRONT, LID_REAR = 0.64, 0.79
+ZF = 0.32  # the base's front top edge, and the floor of the bays
+ZB = 0.57  # the base's side top at the rear
+LID_FRONT, LID_REAR = 0.57, 0.73
 BODY, SEAM, BAND = "#b8bbc1", "#8f9298", "#9c9fa5"
 SMOKE, FRAME = "#2f3239", "#1b1c20"
 FLOOR, DIVIDER = "#141518", "#0f1013"
 LATCH = "#eef0f3"
 CENTERS = [W * f for f in (0.16, 0.385, 0.615, 0.84)]
 SPOOL_Y = D * 0.48
-SPOOL_Z = ZF + SPOOL_R - 0.06
+# Three fifths of the spool above the base's top edge.
+SPOOL_Z = ZF + 0.6 * 2 * SPOOL_R - SPOOL_R
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -65,6 +66,8 @@ def draw_art(sc, colors, tier):
         spool.draw_spool(sc, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
 
     sc.layer = "front"
+    # The bays' floor in front of the spools hides their sunken lower parts.
+    sc.poly([(0.01, 0.0, ZF), (W - 0.01, 0.0, ZF), (W - 0.01, SPOOL_Y - 0.17, ZF), (0.01, SPOOL_Y - 0.17, ZF)], FLOOR)
     for fx in (0.06, W - 0.14):
         sc.prism([(fx, 0.03), (fx, 0.1), (fx + 0.08, 0.1), (fx + 0.08, 0.03)], 0.0, 0.012, "#2a2b2f", amb=0.9, dif=0.3, spec=0)
     z0 = 0.012

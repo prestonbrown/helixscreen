@@ -53,7 +53,9 @@ def _body(sc, detail):
             for x in (0.02, W - 0.02):
                 feeder.disc(sc, x, -0.002, z, 0.006, "#62646a")
         sc.poly([(W + 0.001, 0.28, 0.03), (W + 0.001, 0.36, 0.03), (W + 0.001, 0.36, 0.09), (W + 0.001, 0.28, 0.09)], "#101012")
-    for x, col in zip(CENTERS, COLLET):
+    for lane, (x, col) in enumerate(zip(CENTERS, COLLET)):
+        # Each lane's tube stands in its collet's column, on the body's narrow front.
+        kit.outlet(sc, lane, (x, -0.012, INLET_Z))
         feeder.disc(sc, x, -0.002, INLET_Z, 0.03, kit.scale(col, 0.7))
         feeder.disc(sc, x, -0.01, INLET_Z, 0.027, col)
         feeder.disc(sc, x, -0.012, INLET_Z, 0.012, "#d9dadc")

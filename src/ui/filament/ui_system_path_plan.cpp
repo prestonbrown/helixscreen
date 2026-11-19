@@ -100,15 +100,6 @@ void append_fan(Route& r, const pg::MergeLaneOut& lane, fpath::SpanStyle s) {
     route_append(r, fan, s);
 }
 
-// The fan with its first leg reaching back up its stem to @p from_y, so its
-// first bend has a leg to round off even when the fan itself starts bending
-// at once.
-void append_fan_from(Route& r, const pg::MergeLaneOut& lane, float from_y, fpath::SpanStyle s) {
-    pg::MergeLaneOut longer = lane;
-    longer.pts[0].y = std::min(from_y, lane.pts[0].y);
-    append_fan(r, longer, s);
-}
-
 // X where the route currently ends.
 float seg_end_x(const Route& r) {
     const pg::PathSeg& s = r.path.segs[r.path.count - 1];
@@ -493,6 +484,11 @@ void append_harness(Route& r, int32_t sx, int32_t sy, int32_t ex, int32_t ey, in
 // A run tilted down toward its end: its first drop, the run as one diagonal, its last drop,
 // the bends rounded. A run with no rise left is append_harness's level run.
 void append_tilted(Route& r, const GlobalRoute& g, fpath::SpanStyle s) {
+    if (g.run_from_y == g.start_y && g.run_to_y == g.end_y) {
+        // A straight line from under its unit to its end: no drops, no bends.
+        append_line(r, (float)g.start_x, (float)g.start_y, (float)g.end_x, (float)g.end_y, s);
+        return;
+    }
     if (g.run_to_y <= g.run_from_y) {
         append_harness(r, g.start_x, g.start_y, g.end_x, g.end_y, g.run_y, s);
         return;
@@ -663,12 +659,19 @@ void set_tilt(const SystemPathData& data, GlobalRoute* routes, int n, float slop
         g.run_from_y = g.run_y - LV_MAX(0, LV_MIN(rise, room_up));
     }
 }
+
+// Whether @p g can run as one straight line from under its unit: its end takes no painted
+// line of its own after it (a junction box, or the nozzle itself). A lone hub route keeps its
+// drop to its band and nozzle, so it keeps the leaning run.
+bool can_run_straight(const SystemPathData& data, const GlobalRoute& g) {
+    return runs_across(data, g) && (g.junction || !g.hub_lane);
+}
 } // namespace tilt
 
-// Each run across leans down toward its end, at the steepest common slope that keeps every
-// pair of routes as far apart as their level runs were (or a haloed tube's width), so the
-// lines read as diagonals converging on their nozzles rather than flat runs with square
-// bends. A rig with no room keeps its level runs.
+// Each run across leans down toward its end at the steepest common slope that keeps every
+// pair of routes as far apart as their level runs were (or a haloed tube's width); then each
+// route that can becomes one straight line from under its unit to its end wherever that still
+// holds. A rig with no room keeps its level runs.
 void tilt_runs(const SystemPathData& data, GlobalRoute* routes, int n) {
     constexpr int kN = SystemPathData::kMaxTools;
     tilt::set_tilt(data, routes, n, 0.0f);
@@ -687,12 +690,33 @@ void tilt_runs(const SystemPathData& data, GlobalRoute* routes, int n) {
         }
     }
     const float gap = (float)route_gap(data);
+    bool leaned = false;
     for (float slope : {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f}) {
         tilt::set_tilt(data, routes, n, slope);
-        if (tilt::keeps_clear(routes, n, level_d2, gap * gap))
-            return;
+        if (tilt::keeps_clear(routes, n, level_d2, gap * gap)) {
+            leaned = true;
+            break;
+        }
     }
-    tilt::set_tilt(data, routes, n, 0.0f);
+    if (!leaned)
+        tilt::set_tilt(data, routes, n, 0.0f);
+    // Then each route that can runs as one straight line, wherever that keeps every pair a
+    // full haloed tube's width apart: a straight line takes no slack from the level layout.
+    float strict_d2[kN * kN];
+    for (float& v : strict_d2)
+        v = std::numeric_limits<float>::max();
+    for (int i = 0; i < n; ++i) {
+        GlobalRoute& g = routes[i];
+        if (!tilt::can_run_straight(data, g))
+            continue;
+        const int32_t from = g.run_from_y, to = g.run_to_y;
+        g.run_from_y = g.start_y;
+        g.run_to_y = g.end_y;
+        if (!tilt::keeps_clear(routes, n, strict_d2, gap * gap)) {
+            g.run_from_y = from;
+            g.run_to_y = to;
+        }
+    }
 }
 
 // One route's state. A HUB route is its unit's; a tool route carries filament
@@ -930,7 +954,6 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     y.bypass_merge = y.hub_bottom + (L.nozzle_y - y.hub_bottom) / 3;
     y.toolhead = y.hub_bottom + (y.nozzle_top - y.hub_bottom) * 2 / 3;
     const float cx = (float)L.center_x;
-    const int32_t sensor_y = L.entry_y + (L.merge_y - L.entry_y) * 3 / 5;
 
     const bool bypass_owns = data.has_bypass && data.bypass_active;
     const Lane bypass_lane{data.bypass_active ? PathSegment::NOZZLE : PathSegment::NONE,
@@ -966,17 +989,19 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
         Route* r = try_new_route(plan);
         if (!r)
             break;
-        // The stem down to the sensor's band, or to two fillets above the merge
-        // line; the fan's first leg starts there.
-        float fan_from = (float)LV_MAX(L.entry_y, L.merge_y - 2 * (int32_t)kFanFillet);
-        if (data.unit_has_hub_sensor[u]) {
-            append_line(*r, x, (float)L.entry_y, x, (float)sensor_y, lane.style(PathSegment::LANE));
+        // One straight line from under the unit to its entry on the hub's top, with no bend:
+        // the lines converge on the hub as diagonals. The unit's hub sensor band stands on it
+        // a fifth of the way down, where the line is split without turning.
+        const float sx = (float)L.entry_y;
+        const float ex = fan[k].pts[3].x;
+        const float ey = (float)hub_top;
+        constexpr float kBandAt = 0.2f;
+        const float bx = x + (ex - x) * kBandAt;
+        const float by = sx + (ey - sx) * kBandAt;
+        append_line(*r, x, sx, bx, by, lane.style(PathSegment::LANE));
+        if (data.unit_has_hub_sensor[u])
             add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT), lane.color);
-            fan_from = (float)sensor_y;
-        } else {
-            append_line(*r, x, (float)L.entry_y, x, fan_from, lane.style(PathSegment::LANE));
-        }
-        append_fan_from(*r, fan[k], fan_from, lane.style(PathSegment::OUTPUT));
+        append_line(*r, bx, by, ex, ey, lane.style(PathSegment::OUTPUT));
         if (!feed.junction) {
             append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
                         lane.style(PathSegment::HUB));

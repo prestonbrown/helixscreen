@@ -52,6 +52,16 @@ TEST_CASE("unit pages group interleaved hubs into consecutive pages", "[ams][pag
     CHECK(pages[4].group == 1);
 }
 
+TEST_CASE("unit pages run in the order the overview's cards stand in", "[ams][pages]") {
+    // multiACE's ACE stands left of the SnapSwap on the overview, so its page comes first.
+    auto info = make_info({"", ""});
+    CHECK(unit_order(build_unit_pages(info, never, {1, 0})) == std::vector<int>{1, 0});
+    CHECK(unit_order(build_unit_pages(info, never)) == std::vector<int>{0, 1});
+    // Hubs keep their members together in that order too.
+    auto hubs = make_info({"fps", "fps2", "fps"});
+    CHECK(unit_order(build_unit_pages(hubs, never, {2, 1, 0})) == std::vector<int>{2, 0, 1});
+}
+
 TEST_CASE("unit pages give an empty hub_id a group of its own", "[ams][pages]") {
     auto info = make_info({"", "", "fps", ""});
     auto pages = build_unit_pages(info, never);
