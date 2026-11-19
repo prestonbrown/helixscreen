@@ -68,12 +68,17 @@ PathPlan& plan_of(const SystemPathData& d) {
     return plan;
 }
 
-// The band whose center sits on the stem at @p x.
+// The band on the line leaving the unit whose stem stands at @p x: the nearest one under the
+// cards, the line leaning toward the hub from there.
 const SensorBand* stem_band(const PathPlan& plan, float x) {
-    for (int i = 0; i < plan.band_count; i++)
-        if (std::fabs(plan.bands[i].at.x - x) < 0.5f && plan.bands[i].at.y < 100)
-            return &plan.bands[i];
-    return nullptr;
+    const SensorBand* best = nullptr;
+    for (int i = 0; i < plan.band_count; i++) {
+        const SensorBand& b = plan.bands[i];
+        if (b.at.y < 100 && std::fabs(b.at.x - x) < 40.0f &&
+            (!best || std::fabs(b.at.x - x) < std::fabs(best->at.x - x)))
+            best = &b;
+    }
+    return best;
 }
 
 // A segment of the route ends exactly at @p p.
@@ -1425,5 +1430,34 @@ TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig
         }
         CHECK(leaning > 0);
         CHECK(level == 0);
+    }
+}
+
+TEST_CASE("Overview plan: one toolhead's lines run straight from each unit to the hub",
+          "[system_path][filament_path]") {
+    // No elbow and no flat run: each line leaves its unit on the diagonal it keeps to the hub.
+    auto d = multi();
+    const SysLayout L = compute_sys_layout(*d, AREA);
+    const PathPlan& plan = plan_of(*d);
+    const float hub_top = (float)(L.hub_y - L.hub_h / 2);
+    for (int u = 0; u < 2; u++) {
+        CAPTURE(u);
+        const Route& r = plan.routes[u];
+        const pg::PathPoint a = seg_start(r.path.segs[0]);
+        float dx = 0, dy = 0;
+        for (int k = 0; k < r.path.count; k++) {
+            const pg::PathSeg& s = r.path.segs[k];
+            if (s.p0.y >= hub_top - 0.5f)
+                break;
+            REQUIRE(s.type == pg::PathSeg::LINE);
+            const float sx = s.p1.x - s.p0.x, sy = s.p1.y - s.p0.y;
+            if (dx == 0 && dy == 0) {
+                dx = sx;
+                dy = sy;
+            }
+            CHECK(std::fabs(dx * sy - dy * sx) / (std::hypot(dx, dy) * std::hypot(sx, sy)) < 0.01f);
+        }
+        CHECK(std::fabs(dx) > 1.0f); // a diagonal, not a drop
+        CHECK(a.y < hub_top);
     }
 }

@@ -100,15 +100,6 @@ void append_fan(Route& r, const pg::MergeLaneOut& lane, fpath::SpanStyle s) {
     route_append(r, fan, s);
 }
 
-// The fan with its first leg reaching back up its stem to @p from_y, so its
-// first bend has a leg to round off even when the fan itself starts bending
-// at once.
-void append_fan_from(Route& r, const pg::MergeLaneOut& lane, float from_y, fpath::SpanStyle s) {
-    pg::MergeLaneOut longer = lane;
-    longer.pts[0].y = std::min(from_y, lane.pts[0].y);
-    append_fan(r, longer, s);
-}
-
 // X where the route currently ends.
 float seg_end_x(const Route& r) {
     const pg::PathSeg& s = r.path.segs[r.path.count - 1];
@@ -930,7 +921,6 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     y.bypass_merge = y.hub_bottom + (L.nozzle_y - y.hub_bottom) / 3;
     y.toolhead = y.hub_bottom + (y.nozzle_top - y.hub_bottom) * 2 / 3;
     const float cx = (float)L.center_x;
-    const int32_t sensor_y = L.entry_y + (L.merge_y - L.entry_y) * 3 / 5;
 
     const bool bypass_owns = data.has_bypass && data.bypass_active;
     const Lane bypass_lane{data.bypass_active ? PathSegment::NOZZLE : PathSegment::NONE,
@@ -966,17 +956,19 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
         Route* r = try_new_route(plan);
         if (!r)
             break;
-        // The stem down to the sensor's band, or to two fillets above the merge
-        // line; the fan's first leg starts there.
-        float fan_from = (float)LV_MAX(L.entry_y, L.merge_y - 2 * (int32_t)kFanFillet);
-        if (data.unit_has_hub_sensor[u]) {
-            append_line(*r, x, (float)L.entry_y, x, (float)sensor_y, lane.style(PathSegment::LANE));
+        // One straight line from under the unit to its entry on the hub's top, with no bend:
+        // the lines converge on the hub as diagonals. The unit's hub sensor band stands on it
+        // a fifth of the way down, where the line is split without turning.
+        const float sx = (float)L.entry_y;
+        const float ex = fan[k].pts[3].x;
+        const float ey = (float)hub_top;
+        constexpr float kBandAt = 0.2f;
+        const float bx = x + (ex - x) * kBandAt;
+        const float by = sx + (ey - sx) * kBandAt;
+        append_line(*r, x, sx, bx, by, lane.style(PathSegment::LANE));
+        if (data.unit_has_hub_sensor[u])
             add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT), lane.color);
-            fan_from = (float)sensor_y;
-        } else {
-            append_line(*r, x, (float)L.entry_y, x, fan_from, lane.style(PathSegment::LANE));
-        }
-        append_fan_from(*r, fan[k], fan_from, lane.style(PathSegment::OUTPUT));
+        append_line(*r, bx, by, ex, ey, lane.style(PathSegment::OUTPUT));
         if (!feed.junction) {
             append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
                         lane.style(PathSegment::HUB));
