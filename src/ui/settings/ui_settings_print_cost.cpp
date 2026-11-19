@@ -114,9 +114,18 @@ void PrintCostOverlay::refresh_values() {
         overlay_root_ ? lv_obj_find_by_name(overlay_root_, "row_cost_currency") : nullptr;
     lv_obj_t* dropdown = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
     if (dropdown) {
-        const int32_t index =
-            lv_dropdown_get_option_index(dropdown, settings.get_cost_currency().c_str());
-        lv_subject_set_int(&currency_subject_, index < 0 ? 0 : index);
+        const std::string saved = settings.get_cost_currency();
+        const auto option = print_cost::currency_option(lv_dropdown_get_options(dropdown), saved);
+        if (option.has_value()) {
+            lv_dropdown_set_text(dropdown, nullptr); // DECLARATIVE_OK: drop the stand-in below
+            lv_subject_set_int(&currency_subject_, static_cast<int>(*option));
+        } else {
+            // A code the list does not offer (a hand-edited settings file) shows
+            // as itself rather than as whichever option sits at the index.
+            unlisted_currency_ = saved;
+            lv_dropdown_set_text(dropdown, // DECLARATIVE_OK: no option holds the saved code
+                                 unlisted_currency_.c_str());
+        }
     }
 }
 
@@ -124,6 +133,7 @@ void PrintCostOverlay::handle_currency_changed(lv_event_t* e) {
     auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     char code[16] = {};
     lv_dropdown_get_selected_str(dropdown, code, sizeof(code));
+    lv_dropdown_set_text(dropdown, nullptr); // DECLARATIVE_OK: a pick replaces the stand-in
     if (code[0] != '\0') {
         SettingsManager::instance().set_cost_currency(code);
     }

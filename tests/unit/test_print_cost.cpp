@@ -201,6 +201,17 @@ TEST_CASE("currency_source: the setting's unless a line was priced from Spoolman
     CHECK(currency_source(compute({from_spool}, 3600.0, s)) == CurrencySource::Spoolman);
 }
 
+TEST_CASE("currency_option: finds the saved code's option, and none for an unknown code",
+          "[print_cost][currency]") {
+    constexpr std::string_view kOptions = "USD\nEUR\nGBP\nCHF";
+    CHECK(currency_option(kOptions, "USD") == 0u);
+    CHECK(currency_option(kOptions, "CHF") == 3u);
+    CHECK(currency_option(kOptions, "eur") == 1u); // a hand-edited settings file
+    CHECK_FALSE(currency_option(kOptions, "SGD").has_value());
+    CHECK_FALSE(currency_option(kOptions, "").has_value());
+    CHECK_FALSE(currency_option(kOptions, "US").has_value()); // a prefix is not a match
+}
+
 // ---------------------------------------------------------------------------
 // Record
 // ---------------------------------------------------------------------------

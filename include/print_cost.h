@@ -23,6 +23,7 @@
 #include "json_fwd.h"
 #include "moonraker_types.h"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -128,6 +129,16 @@ enum class CurrencySource { Setting = 0, Spoolman };
  * Print Cost settings tell the user to make true.
  */
 [[nodiscard]] CurrencySource currency_source(const Breakdown& breakdown);
+
+/**
+ * @brief The option of a currency list that names @p code
+ *
+ * @p options is a dropdown's '\n'-separated option list. The match ignores
+ * case, since a hand-edited settings file may hold "eur". Nullopt when no
+ * option names the code, so a caller never selects some other currency.
+ */
+[[nodiscard]] std::optional<uint32_t> currency_option(std::string_view options,
+                                                      std::string_view code);
 
 /// Price each tool and add electricity for @p seconds.
 [[nodiscard]] Breakdown compute(const std::vector<ToolInput>& tools, double seconds,
