@@ -15,6 +15,8 @@
 #   --merged  post-merge, after a merge that committed cleanly. Git writes that
 #             commit from the tree it merged, not from anything a hook stages,
 #             so packs that changed go into one follow-up commit of their own.
+#             It carries only generated packs and skips the commit hooks; the
+#             push sweep and make land-gate check it as they check any commit.
 #
 # Either way the CJK font bake is checked against the merged strings and, when
 # it lacks a glyph, the rebake is named. A bake takes minutes and needs
@@ -37,6 +39,26 @@ case "${1:-}" in
 esac
 [ -n "$changed" ] || exit 0
 
+# commit_packs: one commit on HEAD holding HEAD's tree with the regenerated
+# packs, made with plumbing because git still counts the merge as in progress
+# while post-merge runs and refuses a commit of named paths. It touches only
+# ui_xml/translations/, in a scratch index and then in the real one.
+commit_packs() {
+    local idx head tree commit
+    idx=$(mktemp) || return 1
+    head=$(git rev-parse HEAD) &&
+        GIT_INDEX_FILE=$idx git read-tree HEAD &&
+        GIT_INDEX_FILE=$idx git add -- ui_xml/translations/ &&
+        tree=$(GIT_INDEX_FILE=$idx git write-tree) &&
+        commit=$(git commit-tree "$tree" -p "$head" \
+            -m "chore(i18n): regenerate translation packs after a merge") &&
+        git update-ref -m "post-merge: regenerate translation packs" HEAD "$commit" "$head" &&
+        git add -- ui_xml/translations/
+    local rc=$?
+    rm -f "$idx"
+    return "$rc"
+}
+
 py=.venv/bin/python3
 [ -x "$py" ] || py=python3
 if "$py" -c 'import yaml' 2>/dev/null &&
@@ -45,13 +67,11 @@ if "$py" -c 'import yaml' 2>/dev/null &&
         if [ "$1" = --staged ]; then
             git add -- ui_xml/translations/
             echo "🌐 merge: regenerated ui_xml/translations/ from the merged translations/*.yml"
-        elif HELIX_QC_MERGE_REGEN=1 git commit -q \
-            -m "chore(i18n): regenerate translation packs after a merge" \
-            -- ui_xml/translations/; then
+        elif commit_packs; then
             echo "🌐 merge: committed ui_xml/translations/ regenerated from the merged translations/*.yml"
         else
-            echo "⚠️  merge: ui_xml/translations/ is regenerated in the working tree but its"
-            echo "   commit failed (above); commit it before this lands."
+            echo "⚠️  merge: ui_xml/translations/ is regenerated in the working tree but could"
+            echo "   not be committed; commit it before this lands."
         fi
     fi
 else

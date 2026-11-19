@@ -32,12 +32,10 @@ else
   cat /tmp/cjk_stale.out /tmp/cjk_cov.out
   echo "   Fix: make regen-text-fonts, rebuild, commit assets/fonts/cjk/."
   # A merge keeps one side's bake (merge=helix-generated in .gitattributes), so a
-  # merge commit, or the pack commit the post-merge hook makes after it
-  # (HELIX_QC_MERGE_REGEN), may need a rebake that takes minutes. It is let
-  # through with this warning; every other commit, the push sweep and make
-  # land-gate still fail.
-  if [ "$STAGED_ONLY" = true ] && { [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ] ||
-    [ "${HELIX_QC_MERGE_REGEN:-0}" = 1 ]; }; then
+  # merge commit may need a rebake that takes minutes. It is let through with
+  # this warning; every other commit, the push sweep and make land-gate still
+  # fail.
+  if [ "$STAGED_ONLY" = true ] && [ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]; then
     echo "   ⚠️  A merge commit: rebake before this lands, or make land-gate refuses it."
   else
     EXIT_CODE=1
