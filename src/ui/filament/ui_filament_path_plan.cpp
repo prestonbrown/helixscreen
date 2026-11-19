@@ -6,6 +6,7 @@
 
 #include "ui_filament_path_plan.h"
 
+#include "ui_ams_lane_spool.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_icon_codepoints.h"
 
@@ -102,7 +103,9 @@ int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
     const int32_t reach = f.hub_h;
     if (spool_top > f.hub_y + reach || spool_bottom < f.hub_y - reach)
         return INT32_MAX;
-    const int32_t spool_left = g.x_off + (int32_t)(g.width * kBypassXRatio) - box / 2;
+    // The spool itself, inside its box's padding.
+    const int32_t spool_left =
+        g.x_off + (int32_t)(g.width * kBypassXRatio) - helix::ui::ams_slot_spool_size() / 2;
     // The bar always reaches the last lane's tube.
     return LV_MAX(spool_left, g.slot_x[data.slot_count - 1] + data.theme.tube_gauge);
 }

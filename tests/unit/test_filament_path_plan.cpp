@@ -10,6 +10,7 @@
 // 100), output 140, merge 232, toolhead 272, nozzle 358, glyph top 327, inlet 338.
 
 #include "ui_ams_detail.h"
+#include "ui_ams_lane_spool.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_fonts.h"
@@ -160,9 +161,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     int32_t mx = 0;
     int32_t my = 0;
     REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, &my));
-    // The spool widget's box, where the panel stands it over the merge point.
+    // The spool widget, where the panel stands it over the merge point.
     const int32_t box = helix::ui::bypass_spool_box_size();
-    const int32_t spool_left = mx - box / 2;
+    const int32_t spool_left = mx - helix::ui::ams_slot_spool_size() / 2;
     const int32_t spool_bottom = my - helix::ui::bypass_spool_bottom_above_merge();
     const int32_t last_lane = c.x1 + get_slot_x(d, 11, c.x1);
     CAPTURE(spool_left, spool_bottom, box, last_lane, f.hub_y, f.hub_h);
