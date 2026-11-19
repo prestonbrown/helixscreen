@@ -1218,8 +1218,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
           /*buffer=*/false, /*empty_lane=*/kAllLanesEmpty);
     lv_obj_update_layout(test_screen());
     lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
-    if (!drawing || lv_obj_is_hidden(drawing))
-        SKIP("no art for this unit here");
+    // A Box Turtle has its drawing at every host size.
+    REQUIRE(drawing);
+    REQUIRE_FALSE(lv_obj_is_hidden(drawing));
     lv_obj_t* column = container_;
     while (column &&
            !(lv_obj_get_name(column) && std::string(lv_obj_get_name(column)) == "left_column"))
@@ -1241,8 +1242,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     build("passive", 4);
     lv_obj_update_layout(test_screen());
     lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
-    if (!drawing || lv_obj_is_hidden(drawing))
-        SKIP("no art for this unit here");
+    // A Box Turtle has its drawing at every host size.
+    REQUIRE(drawing);
+    REQUIRE_FALSE(lv_obj_is_hidden(drawing));
     int dots = 0;
     int32_t cy[4] = {};
     for (int i = 0; i < 4; ++i) {
@@ -1352,8 +1354,9 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots
     build("passive", 4);
     lv_obj_update_layout(test_screen());
     lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
-    if (!drawing || lv_obj_is_hidden(drawing))
-        SKIP("no art for this unit here");
+    // A Box Turtle has its drawing at every host size.
+    REQUIRE(drawing);
+    REQUIRE_FALSE(lv_obj_is_hidden(drawing));
     lv_obj_send_event(slot(1), LV_EVENT_PRESSED, nullptr);
     REQUIRE(at::s_tray.pressed_lane == 1);
     // A new lane count rebuilds the slots under the finger: no release reaches the old ones.
@@ -1376,6 +1379,8 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
           /*buffer=*/unit == 2);
     lv_obj_update_layout(test_screen());
     lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    // A Box Turtle has its drawing at every host size; an AMS 2 Pro may not.
+    REQUIRE((unit != 0 || (drawing && !lv_obj_is_hidden(drawing))));
     if (!drawing || lv_obj_is_hidden(drawing))
         SKIP("no art for this unit here");
     // Each lane's number stands centered over its outlet: their spacing is the lanes' pitch.
