@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." ja="調整は再起動まで有効です。印刷完了後に保存してください。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" ja="ヒーターの個別特性を調整して最適な制御を実現します"/>
   <translation tag="Advanced" ja="詳細設定"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" ja="前進中"/>
   <translation tag="After an error" ja="エラーの後"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ja="{}を接続した後は、印刷品質のためにインプットシェーピングの再キャリブレーションをお勧めします。"/>
   <translation tag="After running the commands, tap Check Again below." ja="コマンド実行後、下の「再確認」をタップしてください。"/>
@@ -850,7 +850,7 @@
   <translation tag="Completed {}h ago" ja="{} 時間前に完了"/>
   <translation tag="Completed {}m ago" ja="{} 分前に完了"/>
   <translation tag="Completed: {}" ja="完了: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" ja="圧縮"/>
   <translation tag="Computing calibration..." ja="キャリブレーション計算中..."/>
   <translation tag="Config Dir" ja="設定ディレクトリ"/>
   <translation tag="Config Edit Failed" ja="設定の編集に失敗しました"/>
@@ -1365,7 +1365,7 @@
   <translation tag="Exhaust fan speed" ja="排気ファン速度"/>
   <translation tag="Exhaust: keep chamber at or below" ja="排気: チャンバーをこの温度以下に保つ"/>
   <translation tag="Exit Code" ja="終了コード"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" ja="伸長"/>
   <translation tag="Expected boolean" ja="真偽値が必要です"/>
   <translation tag="Expected float" ja="小数値が必要です"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." ja="選択したパレットがテキスト、コントロール、ステータスカラーにどのように影響するかを確認できます。"/>
@@ -2175,6 +2175,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ja="{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。"/>
   <translation tag="Linear rails" ja="リニアレール"/>
   <translation tag="Linear rails interval" ja="リニアレールの間隔"/>
+  <translation tag="Lines from other apps mix with tips" ja="他のアプリからの一言をヒントに混ぜて表示"/>
+  <translation tag="Lines from other apps replace tips" ja="他のアプリからの一言をヒントの代わりに表示"/>
   <translation tag="Link Spools from Tags" ja="タグからスプールをリンク"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" ja="タグが示す Spoolman スプールにスロットをリンク"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" ja="共有画面をこのプリンターのウェブカメラ一覧に表示"/>
@@ -4411,7 +4413,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ja="ターゲットをタッチ（ポイント %1$d / 3）— タッチ %2$d / %3$d"/>
   <translation tag="TouchCalibration" ja="タッチキャリブレーション"/>
   <translation tag="Trace" ja="トレース"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" ja="遅延"/>
   <translation tag="Tried ports {} and {}." ja="ポート{}と{}を試しました。"/>
   <translation tag="Trigger" ja="トリガー"/>
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>

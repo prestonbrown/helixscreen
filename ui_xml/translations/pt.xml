@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." pt="Ajustes permanecem ativos até reiniciar. Salve após a impressão terminar."/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" pt="Ajusta características individuais dos seus aquecedores para controle ideal"/>
   <translation tag="Advanced" pt="Avançado"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" pt="Avançando"/>
   <translation tag="After an error" pt="Após um erro"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." pt="Depois de ligar {}, recomendamos recalibrar o Input Shaping para garantir a qualidade de impressão."/>
   <translation tag="After running the commands, tap Check Again below." pt="Após executar os comandos, toque em Verificar Novamente abaixo."/>
@@ -850,7 +850,7 @@
   <translation tag="Completed {}h ago" pt="Concluído há {} h"/>
   <translation tag="Completed {}m ago" pt="Concluído há {} min"/>
   <translation tag="Completed: {}" pt="Concluído: {}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" pt="Comprimido"/>
   <translation tag="Computing calibration..." pt="Calculando calibração..."/>
   <translation tag="Config Dir" pt="Diretório de Configuração"/>
   <translation tag="Config Edit Failed" pt="Falha ao Editar a Configuração"/>
@@ -1365,7 +1365,7 @@
   <translation tag="Exhaust fan speed" pt="Velocidade da ventoinha de exaustão"/>
   <translation tag="Exhaust: keep chamber at or below" pt="Exaustão: manter a câmara no máximo a"/>
   <translation tag="Exit Code" pt="Código de Saída"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" pt="Expandido"/>
   <translation tag="Expected boolean" pt="Esperava-se um valor booleano"/>
   <translation tag="Expected float" pt="Esperava-se um número decimal"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." pt="Explore como a paleta selecionada molda texto, controles e cores de status."/>
@@ -2175,6 +2175,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." pt="A linha {} chama {}, que esta impressora trata como uma parada de emergência. Fatie o arquivo novamente com um perfil feito para esta impressora."/>
   <translation tag="Linear rails" pt="Trilhos lineares"/>
   <translation tag="Linear rails interval" pt="Intervalo dos trilhos lineares"/>
+  <translation tag="Lines from other apps mix with tips" pt="Linhas de outros apps se misturam às dicas"/>
+  <translation tag="Lines from other apps replace tips" pt="Linhas de outros apps substituem as dicas"/>
   <translation tag="Link Spools from Tags" pt="Vincular carretéis pela etiqueta"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" pt="Vincula um slot ao carretel do Spoolman indicado pela etiqueta"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" pt="Listar a tela compartilhada entre as webcams desta impressora"/>
@@ -4411,7 +4413,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" pt="Toque no alvo (ponto %1$d de 3) — toque %2$d de %3$d"/>
   <translation tag="TouchCalibration" pt="Calibração do Toque"/>
   <translation tag="Trace" pt="Rastreamento"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" pt="Atrasado"/>
   <translation tag="Tried ports {} and {}." pt="Tentadas as portas {} e {}."/>
   <translation tag="Trigger" pt="Gatilho"/>
   <translation tag="Troubleshooting:" pt="Solução de Problemas:"/>

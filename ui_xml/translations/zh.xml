@@ -286,7 +286,7 @@
   <translation tag="Adjustments stay active until restart. Save after print completes." zh="调整在重启前保持有效。打印完成后保存。"/>
   <translation tag="Adjusts individual characteristics of your heaters for optimal control" zh="调整加热器的各项参数以实现最佳控制"/>
   <translation tag="Advanced" zh="高级"/>
-  <translation tag="Advancing"/>
+  <translation tag="Advancing" zh="前进"/>
   <translation tag="After an error" zh="发生错误后"/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." zh="连接{}后，建议重新校准输入整形，以确保打印质量。"/>
   <translation tag="After running the commands, tap Check Again below." zh="执行命令后，点击下方的重新检查。"/>
@@ -850,7 +850,7 @@
   <translation tag="Completed {}h ago" zh="{} 小时前完成"/>
   <translation tag="Completed {}m ago" zh="{} 分钟前完成"/>
   <translation tag="Completed: {}" zh="已完成：{}"/>
-  <translation tag="Compressed"/>
+  <translation tag="Compressed" zh="压缩"/>
   <translation tag="Computing calibration..." zh="正在计算校准..."/>
   <translation tag="Config Dir" zh="配置目录"/>
   <translation tag="Config Edit Failed" zh="配置编辑失败"/>
@@ -1365,7 +1365,7 @@
   <translation tag="Exhaust fan speed" zh="排气风扇速度"/>
   <translation tag="Exhaust: keep chamber at or below" zh="排气：将腔体保持在不高于"/>
   <translation tag="Exit Code" zh="退出代码"/>
-  <translation tag="Expanded"/>
+  <translation tag="Expanded" zh="伸展"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
   <translation tag="Expected float" zh="需要小数值"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." zh="探索所选调色板如何影响文本、控件和状态颜色。"/>
@@ -2175,6 +2175,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." zh="第 {} 行调用 {}，此打印机将其视为紧急停止。请使用为此打印机制作的配置重新切片该文件。"/>
   <translation tag="Linear rails" zh="直线导轨"/>
   <translation tag="Linear rails interval" zh="直线导轨间隔"/>
+  <translation tag="Lines from other apps mix with tips" zh="其他应用的文字与提示交替显示"/>
+  <translation tag="Lines from other apps replace tips" zh="其他应用的文字替换提示"/>
   <translation tag="Link Spools from Tags" zh="通过标签关联料盘"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" zh="将槽位关联到其标签指定的 Spoolman 料盘"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" zh="在此打印机的摄像头列表中显示共享屏幕"/>
@@ -4411,7 +4413,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" zh="触摸目标（第 %1$d 个点，共 3 个）— 触摸 %2$d / %3$d"/>
   <translation tag="TouchCalibration" zh="触摸校准"/>
   <translation tag="Trace" zh="跟踪"/>
-  <translation tag="Trailing"/>
+  <translation tag="Trailing" zh="滞后"/>
   <translation tag="Tried ports {} and {}." zh="已尝试端口 {} 和 {}。"/>
   <translation tag="Trigger" zh="触发器"/>
   <translation tag="Troubleshooting:" zh="故障排除："/>
