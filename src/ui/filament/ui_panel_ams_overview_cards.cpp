@@ -10,6 +10,7 @@
 #include "ui_panel_ams_overview.h"
 #include "ui_row_text.h"
 #include "ui_system_path_canvas.h"
+#include "ui_system_path_plan.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -241,15 +242,15 @@ void AmsOverviewPanel::refresh_units() {
         }
     }
 
-    // Art flattens at its widget's size, so the row is sized first.
+    // Art flattens at its widget's size, so the row is sized first, then given
+    // back the height the path's tubes need, and only then drawn.
     layout_unit_row();
+    refresh_system_path(info, current_slot);
+    fit_path_room();
     for (auto& uc : unit_cards_) {
         if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
             apply_card_art(uc, info.units[uc.unit_index], info);
     }
-
-    // Update system path visualization
-    refresh_system_path(info, current_slot);
 }
 
 bool AmsOverviewPanel::unit_has_art(const AmsSystemInfo& info, int unit_index) {
@@ -333,7 +334,62 @@ int32_t AmsOverviewPanel::tile_art_room() const {
     const int32_t path_h = column_h * kOverviewPathSharePct / 100;
     const int32_t row_pad = lv_obj_get_style_pad_bottom(cards_row_, LV_PART_MAIN) +
                             lv_obj_get_style_pad_row(column, LV_PART_MAIN);
-    return LV_MAX(0, column_h - path_h - name_h - row_pad);
+    return LV_MAX(0, column_h - path_h - name_h - row_pad - path_extra_);
+}
+
+bool AmsOverviewPanel::fit_path_room() {
+    const bool tiles = std::any_of(unit_cards_.begin(), unit_cards_.end(),
+                                   [](const UnitCard& uc) { return uc.tile; });
+    const helix::ui::syspath::SystemPathData* data =
+        system_path_ ? helix::ui::syspath::system_path_data(system_path_) : nullptr;
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    const auto relayout = [this](int32_t extra) {
+        path_extra_ = extra;
+        layout_unit_row();
+        push_unit_anchors(/*relayout=*/true);
+    };
+    const auto shortfall = [this, data]() {
+        lv_area_t coords;
+        lv_obj_get_coords(system_path_, &coords);
+        return helix::ui::syspath::overview_lean_shortfall(*data, coords);
+    };
+    if (!tiles || !data || !cards_row_ || (portrait && lv_subject_get_int(portrait) == 1)) {
+        if (path_extra_ == 0)
+            return false;
+        relayout(0);
+        return true;
+    }
+    // A shortfall this small is slack worth keeping, not height to hand back.
+    constexpr int32_t kSlackPx = 8;
+    const int32_t start = path_extra_;
+    int32_t need = shortfall();
+    if ((need <= 0 && need > -kSlackPx) || need == settled_need_)
+        return false;
+    const int32_t floor_art =
+        theme_manager_get_spacing("ams_tile_min_width") * kTileArtHeightPct / 100;
+    const int32_t cap = LV_MAX(0, tile_art_room() + path_extra_ - floor_art);
+    if (need > 0) {
+        // Take height from the tiles until the tubes lean; tiles that still leave
+        // them level would cost the tiles for nothing, so they keep their size.
+        for (int pass = 0; pass < kMaxRelayoutPasses && need > 0 && path_extra_ < cap; ++pass) {
+            relayout(LV_MIN(cap, path_extra_ + need));
+            need = shortfall();
+        }
+        if (need > 0 && path_extra_ != 0)
+            relayout(0);
+    } else if (path_extra_ > 0) {
+        // Hand back what the tubes no longer need, unless that leaves them level.
+        const int32_t before = path_extra_;
+        relayout(LV_MAX(0, path_extra_ + need));
+        if (shortfall() > 0)
+            relayout(before);
+    }
+    // The layout this settles on, by the shortfall it leaves: the next refresh
+    // with the same shortfall has nothing new to try.
+    settled_need_ = shortfall();
+    if (path_extra_ != start)
+        spdlog::debug("[{}] Path room: {} px taken from the tiles", get_name(), path_extra_);
+    return path_extra_ != start;
 }
 
 void AmsOverviewPanel::layout_tiles(int32_t row_width, int32_t gap) {

@@ -204,6 +204,12 @@ struct NozzleFeed {
 /// comes from the units with a hub on the way in (a HUB or LINEAR unit).
 NozzleFeed nozzle_feed(const SystemPathData& data, int tool);
 
+/// How much taller the canvas at @p coords would have to be for the several-toolhead
+/// overview's tubes to jog on a lean rather than run level: positive when they need
+/// more height, negative for the height they could spare, 0 with one toolhead or
+/// when the tubes are out of the router's reach whatever the height.
+int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coords);
+
 // What the canvas draws over the tubes at one nozzle of the several-toolhead
 // layout: the junction's hub box, or the buffer on a lone route.
 struct HubInfo {

@@ -960,6 +960,43 @@ void check_row_clear(const SystemPathData& d, const HubRowPlan& p) {
 
 } // namespace
 
+namespace {
+// A painted straight piece of @p plan's tubes that runs level across more than a tube.
+bool has_level_run(const PathPlan& plan, int32_t gauge) {
+    for (int i = 0; i < plan.route_count; i++) {
+        const Route& r = plan.routes[i];
+        for (int k = 0; k < r.path.count; k++) {
+            const pg::PathSeg& s = r.path.segs[k];
+            if (s.type == pg::PathSeg::LINE && r.style[k].painted &&
+                std::fabs(s.p1.y - s.p0.y) < 1.0f && std::fabs(s.p1.x - s.p0.x) >= 2.0f * gauge)
+                return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+TEST_CASE("Overview plan: the lean shortfall is the height that lets level tubes lean",
+          "[system_path][filament_path][hub_groups]") {
+    // Four units across the canvas into one head: a short canvas leaves their tubes
+    // level, and one the shortfall taller lets them lean.
+    auto d = hub_row_data(4, 2);
+    for (int u = 0; u < 4; u++)
+        hub_unit(*d, u, 0, 60 + 90 * u);
+    const lv_area_t short_area = {0, 0, 399, 109};
+    const int32_t need = overview_lean_shortfall(*d, short_area);
+    REQUIRE(need > 0);
+    PathPlan plan;
+    OverviewBoxes boxes;
+    plan_overview(*d, compute_sys_layout(*d, short_area), plan, boxes);
+    CHECK(has_level_run(plan, d->tube_gauge));
+
+    const lv_area_t tall_area = {0, 0, 399, 109 + need};
+    CHECK(overview_lean_shortfall(*d, tall_area) <= 0);
+    plan_overview(*d, compute_sys_layout(*d, tall_area), plan, boxes);
+    CHECK_FALSE(has_level_run(plan, d->tube_gauge));
+}
+
 TEST_CASE("Overview plan: the StealthChanger row has one hub, where two units meet",
           "[system_path][hub_row]") {
     auto d = stealth_row();

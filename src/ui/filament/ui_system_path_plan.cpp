@@ -931,45 +931,57 @@ void append_lone_outlet(Route& r, const Lane& lane, float x, float from_y, float
 // a bus of its own. Returns false, leaving the routes untouched, when the router
 // cannot fit them (ends out of order, too little height or clearance): the
 // caller lays them out with run heights instead. Sorts @p routes by start.
-bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
-    if (n <= 0)
-        return false;
-    std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
-        return a.start_x < b.start_x;
-    });
+// The routes as the router takes them: sorted by start, one bus per PARALLEL or
+// MIXED unit's run of routes and one per other unit's tube.
+struct RouterInput {
     pg::PathPoint sources[SystemPathData::kMaxTools];
     pg::PathPoint sinks[SystemPathData::kMaxTools];
     tuberoute::Bus buses[SystemPathData::kMaxTools];
     int bus_count = 0;
+    tuberoute::RouterConfig cfg;
+};
+
+void router_input(const SystemPathData& data, GlobalRoute* routes, int n, RouterInput& in) {
+    std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
+        return a.start_x < b.start_x;
+    });
+    in.bus_count = 0;
     for (int r = 0; r < n; ++r) {
-        sources[r] = {(float)routes[r].start_x, (float)routes[r].start_y};
-        sinks[r] = {(float)routes[r].end_x, (float)routes[r].end_y};
+        in.sources[r] = {(float)routes[r].start_x, (float)routes[r].start_y};
+        in.sinks[r] = {(float)routes[r].end_x, (float)routes[r].end_y};
         const bool joins = r > 0 && !routes[r].is_hub && !routes[r - 1].is_hub &&
                            routes[r].unit_idx == routes[r - 1].unit_idx;
         if (joins) {
-            buses[bus_count - 1].count++;
+            in.buses[in.bus_count - 1].count++;
             continue;
         }
-        buses[bus_count++] = {&sources[r], &sinks[r], 1};
+        in.buses[in.bus_count++] = {&in.sources[r], &in.sinks[r], 1};
     }
-    tuberoute::RouterConfig cfg;
-    cfg.clearance = (float)route_gap(data);
-    cfg.bus_pitch = (float)lane_pitch(data);
-    cfg.group_gap = (float)(2 * lane_pitch(data));
-    cfg.fillet_r = kFanFillet;
-    // The steepest jog that fits the height, in steps fine enough that a tight
-    // rig leans as far as its height allows; a level jog only when no lean fits.
+    in.cfg.clearance = (float)route_gap(data);
+    in.cfg.bus_pitch = (float)lane_pitch(data);
+    in.cfg.group_gap = (float)(2 * lane_pitch(data));
+    in.cfg.fillet_r = kFanFillet;
+    in.cfg.allow_horizontal = false;
+}
+
+// The jog slopes the router tries, steepest first, in steps fine enough that a
+// tight rig leans as far as its height allows. A level jog comes only after.
+constexpr float kRouterSlopes[] = {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f};
+
+bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
+    if (n <= 0)
+        return false;
+    RouterInput in;
+    router_input(data, routes, n, in);
+    tuberoute::RouterConfig& cfg = in.cfg;
     tuberoute::Trace traces[SystemPathData::kMaxTools];
     bool fits = false;
-    cfg.allow_horizontal = false;
-    for (float slope : {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f, 0.0f}) {
-        cfg.slope = slope > 0.0f ? slope : 1.0f;
-        cfg.allow_horizontal = slope == 0.0f;
-        if (tuberoute::plan_routes(buses, bus_count, cfg, traces, n) ==
-            tuberoute::RouteStatus::Ok) {
-            fits = true;
-            break;
-        }
+    for (int k = 0; k <= (int)std::size(kRouterSlopes) && !fits; ++k) {
+        const bool level = k == (int)std::size(kRouterSlopes);
+        cfg.slope = level ? 1.0f : kRouterSlopes[k];
+        cfg.allow_horizontal = level;
+        fits = tuberoute::plan_routes(in.buses, in.bus_count, cfg, traces, n) ==
+               tuberoute::RouteStatus::Ok;
     }
     if (!fits)
         return false;
@@ -980,9 +992,10 @@ bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
     return true;
 }
 
-void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
-                     OverviewBoxes& boxes) {
-    GlobalRoute routes[SystemPathData::kMaxTools];
+// The several-toolhead routes, parked tubes merged, ends set and the hub row
+// solved: everything the router or the run heights lay out. Returns their count.
+int prepare_multi_routes(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes,
+                         NozzleFeed* feeds, OverviewBoxes& boxes) {
     int n = 0;
     for (int i = 0; i < data.unit_count && i < SystemPathData::kMaxUnits; i++) {
         if (data.unit_absent[i])
@@ -995,7 +1008,6 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     n = merge_parked_routes(data, L, routes, n, boxes);
 
     const int tools = LV_MIN(data.total_tools, SystemPathData::kMaxTools);
-    NozzleFeed feeds[SystemPathData::kMaxTools];
     for (int t = 0; t < tools; ++t) {
         // A box stands only where two or more tubes visibly meet, as wide as the
         // tubes that enter it once parked units share theirs. Units that all
@@ -1024,6 +1036,15 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     place_nozzle_boxes(data, L, feeds, tools, boxes);
     resolve_hub_row(data, L, feeds, routes, n, boxes);
     slot_into_junctions(data, boxes, routes, n);
+    return n;
+}
+
+void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
+                     OverviewBoxes& boxes) {
+    GlobalRoute routes[SystemPathData::kMaxTools];
+    NozzleFeed feeds[SystemPathData::kMaxTools];
+    const int n = prepare_multi_routes(data, L, routes, feeds, boxes);
+    const int32_t nozzle_top = tool_row_inlet_y(data, L);
     if (!route_with_router(data, routes, n)) {
         assign_run_heights(data, L, boxes, routes, n);
         tilt_runs(data, routes, n);
@@ -1219,6 +1240,45 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
 }
 
 } // namespace
+
+int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coords) {
+    const SysLayout L = compute_sys_layout(data, coords);
+    if (!L.multi_tool)
+        return 0;
+    GlobalRoute routes[SystemPathData::kMaxTools];
+    NozzleFeed feeds[SystemPathData::kMaxTools];
+    OverviewBoxes boxes;
+    const int n = prepare_multi_routes(data, L, routes, feeds, boxes);
+    if (n <= 0)
+        return 0;
+    RouterInput in;
+    router_input(data, routes, n, in);
+    float top = in.sources[0].y, sink = in.sinks[0].y;
+    for (int r = 1; r < n; ++r) {
+        top = std::min(top, in.sources[r].y);
+        sink = std::min(sink, in.sinks[r].y);
+    }
+    // The least height any lean needs: a shallow jog is shorter, but its ribbon
+    // stacks deeper, so the easiest slope is not always the shallowest.
+    tuberoute::Trace traces[SystemPathData::kMaxTools];
+    float short_px = std::numeric_limits<float>::max();
+    for (float slope : kRouterSlopes) {
+        in.cfg.slope = slope;
+        tuberoute::RouteReport report;
+        const tuberoute::RouteStatus status =
+            tuberoute::plan_routes(in.buses, in.bus_count, in.cfg, traces, n, &report);
+        if (status == tuberoute::RouteStatus::Ok || status == tuberoute::RouteStatus::NoRoom)
+            short_px = std::min(short_px, report.required_bottom - sink);
+    }
+    if (short_px == std::numeric_limits<float>::max())
+        return 0;
+    // The run from the stems to the sinks is a fixed share of the canvas, so the
+    // canvas grows by the shortfall over that share.
+    const float run = sink - top;
+    if (run <= 0.0f)
+        return 0;
+    return (int32_t)std::ceil(short_px * (float)L.height / run);
+}
 
 NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
     NozzleFeed f;

@@ -310,6 +310,15 @@ class AmsOverviewPanel : public PanelBase {
     void layout_tiles(int32_t row_width, int32_t gap);
     /// The height a tile's art may take: what the path does not need.
     [[nodiscard]] int32_t tile_art_room() const;
+    /// Gives the path the height its tubes need to lean (overview_lean_shortfall)
+    /// by shortening the tiles, never below their finger-sized minimum width, and
+    /// takes it back when they no longer need it. True when the tiles changed.
+    bool fit_path_room();
+    /// Height taken from the tiles' art for the path, in pixels.
+    int32_t path_extra_ = 0;
+    /// The lean shortfall fit_path_room() last settled on, so a refresh that finds
+    /// the same one does not lay the tiles out again.
+    int32_t settled_need_ = INT32_MIN;
     /// The share of the overview's column, in percent, the path below the tiles keeps.
     static constexpr int32_t kOverviewPathSharePct = 45;
     static void on_cards_row_resized(lv_event_t* e);
