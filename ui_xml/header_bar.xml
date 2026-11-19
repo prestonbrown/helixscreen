@@ -256,7 +256,8 @@
          Icon-only: the micro header is 40px tall with 32px buttons and the
          title already flex-grows, so a labelled button here eats the title. -->
     <lv_obj width="content"
-            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            scrollable="false">
       <bind_flag_if_eq subject="material_zoffset_active" flag="hidden" ref_value="1"/>
       <ui_button name="header_save_z_offset"
                  width="content" height="$action_button_height" style_max_height="#header_button_height"
@@ -269,7 +270,8 @@
          restarts nothing and moves nothing, so a running print does not
          withhold it, and this twin carries no toolhead guard. -->
     <lv_obj width="content"
-            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false" hidden="true">
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            scrollable="false" hidden="true">
       <bind_flag_if_eq subject="material_zoffset_active" flag="hidden" ref_value="0"/>
       <ui_button name="header_save_z_offset_material"
                  width="content" height="$action_button_height" style_max_height="#header_button_height"
