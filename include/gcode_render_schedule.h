@@ -115,8 +115,9 @@ inline bool moving_too_slow(int& slow_streak, float frame_ms, bool half_resoluti
 
 /// How the moving mesh is banded.
 struct BandPlan {
-    int band_layers;           ///< layers one shell band covers (1 = off)
-    bool surfaces_every_layer; ///< keep top/bottom/bridge skins on every layer, not every n-th
+    int band_layers;            ///< layers one shell band covers
+    bool surfaces_every_layer;  ///< keep top/bottom/bridge skins on every layer, not every n-th
+    bool exterior_only = false; ///< a plan exists: build exterior features only (false = off)
 };
 
 /// Plan the moving mesh. `shell_segments` are band-tall exterior extrusions (walls), which
@@ -124,24 +125,26 @@ struct BandPlan {
 /// regardless of the stride: horizontal skins plus the whole first layer. Surfaces are what
 /// keep the model from reading as hollow, so they get their share of the budget first, as
 /// long as that share is at most half; past that they are strided with the shell. The mesh
-/// draws at 4 tube sides, so its triangles per segment are kTrisPerSegN4. The floor of 2
-/// keeps bands from degenerating into the full-resolution build. 0 budget (no planning rate
-/// at all) means no mesh, so the answer is the off value.
+/// draws at 4 tube sides, so its triangles per segment are kTrisPerSegN4. A budget that
+/// holds every layer's exterior gets 1-layer bands: exterior features on every layer, which
+/// a fast GPU can afford and which still drops the infill. 0 budget (no planning rate at
+/// all) means no mesh, so the answer is the off value.
 inline BandPlan plan_bands(size_t shell_segments, size_t surface_segments,
                            size_t budget_triangles) {
     if (budget_triangles == 0) {
-        return {1, false};
+        return {1, false, false};
     }
     constexpr size_t kTris = GeometryBudgetManager::kTrisPerSegN4;
     auto layers_for = [](size_t triangles, size_t budget) {
         const size_t layers = (triangles + budget - 1) / budget; // ceil divide
-        return static_cast<int>(layers < 2 ? 2 : layers);
+        return static_cast<int>(layers < 1 ? 1 : layers);
     };
     const size_t surface_triangles = surface_segments * kTris;
     if (surface_triangles * 2 <= budget_triangles) {
-        return {layers_for(shell_segments * kTris, budget_triangles - surface_triangles), true};
+        return {layers_for(shell_segments * kTris, budget_triangles - surface_triangles), true,
+                true};
     }
-    return {layers_for((shell_segments + surface_segments) * kTris, budget_triangles), false};
+    return {layers_for((shell_segments + surface_segments) * kTris, budget_triangles), false, true};
 }
 
 /// Deepest band a still image may use. Past this the steps read at fit zoom
@@ -150,12 +153,12 @@ constexpr int kMaxStillBandLayers = 4;
 
 /// Band plan for a still that the GPU triangle cap refused at full layer
 /// resolution: the same banding as the moving mesh, sized to the cap. A
-/// band_layers of 1 means no 3D still fits and the viewer stays 2D.
+/// plan that is not exterior_only means no 3D still fits and the viewer stays 2D.
 inline BandPlan plan_still_bands(size_t shell_segments, size_t surface_segments,
                                  size_t max_triangles) {
     const BandPlan p = plan_bands(shell_segments, surface_segments, max_triangles);
     if (p.band_layers > kMaxStillBandLayers) {
-        return {1, false};
+        return {1, false, false};
     }
     return p;
 }

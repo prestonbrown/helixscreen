@@ -9,7 +9,7 @@
 # app_srcs.txt.
 #
 # Format: <listed file> -> <excluded file>  <qualified name, no arguments>
-max-edges: 45
+max-edges: 44
 src/network/wifi_manager.cpp -> src/network/wifi_backend_wpa_supplicant.cpp  WifiBackendWpaSupplicant::WifiBackendWpaSupplicant
 src/rendering/gcode_file_modifier.cpp -> src/rendering/gcode_streaming_config.cpp  helix::should_use_gcode_streaming
 src/ui/filament/ui_ams_context_menu.cpp -> src/ui/components/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
@@ -19,7 +19,6 @@ src/ui/filament/ui_ams_edit_overlay.cpp -> src/ui/components/ui_overlay_qr_scann
 src/ui/filament/ui_ams_edit_overlay.cpp -> src/ui/components/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::show
 src/ui/filament/ui_external_spool_menu.cpp -> src/ui/components/ui_overlay_qr_scanner.cpp  helix::ui::QrScannerOverlay::QrScannerOverlay
 src/ui/gcode/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::GCodeLayerRenderer
-src/ui/gcode/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::restore_ssao_shading
 src/ui/gcode/ui_gcode_viewer.cpp -> src/rendering/gcode_layer_renderer.cpp  helix::gcode::GCodeLayerRenderer::~GCodeLayerRenderer
 src/ui/print/print_preview_controller.cpp -> src/ui/gcode/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_load_file
 src/ui/print/print_preview_controller.cpp -> src/ui/gcode/gcode_viewer_loader.cpp  helix::ui::gcode_viewer_set_layer_index_sidecar

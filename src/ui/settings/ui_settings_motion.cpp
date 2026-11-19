@@ -380,12 +380,15 @@ void MotionSettingsOverlay::handle_field_clicked(Field field) {
         config.max_value = bounds.max;
         config.initial_value = static_cast<float>(mm_min_to_mm_s(effective_mm_min(
             spec.is_z ? settings.get_jog_speed_z() : settings.get_jog_speed_xy())));
+        config.default_value = static_cast<float>(
+            mm_min_to_mm_s(effective_mm_min(settings.get_jog_speed_default(spec.is_z))));
         config.allow_decimal = false;
         config.unit_label = "mm/s";
     } else if (spec.kind == Kind::Clearance) {
         config.initial_value = static_cast<float>(settings.get_bed_map_clearance_mm());
         config.min_value = static_cast<float>(kBedMapClearanceMinMm);
         config.max_value = static_cast<float>(kBedMapClearanceMaxMm);
+        config.default_value = static_cast<float>(settings.get_bed_map_clearance_default_mm());
         config.allow_decimal = false;
         config.unit_label = "mm";
     } else {
@@ -395,6 +398,8 @@ void MotionSettingsOverlay::handle_field_clicked(Field field) {
         config.initial_value = settings.get_jog_distance(spec.mode, spec.outer);
         config.min_value = bounds.min;
         config.max_value = bounds.max;
+        // The other ring bounds this one, so a default past it shows no reset key.
+        config.default_value = SettingsManager::get_jog_distance_default(spec.mode, spec.outer);
         config.allow_decimal = true;
         config.unit_label = "mm";
     }

@@ -47,6 +47,10 @@ struct PrinterSnapshot {
     bool journal_from_plugin = false;
 };
 
+/// Maps a log's name ("launcher.log", "klippy.log", "moonraker.log") to the
+/// local files that may hold it, in priority order.
+using LogLocator = std::function<std::vector<std::string>(const std::string& log_name)>;
+
 struct BundleOptions {
     bool include_klipper_logs = false;
     bool include_moonraker_logs = false;
@@ -58,6 +62,11 @@ struct BundleOptions {
     /// The `ui_perf` section as serialized JSON, filled by upload_async() on the main
     /// thread from the registered provider. Empty leaves the section out.
     std::string ui_perf_json;
+    /// Where the on-disk logs are. Set, collect() reads every log it names off
+    /// disk, as this host's, and never asks Moonraker for one. Unset, the
+    /// launcher log comes from the install roots and the Klipper logs from
+    /// Moonraker or, for a same-host printer, the running daemons' argv.
+    LogLocator log_locator;
 };
 
 struct BundleResult {
@@ -260,7 +269,8 @@ class DebugBundleCollector {
     /// bounds history. A chatty host (a CFS logs every RS-485 poll) still
     /// condenses to thousands of distinct event lines across that window, and
     /// the bundle upload accepts at most 500 KB gzipped.
-    static std::string collect_klipper_log_tail(int num_lines = 8000, LogOrigin* origin = nullptr);
+    static std::string collect_klipper_log_tail(int num_lines = 8000, LogOrigin* origin = nullptr,
+                                                const LogLocator& locate = {});
 
     /// The `-l` / `--logfile` of the first running klippy.py in @p procs, when
     /// absolute; "" otherwise. That file is the log Klippy is writing now, which
@@ -308,10 +318,12 @@ class DebugBundleCollector {
     /// Read klippy.log / moonraker.log straight off the local disk, for when
     /// Moonraker cannot serve them. Only for a same-host printer; the paths come
     /// from the daemons' own argv (see candidate_log_paths()), so an unknown
-    /// platform layout returns empty rather than a guess.
+    /// platform layout returns empty rather than a guess. A @p locate names the
+    /// paths instead, and its files count as this host's.
     static std::string collect_local_log_tail(const std::string& log_name, int num_lines,
                                               int condense_max_repeats = 0,
-                                              LogOrigin* origin = nullptr);
+                                              LogOrigin* origin = nullptr,
+                                              const LogLocator& locate = {});
     /// The line a local log fallback opens with: which file it read and how
     /// long before @p now it was last written, so a stale copy that covers some
     /// other session cannot pass for the incident's log.
@@ -320,7 +332,8 @@ class DebugBundleCollector {
     /// Line cap for moonraker.log. Deliberately far above what the byte budget
     /// yields (a 2 MiB condensed window measured 4319 lines) so kMoonrakerTailBytes
     /// is what binds, not an arbitrary line count.
-    static std::string collect_moonraker_log_tail(int num_lines = 8000);
+    static std::string collect_moonraker_log_tail(int num_lines = 8000,
+                                                  const LogLocator& locate = {});
 
     /// One entry from Moonraker's `logs` file root.
     struct LogFileEntry {

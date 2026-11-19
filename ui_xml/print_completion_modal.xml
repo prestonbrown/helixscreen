@@ -58,6 +58,14 @@
           <icon src="filament" size="md" variant="muted"/>
           <text_small name="filament_label" bind_text="print_completion_filament"/>
         </lv_obj>
+        <!-- What the print cost (hidden when it cannot be priced) -->
+        <lv_obj name="cost_stat"
+                width="content" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+                style_pad_gap="#space_xs">
+          <bind_flag_if_eq subject="print_completion_has_cost" flag="hidden" ref_value="0"/>
+          <icon src="cash" size="md" variant="muted"/>
+          <text_small name="cost_label" bind_text="print_completion_cost"/>
+        </lv_obj>
       </lv_obj>
     </lv_obj>
     <!-- Button row: OK always; "Start next: <name>" only while the queue has

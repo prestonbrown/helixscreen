@@ -755,7 +755,8 @@ void NetworkSettingsOverlay::update_test_state(NetworkTester::TestState state,
         lv_subject_set_int(&test_running_, 0);
         lv_subject_set_int(&test_gateway_status_, 3);  // failed
         lv_subject_set_int(&test_internet_status_, 3); // failed
-        spdlog::warn("[NetworkSettingsOverlay] Test failed: {}", result.error_message);
+        spdlog::warn("[NetworkSettingsOverlay] Test failed: {}",
+                     helix::redact::names_in_text(result.error_message));
         break;
     }
 }
@@ -1361,7 +1362,8 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
                                      helix::redact::ssid(current_ssid_));
                         refresh_transport_status();
                     } else {
-                        spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}", error);
+                        spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}",
+                                      helix::redact::names_in_text(error));
                         // An open network opens no modal, so a toast is the
                         // only surface this branch has. Without it the user
                         // taps a network and nothing whatsoever happens.
@@ -1599,7 +1601,8 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
                             });
                     }
                 } else {
-                    spdlog::error("[NetworkSettingsOverlay] Connection failed: {}", error);
+                    spdlog::error("[NetworkSettingsOverlay] Connection failed: {}",
+                                  helix::redact::names_in_text(error));
 
                     // Show what actually went wrong. Only a credential rejection
                     // gets the canned password text - everything else carries a

@@ -200,6 +200,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." fr="Un capteur qui mesure la température de l&apos;air dans l&apos;enceinte. Suivez-la sur l&apos;écran de température de l&apos;enceinte."/>
   <translation tag="A shell on the machine running this screen" fr="Un shell sur la machine qui exécute cet écran"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" fr="Une bobine est peut-être emmêlée ou l&apos;engrenage d&apos;entraînement est bloqué"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." fr="Le prix propre d&apos;une bobine dans Spoolman est utilisé quand elle en a un. Ces prix couvrent toutes les autres bobines."/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." fr="Un système qui alimente plusieurs filaments vers la tête d&apos;outil, affiché avec son nombre de slots. Gérez les slots sur l&apos;écran du système de filament."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" fr="Une calibration des offsets des têtes d&apos;outil est en cours, peut-être depuis un autre écran. La terminer maintenant ?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." fr="Un capot supérieur a été détecté. Ses ventilateurs et modes d&apos;air sont dans l&apos;écran Ventilateurs."/>
@@ -234,6 +235,7 @@
   <translation tag="API Key (if Moonraker requires a login)" fr="Clé API (si Moonraker exige une connexion)"/>
   <translation tag="API not available" fr="API non disponible"/>
   <translation tag="APPEARANCE" fr="APPARENCE"/>
+  <translation tag="ASA" fr="ASA"/>
   <translation tag="AUTO FANS" fr="VENTILATEURS AUTO"/>
   <translation tag="AUTO STATE" fr="ÉTAT AUTO"/>
   <translation tag="AUTOMATION" fr="AUTOMATISATION"/>
@@ -346,6 +348,7 @@
   <translation tag="Anonymous usage statistics" fr="Statistiques d&apos;utilisation anonymes"/>
   <translation tag="Another filament operation is heating the nozzle." fr="Une autre opération de filament chauffe la buse."/>
   <translation tag="Any notes..." fr="Des notes..."/>
+  <translation tag="Any other material" fr="Tout autre matériau"/>
   <translation tag="App Background" fr="Arrière-plan de l&apos;application"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." fr="Le démarrage de l&apos;application a rencontré une erreur. Certaines fonctionnalités peuvent être indisponibles."/>
   <translation tag="Appearance" fr="Apparence"/>
@@ -409,6 +412,7 @@
   <translation tag="Available Networks" fr="Réseaux disponibles"/>
   <translation tag="Available networks" fr="Réseaux disponibles"/>
   <translation tag="Average" fr="Moyenne"/>
+  <translation tag="Average draw while printing, in watts" fr="Consommation moyenne pendant l&apos;impression, en watts"/>
   <translation tag="Axis Rows" fr="Rangées par axe"/>
   <translation tag="Axis limits unknown" fr="Limites de l&apos;axe inconnues"/>
   <translation tag="BACK" fr="ARRIÈRE"/>
@@ -1040,6 +1044,7 @@
   <translation tag="Creating spool..." fr="Création de la bobine..."/>
   <translation tag="Critical hardware missing: {}" fr="Matériel critique manquant : {}"/>
   <translation tag="Ctrl" fr="Ctrl"/>
+  <translation tag="Currency" fr="Devise"/>
   <translation tag="Current / Target" fr="Actuel / Cible"/>
   <translation tag="Current Configuration" fr="Configuration actuelle"/>
   <translation tag="Current Mesh" fr="Maillage du plateau actuel"/>
@@ -1243,6 +1248,8 @@
   <translation tag="Eject failed" fr="Échec de l&apos;éjection"/>
   <translation tag="Eject needs [force_move] enabled in printer config" fr="L&apos;éjection nécessite l&apos;activation de [force_move] dans la configuration de l&apos;imprimante"/>
   <translation tag="Ejecting" fr="Éjection"/>
+  <translation tag="Electricity" fr="Électricité"/>
+  <translation tag="Electricity is added only when both are set" fr="L&apos;électricité n&apos;est ajoutée que lorsque les deux sont définis"/>
   <translation tag="Electronics fans" fr="Ventilateurs électronique"/>
   <translation tag="Elegoo Centauri Carbon" fr="Elegoo Centauri Carbon"/>
   <translation tag="Element" fr="Élément"/>
@@ -1607,6 +1614,8 @@
   <translation tag="Filament not set" fr="Filament non défini"/>
   <translation tag="Filament operation failed" fr="Échec de l&apos;opération filament"/>
   <translation tag="Filament operation timed out" fr="Opération filament — délai dépassé"/>
+  <translation tag="Filament price per kg" fr="Prix du filament au kg"/>
+  <translation tag="Filament prices and electricity" fr="Prix du filament et électricité"/>
   <translation tag="Filament ran out" fr="Le filament est épuisé"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." fr="Filament épuisé - plus rien à la tête d&apos;outil et l&apos;impression est en pause."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." fr="Filament épuisé et le CFS n&apos;a trouvé aucune bobine compatible vers laquelle basculer. Chargez une bobine de même matériau et de même couleur, puis reprenez."/>
@@ -1682,6 +1691,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." fr="Suivez le manuel pour changer la buse ou le hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" fr="Pour une première prise d&apos;origine Z : déclarer l&apos;outil posé sur la tête"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" fr="Pour les matériaux qui demandent une enceinte chaude, comme l&apos;ABS ou l&apos;ASA"/>
+  <translation tag="For prices that do not come from Spoolman" fr="Pour les prix qui ne viennent pas de Spoolman"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" fr="Forcer les ventilateurs du MMU à l&apos;arrêt ou en marche, ou suivre le contrôle du ventilateur"/>
   <translation tag="Force/weight sensors" fr="Capteurs de force/poids"/>
   <translation tag="Forget" fr="Oublier"/>
@@ -2182,6 +2192,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." fr="La ligne {} appelle {}, que cette imprimante traite comme un arrêt d&apos;urgence. Retranchez le fichier avec un profil conçu pour cette imprimante."/>
   <translation tag="Linear rails" fr="Rails linéaires"/>
   <translation tag="Linear rails interval" fr="Intervalle des rails linéaires"/>
+  <translation tag="Lines from other apps mix with tips" fr="Les lignes d&apos;autres applis s&apos;ajoutent aux astuces"/>
+  <translation tag="Lines from other apps replace tips" fr="Les lignes d&apos;autres applis remplacent les astuces"/>
   <translation tag="Link Spools from Tags" fr="Lier les bobines par étiquette"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" fr="Lier un slot à la bobine Spoolman indiquée par son étiquette"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" fr="Lister l&apos;écran partagé parmi les webcams de cette imprimante"/>
@@ -2790,6 +2802,7 @@
   <translation tag="PA" fr="PA"/>
   <translation tag="PA Calibration" fr="Calibration PA"/>
   <translation tag="PAUSED" fr="EN PAUSE"/>
+  <translation tag="PC" fr="PC"/>
   <translation tag="PETG" fr="PETG"/>
   <translation tag="PID" fr="PID"/>
   <translation tag="PIN must be 4-6 digits" fr="Le code PIN doit comporter 4 à 6 chiffres"/>
@@ -2849,6 +2862,7 @@
   <translation tag="Paused" fr="En pause"/>
   <translation tag="Paused (attention needed)" fr="En pause (attention requise)"/>
   <translation tag="Paused by a command" fr="Mis en pause par une commande"/>
+  <translation tag="Paused by {}: {}" fr="Mis en pause par {} : {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." fr="Met une impression en pause à une couche choisie, pour changer de filament ou poser un insert. Pendant l&apos;impression, choisissez la couche dans la carte d&apos;aperçu de l&apos;écran d&apos;état."/>
   <translation tag="Pausing at layer {}." fr="Pause à la couche {}."/>
   <translation tag="Pausing..." fr="Pause en cours..."/>
@@ -2968,6 +2982,7 @@
   <translation tag="Previous" fr="Précédent"/>
   <translation tag="Previous IPv4 settings restored" fr="Paramètres IPv4 précédents restaurés"/>
   <translation tag="Price" fr="Prix"/>
+  <translation tag="Price per kWh" fr="Prix par kWh"/>
   <translation tag="Price, location, lot, notes" fr="Prix, emplacement, lot, notes"/>
   <translation tag="Price: {}" fr="Prix : {}"/>
   <translation tag="Primary" fr="Principal"/>
@@ -2980,6 +2995,7 @@
   <translation tag="Print Complete!" fr="Impression terminée !"/>
   <translation tag="Print Completion Alert" fr="Alerte de fin d&apos;impression"/>
   <translation tag="Print Controls" fr="Commandes d&apos;impression"/>
+  <translation tag="Print Cost" fr="Coût d&apos;impression"/>
   <translation tag="Print Details" fr="Détails de l&apos;impression"/>
   <translation tag="Print Failed" fr="Impression échouée"/>
   <translation tag="Print File" fr="Fichier d&apos;impression"/>
@@ -3075,6 +3091,7 @@
   <translation tag="Printer name" fr="Nom de l&apos;imprimante"/>
   <translation tag="Printer not connected" fr="Imprimante non connectée"/>
   <translation tag="Printer not ready" fr="Imprimante non prête"/>
+  <translation tag="Printer power" fr="Puissance de l&apos;imprimante"/>
   <translation tag="Printer ready" fr="Imprimante prête"/>
   <translation tag="Printer status unknown" fr="État de l&apos;imprimante inconnu"/>
   <translation tag="Printer type mismatch" fr="Type d&apos;imprimante incompatible"/>
@@ -3647,6 +3664,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" fr="Régler les courroies X et Y avec les tendeurs motorisés"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." fr="Réglez l&apos;horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" fr="Réglez à la main le type et la couleur du filament pour ce slot. Si l&apos;étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." fr="Choisissez ici la devise de Spoolman si vous utilisez les deux."/>
   <translation tag="Set up" fr="Configurer"/>
   <translation tag="Set up your label printer in Settings" fr="Configurez votre imprimante d&apos;étiquettes dans les Paramètres"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." fr="Indiquez ce qui est réellement sélectionné et chargé. Rien ne bouge."/>

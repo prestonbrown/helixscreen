@@ -484,7 +484,7 @@ APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/tools/*.cpp),$(APP_SRCS))
 APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/bluetooth/*.cpp),$(APP_SRCS))
 # Exclude GLES renderer when not enabled
 ifneq ($(ENABLE_GLES_3D),yes)
-    APP_SRCS := $(filter-out $(SRC_DIR)/rendering/gcode_gles_renderer.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/rendering/gcode_gles_renderer*.cpp),$(APP_SRCS))
 endif
 # Screensaver sources: every saver, the parts they share and the manager
 SCREENSAVER_SRCS := $(wildcard $(SRC_DIR)/ui/screensaver/*.cpp)

@@ -785,8 +785,9 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     def words_of(header: Path) -> set[str]:
         """Every identifier the header spells, in any branch."""
         if header not in header_words:
-            code = STRING_LITERAL.sub('""', header.read_text(errors="replace"))
-            code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", code, flags=re.S)
+            code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", header.read_text(errors="replace"),
+                          flags=re.S)
+            code = STRING_LITERAL.sub('""', code)
             header_words[header] = set(IDENTIFIER.findall(code))
         return header_words[header]
 
@@ -829,12 +830,25 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
         live_headers = closure(forced + includes_of(text, src, True), True)
         all_headers = live_headers | closure(includes_of(text, src, False), False)
 
-        def dead(word: str) -> bool:
+        def aliases_of(word: str) -> set[str]:
+            """Names a header gives `word` with `using Alias = ...word;`."""
+            pat = re.compile(r"\busing\s+(\w+)\s*=[^;]*\b" + re.escape(word) + r"\b[^;]*;")
+            return {a for h in all_headers
+                    for a in pat.findall(h.read_text(errors="replace"))}
+
+        def dead(word: str, _seen: frozenset = frozenset()) -> bool:
             """Every mention of `word` sits in a branch the firmware does not compile.
 
             A name the source never spells comes from an inline in a header; it is
             dead when some header mentions it and none the firmware compiles does.
+            A source that reaches the type through a header alias is judged by the
+            alias's mentions too.
             """
+            alias = aliases_of(word) - _seen - {word}
+            if alias:
+                if not all(dead(a, _seen | {word}) for a in alias):
+                    return False
+                return word not in live_words
             if word in words:
                 return word not in live_words
             return (any(word in words_of(h) for h in all_headers)

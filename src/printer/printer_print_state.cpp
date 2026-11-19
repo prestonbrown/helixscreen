@@ -408,6 +408,7 @@ void PrinterPrintState::reset_for_new_print() {
     layer_z_derived_ = false;
     slicer_progress_ = 0.0;
     slicer_progress_active_ = false;
+    file_progress_fraction_ = -1.0;
     lv_subject_set_string(&print_message_, "");
     set_print_stop_reason("");
     lv_subject_set_int(&print_duration_, 0);
@@ -469,6 +470,7 @@ void PrinterPrintState::clear_print_exception() {
     print_exception_id_ = -1;
     print_exception_code_ = -1;
     print_exception_message_.clear();
+    print_exception_runout_lane_ = -1;
     if (lv_subject_get_int(&print_exception_) != -1) {
         lv_subject_set_int(&print_exception_, -1);
     }

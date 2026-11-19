@@ -125,6 +125,14 @@ class GcodeErrorRouter {
     /// known to exceed the threshold -- the stale-after-restart case.
     static bool should_surface_replay(double entry_time, double now);
 
+    /// Longest toast text, in bytes, that truncate_for_toast() leaves whole.
+    static constexpr size_t kToastTextMaxBytes = 240;
+
+    /// Bounds a transient toast's text at kToastTextMaxBytes, a few wrapped
+    /// lines: a longer one is cut on a codepoint boundary and ends in "...".
+    /// Modals always get the full text.
+    static std::string truncate_for_toast(std::string text);
+
   private:
     /// Test-only access to the private presentation glue (`process_line`).
     /// Kept private + friend (L065/L088) so production callers cannot bypass
@@ -219,10 +227,6 @@ class GcodeErrorRouter {
     /// a pointer back to this router, so a fire after teardown must not run.
     /// Main-thread only.
     std::vector<lv_timer_t*> pending_deferred_;
-
-    /// Bytes-only truncation for transient toasts. Modals always get the
-    /// full text -- they wrap to multiple lines.
-    static std::string truncate_for_toast(std::string text);
 
     IMoonrakerAPI* api_;
     IMoonrakerClient* client_;

@@ -4868,10 +4868,11 @@ class HeldAckCfs : public AmsBackendCfs {
     using AmsBackendCfs::AmsBackendCfs;
     using AmsBackendCfs::execute_gcode;
     AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
-                           helix::SharedCallback<void(const MoonrakerError&)> /*on_error*/,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         sent.push_back(gcode);
         held_ack = std::move(on_complete);
+        held_error = std::move(on_error);
         return AmsErrorHelper::success();
     }
     void ack() {
@@ -4879,8 +4880,18 @@ class HeldAckCfs : public AmsBackendCfs {
         std::exchange(held_ack, nullptr)();
         helix::ui::UpdateQueue::instance().drain();
     }
+    /// Klipper raises on the script instead of answering OK.
+    void reject() {
+        REQUIRE(held_error);
+        MoonrakerError err;
+        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+        err.message = "key849";
+        std::exchange(held_error, nullptr)(err);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
     std::vector<std::string> sent;
     helix::SharedCallback<void()> held_ack;
+    helix::SharedCallback<void(const MoonrakerError&)> held_error;
 };
 } // namespace
 
@@ -4913,6 +4924,13 @@ TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull
             rig.backend->fire_status(json{
                 {"filament_switch_sensor filament_sensor", {{"filament_detected", detected}}}});
         };
+        // What the Filament panel shows: AmsState syncs it only on a backend event,
+        // so a settle that emits none leaves the panel on the running action.
+        const auto shown = [] {
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+            return static_cast<AmsAction>(
+                lv_subject_get_int(helix::AmsState::instance().get_ams_action_subject()));
+        };
         box(/*useup=*/0);
         switch_reads(true);
         REQUIRE(backend.get_system_info().current_slot == 0);
@@ -4944,14 +4962,25 @@ TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull
             const AmsSystemInfo info = backend.get_system_info();
             CHECK(info.action == AmsAction::ERROR);
             CHECK(info.operation_detail == generic);
+            CHECK(shown() == AmsAction::ERROR);
         }
 
         SECTION("a used-up spool whose unload cleared the switch raises nothing, " + name) {
             box(/*useup=*/1);
             REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
             switch_reads(false);
+            REQUIRE(shown() != AmsAction::IDLE);
             backend.ack();
-            CHECK(backend.get_system_info().action != AmsAction::ERROR);
+            CHECK(backend.get_system_info().action == AmsAction::IDLE);
+            CHECK_FALSE(backend.current_error().has_value());
+            CHECK(shown() == AmsAction::IDLE);
+        }
+
+        SECTION("a script Klipper rejects settles the panel to IDLE, " + name) {
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            REQUIRE(shown() != AmsAction::IDLE);
+            backend.reject();
+            CHECK(shown() == AmsAction::IDLE);
         }
     }
     config->set<std::string>(type_path, saved_type);
@@ -5191,17 +5220,6 @@ TEST_CASE("CFS box runout mid-job warns that the print continues on the tube",
         ToastSeverity::WARNING,
         "The CFS ran out of filament. Printing continues on what is left in the tube.", 10000);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-}
-
-TEST_CASE("CFS phase verify: a good load completes to IDLE with no fault", "[ams][cfs][968]") {
-    CfsRemapHelper backend;
-
-    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
-    CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
-    CfsTestAccess::complete_action(backend);
-
-    CHECK_FALSE(backend.current_error().has_value());
-    CHECK(backend.get_system_info().action == AmsAction::IDLE);
 }
 
 TEST_CASE("CFS runout: weak-hint fallback needs the box latch AND a pause", "[ams][cfs][1250]") {

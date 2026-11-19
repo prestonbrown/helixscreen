@@ -1286,7 +1286,7 @@ void WifiBackendWpaSupplicant::handle_wpa_events(void* data, int len) {
     // Convert to string (may contain newlines)
     std::string event = std::string(static_cast<char*>(data), len);
 
-    spdlog::trace("[WifiBackend] Event received: {}", event);
+    spdlog::trace("[WifiBackend] Event received: {}", helix::redact::names_in_text(event));
 
     // Determine which callback (if any) should receive this event
     std::string callback_name = map_event_to_callback(event);

@@ -5,8 +5,51 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
+
+#if defined(__linux__)
+#include <features.h> // defines __GLIBC__ / __UCLIBC__ whatever was included first
+#endif
+
+// glibc keeps freed memory in its arenas until asked to return it; musl, bionic,
+// newlib (ESP-IDF) and uClibc have no malloc_trim().
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+#define HELIX_HAS_MALLOC_TRIM 1
+#else
+#define HELIX_HAS_MALLOC_TRIM 0
+#endif
 
 namespace helix {
+
+/// Quiet time after the last overlay close before the heap is trimmed: long
+/// enough for the closed overlay's deferred deletes to have run.
+constexpr uint32_t kHeapTrimSettleMs = 3000;
+/// Floor between two heap trims, so rapid open/close never walks the arenas
+/// more often than this.
+constexpr uint32_t kHeapTrimMinIntervalMs = 30000;
+
+/// Whether this libc can return freed heap to the OS on request.
+constexpr bool heap_trim_supported() {
+    return HELIX_HAS_MALLOC_TRIM != 0;
+}
+
+/**
+ * @brief Whether a heap trim may run at @p now_ms (an lv_tick_get() value).
+ *
+ * Always when none has run (@p last_trim_ms empty), otherwise only once
+ * kHeapTrimMinIntervalMs has passed since the last one. Tick arithmetic wraps,
+ * so a trim just before the 32-bit tick rolls over still holds the floor.
+ */
+bool heap_trim_due(uint32_t now_ms, std::optional<uint32_t> last_trim_ms);
+
+/**
+ * @brief Return the allocator's free pages to the OS (glibc malloc_trim(0)).
+ *
+ * Blocking: it walks every arena under its lock, so call it off the UI thread.
+ * Logs RSS before and after with the time it took.
+ * @return false where the libc has no trim (see heap_trim_supported()).
+ */
+bool release_free_heap();
 
 /**
  * @brief Read current memory stats (cross-platform: Linux + macOS)

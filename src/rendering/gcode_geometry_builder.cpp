@@ -607,7 +607,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
     // counter existed (drawable_segments defaults to 0).
     all_segments.reserve(gcode.drawable_segments > 0 ? gcode.drawable_segments
                                                      : gcode.total_segments);
-    band_first_layer_ = band_layers_ > 1 ? first_print_layer(gcode) : 0;
+    band_first_layer_ = band_filter_ ? first_print_layer(gcode) : 0;
     for (size_t li = 0; li < gcode.layers.size(); ++li) {
         if (li % 64 == 0 && cancelled()) {
             spdlog::info("[GCode::Builder] Build cancelled during collection");
@@ -619,7 +619,7 @@ RibbonGeometry GeometryBuilder::build(const ParsedGCodeFile& gcode,
             }
             ToolpathSegment stamped = seg;
             stamped.layer_index = static_cast<uint16_t>(li);
-            if (band_layers_ > 1 && band_height_layers(stamped) == 0) {
+            if (band_filter_ && band_height_layers(stamped) == 0) {
                 continue;
             }
             all_segments.push_back(stamped);
@@ -1060,8 +1060,7 @@ GeometryBuilder::simplify_segments(const std::vector<ToolpathSegment>& segments,
         bool same_object = (current.object_name_index == next.object_name_index);
         bool same_width = (std::abs(current.width - next.width) < 0.001f);
         // A band-tall shell and a one-layer skin must not become one tube.
-        bool same_height =
-            band_layers_ <= 1 || band_height_layers(current) == band_height_layers(next);
+        bool same_height = !band_filter_ || band_height_layers(current) == band_height_layers(next);
 
         if (same_type && same_layer && endpoints_connect && same_object && same_width &&
             same_height) {
@@ -1157,7 +1156,7 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
 
     const float half_width = width * 0.5f;
     // A band tube is band_layers_ layer heights tall; every other tube one.
-    const int height_layers = band_layers_ > 1 ? band_height_layers(segment) : 1;
+    const int height_layers = band_filter_ ? band_height_layers(segment) : 1;
     const float half_height = layer_height_mm_ * 0.5f * static_cast<float>(height_layers);
 
     // Calculate direction and perpendicular vectors

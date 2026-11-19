@@ -585,10 +585,11 @@ class GeometryBuilder {
 
     /**
      * @brief Band the build for the moving mesh
-     * @param n Band depth in layers; 1 (default) = off
+     * @param n Band depth in layers
      * @param surfaces_every_layer Keep skins on every layer, not only on band layers
+     * @param exterior_only Filter to exterior features even at n == 1
      *
-     * n > 1 keeps, counting layers from first_print_layer():
+     * n > 1, or exterior_only, keeps, counting layers from first_print_layer():
      * - on every n-th layer, band shells (is_band_shell_feature), drawn n layer heights tall
      *   so consecutive bands touch with no gaps;
      * - the whole first print layer, so the model always has its bottom;
@@ -596,9 +597,10 @@ class GeometryBuilder {
      *   surfaces_every_layer is set, so tops and bottoms do not read as holes.
      * Everything that is not a band shell is drawn one layer tall.
      */
-    void set_band_layers(int n, bool surfaces_every_layer = true) {
+    void set_band_layers(int n, bool surfaces_every_layer = true, bool exterior_only = false) {
         band_layers_ = n < 1 ? 1 : n;
         band_surfaces_every_layer_ = surfaces_every_layer;
+        band_filter_ = exterior_only || band_layers_ > 1;
     }
 
     /**
@@ -697,7 +699,8 @@ class GeometryBuilder {
     bool debug_face_colors_ = false;                ///< Enable per-face debug coloring
     std::vector<std::string> tool_color_palette_;   ///< Hex colors per tool (multi-color prints)
     int tube_sides_ = 16;                           ///< Tube cross-section sides (valid: 4, 8, 16)
-    int band_layers_ = 1;                           ///< Moving-mesh band depth (1 = off)
+    int band_layers_ = 1;                           ///< Moving-mesh band depth
+    bool band_filter_ = false;                      ///< Keep only band features (bands are on)
     bool band_surfaces_every_layer_ = true;         ///< Skins survive the band stride
     size_t band_first_layer_ = 0;                   ///< first_print_layer() of the file being built
 

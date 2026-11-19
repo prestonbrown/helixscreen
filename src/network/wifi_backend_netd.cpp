@@ -3,6 +3,7 @@
 
 #include "wifi_backend_netd.h"
 
+#include "core/log_redact.h"
 #include "helix_thread.h"
 #include "spdlog/spdlog.h"
 #include "wifi_ui_utils.h"
@@ -269,7 +270,7 @@ void WifiBackendNetd::init_netd() {
 
     std::string error;
     if (!open_connection(error)) {
-        spdlog::warn("[WifiBackendNetd] Init failed: {}", error);
+        spdlog::warn("[WifiBackendNetd] Init failed: {}", helix::redact::names_in_text(error));
         emit_init_failed_once(error);
         signal_init_complete(error);
         return;
@@ -443,7 +444,7 @@ void WifiBackendNetd::try_reconnect() {
         spdlog::info("[WifiBackendNetd] Reconnected to the network daemon");
         return;
     }
-    spdlog::debug("[WifiBackendNetd] Reconnect failed: {}", error);
+    spdlog::debug("[WifiBackendNetd] Reconnect failed: {}", helix::redact::names_in_text(error));
     arm_reconnect_timer();
 }
 

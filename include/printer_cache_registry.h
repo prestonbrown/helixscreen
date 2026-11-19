@@ -36,10 +36,10 @@ namespace helix {
  *    are re-created. Here nothing is destroyed — the caches' owners are process-lifetime
  *    singletons — and a user may switch printers any number of times, so every switch must
  *    fire every invalidator.
- * 2. **Registration is idempotent by name.** Because entries persist, a component whose
+ * 2. **Registration is idempotent by name and owner.** Because entries persist, a component whose
  *    `init_subjects()` runs again after a soft restart would otherwise accumulate a
  *    duplicate on every switch. `register_invalidator()` replaces an existing entry with
- *    the same name (keeping its original position).
+ *    the same name and owner (keeping its original position).
  * 3. **Callbacks fire in registration order, not reverse.** `deinit_all()` is LIFO because
  *    destruction order matters. Dropping cached state has no such dependency — invalidators
  *    must not care about each other — so FIFO is used for the more obvious semantics.
@@ -87,14 +87,19 @@ class PrinterCacheRegistry {
     /**
      * @brief Register a per-printer cache invalidation callback
      *
-     * Idempotent by name: registering a name that is already present replaces its callback
-     * in place, keeping the original ordering. This is what makes it safe to register from
+     * Idempotent by name and owner: registering a pair that is already present replaces its
+     * callback in place, keeping the original ordering. This is what makes it safe to register from
      * an init path that runs again after every soft restart.
      *
      * @param name Component name, used for logging, replacement and unregister()
      * @param invalidate_fn Function that drops the component's df()-derived cache
+     * @param owner The instance the callback captures, for a component that can exist more
+     *        than once (a test's own PrinterState beside the global one). An entry is
+     *        identified by name AND owner, so one instance never replaces or removes
+     *        another's. Singletons leave it null.
      */
-    void register_invalidator(const char* name, std::function<void()> invalidate_fn);
+    void register_invalidator(const char* name, std::function<void()> invalidate_fn,
+                              const void* owner = nullptr);
 
     /**
      * @brief Remove a registration without running it
@@ -103,9 +108,10 @@ class PrinterCacheRegistry {
      * same teardown that tears down whatever the callback touches.
      *
      * @param name Name used at registration
+     * @param owner Owner used at registration
      * @return true if an entry was found and removed
      */
-    bool unregister(const char* name);
+    bool unregister(const char* name, const void* owner = nullptr);
 
     /**
      * @brief Fire every registered invalidator, in registration order
@@ -155,6 +161,7 @@ class PrinterCacheRegistry {
     struct InvalidateEntry {
         std::string name;
         std::function<void()> invalidate_fn;
+        const void* owner = nullptr;
     };
 
     std::vector<InvalidateEntry> invalidators_;

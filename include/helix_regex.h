@@ -141,8 +141,11 @@ bool regex_search(std::string_view subject, const Regex& re);
 bool regex_match(std::string_view subject, RegexMatch& m, const Regex& re);
 bool regex_match(std::string_view subject, const Regex& re);
 /// Every non-overlapping match replaced by `fmt`, where $& is the match,
-/// $1..$99 a group and $$ a dollar sign, as std::regex_replace does.
-std::string regex_replace(std::string_view subject, const Regex& re, std::string_view fmt);
+/// $1..$99 a group and $$ a dollar sign, as std::regex_replace does. A search
+/// that gives up (the step limit) ends the scan as if nothing more matched;
+/// @p aborted, when given, says whether that happened.
+std::string regex_replace(std::string_view subject, const Regex& re, std::string_view fmt,
+                          bool* aborted = nullptr);
 
 /// Successive matches over one subject, like std::sregex_iterator. A
 /// default-constructed iterator is the end.
@@ -176,10 +179,16 @@ class RegexIterator {
         return !(*this == o);
     }
 
+    /// The scan ended because a search gave up, not because nothing matched.
+    bool aborted() const {
+        return aborted_;
+    }
+
   private:
     std::string_view subject_;
     const Regex* re_ = nullptr;
     RegexMatch match_;
+    bool aborted_ = false;
 };
 
 } // namespace helix

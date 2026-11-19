@@ -13,6 +13,7 @@
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lvgl.h"
+#include "memory_utils.h"
 #include "print_start_analyzer.h"
 #include "printer_database_merge.h"
 #include "printer_discovery.h"
@@ -34,10 +35,6 @@
 #include <tuple>
 #include <unordered_set>
 #include <vector>
-
-#ifdef __GLIBC__
-#include <malloc.h> // malloc_trim() — see PrinterDatabase::compact()
-#endif
 
 #include "hv/json.hpp"
 
@@ -175,7 +172,6 @@ struct PrinterDatabase {
         }
         compacted = true;
 
-#ifdef __GLIBC__
         // Erasing the heuristics only hands those nodes back to glibc's free
         // lists — they are small scattered chunks that never reach the top of
         // the arena, so brk() never moves and RSS is completely unchanged.
@@ -187,8 +183,7 @@ struct PrinterDatabase {
         // walking the arena is paid at the point where the boot transients are
         // also free — which is why the trim gives back more than the
         // heuristics themselves.
-        malloc_trim(0);
-#endif
+        helix::release_free_heap();
 
         spdlog::debug("[PrinterDetector] Database compacted (heuristics stripped)");
     }

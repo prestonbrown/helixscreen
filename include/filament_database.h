@@ -416,6 +416,29 @@ inline float length_to_weight_g(float length_mm, float density,
     return (volume_mm3 / 1000.0f) * density;
 }
 
+/**
+ * @brief The grams a file prints: its stated weight, else its length at
+ *        @p material's density
+ * @param stated_g The file's own weight (metadata filament_weight_total), 0 when unstated
+ * @param length_mm The file's filament length (metadata filament_total)
+ * @return 0 when neither yields a weight (no length, or a material with no density)
+ */
+// NAMESPACE_OK: extends filament::, the material table's existing namespace
+inline float file_weight_g(double stated_g, double length_mm, std::string_view material,
+                           float diameter_mm = kDefaultDiameterMm) {
+    if (stated_g > 0.0) {
+        return static_cast<float>(stated_g);
+    }
+    if (!(length_mm > 0.0)) {
+        return 0.0f;
+    }
+    const auto mat = find_material(material);
+    if (!mat.has_value() || !(mat->density_g_cm3 > 0.0f)) {
+        return 0.0f;
+    }
+    return length_to_weight_g(static_cast<float>(length_mm), mat->density_g_cm3, diameter_mm);
+}
+
 // ============================================================================
 // Material Comfort Ranges (humidity thresholds for storage quality indicators)
 // ============================================================================

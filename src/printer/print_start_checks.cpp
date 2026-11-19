@@ -746,16 +746,10 @@ std::optional<std::pair<float, float>> insufficient_spool_weight_in(const PrintS
         return std::nullopt;
     }
 
-    float needed_g = static_cast<float>(ctx.metadata->filament_weight_total);
-    if (needed_g <= 0.0f && ctx.metadata->filament_total > 0.0) {
-        // Fall back to length-based estimate using the spool's material.
-        auto mat = filament::find_material(spool->material);
-        if (mat.has_value() && mat->density_g_cm3 > 0.0f) {
-            needed_g =
-                filament::length_to_weight_g(static_cast<float>(ctx.metadata->filament_total),
-                                             mat->density_g_cm3, ctx.filament_diameter_mm);
-        }
-    }
+    // A file stating no weight is weighed from its length at the spool's material.
+    const float needed_g =
+        filament::file_weight_g(ctx.metadata->filament_weight_total, ctx.metadata->filament_total,
+                                spool->material, ctx.filament_diameter_mm);
     if (needed_g > 0.0f && needed_g > spool->remaining_weight_g) {
         spdlog::info("[PrintStartController] Pre-print warning: needs {} g, spool has {} g",
                      needed_g, spool->remaining_weight_g);

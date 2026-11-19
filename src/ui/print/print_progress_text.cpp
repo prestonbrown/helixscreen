@@ -6,6 +6,7 @@
 #include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "print_cost_service.h"
 #include "tune_controller.h"
 
 #include <spdlog/spdlog.h>
@@ -24,6 +25,7 @@ void PrintProgressText::init_subjects(SubjectManager& subjects) {
     UI_MANAGED_SUBJECT_STRING(remaining_subject_, remaining_buf_, "0h 00m", "print_remaining",
                               subjects);
     UI_MANAGED_SUBJECT_STRING(eta_subject_, eta_buf_, "", "print_eta", subjects);
+    helix::print_cost::ActivePrintCost::instance().init_subjects();
 }
 
 void PrintProgressText::refresh_layer() {
@@ -55,6 +57,13 @@ void PrintProgressText::refresh_filament_used() {
         filament_used_text_buf_[0] = '\0';
     }
     lv_subject_set_string(&filament_used_text_subject_, filament_used_text_buf_);
+
+    // The cost so far moves with the filament the printer reports using.
+    const int progress_pct =
+        lv_subject_get_int(printer_state_.print_state().get_print_progress_display_subject());
+    helix::print_cost::ActivePrintCost::instance().update(
+        static_cast<double>(filament_mm), progress_pct / 100.0,
+        static_cast<double>(lifecycle_.elapsed_seconds()));
 }
 
 void PrintProgressText::refresh_speed_flow() {

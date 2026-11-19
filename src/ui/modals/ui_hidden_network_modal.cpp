@@ -135,7 +135,8 @@ void HiddenNetworkModal::on_ok() {
                         hide(ModalCloseReason::ButtonPress);
                     }
                 } else {
-                    spdlog::error("[HiddenNetworkModal] Joining hidden network failed: {}", error);
+                    spdlog::error("[HiddenNetworkModal] Joining hidden network failed: {}",
+                                  helix::redact::names_in_text(error));
                     if (current) {
                         show_error(helix::connect_failure_message(
                             result, error, lv_tr("Connection failed. Check credentials.")));
