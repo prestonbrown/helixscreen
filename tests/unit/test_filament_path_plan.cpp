@@ -23,6 +23,7 @@
 #include "ams_types.h"
 #include "filament_path_test_helpers.h"
 #include "lvgl/lvgl.h"
+#include "path_view_scale.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
 #include "theme_manager.h"
@@ -65,8 +66,7 @@ void render(LVGLTestFixture& fx, lv_obj_t* w) {
 LinearHubFrame widget_frame(lv_obj_t* w) {
     const FilamentPathData* d = get_data(w);
     const BaseGeometry g = compute_base_geometry(w, d);
-    return compute_linear_hub_frame(
-        *d, g, toolhead_top_y(linear_hub_nozzle_y(*d, g), d->theme.extruder_scale));
+    return compute_linear_hub_frame(*d, g);
 }
 
 bool area_eq(const lv_area_t& a, const lv_area_t& b) {
@@ -1922,6 +1922,81 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(UITest::click_at((right.x1 + right.x2) / 2, (right.y1 + right.y2) / 2));
     process_lvgl(20);
     CHECK(tapped == 1);
+    UITest::cleanup();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath offpage: a chip squeezed by the paging arrows never covers the hub",
+                 "[filament-path][plan][offpage]") {
+    lv_obj_t* w = make_canvas(test_screen(), static_cast<int>(helix::PathTopology::HUB));
+    // Drying units on both sides: each chip leads with the heat-wave glyph.
+    ui_filament_path_canvas_set_offpage_units(w, 6, true, 3, true);
+    render(*this, w);
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    const lv_area_t hub0 = d->hits.hub;
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    // The arrows' room ends a short chip's width from the hub: "+6" fits there, "+6" and its
+    // glyph do not.
+    const int32_t reserve = GENERATE(10, 20, 30, 40);
+    CAPTURE(reserve);
+    ui_filament_path_canvas_set_edge_reserve(w, hub0.x1 - c.x1 - reserve);
+    render(*this, w);
+
+    const lv_area_t& hub = d->hits.hub;
+    for (int side = 0; side < 2; ++side) {
+        CAPTURE(side);
+        if (!d->hits.offpage_valid[side])
+            continue;
+        const lv_area_t& chip = d->hits.offpage[side];
+        CHECK((chip.x2 < hub.x1 || chip.x1 > hub.x2));
+        // Nor into the arrows' room on the hub's rows.
+        CHECK(chip.x1 >= c.x1 + d->edge_reserve);
+        CHECK(chip.x2 <= c.x2 + 1 - d->edge_reserve);
+    }
+    if (d->hits.offpage_valid[0] && d->hits.offpage_valid[1])
+        CHECK(d->hits.offpage[0].x2 < d->hits.offpage[1].x1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath taps: a finger-sized hub, meter or chip never takes a lane's tap",
+                 "[filament-path][canvas][offpage]") {
+    // As short as the unit view's path on a small screen, under its view scale: the hub, its
+    // meter and the chips beside it stand closest to the lanes' row here.
+    constexpr int32_t kShortH = 110;
+    lv_obj_t* w = make_canvas(test_screen(), static_cast<int>(helix::PathTopology::HUB));
+    lv_obj_set_size(w, W, kShortH);
+    ui_filament_path_canvas_set_view_scale(
+        w, helix::ui::path_view_scale(kShortH, helix::ui::kPathTubeLimits));
+    ui_filament_path_canvas_set_buffer_info(w, true, 0);
+    ui_filament_path_canvas_set_offpage_units(w, 1, false, 1, false);
+    static int slot = -1;
+    static int other = 0;
+    slot = -1;
+    other = 0;
+    ui_filament_path_canvas_set_slot_callback(w, [](int s, void*) { slot = s; }, nullptr);
+    ui_filament_path_canvas_set_hub_callback(w, [](lv_point_t, void*) { ++other; }, nullptr);
+    ui_filament_path_canvas_set_buffer_callback(w, [](void*) { ++other; }, nullptr);
+    ui_filament_path_canvas_set_offpage_callback(w, [](int, void*) { ++other; }, nullptr);
+    render(*this, w);
+
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    // The lowest row a lane takes its tap on: the prep row and the margin under it.
+    const int32_t y =
+        c.y1 + (int32_t)(lv_area_get_height(&c) * kPrepYRatio) + kEntryHitMarginBottom;
+    UITest::init(test_screen());
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        slot = -1;
+        REQUIRE(UITest::click_at(c.x1 + get_slot_x(d, i, c.x1), y));
+        process_lvgl(20);
+        CHECK(slot == i);
+    }
+    CHECK(other == 0);
     UITest::cleanup();
 }
 

@@ -3,6 +3,7 @@
 
 #include "ui_system_path_canvas.h"
 
+#include "ui_filament_path_canvas.h"
 #include "ui_filament_path_plan.h"
 #include "ui_fonts.h"
 #include "ui_system_path_plan.h"
@@ -32,9 +33,6 @@
 
 using namespace helix::ui::syspath;
 namespace fpath = helix::ui::fpath;
-
-// A finger-sized tap target: a chip shorter than this is reached from around it.
-static constexpr int32_t kChipTouchPx = 44;
 
 // Default dimensions
 static constexpr int32_t kDefaultWidth = 300;
@@ -117,20 +115,6 @@ struct BoxMeter {
 };
 } // namespace
 
-static lv_color_t meter_fill(const SystemPathData* data, const BoxMeter& m) {
-    switch (helix::ui::buffer_meter_tone(m.fault >= 1, m.position)) {
-    case helix::ui::BufferMeterTone::Fault:
-        return data->color_error;
-    case helix::ui::BufferMeterTone::Compressed:
-        return data->color_accent;
-    case helix::ui::BufferMeterTone::Expanded:
-        return data->color_warning;
-    case helix::ui::BufferMeterTone::Centered:
-        break;
-    }
-    return data->color_success;
-}
-
 // A box on the path: a hub with its label, and the buffer's meter at its right end when the box
 // carries one. A box too narrow for both keeps the meter; one too short for a line of text
 // (@p labeled false) draws no label.
@@ -164,9 +148,10 @@ static void draw_path_box(lv_layer_t* layer, const SystemPathData* data, int32_t
             slot.x1 = box.x2 - slot_w;
             label_area.x2 = slot.x1;
         }
-        const helix::ui::BufferMeterColors colors{data->color_bg, data->color_hub_border,
-                                                  data->color_text, meter_fill(data, *meter)};
-        helix::ui::draw_buffer_meter(layer, slot, meter->position, colors);
+        helix::ui::draw_buffer_meter(layer, slot, meter->position, meter->fault,
+                                     {data->color_bg, data->color_hub_border, data->color_text,
+                                      data->color_error, data->color_accent, data->color_warning,
+                                      data->color_success});
         if (!side_by_side)
             return;
     }
@@ -333,39 +318,19 @@ static void draw_parked_chips(lv_layer_t* layer, SystemPathData* data, const Sys
         const int32_t hi = LV_MIN(L.x_off + L.width - 1, p.room_hi);
         const int32_t room = hi - lo + 1;
         const int32_t span = p.stem_hi - p.stem_lo + 2 * pad;
-        std::string text = "+" + fpath::offpage_label_text(p.units);
-        int32_t w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad, span);
-        if (w > room) {
-            text = "+" + std::to_string(p.units);
-            w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad, span);
-        }
+        const auto width_of = [&](const std::string& t) {
+            return LV_MAX(helix::ui::text_width(t.c_str(), font, 0) + 2 * pad, span);
+        };
+        const std::string text = fpath::offpage_chip_text(
+            p.units, [&](const std::string& t) { return width_of(t) <= room; });
+        const int32_t w = width_of(text);
         const int32_t x1 = side > 0 ? LV_MAX(lo, hi - w + 1) : lo;
         const int32_t y1 = LV_MAX(obj_coords.y1, L.entry_y - data->space_xs);
         const lv_area_t chip = {x1, y1, x1 + w - 1, y1 + h - 1};
-
-        lv_draw_fill_dsc_t fill;
-        lv_draw_fill_dsc_init(&fill);
-        fill.color = data->color_hub_bg;
-        fill.opa = LV_OPA_COVER;
-        fill.radius = LV_RADIUS_CIRCLE;
-        lv_draw_fill(layer, &fill, &chip);
-        lv_draw_border_dsc_t border;
-        lv_draw_border_dsc_init(&border);
-        border.color = data->color_hub_border;
-        border.width = 1;
-        border.radius = LV_RADIUS_CIRCLE;
-        lv_draw_border(layer, &border, &chip);
-        lv_draw_label_dsc_t label;
-        lv_draw_label_dsc_init(&label);
-        label.color = data->color_text;
-        label.font = font;
-        label.align = LV_TEXT_ALIGN_CENTER;
-        label.text = text.c_str();
-        label.text_local = 1;
-        const int32_t cy = (chip.y1 + chip.y2) / 2;
-        const lv_area_t text_area = {chip.x1, cy - data->label_line_h / 2, chip.x2,
-                                     cy + data->label_line_h / 2};
-        lv_draw_label(layer, &label, &text_area);
+        fpath::draw_count_pill(layer, chip,
+                               {data->color_hub_bg, data->color_hub_border, data->color_text, font,
+                                data->label_line_h},
+                               text.c_str(), LV_TEXT_ALIGN_CENTER, chip.x1, chip.x2);
 
         data->parked_chip_area[side] = {chip.x1 - obj_coords.x1, chip.y1 - obj_coords.y1,
                                         chip.x2 - obj_coords.x1, chip.y2 - obj_coords.y1};
@@ -385,13 +350,12 @@ static void system_path_click_cb(lv_event_t* e) {
     lv_indev_get_point(indev, &p);
     lv_area_t coords;
     lv_obj_get_coords(obj, &coords);
-    const int32_t px = p.x - coords.x1, py = p.y - coords.y1;
     for (int side = 0; side < 2; ++side) {
-        if (!data->parked_chip_drawn[side])
-            continue;
-        const lv_area_t& a = data->parked_chip_area[side];
-        const int32_t reach = LV_MAX(data->space_md, (kChipTouchPx - (a.y2 - a.y1 + 1)) / 2);
-        if (px >= a.x1 - reach && px <= a.x2 + reach && py >= a.y1 - reach && py <= a.y2 + reach) {
+        // The chip's area is kept relative to the widget, so it moves with it.
+        if (data->parked_chip_drawn[side] &&
+            helix::ui::recorded_box_hit(p, data->parked_chip_area[side], {0, 0},
+                                        {coords.x1, coords.y1}, data->space_md,
+                                        helix::ui::kPathFingerPx)) {
             data->parked_chip_cb(side, data->parked_chip_user_data);
             return;
         }

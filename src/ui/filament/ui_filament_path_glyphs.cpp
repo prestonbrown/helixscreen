@@ -12,6 +12,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 
+#include "helix/ui/text_metrics.h"
 #include "hub_buffer_meter.h"
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
@@ -100,16 +101,12 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     int32_t gear_w = 0;
     int32_t gear_h = 0;
     int32_t label_w = 0;
-    if (label && label[0] && font) {
-        lv_point_t lbl_sz;
-        lv_text_get_size(&lbl_sz, label, font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        label_w = lbl_sz.x;
-    }
+    if (label && label[0] && font)
+        label_w = helix::ui::text_width(label, font);
     if (icon_font) {
         gear_h = lv_font_get_line_height(icon_font);
-        lv_point_t gear_sz;
-        lv_text_get_size(&gear_sz, ICON_SETTINGS, icon_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        gear_w = gear_sz.x > 0 ? gear_sz.x : gear_h; // defensive fallback
+        const int32_t measured = helix::ui::text_width(ICON_SETTINGS, icon_font);
+        gear_w = measured > 0 ? measured : gear_h; // defensive fallback
     }
     const int32_t gear_in = icon_font && !gear_outside ? gear_w + 2 * kGearPad : 0;
     width = gear_outside ? LV_MAX(width, label_w + 2 * kLabelPad + slot_w)
@@ -176,6 +173,32 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     return width;
 }
 
+void draw_count_pill(lv_layer_t* layer, const lv_area_t& chip, const CountPillStyle& style,
+                     const char* text, lv_text_align_t align, int32_t text_x1, int32_t text_x2) {
+    lv_draw_fill_dsc_t fill;
+    lv_draw_fill_dsc_init(&fill);
+    fill.color = style.bg;
+    fill.opa = LV_OPA_COVER;
+    fill.radius = LV_RADIUS_CIRCLE;
+    lv_draw_fill(layer, &fill, &chip);
+    lv_draw_border_dsc_t border;
+    lv_draw_border_dsc_init(&border);
+    border.color = style.border;
+    border.width = 1;
+    border.radius = LV_RADIUS_CIRCLE;
+    lv_draw_border(layer, &border, &chip);
+    lv_draw_label_dsc_t label;
+    lv_draw_label_dsc_init(&label);
+    label.color = style.text;
+    label.font = style.font;
+    label.align = align;
+    label.text = text;
+    label.text_local = 1;
+    const int32_t cy = (chip.y1 + chip.y2) / 2;
+    const lv_area_t area = {text_x1, cy - style.line_h / 2, text_x2, cy + style.line_h / 2};
+    lv_draw_label(layer, &label, &area);
+}
+
 void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
     const ThemeCache& theme = data->theme;
@@ -189,48 +212,39 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
     const int32_t h = f.hub_h;
     const lv_font_t* icon_font = theme_manager_get_font("icon_font_sm");
     const char* glyph = helix::ui::icon::lookup_codepoint("heat_wave");
-    const auto text_w = [](const char* text, const lv_font_t* fnt) {
-        lv_point_t size;
-        lv_text_get_size(&size, text, fnt, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        return size.x;
-    };
+    const CountPillStyle style{theme.color_hub_bg, theme.color_hub_border, theme.color_text, font,
+                               lv_font_get_line_height(font)};
     for (int side = 0; side < 2; ++side) {
         const OffpageStub& stub = f.stubs[side];
         if (!stub.present)
             continue;
-        const int32_t glyph_w = stub.drying && icon_font && glyph ? text_w(glyph, icon_font) : 0;
-        const int32_t extra = glyph_w > 0 ? glyph_w + pad / 2 : 0;
+        const int32_t drying_w =
+            stub.drying && icon_font && glyph ? helix::ui::text_width(glyph, icon_font) : 0;
         // "+2 units" where it fits beside the hub, inside the canvas and clear of the edge
-        // controls on the hub's rows; "+2" where it does not.
+        // controls on the hub's rows; "+2" where it does not; "+2" without its glyph, or no
+        // chip at all, before it covers the hub.
         const bool shares_rows = data->keepout_y1 <= data->keepout_y0 ||
                                  (hub.y2 >= data->keepout_y0 && hub.y1 <= data->keepout_y1);
         const int32_t keep = shares_rows ? data->edge_reserve : 0;
         const int32_t min_x = ctx.geo.x_off + keep;
         const int32_t max_x = ctx.geo.x_off + ctx.geo.width - keep;
-        std::string text = "+" + offpage_label_text(stub.count);
-        int32_t w = text_w(text.c_str(), font) + 2 * pad + extra;
-        lv_area_t chip = offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
-        const bool clear = side == 0 ? chip.x2 <= hub.x1 - gap / 2 : chip.x1 >= hub.x2 + gap / 2;
-        if (!clear) {
-            text = "+" + std::to_string(stub.count);
-            w = text_w(text.c_str(), font) + 2 * pad + extra;
-            chip = offpage_chip_rect(side, hub, w, h, gap, min_x, max_x);
-        }
+        const std::string long_text = "+" + offpage_label_text(stub.count);
+        const std::string short_text = "+" + std::to_string(stub.count);
+        const OffpageChipFit fit =
+            fit_offpage_chip(side, hub, helix::ui::text_width(long_text.c_str(), font),
+                             helix::ui::text_width(short_text.c_str(), font),
+                             drying_w > 0 ? drying_w + pad / 2 : 0, pad, h, gap, min_x, max_x);
+        if (!fit.shown)
+            continue;
+        const std::string& text = fit.long_text ? long_text : short_text;
+        const lv_area_t& chip = fit.rect;
+        const int32_t glyph_w = fit.glyph ? drying_w : 0;
+        const int32_t extra = glyph_w > 0 ? glyph_w + pad / 2 : 0;
 
-        lv_draw_fill_dsc_t fill;
-        lv_draw_fill_dsc_init(&fill);
-        fill.color = theme.color_hub_bg;
-        fill.opa = LV_OPA_COVER;
-        fill.radius = LV_RADIUS_CIRCLE;
-        lv_draw_fill(ctx.layer, &fill, &chip);
-        lv_draw_border_dsc_t border;
-        lv_draw_border_dsc_init(&border);
-        border.color = theme.color_hub_border;
-        border.width = 1;
-        border.radius = LV_RADIUS_CIRCLE;
-        lv_draw_border(ctx.layer, &border, &chip);
-
-        int32_t x = chip.x1 + pad;
+        // A drying unit among them leads the text with a heat-wave glyph.
+        const int32_t x = chip.x1 + pad;
+        draw_count_pill(ctx.layer, chip, style, text.c_str(), LV_TEXT_ALIGN_AUTO, x + extra,
+                        chip.x2 - pad + 1);
         if (glyph_w > 0) {
             lv_draw_label_dsc_t glyph_dsc;
             lv_draw_label_dsc_init(&glyph_dsc);
@@ -239,20 +253,9 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
             glyph_dsc.text = glyph;
             const int32_t gh = lv_font_get_line_height(icon_font);
             const int32_t cy = (chip.y1 + chip.y2) / 2;
-            lv_area_t area = {x, cy - gh / 2, x + glyph_w, cy + gh / 2};
+            const lv_area_t area = {x, cy - gh / 2, x + glyph_w, cy + gh / 2};
             lv_draw_label(ctx.layer, &glyph_dsc, &area);
-            x += extra;
         }
-        lv_draw_label_dsc_t label;
-        lv_draw_label_dsc_init(&label);
-        label.color = theme.color_text;
-        label.font = font;
-        label.text = text.c_str();
-        label.text_local = true;
-        const int32_t lh = lv_font_get_line_height(font);
-        const int32_t cy = (chip.y1 + chip.y2) / 2;
-        lv_area_t area = {x, cy - lh / 2, chip.x2 - pad + 1, cy + lh / 2};
-        lv_draw_label(ctx.layer, &label, &area);
 
         data->hits.offpage[side] = chip;
         data->hits.offpage_valid[side] = true;
@@ -446,32 +449,16 @@ void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t c
     *hit = buffer_control_hit(cx, cy, cap_h, max_w);
 }
 
-namespace {
-// The meter's fill for the buffer's state (buffer_meter_tone).
-lv_color_t hub_meter_color(const FilamentPathData& d) {
-    switch (helix::ui::buffer_meter_tone(d.buffer_fault_state >= 1, buffer_tension_position(d))) {
-    case helix::ui::BufferMeterTone::Fault:
-        return d.theme.color_error;
-    case helix::ui::BufferMeterTone::Compressed:
-        return d.theme.color_accent;
-    case helix::ui::BufferMeterTone::Expanded:
-        return d.theme.color_warning;
-    case helix::ui::BufferMeterTone::Centered:
-        break;
-    }
-    return d.theme.color_success;
-}
-} // namespace
-
 int32_t hub_buffer_glyph_width(int32_t hub_h) {
     return helix::ui::buffer_meter_slot_width(hub_h);
 }
 
 void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot) {
     const FilamentPathData& d = *ctx.data;
-    helix::ui::draw_buffer_meter(
-        ctx.layer, slot, buffer_tension_position(d),
-        {d.theme.color_bg, d.theme.color_hub_border, d.theme.color_text, hub_meter_color(d)});
+    const ThemeCache& t = d.theme;
+    helix::ui::draw_buffer_meter(ctx.layer, slot, buffer_tension_position(d), d.buffer_fault_state,
+                                 {t.color_bg, t.color_hub_border, t.color_text, t.color_error,
+                                  t.color_accent, t.color_warning, t.color_success});
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)

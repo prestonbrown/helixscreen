@@ -754,16 +754,10 @@ void AmsOverviewPanel::create_detail_slots(const AmsSystemInfo& info, int unit_p
                              result.layout);
     ams_detail_update_badges(detail_widgets_, detail_slot_widgets_, result.slot_count,
                              result.layout);
-    ams_detail_update_tray(detail_widgets_, detail_slot_widgets_, result.slot_count, unit_pos);
-    // A unit too tall for its path is laid out again at the size that fits; the drawing
-    // scales with its spools only roughly, so it may take a second pass.
-    if (helix::ui::ams_detail_sync_lane_entry(detail_path_canvas_, detail_widgets_.slot_grid) &&
-        relayout_passes_ < kMaxRelayoutPasses) {
-        ++relayout_passes_;
-        create_detail_slots(info, unit_pos);
-        --relayout_passes_;
+    if (helix::ui::ams_detail_lay_out_unit(detail_widgets_, detail_slot_widgets_, result.slot_count,
+                                           unit_pos, detail_path_canvas_, relayout_passes_,
+                                           [&] { create_detail_slots(info, unit_pos); }))
         return;
-    }
 
     spdlog::debug("[{}] Created {} detail slots via shared helpers", get_name(), result.slot_count);
 }

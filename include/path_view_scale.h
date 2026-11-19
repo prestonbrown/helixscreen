@@ -35,6 +35,9 @@ struct PathViewScale {
     bool buffer_in_hub = false; ///< the buffer's state rides in the hub box, no capsule row
 };
 
+/// The hub box's height in scale units.
+inline constexpr float kPathHubUnits = 2.3f;
+
 /// Column height the scale divides into units: a column this tall gets one unit per pixel.
 inline constexpr float kPathViewColumnUnits = 44.0f;
 /// The head is never narrower than this many tubes.
