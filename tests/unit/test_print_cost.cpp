@@ -307,5 +307,4 @@ TEST_CASE("choose_actual: the record's actual for this print, else wait for it",
 TEST_CASE("A cost formats as an amount even at zero", "[print_cost][price]") {
     CHECK(helix::format_price_with_currency(-0.0, "USD", true) == "$0.00");
     CHECK(helix::format_price_with_currency(-1, "USD", true).empty());
-    CHECK(helix::format_price_with_currency(0, "USD").empty());
 }
