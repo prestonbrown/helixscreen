@@ -1248,7 +1248,7 @@ lint_guided_device_flows() {
         [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/filament/ui_guided_device_flow.cpp)" = 1 ] ||
             { echo "register_builtin_guided_device_flows() does not run ${fn%;}"; rc=1; }
     done
-    for f in src/application/application.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
+    for f in src/application/application_startup.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
         [ "$(grep -cF "register_builtin_guided_device_flows();" "$f")" = 1 ] ||
             { echo "$f does not call register_builtin_guided_device_flows()"; rc=1; }
     done
@@ -1616,7 +1616,7 @@ lint_teardown_call_order() {
         fi
     done <<'EOF'
 src/application/printer_session.cpp PrinterSession::teardown_printer_scope tests/shell/fixtures/teardown_printer_scope_order.txt
-src/application/application.cpp Application::shutdown tests/shell/fixtures/shutdown_exit_tail_order.txt
+src/application/application_shutdown.cpp Application::shutdown tests/shell/fixtures/shutdown_exit_tail_order.txt
 EOF
     return $rc
 }

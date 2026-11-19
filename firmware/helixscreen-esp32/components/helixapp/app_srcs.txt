@@ -61,7 +61,7 @@
 #     display/backlight/drm/fbdev backends, src/network/mdns_discovery,
 #     src/system/{host_identity,platform_info,telemetry_manager,update_checker,
 #     crash_*,debug_bundle_collector,camera_stream,snapshot_qr_scanner,
-#     logging_init,...}, src/application/{application,display_manager,main.cpp,
+#     logging_init,...}, src/application/{application,application_*,display_manager,main.cpp,
 #     splash_screen_manager,remote_screen_*,android_asset_extractor}, src/bluetooth/*.
 #   Mocks (CONFIG_HELIX_MOCK_PRINTER only): see `# MOCK:` lines at end.
 #   New-since-audit files (audit was 2026-07-13): all are platform seams,

@@ -1212,4 +1212,4 @@ else
 | One file per panel | Branch in place on the layout subjects | Two copies of a panel drift unless someone keeps them in step by hand |
 | globals.xml | Never overridden; new responsive tokens still go there | Design tokens are universal across all layouts, and discovery only reads the top level of `ui_xml/` |
 | Runtime layout switching | Rebuilds the views | A resize that changes the layout type, a token or the scale calls `NavigationManager::rebuild_for_layout_change()` |
-| Runtime breakpoint/token refresh | Supported on resize | `theme_manager_refresh_layout_constants()` re-registers tokens and moves the `ui_breakpoint` subject; driven by the resize callback in `src/application/application.cpp` (desktop SDL, Android fold/unfold). On-device rotation is fixed at startup, so nothing fires there |
+| Runtime breakpoint/token refresh | Supported on resize | `theme_manager_refresh_layout_constants()` re-registers tokens and moves the `ui_breakpoint` subject; driven by the resize callback in `src/application/application_display.cpp` (desktop SDL, Android fold/unfold). On-device rotation is fixed at startup, so nothing fires there |

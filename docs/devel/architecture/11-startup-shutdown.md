@@ -51,7 +51,11 @@ sequenceDiagram
 | File | Role |
 |------|------|
 | [`src/main.cpp`](../../../src/main.cpp) | Process entry: client-mode dispatch, terminate handler, in-place `execv` restart |
-| [`src/application/application.cpp`](../../../src/application/application.cpp) | The ladder: `run()`, every process-level `init_*` phase, `main_loop()`, `shutdown()`. Owns `CrashReporter`, `RemoteControlServer` and `UpgradeBanner` as members |
+| [`src/application/application.cpp`](../../../src/application/application.cpp) | The ladder: `run()`, `main_loop()`, background/foreground, the signal handlers and the instance lock. Owns `CrashReporter`, `RemoteControlServer` and `UpgradeBanner` as members |
+| [`src/application/application_bootstrap.cpp`](../../../src/application/application_bootstrap.cpp) | Phases before the display: data-root cwd, `parse_args()`, `init_config()`, `init_logging()` |
+| [`src/application/application_display.cpp`](../../../src/application/application_display.cpp) | `init_display()` (UI scale, resize handler), `init_theme()`, `init_assets()`, the first-boot rotation probe and layout |
+| [`src/application/application_startup.cpp`](../../../src/application/application_startup.cpp) | Widget and XML registration, translations, the first-run wizard, CLI startup actions, process/sound/monitoring services, WiFi bringup |
+| [`src/application/application_shutdown.cpp`](../../../src/application/application_shutdown.cpp) | `shutdown()`: the process-exit teardown order |
 | [`src/application/printer_session.cpp`](../../../src/application/printer_session.cpp) | `PrinterSession`: the printer scope. Subjects, Moonraker, panels, plugins, discovery wiring, and `teardown_printer_scope()` for both a switch and process exit |
 | [`src/application/session_wiring.cpp`](../../../src/application/session_wiring.cpp) | What desktop and the ESP32 firmware share: `wire_discovery()`, `init_session_services()`, `create_app_layout()`, `setup_app_panels()` |
 | [`src/application/discovery_steps_core.cpp`](../../../src/application/discovery_steps_core.cpp), [`discovery_steps.cpp`](../../../src/application/discovery_steps.cpp) | The ordered discovery steps each connection runs: the core table both builds compile, and desktop's tail table |
@@ -79,10 +83,10 @@ Inside `run()`, the pre-phase work is self-protection. The single-instance flock
 
 The display/theme/XML block has ordering constraints the code comments defend:
 
-- **Fonts before theme.** Phase 5 (`init_assets`) registers fonts because Phase 6 (`init_theme`) then registers [`ui_xml/globals.xml`](../../../ui_xml/globals.xml), whose const table *names* those fonts, before `theme_manager_init()` applies it (`src/application/application.cpp#init_theme`). Register globals after theme init and every token resolves to nothing.
-- **Translations before XML components.** Phase 8a loads only the current locale because `lv_tr()` must work inside the rotation probe (8b) and in every component registered in 8c (`src/application/application.cpp#init_translations`).
+- **Fonts before theme.** Phase 5 (`init_assets`) registers fonts because Phase 6 (`init_theme`) then registers [`ui_xml/globals.xml`](../../../ui_xml/globals.xml), whose const table *names* those fonts, before `theme_manager_init()` applies it (`src/application/application_display.cpp#init_theme`). Register globals after theme init and every token resolves to nothing.
+- **Translations before XML components.** Phase 8a loads only the current locale because `lv_tr()` must work inside the rotation probe (8b) and in every component registered in 8c (`src/application/application_startup.cpp#init_translations`).
 - **Rotation before input.** On a first boot the kernel's `panel_orientation` is decided in Phase 4 and handed to `DisplayManager::init()` as the startup rotation (`include/display_backend.h#startup_rotation`), because the backends gate the stored touch range and calibration on the display's rotation when they create the input devices (#1428). Phase 8b only persists it.
-- **Layout before panels.** Phase 8b runs the first-boot rotation probe (fbdev/DRM only) and resolves `LayoutManager`, so variant XML overrides and portrait orientation are known before any panel subtree exists (`src/application/application.cpp#run_rotation_probe_and_layout`).
+- **Layout before panels.** Phase 8b runs the first-boot rotation probe (fbdev/DRM only) and resolves `LayoutManager`, so variant XML overrides and portrait orientation are known before any panel subtree exists (`src/application/application_display.cpp#run_rotation_probe_and_layout`).
 
 Phase 8c calls `helix::register_xml_components()` (`src/xml_registration.cpp#register_xml_components`), which registers responsive constants, the semantic text/button widgets, shared event callbacks, then `styles.xml`, and installs the first-use component loader (`helix::register_xml_on_first_use()`), which registers every other component from `ui_xml/` or `ui_xml/components/` the first time its name is looked up. Components that C++ writes responsive consts into register at boot too, and a resize or hot reload re-registers them (#1756). The same phase then runs `register_builtin_guided_device_flows()` (`src/ui/filament/ui_guided_device_flow.cpp#register_builtin_guided_device_flows`), a table of per-vendor registrars (CFS, Snapmaker, INDX), each an empty stub in a build without that vendor, so the startup code names none of them; it runs before any overlay builds because an action naming an unregistered flow is refused. If `HELIX_HOT_RELOAD` is on (default for native builds), the hot-reloader thread starts here.
 
@@ -90,28 +94,28 @@ The whole ladder, one line per phase comment (all in `run()` unless noted):
 
 | Phase | Call | Where | Why it sits here |
 |-------|------|-------|------------------|
-| - | `logging::init_early()`, `ensure_project_root_cwd()` | `src/system/logging_init.cpp#init_early`, `src/application/application.cpp#ensure_project_root_cwd` | Logs work before anything else; `ui_xml/` resolution needs the chdir |
-| 1 | `parse_args()` | `src/application/application.cpp#parse_args` | Env overrides applied inside (`HELIX_SCREEN_SIZE`, ...) |
+| - | `logging::init_early()`, `ensure_project_root_cwd()` | `src/system/logging_init.cpp#init_early`, `src/application/application_bootstrap.cpp#ensure_project_root_cwd` | Logs work before anything else; `ui_xml/` resolution needs the chdir |
+| 1 | `parse_args()` | `src/application/application_bootstrap.cpp#parse_args` | Env overrides applied inside (`HELIX_SCREEN_SIZE`, ...) |
 | - | `acquire_instance_lock()`, `crash_handler::install()`, signals | `src/application/application.cpp#run` | Lock after args so `-V` works; handler before anything that can crash |
-| 2 | `init_config()` | `src/application/application.cpp#init_config` | Crash-loop check + GPU-guard promotion ride along |
-| 3 | `init_logging()` | `src/application/application.cpp#init_logging` | Timezone applied before the first timestamped line; `--detect-printer` one-shot exits here |
-| 4 | `init_display()` | `src/application/application.cpp#init_display` | `lv_init()`, backend, input; splash suppression armed |
-| 5 | `init_assets()` | `src/application/application.cpp#init_assets` | Fonts before globals.xml names them |
-| 6 | `init_theme()` | `src/application/application.cpp#init_theme` | globals.xml, then `theme_manager_init()`, then bg color |
-| 7 | `register_widgets()` | `src/application/application.cpp#register_widgets` | 14 custom C widgets + header-bar system |
-| 8a | `init_translations()` | `src/application/application.cpp#init_translations` | Current locale only; `lv_tr()` for the probe |
-| 8b | `run_rotation_probe_and_layout()` | `src/application/application.cpp#run_rotation_probe_and_layout` | Rotation + `LayoutManager` before variant XML resolves |
-| 8c | `register_xml_components()` | `src/application/application.cpp#register_xml_components` | `styles.xml`, component loader, guided device flows, hot reloader |
+| 2 | `init_config()` | `src/application/application_bootstrap.cpp#init_config` | Crash-loop check + GPU-guard promotion ride along |
+| 3 | `init_logging()` | `src/application/application_bootstrap.cpp#init_logging` | Timezone applied before the first timestamped line; `--detect-printer` one-shot exits here |
+| 4 | `init_display()` | `src/application/application_display.cpp#init_display` | `lv_init()`, backend, input; splash suppression armed |
+| 5 | `init_assets()` | `src/application/application_display.cpp#init_assets` | Fonts before globals.xml names them |
+| 6 | `init_theme()` | `src/application/application_display.cpp#init_theme` | globals.xml, then `theme_manager_init()`, then bg color |
+| 7 | `register_widgets()` | `src/application/application_startup.cpp#register_widgets` | 14 custom C widgets + header-bar system |
+| 8a | `init_translations()` | `src/application/application_startup.cpp#init_translations` | Current locale only; `lv_tr()` for the probe |
+| 8b | `run_rotation_probe_and_layout()` | `src/application/application_display.cpp#run_rotation_probe_and_layout` | Rotation + `LayoutManager` before variant XML resolves |
+| 8c | `register_xml_components()` | `src/application/application_startup.cpp#register_xml_components` | `styles.xml`, component loader, guided device flows, hot reloader |
 | 9a | `init_core_subjects()` | `src/application/printer_session.cpp#init_core_subjects` | `SubjectInitializer` core/state/navigation sweep |
 | 9b | `HttpExecutor::start_all()`, `init_moonraker()` | `src/core/http_executor.cpp#start_all`, `src/application/printer_session.cpp#init_moonraker` | Pools before the API that submits to them |
-| - | UpdateChecker, UpgradeBanner, CrashHistory + CrashReporter, `AmsBackend::init_persistent_state()`, TelemetryManager | `src/application/application.cpp#init_process_services` | Services panels bind, plus the first heap snapshot; backend state loads before any backend exists |
+| - | UpdateChecker, UpgradeBanner, CrashHistory + CrashReporter, `AmsBackend::init_persistent_state()`, TelemetryManager | `src/application/application_startup.cpp#init_process_services` | Services panels bind, plus the first heap snapshot; backend state loads before any backend exists |
 | 9c | `init_panel_subjects()` | `src/application/printer_session.cpp#init_panel_subjects` | `init_panels()` + `init_post()` + session services: every subject exists before XML |
 | 9d | `connect_moonraker()` | `src/application/printer_session.cpp#connect_moonraker` | Async discovery under the splash; Safe Mode skips |
 | - | SoundManager, strict UI checks in `--test` | `src/application/application.cpp#run` | Host audio picked before the startup tone |
 | 10 | `init_ui()` | `src/application/printer_session.cpp#init_ui` | `create_app_layout()`, then `PanelFactory` |
 | 11b-16b | crash dialog, recovery, wizard, CLI actions, plugins, ctl server, MemoryMonitor, repaint | `src/application/application.cpp#run` | One try/catch: post-UI failures degrade, never exit |
 | 17 | `main_loop()` | `src/application/application.cpp#main_loop` | Splash handoff lives here (chapter 02 owns the rest) |
-| 18 | `shutdown()` | `src/application/application.cpp#shutdown` | The ladder below |
+| 18 | `shutdown()` | `src/application/application_shutdown.cpp#shutdown` | The ladder below |
 
 ### Subjects, UI, and the connect-during-splash window
 
@@ -140,14 +144,14 @@ A printer switch runs the same scope backwards and forwards: `PrinterSession::te
 
 ### Shutdown: the registry ladder
 
-`Application::shutdown()` (`src/application/application.cpp#shutdown`) is guarded by `m_shutdown_complete` (the destructor calls it again). It stops the process-level producers (async lifetime guard, WiFi link monitor, hot reloader, the remote-control server, memory monitor), then calls `PrinterSession::teardown_printer_scope(TeardownScope::ProcessExit)` (`src/application/printer_session.cpp#teardown_printer_scope`), the same ordered function a printer switch runs as `PrinterSwitch`; steps guarded by `exiting` are the process-level ones. `shutdown()` then stops the HttpExecutors, resets the display and deinitialises the theme manager. Simplified to its load-bearing steps:
+`Application::shutdown()` (`src/application/application_shutdown.cpp#shutdown`) is guarded by `m_shutdown_complete` (the destructor calls it again). It stops the process-level producers (async lifetime guard, WiFi link monitor, hot reloader, the remote-control server, memory monitor), then calls `PrinterSession::teardown_printer_scope(TeardownScope::ProcessExit)` (`src/application/printer_session.cpp#teardown_printer_scope`), the same ordered function a printer switch runs as `PrinterSwitch`; steps guarded by `exiting` are the process-level ones. `shutdown()` then stops the HttpExecutors, resets the display and deinitialises the theme manager. Simplified to its load-bearing steps:
 
 1. **Stop producers.** On exit the first-use XML loader stops; on a switch the UpdateQueue is frozen so work the WebSocket thread enqueues from here on is discarded. `MoonrakerClient::disconnect()` comes first, because background threads must stop delivering before anything they touch is freed. Clear `app_globals` pointers, then `helix::nav::shutdown()` (overlays deactivated, navigation registries cleared) and the page-scroll controllers. On exit only, the process-scoped services go: the upgrade banner (before the UpdateChecker it observes), UpdateChecker, Telemetry, CrashHistory, `AmsBackend::shutdown_persistent_state()`, Sound, PostOpCooldown.
 2. **Unload and unregister.** Plugins unload while subjects and the client are alive. History managers reset; the connection-scoped method handlers detach (timelapse, update checker, About print hours, Spoolman sync); power and sensor state unsubscribe; G-code routing handlers detach; `AmsState::clear_backends()` releases subscription guards while the client's mutex is alive. `update_queue_shutdown()` drains deferred UI callbacks *before* the panels they capture die, and `lv_anim_delete_all()` stops completion callbacks firing on soon-freed widgets.
 3. **`destroy_panels()`** (`src/application/printer_session.cpp#teardown_printer_scope/"Destroy ALL static panel"`): every panel/overlay singleton (`StaticPanelRegistry::destroy_all()` on exit). Destroys panel-local subjects and releases ObserverGuards while LVGL is still up.
 4. **`StaticSubjectRegistry::deinit_all()`** (`src/application/printer_session.cpp#teardown_printer_scope/"StaticSubjectRegistry::instance().deinit_all"`): LIFO over self-registered `deinit_subjects()` callbacks (`src/core/static_subject_registry.cpp#deinit_all` iterates a detached copy in reverse, so a callback that re-registers lands in the empty member vector). The scope decides which entries run: exit runs them all, a printer switch spares `Lifetime::Process` entries (subjects created once at boot, whose init the rebuild does not re-run) and runs `Lifetime::ProcessRunOnSwitch` cleanups without dropping them (`include/core/static_subject_registry.h#Lifetime`).
 5. **`destroy_panels()` again** (`src/application/printer_session.cpp#teardown_printer_scope/"Sweep any panel singleton"`): a sweep for panels a deinit callback lazily *resurrected* through an auto-creating `get_global_*_panel()` getter, keeping their destructors off the static-destruction path.
-6. **`ObserverGuard::invalidate_all()`** (`src/application/printer_session.cpp#teardown_printer_scope/"ObserverGuard::invalidate_all(exiting);"`), then the G-code routers and MoonrakerManager are destroyed. Back in `shutdown()`: stop the HttpExecutors, `m_display.reset()` (`DisplayManager::shutdown()` runs **`lv_deinit()` then `lv_xml_deinit()`**, `src/application/display_manager.cpp#shutdown`), and `theme_manager_deinit()` dead last (`src/application/application.cpp#shutdown/"theme_manager_deinit();"`).
+6. **`ObserverGuard::invalidate_all()`** (`src/application/printer_session.cpp#teardown_printer_scope/"ObserverGuard::invalidate_all(exiting);"`), then the G-code routers and MoonrakerManager are destroyed. Back in `shutdown()`: stop the HttpExecutors, `m_display.reset()` (`DisplayManager::shutdown()` runs **`lv_deinit()` then `lv_xml_deinit()`**, `src/application/display_manager.cpp#shutdown`), and `theme_manager_deinit()` dead last (`src/application/application_shutdown.cpp#shutdown/"theme_manager_deinit();"`).
 
 A switch stops after step 6 with the display alive: it resets the keyboard manager and deletes the app layout with `safe_delete_subtree()`, outside the UpdateQueue batch, ready for `rebuild()`.
 
@@ -207,15 +211,15 @@ Read in this order; about 30 minutes total.
 
 1. `src/main.cpp#main`: client dispatch, `set_terminate`, the `execv` in-place restart. 187 lines; read it whole.
 2. `src/application/application.cpp#run`: skim top to bottom reading only the `Phase N` comments; this is the authoritative ladder.
-3. `src/application/application.cpp#init_display`: DPI forcing, and the splash hand-off at `src/application/application.cpp#init_display/"config.splash_active"`, which `DisplayManager` passes to the backend (`set_splash_active()`).
-4. `src/application/application.cpp#init_theme`: globals.xml registered *before* `theme_manager_init()`, and why.
+3. `src/application/application_display.cpp#init_display`: DPI forcing, and the splash hand-off at `src/application/application_display.cpp#init_display/"config.splash_active"`, which `DisplayManager` passes to the backend (`set_splash_active()`).
+4. `src/application/application_display.cpp#init_theme`: globals.xml registered *before* `theme_manager_init()`, and why.
 5. `src/xml_registration.cpp#register_xml_components`: responsive consts, semantic widgets, callbacks, `styles.xml`, then the first-use loader (`src/xml_registration.cpp#register_xml_on_first_use`).
 6. `src/application/subject_initializer.cpp#init_core_and_state`: the dependency phases and the NavigationManager-registers-last comment.
 7. `src/application/session_wiring.cpp#wire_discovery`, then `init_session_services()` and `create_app_layout()` in the same file: the half both builds share.
 8. `src/application/printer_session.cpp#connect_moonraker`: when it connects, where `start_auto_send` lands; then `setup_discovery_callbacks()` above it for desktop's `after_core` hook.
 9. `src/application/panel_factory.cpp#setup_panels`: the ESP32 branch with its deferred panels and idle Print Files build.
 10. `src/application/splash_screen_manager.cpp#run_handoff_frame`: the splash handoff and 11s failsafe, which `main_loop` runs once per frame; chapter 02 owns the rest of the loop.
-11. `src/application/printer_session.cpp#teardown_printer_scope`: walk the ladder against the list above; the comments at `src/application/printer_session.cpp#teardown_printer_scope/"Stop the consumption tracker BEFORE destroying overlays"` and `src/application/printer_session.cpp#teardown_printer_scope/"Invalidate all ObserverGuards so any reset()"` explain the two UAF-prone orderings. `shutdown()` (`src/application/application.cpp#shutdown`) is the prologue and epilogue around it.
+11. `src/application/printer_session.cpp#teardown_printer_scope`: walk the ladder against the list above; the comments at `src/application/printer_session.cpp#teardown_printer_scope/"Stop the consumption tracker BEFORE destroying overlays"` and `src/application/printer_session.cpp#teardown_printer_scope/"Invalidate all ObserverGuards so any reset()"` explain the two UAF-prone orderings. `shutdown()` (`src/application/application_shutdown.cpp#shutdown`) is the prologue and epilogue around it.
 12. `src/application/display_manager.cpp#shutdown`: `lv_deinit()` then `lv_xml_deinit()` and the style-ownership comment above them.
 13. `src/core/static_subject_registry.cpp#deinit_all`: 25 lines; the detached-copy/reverse-iteration trick.
 14. `src/helix_watchdog.cpp#run_watchdog`: fork/supervise loop, exit-code translation at `src/helix_watchdog.cpp#run_watchdog/"via crash handler"`, crash-loop branch at `src/helix_watchdog.cpp#run_watchdog/"Crash loop detected: signature"`; then `src/helix_watchdog.cpp#create_crash_dialog`.

@@ -59,10 +59,10 @@ Four mechanics carry the load: the file-to-widget pipeline (including live editi
 
 At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp)):
 
-1. Phase 7 - `register_widgets()` (`src/application/application.cpp#register_widgets`): registers the first wave of C++ widget types so the engine knows tags like `ui_card` and `ui_dialog`.
+1. Phase 7 - `register_widgets()` (`src/application/application_startup.cpp#register_widgets`): registers the first wave of C++ widget types so the engine knows tags like `ui_card` and `ui_dialog`.
 2. Phase 8a - translations, before any UI exists.
 3. Phase 8b - rotation probe and layout-manager init, so the layout class `ui_is_portrait` and `ui_is_ultrawide` publish is known.
-4. Phase 8c - `register_xml_components()` (`src/application/application.cpp#register_xml_components`): registers `styles.xml`, installs the first-use loader, and registers the second wave of widgets (`ui_button`, `ui_text_input`, `ui_markdown`, ...) and the app-wide event callbacks.
+4. Phase 8c - `register_xml_components()` (`src/application/application_startup.cpp#register_xml_components`): registers `styles.xml`, installs the first-use loader, and registers the second wave of widgets (`ui_button`, `ui_text_input`, `ui_markdown`, ...) and the app-wide event callbacks.
 5. Phase 9a - subject initialization, so every binding can resolve.
 6. Phase 10 - `PrinterSession::init_ui()` calls `create_app_layout()` (`src/application/session_wiring.cpp#create_app_layout`), whose `lv_xml_create(screen, "app_layout", nullptr)` instantiates the root layout.
 
@@ -205,7 +205,7 @@ Read in this order; about 25 minutes total.
 1. [`ui_xml/temp_graph_overlay.xml#temp_graph_overlay`](../../../ui_xml/temp_graph_overlay.xml) - a whole live overlay in one file. Notice the orthogonal `<styles>` pairs driven by `bind_style_if cond=`, the structural `<if cond="ui_is_portrait eq 0">` branches for landscape and portrait, `bind_text` on the `preset_1` buttons, and the shared component instantiation (`<chamber_fault_banner/>`).
 2. [`ui_xml/overlay_panel.xml`](../../../ui_xml/overlay_panel.xml) - the wrapper component those panels extend: positioning, header, and the content slot convention.
 3. [`src/xml_registration.cpp#register_xml`](../../../src/xml_registration.cpp) - the `register_xml()` helper: path resolution and the LVGL drive-letter prefix. Then `register_xml_on_first_use()` in the same file, the loader every other component goes through.
-4. [`src/application/application.cpp#register_widgets`](../../../src/application/application.cpp) - `register_widgets()` (the first wave of C++ widget registrations), then `src/application/application.cpp#register_xml_components` `register_xml_components()` and its hot-reloader wiring, and finally `src/application/session_wiring.cpp#create_app_layout`, the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
+4. [`src/application/application_startup.cpp#register_widgets`](../../../src/application/application_startup.cpp) - `register_widgets()` (the first wave of C++ widget registrations), then `src/application/application_startup.cpp#register_xml_components` `register_xml_components()` and its hot-reloader wiring, and finally `src/application/session_wiring.cpp#create_app_layout`, the single `lv_xml_create` that instantiates the root layout. This is the whole boot ordering in four stops.
 5. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create` - `lv_xml_create`: widget-processor table first, component scope second. Then `lib/helix-xml/src/xml/lv_xml.c#lv_xml_create/"Set a default indexed name"` - the name-precedence rules and the default `<component>_#` fallback.
 6. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_get_subject` - `lv_xml_get_subject`: the component-scope-then-globals walk, and the WARN on miss you will grep for.
 7. `lib/helix-xml/src/xml/lv_xml.c#lv_xml_init` - the `bind_*` pseudo-widget registrations; the entire binding-element vocabulary in ~25 lines.
