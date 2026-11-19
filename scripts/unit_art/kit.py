@@ -540,6 +540,67 @@ class Scene:
         """White where lane's filament shows; the runtime recolours it."""
         return self._wrap(width, f'<rect {self._frame()} fill="#fff" mask="url(#cover)"/>', self._coverage_mask(lane))
 
+    # A turning spool: its near flange's vents rotate at runtime, so they bake apart from the
+    # flange they turn on. Each lane's face layer is its near flange and hub as they show, cut by
+    # the lane stacks drawn over them. The vents are baked once, from one lane, whole and centered
+    # on its flange, since every spool of a drawing is the same spool moved along the row.
+
+    _VENT_TAGS = ("slot", "air_hole")
+
+    def _vent_items(self, lane):
+        return [i for i in self.items if i.spool == lane and i.tag in self._VENT_TAGS]
+
+    def spools_turn(self):
+        """Whether every lane's spool has vents to turn and all are one size, so one vent
+        layer serves every lane."""
+        radii = {round(sp["radius"], 9) for sp in self.spools.values()}
+        return bool(self.spools) and len(radii) == 1 and all(self._vent_items(lane) for lane in self.spools)
+
+    def _over_near_face(self, lane):
+        """Every lane stack item the runtime composes over lane's near flange: the rest of its
+        own stack, then each later lane's stack. The front layer, often glass, is laid over the
+        turning vents at runtime instead."""
+        order = self.lane_order()
+        last = max(k for k, i in enumerate(self.items) if i.spool == lane)
+        own_ids = {id(i) for i in self.lane_items(lane)}
+        own = [i for i in self.items[last + 1 :] if id(i) in own_ids and i.lane is None]
+        later = [i for m in order[order.index(lane) + 1 :] for i in self.lane_items(m)]
+        return own + later
+
+    def lane_face_svg(self, lane, width):
+        """Lane's near flange and hub without their vents, only where no later stack stands
+        over them."""
+        cover = "".join(i.svg(fill="#000") for i in self._over_near_face(lane))
+        mask = f'<mask id="seen" maskUnits="userSpaceOnUse" {self._frame()}><rect {self._frame()} fill="#fff"/>{cover}</mask>'
+        face = "".join(i.svg() for i in self.items if i.spool == lane and i.tag in ("face", "hub"))
+        return self._wrap(width, f'<g mask="url(#seen)">{face}</g>', mask)
+
+    def vents_size(self, lane, art_width):
+        """The vent layer's size in pixels, even both ways, for a drawing art_width wide: the
+        near flange's extent with a pixel to spare, centered on the flange's center."""
+        _, _, vw, _ = self._viewbox()
+        k = art_width / vw
+        cx, cy = self.camera.project(self.spools[lane]["near"])
+        pts = [p for i in self.items if i.spool == lane and i.tag == "face" for p in i.points]
+        half_x = max(abs(p[0] - cx) for p in pts)
+        half_y = max(abs(p[1] - cy) for p in pts)
+        return 2 * math.ceil(half_x * k + 2), 2 * math.ceil(half_y * k + 2)
+
+    def vents_svg(self, lane, art_width, lit):
+        """Lane's near flange vents alone, at the drawing's scale, centered on the flange: their
+        dark hollows and lips, or with lit the filament seen through them drawn white, for the
+        runtime to multiply by the filament's color."""
+        _, _, vw, _ = self._viewbox()
+        k = art_width / vw
+        w, h = self.vents_size(lane, art_width)
+        cx, cy = self.camera.project(self.spools[lane]["near"])
+        items = [i for i in self._vent_items(lane) if (i.lane == lane) == lit]
+        view = f"{cx - w / 2 / k} {cy - h / 2 / k} {w / k} {h / k}"
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{view}" width="{w}" height="{h}">'
+            f"<defs>{''.join(self.grads)}</defs>{''.join(i.svg() for i in items)}</svg>"
+        )
+
     def lane_shade_svg(self, lane, width):
         """Black at the filament's darkness, laid over its tinted colour."""
         lit = "".join(i.svg() for i in self.items if i.lane == lane)

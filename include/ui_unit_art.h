@@ -12,6 +12,7 @@
  */
 
 #include "lvgl/lvgl.h"
+#include "spool_spin.h"
 
 #include <cstdint>
 #include <string>
@@ -134,6 +135,17 @@ std::vector<std::string> unit_art_compose_order(lv_obj_t* art);
 
 /// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.
 int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
+
+/// Turn lane @p lane's spool as @p spin says (decide_spool_spin): its near flange's vents rotate
+/// in the flange's own plane, under whatever stands in front of them. Only a full drawing whose
+/// bake has the vents apart turns; a stopped spool holds its angle.
+void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin);
+
+/// How far lane @p lane's spool has turned, in degrees, wrapped to a turn.
+float unit_art_lane_spin_angle(lv_obj_t* art, int lane);
+
+/// The image drawing lane @p lane's turning vents, or nullptr before it first turns.
+lv_obj_t* unit_art_lane_spin_obj(lv_obj_t* art, int lane);
 
 /// The image currently showing the sliding selector, or nullptr for a unit without one.
 lv_obj_t* unit_art_carriage_obj(lv_obj_t* art);

@@ -47,6 +47,8 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 | `lane<N>` | White alpha mask of lane N's filament region, tinted at runtime with the lane's colour |
 | `lane<N>_shade` | The shading drawn over that tint, so the colour reads as a rounded spool |
 | `front` | Everything in front of the spools (`scene.layer = "front"`) |
+| `lane<N>_face` | Full tier: lane N's near flange and hub without their vents, cut by the lane stacks in front of it |
+| `vents`, `vents_lit` | Full tier, once per drawing: a near flange's vents alone, centered on the flange; `vents_lit` is the filament seen through them, drawn white for tinting |
 | carriage | For a unit with a sliding selector: the moving part, baked at gate 0 and shifted per gate |
 
 `<unit_art>` stacks them back to front, tints each lane that holds or still names a spool, and hides the tint of an empty one. A unit with no matching art hides the widget. Variants:
@@ -134,7 +136,7 @@ The combiner's presence sensor is optional. The hub box draws its sensor band on
 
 ## Rendering on small boards
 
-The shell is static between state changes, so it is drawn once and kept, and only spools repaint on data changes. The bar for the full tier is no visible frame drop while a spool repaints and no more than 2 points of added idle CPU on MIPS; on the AD5X the ACE shell measured 2.50% idle against 2.48% for the generic tray. A theme change repaints the shell from the new tokens without leaving the screen. Boards where `helix::ui::reduced_effects()` is true skip the drying glow and spool rotation. A printing lane turns slowly and a loading or unloading lane spins fast, both only with animations on (`decide_spool_spin` in `include/spool_spin.h`); the vents step through cached phases, so a step is a buffer copy.
+The shell is static between state changes, so it is drawn once and kept, and only spools repaint on data changes. The bar for the full tier is no visible frame drop while a spool repaints and no more than 2 points of added idle CPU on MIPS; on the AD5X the ACE shell measured 2.50% idle against 2.48% for the generic tray. A theme change repaints the shell from the new tokens without leaving the screen. Boards where `helix::ui::reduced_effects()` is true skip the drying glow and spool rotation. A spool turns only while filament moves through it, only with animations on, and one rule paces the tray's spools and the art's (`decide_spool_spin` and `spool_spin_step_ms` in `include/spool_spin.h`): the real spool's turn rate times `kSpoolSpinVisualMultiplier`, never slower than one turn in `kSpoolSpinFloorTurnS` and never faster than one in `kSpoolSpinCapTurnS`, so a print's slow feed still reads as turning and a fast load does not strobe. On the tray the vents step through cached phases, so a step is a buffer copy. In the art, the feeding lane's near flange is redrawn over the flat image with its vents rotated in the flange's plane (`unit_art_set_lane_spin`), the front layer laid back over them, at most every 66 ms and only for a lane that turns.
 
 ## Toolheads
 
