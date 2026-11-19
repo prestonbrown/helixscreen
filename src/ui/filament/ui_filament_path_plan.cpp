@@ -698,20 +698,25 @@ int32_t row_between(int32_t top, int32_t bottom, float fraction) {
 
 } // namespace
 
+int32_t head_scale_within_height(int32_t scale, float max_h) {
+    while (scale > kMinHeadScale) {
+        const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        if ((float)(b.bottom - b.top) <= max_h)
+            break;
+        --scale;
+    }
+    return scale;
+}
+
 namespace {
 /// The share of the canvas width a row of per-lane heads may take under a view scale.
 constexpr int32_t kHeadRowShareNum = 1, kHeadRowShareDen = 2;
-/// The smallest a shrunk head draws and still reads as a head.
-constexpr int32_t kMinHeadScale = 4;
-/// The tallest a per-lane head stands under a view scale, in view units.
-constexpr float kHeadUnits = 5.0f;
 /// The gap a scaled row of heads' tool tags leaves above the canvas bottom.
 constexpr int32_t kHeadsFootMargin = 2;
 
-/// The size of @p heads per-lane heads standing in a row: under a view scale the hub layout's,
-/// shrunk where the row would take more than kHeadRowShare of the canvas width or a head would
-/// stand taller than kHeadUnits view units, so several heads leave the drawing above its
-/// height.
+/// The size of @p heads per-lane heads standing in a row: under a view scale the hub layout's
+/// (no taller than kHeadUnits), shrunk where the row would take more than kHeadRowShare of the
+/// canvas width, so several heads leave the drawing above its height.
 int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g, int heads) {
     const int32_t base = data.theme.extruder_scale;
     if (data.view_hub_h <= 0)
@@ -721,15 +726,9 @@ int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g,
         const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
         return heads * ((b.right - b.left) + 4 * data.theme.sensor_radius);
     };
-    // No taller than kHeadUnits either, whatever the head style's proportions,
-    // so a row of heads leaves the unit above its height.
-    const auto tall = [&](int32_t scale) {
-        const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
-        const float unit = data.view_unit > 0.0f ? data.view_unit : (float)data.view_hub_h / 2.3f;
-        return (float)(b.bottom - b.top) > kHeadUnits * unit;
-    };
-    int32_t scale = base;
-    while (heads > 1 && scale > kMinHeadScale && (row(scale) > budget || tall(scale)))
+    const float unit = data.view_unit > 0.0f ? data.view_unit : (float)data.view_hub_h / 2.3f;
+    int32_t scale = head_scale_within_height(base, kHeadUnits * unit);
+    while (heads > 1 && scale > kMinHeadScale && row(scale) > budget)
         --scale;
     return scale;
 }

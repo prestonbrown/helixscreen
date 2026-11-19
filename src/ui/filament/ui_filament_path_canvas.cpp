@@ -1296,7 +1296,7 @@ void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::Path
         ThemeCache& theme = data->theme;
         theme.tube_gauge = scale.tube_gauge;
         theme.sensor_radius = scale.sensor_r;
-        theme.extruder_scale = scale.head_scale;
+        theme.extruder_scale = head_scale_within_height(scale.head_scale, kHeadUnits * scale.unit);
         theme.hub_width = scale.hub_min_w;
         data->view_hub_h = scale.hub_h;
         data->view_cap_h = scale.cap_h;
@@ -1378,14 +1378,14 @@ float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     // A lane's outlet moves out from the hub with the unit, its entry stays: a lane that runs
-    // sideways grows its run by its distance from the hub times e, and its drop by that over
+    // sideways grows its run by its distance from the hub times e, and its drop by that times
     // the flattest slope.
     float growth = 0.0f;
     for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
         const float from_hub = std::fabs(f.hub_fan[i].pts[0].x - (float)f.center_x);
         const float run = std::fabs(f.hub_fan[i].pts[3].x - f.hub_fan[i].pts[0].x);
         if (run > 2.5f)
-            growth = std::max(growth, from_hub / kFanMinSlope);
+            growth = std::max(growth, from_hub * kFanMinSlope);
     }
     return growth;
 }

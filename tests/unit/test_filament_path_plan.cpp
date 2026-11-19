@@ -1417,7 +1417,7 @@ TEST_CASE("FilamentPath plan: on a compact view per-lane runs and heads shrink w
     g.height = per_lane_required_height(*d, g);
     const ParallelRows r = parallel_rows(*d, g);
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale);
-    CHECK(b.bottom - b.top <= 5.0f * d->view_unit);
+    CHECK(b.bottom - b.top <= kHeadUnits * d->view_unit);
     CHECK(b.top - r.entry_y <= 6.0f * d->view_unit + 2);
 }
 

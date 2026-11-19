@@ -294,6 +294,15 @@ struct MixedFrame {
     SlotRenderStates states;
 };
 
+/// The smallest a shrunk head draws and still reads as a head.
+inline constexpr int32_t kMinHeadScale = 4;
+/// The tallest a head stands under a view scale, in view units, whatever its style's
+/// proportions: a tall head would take the unit's height on a compact view.
+inline constexpr float kHeadUnits = 6.5f;
+/// @p scale, shrunk (to kMinHeadScale at the least) until the head stands no taller than
+/// @p max_h.
+int32_t head_scale_within_height(int32_t scale, float max_h);
+
 MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry& g);
 
 // PARALLEL rows: the lane entries, each tool's entry sensor, and its toolhead.
