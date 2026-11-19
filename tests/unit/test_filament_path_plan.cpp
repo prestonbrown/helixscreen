@@ -1362,6 +1362,35 @@ TEST_CASE("FilamentPath plan: MIXED heads, direct and shared, spread where they 
         CHECK(xs[j] - xs[j - 1] > head_w);
 }
 
+TEST_CASE("FilamentPath plan: under a view scale a MIXED hub stands where its lanes meet, off "
+          "the direct lanes, and the heads keep the lanes' order",
+          "[filament-path][plan][parallel][art-fit]") {
+    // A pass-through unit whose four outlets stand close together, as an HTLF's do.
+    static const helix::ui::tray::RailFaceArt kArt{4,         1.69235f, 0.44159f, 0.10514f,
+                                                   -0.00212f, 0.44159f, 0.99392f};
+    auto d = make_data(helix::PathTopology::MIXED);
+    d->view_hub_h = 24;
+    d->rail_art = &kArt;
+    d->slot_is_hub_routed[2] = true;
+    d->slot_is_hub_routed[3] = true;
+    BaseGeometry g = geometry();
+    g.height = per_lane_required_height(*d, g);
+    const MixedFrame f = compute_mixed_frame(*d, g);
+    REQUIRE(f.through.w > 0);
+    REQUIRE(f.hub_count == 2);
+    int32_t out[4];
+    for (int i = 0; i < 4; ++i)
+        out[i] = rail_outlet_x(kArt, f.through, i);
+    // Heads in the lanes' order: no tube crosses another.
+    CHECK(f.head_x[0] < f.head_x[1]);
+    CHECK(f.head_x[1] < f.shared_head_x);
+    // The hub stands clear of the direct lanes' outlets, between its own lanes and its head.
+    CHECK(f.hub_cx - f.hub_w / 2 > out[1]);
+    const int32_t meet = (out[2] + out[3]) / 2;
+    CHECK(f.hub_cx < f.shared_head_x);
+    CHECK(std::abs(f.hub_cx - meet) < std::abs(f.shared_head_x - meet));
+}
+
 TEST_CASE("FilamentPath plan: under a view scale a row of heads takes at most half the width",
           "[filament-path][plan][parallel][art-fit]") {
     auto d = make_data(helix::PathTopology::PARALLEL);

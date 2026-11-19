@@ -295,7 +295,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     if (pass == ToolPass::Badge) {
         char tool_label[16];
         format_tool_badge_label(data, hub_badge_lane, hub_tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+        draw_tool_badge(ctx, f.shared_head_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
                         f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
@@ -304,7 +304,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     std::optional<lv_color_t> noz_color;
     if (any_hub_at_nozzle)
         noz_color = hub_nozzle_color;
-    draw_toolhead(ctx.layer, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+    draw_toolhead(ctx.layer, f.shared_head_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
                   f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
 }
 

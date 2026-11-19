@@ -929,8 +929,15 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
             if (!data.slot_is_hub_routed[i])
                 heads[k++] = {f.head_x[i], i};
         }
-        if (f.hub_count > 0)
+        if (f.hub_count > 0) {
+            // The shared head stands in the row where its lanes leave the unit, so the heads
+            // keep the lanes' order and no tube crosses another.
+            int32_t sum = 0;
+            for (int i = 0; i < n; i++)
+                sum += data.slot_is_hub_routed[i] ? f.head_x[i] : 0;
+            f.hub_cx = from_outlets ? sum / f.hub_count : f.hub_cx;
             heads[k++] = {f.hub_cx, -1};
+        }
         std::sort(heads, heads + k, [](const Head& l, const Head& r) { return l.x < r.x; });
         const GlyphBounds b = toolhead_glyph_bounds(0, 0, f.tool_scale);
         const int32_t w = b.right - b.left;
@@ -953,16 +960,37 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
             }
         }
     }
+    f.shared_head_x = f.hub_cx;
     // ~60% of the full hub topology width, enough for the hub lanes
     f.hub_w = LV_MAX(40, data.theme.hub_width * 3 / 5);
-    // Under a view scale the hub's lanes (from a pass-through unit's outlets, where one is
-    // drawn) converge on it as the hub layout's do: each diagonal no flatter than kFanMinSlope, the
-    // hub dropping toward its head as far as that needs (per_lane_required_height asks the height
-    // for it).
+    // Under a view scale the hub's lanes converge on it as the hub layout's do: each diagonal no
+    // flatter than kFanMinSlope (per_lane_required_height asks the height for it). Leaving a
+    // pass-through unit's outlets they meet halfway over to the shared head, clear of the direct
+    // lanes' outlets either side, and the trunk leans on down to the head; otherwise the hub drops
+    // toward its head as far as the diagonals need.
     if (data.view_hub_h > 0 && !data.hub_on_toolhead && f.hub_count > 0) {
-        const int32_t hub_top =
-            std::max(f.hub_cy - f.hub_h / 2,
-                     std::min(mixed_hub_fan_top(data, f), mixed_hub_lowest_top(g, f)));
+        const bool from_outlets = f.through.w > 0;
+        if (from_outlets) {
+            int32_t sum = 0, lo = INT32_MIN, hi = INT32_MAX;
+            for (int i = 0; i < n; i++)
+                sum += data.slot_is_hub_routed[i] ? f.head_x[i] : 0;
+            const int32_t meet = sum / f.hub_count;
+            const int32_t clear = 2 * data.theme.sensor_radius;
+            for (int i = 0; i < n; i++) {
+                if (data.slot_is_hub_routed[i])
+                    continue;
+                const int32_t out = rail_outlet_x(*data.rail_art, f.through, i);
+                if (out < meet)
+                    lo = std::max(lo, out + clear + f.hub_w / 2);
+                else
+                    hi = std::min(hi, out - clear - f.hub_w / 2);
+            }
+            // Halfway over to the shared head, so the lanes in and the trunk out share the lean.
+            const int32_t mid = (meet + f.shared_head_x) / 2;
+            f.hub_cx = lo <= hi ? std::clamp(mid, lo, hi) : mid;
+        }
+        const int32_t fan_top = std::min(mixed_hub_fan_top(data, f), mixed_hub_lowest_top(g, f));
+        const int32_t hub_top = from_outlets ? fan_top : std::max(f.hub_cy - f.hub_h / 2, fan_top);
         f.hub_cy = hub_top + f.hub_h / 2;
         f.hub_bottom = hub_top + f.hub_h;
     }
@@ -1498,8 +1526,21 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
         }
         out.trunk_route = out.route_count;
         Route& r = new_route(out);
-        append_line(r, (float)f.hub_cx, (float)f.hub_bottom, (float)f.hub_cx, nozzle_top,
-                    trunk.style(PathSegment::NOZZLE));
+        const float hx = (float)f.hub_cx, tx = (float)f.shared_head_x;
+        if (std::fabs(tx - hx) < 0.5f) {
+            append_line(r, hx, (float)f.hub_bottom, hx, nozzle_top,
+                        trunk.style(PathSegment::NOZZLE));
+        } else {
+            // From where the lanes meet, down and over to the shared head.
+            const float run = nozzle_top - (float)f.hub_bottom;
+            const pg::PathPoint pts[4] = {{hx, (float)f.hub_bottom},
+                                          {hx, (float)f.hub_bottom + run * 0.15f},
+                                          {tx, (float)f.hub_bottom + run * 0.7f},
+                                          {tx, nozzle_top}};
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, pts, 4, bend_radius(tx - hx));
+            route_append(r, bend, trunk.style(PathSegment::NOZZLE));
+        }
     }
     total_dropped(out);
 }
