@@ -68,7 +68,7 @@ ninja or GNU parallel work with `helix-claim hold` or `scripts/pool-docker.sh`
 |------|-----------|
 | `pre-commit` | If `MERGE_HEAD` exists (a merge that stopped to be resolved), claims this tree under the **git process's** pid so the merge announces itself. Prints nothing unless another session already holds the tree. Then runs the staged-only quality checks. |
 | `pre-merge-commit` | The same claim for a clean `git merge`, which never runs `pre-commit`. |
-| `post-merge` | Mirror of `post-commit` for the merge path: drops only the claim this merge's own git process took. After a clean merge it commits the translation packs regenerated from the merged YAML (`.githooks/lib/regen-generated.sh`); `pre-commit` does the same inside a merge that stopped on a conflict. |
+| `post-merge` | Mirror of `post-commit` for the merge path: drops only the claim this merge's own git process took. After a clean merge in a linked worktree it commits the translation packs regenerated from HEAD's YAML, and nothing else (`.githooks/lib/regen-generated.sh`); in the main working tree it only prints `make translations`. `pre-commit` regenerates them from the index inside a merge that stopped on a conflict. |
 | `pre-push` | The full quality sweep and ESP32 syntax check over the commits being pushed (a throwaway worktree when the tree is dirty). A commit that carries a land-gate stamp runs only patch drift, in seconds. See `BUILD_SYSTEM.md`. |
 | `post-commit` | Points any committed path's stale index entry back at HEAD's blob (`.githooks/lib/sync-index-to-head.sh`), then releases that claim **only if the claim names this commit's own pid**, so a session claim spanning several commits survives. |
 

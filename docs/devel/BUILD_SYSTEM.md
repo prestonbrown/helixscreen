@@ -1096,10 +1096,13 @@ other ratchet still fail.
 `ui_xml/translations/*.xml` and `assets/fonts/cjk/**` are generated from
 `translations/*.yml`, so `.gitattributes` merges them with the `helix-generated` driver,
 which keeps this side's copy instead of conflicting (`make` and `make setup` configure it
-in the clone). `.githooks/lib/regen-generated.sh` then regenerates the packs: into the
-merge commit when the merge stopped on a conflict (`pre-commit`), or into one follow-up
-commit after a clean merge (`post-merge`, since git writes a clean merge commit from the
-tree it merged). A CJK bake that lacks a glyph the merged strings use is named with its
+in the clone). `.githooks/lib/regen-generated.sh` then regenerates the packs from the
+committed or staged YAML, never the working tree: into the merge commit when the merge
+stopped on a conflict (`pre-commit`, from the index), or into one follow-up commit holding
+only `ui_xml/translations/` after a clean merge in a linked worktree (`post-merge`, from
+HEAD, since git writes a clean merge commit from the tree it merged). The main working tree
+is shared by every session, so it never gets that commit: the hook prints `make
+translations` instead. A pack with uncommitted edits of its own is left as it is and named. A CJK bake that lacks a glyph the merged strings use is named with its
 fix, `make regen-text-fonts`; the merge commit passes it with a warning, and `qc_cjk_fonts`
 fails it everywhere else, `make land-gate` included.
 
