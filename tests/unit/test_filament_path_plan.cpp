@@ -1362,6 +1362,25 @@ TEST_CASE("FilamentPath plan: MIXED heads, direct and shared, spread where they 
         CHECK(xs[j] - xs[j - 1] > head_w);
 }
 
+TEST_CASE("FilamentPath plan: under a view scale a row of heads takes at most half the width",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    d->view_hub_h = 24;
+    BaseGeometry g = geometry();
+    const auto row_w = [&](int32_t scale) {
+        const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        return 4 * ((b.right - b.left) + 4 * d->theme.sensor_radius);
+    };
+    // Room for four heads at the hub layout's size: they keep it.
+    g.width = 2 * row_w(d->theme.extruder_scale);
+    CHECK(parallel_rows(*d, g).tool_scale == d->theme.extruder_scale);
+    // A narrow canvas: they shrink to fit half of it.
+    g.width = row_w(d->theme.extruder_scale) * 3 / 2;
+    const int32_t scale = parallel_rows(*d, g).tool_scale;
+    CHECK(scale < d->theme.extruder_scale);
+    CHECK(row_w(scale) <= g.width / 2);
+}
+
 TEST_CASE("FilamentPath plan: under a view scale a MIXED hub's lanes lean in no flatter than "
           "the fan allows",
           "[filament-path][plan][parallel][art-fit]") {

@@ -698,11 +698,34 @@ int32_t row_between(int32_t top, int32_t bottom, float fraction) {
 
 } // namespace
 
+namespace {
+/// The share of the canvas width a row of per-lane heads may take under a view scale.
+constexpr int32_t kHeadRowShareNum = 1, kHeadRowShareDen = 2;
+/// The smallest a shrunk head draws and still reads as a head.
+constexpr int32_t kMinHeadScale = 4;
+
+/// The size of @p heads per-lane heads standing in a row: under a view scale the hub layout's,
+/// shrunk where the row would take more than kHeadRowShare of the canvas width, so several
+/// heads leave the drawing above its height.
+int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g, int heads) {
+    const int32_t base = data.theme.extruder_scale;
+    if (data.view_hub_h <= 0)
+        return LV_MAX(6, base * 2 / 3);
+    const int32_t budget = g.width * kHeadRowShareNum / kHeadRowShareDen;
+    const auto row = [&](int32_t scale) {
+        const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        return heads * ((b.right - b.left) + 4 * data.theme.sensor_radius);
+    };
+    int32_t scale = base;
+    while (heads > 1 && scale > kMinHeadScale && row(scale) > budget)
+        --scale;
+    return scale;
+}
+} // namespace
+
 ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) {
     ParallelRows r;
-    // Under a view scale every head is the size the hub layout's would be: never smaller.
-    r.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
-                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    r.tool_scale = per_lane_tool_scale(data, g, LV_MIN(g.slot_count, FilamentPathData::kMaxSlots));
     r.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
     r.toolhead_y = toolhead_standing_on(g.y_off + (int32_t)(g.height * kParallelGlyphBottomRatio),
                                         r.tool_scale);
@@ -769,7 +792,7 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
     // A run from each lane's outlet down to its head long enough to read as a tube with its
     // sensors on it; a shared hub's run also holds the hub between them; and a pass-through
     // unit's own drawing its room.
-    const int32_t run_need = (mixed ? 6 : 4) * data.view_hub_h;
+    const int32_t run_need = (mixed ? 5 : 3) * data.view_hub_h;
     const auto fits = [&](int32_t height) {
         g.height = height;
         if (mixed) {
@@ -809,8 +832,15 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
     constexpr float kMixedArtBottom = 0.5f;
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
-    f.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
-                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    int heads = 0;
+    bool shared = false;
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); i++) {
+        if (data.slot_is_hub_routed[i])
+            shared = true;
+        else
+            ++heads;
+    }
+    f.tool_scale = per_lane_tool_scale(data, g, heads + (shared ? 1 : 0));
     f.toolhead_y =
         toolhead_standing_on(g.y_off + (int32_t)(g.height * kGlyphBottomY), f.tool_scale);
     const int32_t run = f.toolhead_y - f.entry_y;
