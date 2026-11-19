@@ -5208,6 +5208,7 @@ translations:
   'Product': '产品'
   'Remaining weight': '剩余重量'
   'Reset to tag': '恢复标签值'
+  'Save the Z-offset after the print: saving restarts Klipper.': "请在打印结束后保存 Z 偏移：保存会重启 Klipper。"
   'Save the changes to this spool?': '保存此料盘的更改？'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': '与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？'
   'Unlink': '取消关联'

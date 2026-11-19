@@ -3519,6 +3519,7 @@
   <translation tag="Save changes to persist them across restarts?" fr="Enregistrer les modifications pour les conserver après redémarrage ?"/>
   <translation tag="Save failed: {}" fr="Échec de l&apos;enregistrement : {}"/>
   <translation tag="Save offsets?" fr="Enregistrer les offsets ?"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." fr="Enregistrez le Z-Offset après l&apos;impression : l&apos;enregistrement redémarre Klipper."/>
   <translation tag="Save the changes to this spool?" fr="Enregistrer les modifications de cette bobine ?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." fr="Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre."/>
   <translation tag="Save to Spool" fr="Enregistrer sur la bobine"/>

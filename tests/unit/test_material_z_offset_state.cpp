@@ -12,8 +12,9 @@
  * machine-wide save off the table.
  */
 
-#include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_recording_api.h"
+#include "../test_helpers/modal_answer.h"
 #include "app_globals.h"
 #include "material_z_offset_state.h"
 #include "moonraker_client_mock.h"
@@ -33,7 +34,7 @@ namespace mz = helix::material_zoffset;
 
 namespace {
 
-class MaterialStateFixture : public LVGLTestFixture {
+class MaterialStateFixture : public LVGLUITestFixture {
   public:
     MaterialStateFixture() {
         get_printer_state().deinit_subjects();
@@ -245,4 +246,54 @@ TEST_CASE_METHOD(MaterialStateFixture,
     // The vendor start macro keeps no mesh per material.
     discover({"START_PRINT", "_START_PRINT_VARS"}, false);
     CHECK_FALSE(state().mesh_offer(materials, petg_bed).has_value());
+}
+
+TEST_CASE("material zoffset: where a Save goes", "[material_zoffset][zoffset]") {
+    using helix::zoffset::save_route;
+    using R = helix::zoffset::SaveRoute;
+    CHECK(save_route(false, true, true) == R::None);
+    CHECK(save_route(true, true, true) == R::PerMaterial);
+    CHECK(save_route(true, true, false) == R::PerMaterial);
+    CHECK(save_route(true, false, false) == R::MachineWide);
+    CHECK(save_route(true, false, true) == R::Refused);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: a Save while a print holds the machine",
+                 "[material_zoffset][zoffset]") {
+    helix::zoffset::reset_shared_save();
+    helix::IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+    discover_helix_macro();
+    status(kPetgApplied);
+    live_offset_mm(0.08);
+    lv_subject_t* blocked = get_printer_state().print_state().get_machine_motion_blocked_subject();
+    lv_subject_set_int(blocked, 1);
+    lv_subject_t* guard = helix::zoffset::get_save_motion_blocked_subject();
+    REQUIRE(guard != nullptr);
+
+    SECTION("per material: allowed, one SAVE_VARIABLE, nothing that moves or restarts") {
+        state().set_enabled(true);
+        REQUIRE(helix::zoffset::save_available());
+        CHECK(lv_subject_get_int(guard) == 0);
+        helix::zoffset::save_dirty_offsets_shared();
+        process_lvgl(50);
+        helix::test::answer_top_modal("btn_primary");
+        REQUIRE(wait_until([&] { return !api.sent.empty(); }, 5000));
+        CHECK(api.sent ==
+              std::vector<std::string>{"SAVE_VARIABLE VARIABLE=helix_zoffset_petg VALUE=0.080"});
+        CHECK_FALSE(sent_anything_that_folds_or_restarts());
+    }
+    SECTION("machine-wide: the guard holds and a tap that gets through is refused") {
+        REQUIRE(helix::zoffset::save_available());
+        CHECK(lv_subject_get_int(guard) == 1);
+        helix::zoffset::save_dirty_offsets_shared();
+        process_lvgl(50);
+        // Not even the restart confirmation: the save never starts.
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        CHECK(api.sent.empty());
+    }
+    lv_subject_set_int(blocked, 0);
+    helix::zoffset::reset_shared_save();
+    set_moonraker_api(previous);
 }

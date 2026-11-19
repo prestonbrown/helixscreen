@@ -3584,6 +3584,7 @@ translations:
   'Save failed: {}': 'Save failed: {}'
   Save Offsets: Save Offsets
   Save offsets?: Save offsets?
+  'Save the Z-offset after the print: saving restarts Klipper.': 'Save the Z-offset after the print: saving restarts Klipper.'
   Save the changes to this spool?: Save the changes to this spool?
   Save the new heater values to printer.cfg? Klipper restarts.: Save the new heater values to printer.cfg? Klipper restarts.
   Save to Spool: Save to Spool

@@ -5220,6 +5220,7 @@ translations:
   'Product': 'Produit'
   'Remaining weight': 'Poids restant'
   'Reset to tag': 'Rétablir depuis le tag'
+  'Save the Z-offset after the print: saving restarts Klipper.': "Enregistrez le Z-Offset après l'impression : l'enregistrement redémarre Klipper."
   'Save the changes to this spool?': 'Enregistrer les modifications de cette bobine ?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Cela ne correspond pas à la bobine Spoolman liée. La mettre à jour dans Spoolman, ou délier et la garder sur cet emplacement ?'
   'Unlink': 'Délier'

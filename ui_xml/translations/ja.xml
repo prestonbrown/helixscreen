@@ -3513,6 +3513,7 @@
   <translation tag="Save changes to persist them across restarts?" ja="再起動後も変更を保持するために保存しますか？"/>
   <translation tag="Save failed: {}" ja="保存に失敗しました: {}"/>
   <translation tag="Save offsets?" ja="オフセットを保存しますか？"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." ja="印刷後に Z-Offset を保存してください。保存すると Klipper が再起動します。"/>
   <translation tag="Save the changes to this spool?" ja="このスプールの変更を保存しますか？"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ja="新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。"/>
   <translation tag="Save to Spool" ja="スプールに保存"/>

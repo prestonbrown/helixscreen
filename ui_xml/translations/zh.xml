@@ -3513,6 +3513,7 @@
   <translation tag="Save changes to persist them across restarts?" zh="保存更改以便在重启后保留？"/>
   <translation tag="Save failed: {}" zh="保存失败: {}"/>
   <translation tag="Save offsets?" zh="保存偏移？"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." zh="请在打印结束后保存 Z 偏移：保存会重启 Klipper。"/>
   <translation tag="Save the changes to this spool?" zh="保存此料盘的更改？"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." zh="将新的加热器参数保存到printer.cfg？Klipper将重启。"/>
   <translation tag="Save to Spool" zh="保存到料盘"/>

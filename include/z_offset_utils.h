@@ -227,6 +227,31 @@ constexpr bool save_available(const SaveAvailability& facts) {
            (facts.global_dirty || facts.tools_dirty);
 }
 
+/// Where a Save goes.
+enum class SaveRoute {
+    None,        ///< Nothing to save
+    PerMaterial, ///< One material's entry: no motion, no SAVE_CONFIG, fine during a print
+    MachineWide, ///< Z_OFFSET_APPLY_* and SAVE_CONFIG, which restarts Klipper
+    Refused,     ///< Machine-wide while a job holds the machine
+};
+
+/// The one decision for a Save: the per-material save writes a value and
+/// restarts nothing, so a print never withholds it; the machine-wide save
+/// restarts Klipper, so a job holding the machine refuses it.
+///
+/// @param available save_available()
+/// @param per_material Z offset by material is on and names the print's material
+/// @param motion_blocked machine_motion_blocked: a job holds the machine
+constexpr SaveRoute save_route(bool available, bool per_material, bool motion_blocked) {
+    if (!available) {
+        return SaveRoute::None;
+    }
+    if (per_material) {
+        return SaveRoute::PerMaterial;
+    }
+    return motion_blocked ? SaveRoute::Refused : SaveRoute::MachineWide;
+}
+
 /// Whether a save may write the machine-wide offset. A surface that saves
 /// per-tool offsets on their own (the tool-offset calibration panel) still
 /// runs with saving off, and must leave the machine-wide offset alone.
@@ -319,6 +344,11 @@ void deinit_save_available_subject();
 
 /// The published subject, or nullptr before init_save_available_subject().
 lv_subject_t* get_save_available_subject();
+
+/// `z_offset_save_motion_blocked` (0/1): the Save buttons' toolhead guard. 1
+/// while a job holds the machine and the save would be the machine-wide one;
+/// a per-material save is never blocked. nullptr before init.
+lv_subject_t* get_save_motion_blocked_subject();
 
 /// The lifetime token an observer of get_save_available_subject() must carry, so a
 /// deinit of the subject cannot leave it pointing at freed memory. Empty (expired)

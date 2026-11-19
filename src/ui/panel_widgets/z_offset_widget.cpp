@@ -411,9 +411,9 @@ void ZOffsetWidget::cycle_step() {
 void ZOffsetWidget::save() {
     if (!verdict_.show_save_row || !s_tile.is_owner(this))
         return;
-    const bool blocked =
-        lv_subject_get_int(printer_state_.print_state().get_machine_motion_blocked_subject()) != 0;
-    if (blocked || !zoffset::save_available())
+    // save_dirty_offsets_shared() refuses a machine-wide save while a job holds
+    // the machine and lets a per-material one through.
+    if (!zoffset::save_available())
         return;
     zoffset::save_dirty_offsets_shared();
 }

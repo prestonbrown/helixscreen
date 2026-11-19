@@ -493,6 +493,11 @@ namespace {
 
 void republish_save_available(lv_observer_t*, lv_subject_t*);
 
+bool machine_motion_blocked_now() {
+    return lv_subject_get_int(
+               get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+}
+
 /// Publishes `z_offset_save_available` and holds the observers that keep it
 /// current.
 ///
@@ -508,7 +513,9 @@ struct SaveAvailabilityPublisher {
     SubjectManager subjects;
     helix::Subject z_offset_save_available_{};
     helix::Subject z_offset_save_enabled_{};
+    helix::Subject z_offset_save_motion_blocked_{};
     ObserverGuard global_offset_obs;
+    ObserverGuard motion_blocked_obs;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;
     ObserverGuard per_tool_z_obs;
@@ -518,12 +525,15 @@ struct SaveAvailabilityPublisher {
     void init(bool register_xml) {
         INIT_SUBJECT_INT(z_offset_save_available, 0, subjects, register_xml);
         INIT_SUBJECT_INT(z_offset_save_enabled, 1, subjects, register_xml);
+        INIT_SUBJECT_INT(z_offset_save_motion_blocked, 0, subjects, register_xml);
 
         PrinterState& ps = get_printer_state();
         auto& ts = helix::ToolState::instance();
         observe(global_offset_obs, ps.motion_state().get_gcode_z_offset_subject(),
                 ps.get_subjects_lifetime());
         observe(can_save_obs, ps.profile_state().get_z_offset_can_save_subject(),
+                ps.get_subjects_lifetime());
+        observe(motion_blocked_obs, ps.print_state().get_machine_motion_blocked_subject(),
                 ps.get_subjects_lifetime());
         observe(tools_dirty_obs, ts.get_any_tool_offset_dirty_subject(),
                 ts.get_subjects_lifetime());
@@ -540,9 +550,10 @@ struct SaveAvailabilityPublisher {
         }
     }
 
-    void publish(bool enabled, bool available) {
+    void publish(bool enabled, bool available, bool motion_blocked) {
         lv_subject_set_int(&z_offset_save_enabled_, enabled ? 1 : 0);
         lv_subject_set_int(&z_offset_save_available_, available ? 1 : 0);
+        lv_subject_set_int(&z_offset_save_motion_blocked_, motion_blocked ? 1 : 0);
     }
 
   private:
@@ -570,7 +581,12 @@ void republish_save_available(lv_observer_t*, lv_subject_t*) {
     const SaveAvailability facts = current_save_availability();
     // Print Tune's hint is one decision in PrinterProfileState; hand it the setting.
     get_printer_state().profile_state().set_z_offset_save_enabled(facts.save_enabled);
-    storage->publish(facts.save_enabled, save_available(facts));
+    // The guard follows the route a tap would take: machine-wide while a job
+    // holds the machine is the only blocked one.
+    const bool per_material =
+        helix::material_zoffset::MaterialZOffsetState::instance().save_target().has_value();
+    storage->publish(facts.save_enabled, save_available(facts),
+                     !per_material && machine_motion_blocked_now());
 }
 
 } // namespace
@@ -606,8 +622,14 @@ void deinit_save_available_subject() {
     storage->per_tool_z_obs.reset();
     storage->save_mode_obs.reset();
     storage->by_material_obs.reset();
+    storage->motion_blocked_obs.reset();
     storage->subjects.deinit_all();
     storage.reset();
+}
+
+lv_subject_t* get_save_motion_blocked_subject() {
+    auto& storage = save_available_storage();
+    return storage ? &storage->z_offset_save_motion_blocked_ : nullptr;
 }
 
 lv_subject_t* get_save_available_subject() {
@@ -749,10 +771,20 @@ void save_dirty_offsets_shared() {
     PrinterState& ps = get_printer_state();
     const SaveAvailability facts = current_save_availability();
 
+    const auto target = helix::material_zoffset::MaterialZOffsetState::instance().save_target();
     // The rule both surfaces' buttons bind to, so a click that got through
     // cannot mean something different from what the button offered.
-    if (!save_available(facts)) {
+    const SaveRoute route =
+        save_route(save_available(facts), target.has_value(), machine_motion_blocked_now());
+    if (route == SaveRoute::None) {
         spdlog::debug("[ZOffsetUtils] No Z-offset adjustment to save");
+        return;
+    }
+    if (route == SaveRoute::Refused) {
+        // The buttons are disabled here; this holds for any other caller.
+        spdlog::warn("[ZOffsetUtils] Machine-wide Z-offset save refused while a job holds the "
+                     "machine");
+        NOTIFY_WARNING("{}", lv_tr("Save the Z-offset after the print: saving restarts Klipper."));
         return;
     }
     if (shared_save_in_flight()) {
@@ -760,8 +792,7 @@ void save_dirty_offsets_shared() {
         return;
     }
 
-    if (const auto target =
-            helix::material_zoffset::MaterialZOffsetState::instance().save_target()) {
+    if (route == SaveRoute::PerMaterial) {
         const int live = lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject());
         const std::string material = target->material;
         // Naming the material is the point: a Save changes only its entry.
