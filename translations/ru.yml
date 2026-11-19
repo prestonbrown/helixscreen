@@ -1813,6 +1813,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Замените сопло или хотенд по руководству."
   'For a first Z home: claim the tool you put on the head': 'Для первой парковки Z: закрепить инструмент, установленный на головку'
   For materials that need a warm enclosure, like ABS or ASA: 'Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA'
+  For prices that do not come from Spoolman: "Для цен, которые не берутся из Spoolman"
   Force the MMU fans off or on, or follow Fan Control: "Принудительно выключить или включить вентиляторы MMU, или следовать управлению вентилятором"
   Force/weight sensors: 'Датчики силы/веса'
   Forget: Забыть
@@ -3830,6 +3831,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает
+  Set this to Spoolman's currency if you use both.: "Если используете оба, выберите здесь валюту Spoolman."
   Set up: Настроить
   Set up your label printer in Settings: Настройте принтер этикеток в Настройках
   Set what is really selected and loaded. Nothing moves.: 'Укажите, что на самом деле выбрано и загружено. Ничего не двигается.'
@@ -3976,7 +3978,6 @@ translations:
   Spoolman support is off in Happy Hare: "Поддержка Spoolman отключена в Happy Hare"
   Spoolman unavailable — filament weights may be stale: Spoolman недоступен — вес филамента может быть устаревшим
   Spoolman was not configured.: Spoolman не был настроен.
-  Spoolman's currency is used when it is connected: "При подключённом Spoolman используется его валюта"
   'Spoolman: %zu Spool': 'Spoolman: %zu катушка'
   'Spoolman: %zu Spools':
     one: 'Spoolman: %zu катушка'

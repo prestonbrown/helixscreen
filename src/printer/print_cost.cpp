@@ -133,6 +133,15 @@ double electricity_cost(double watts, double price_per_kwh, double seconds) {
     return (watts / 1000.0) * (seconds / 3600.0) * price_per_kwh;
 }
 
+CurrencySource currency_source(const Breakdown& breakdown) {
+    for (const ToolLine& line : breakdown.tools) {
+        if (line.source == PriceSource::Spoolman) {
+            return CurrencySource::Spoolman;
+        }
+    }
+    return CurrencySource::Setting;
+}
+
 Breakdown compute(const std::vector<ToolInput>& tools, double seconds,
                   const CostSettings& settings) {
     Breakdown out;

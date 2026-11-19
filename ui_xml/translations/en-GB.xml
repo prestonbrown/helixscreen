@@ -51,6 +51,7 @@
   <translation tag="Filament price per kg" en-GB="Filament price per kg"/>
   <translation tag="Filament prices and electricity" en-GB="Filament prices and electricity"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." en-GB="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and colour, then resume."/>
+  <translation tag="For prices that do not come from Spoolman" en-GB="For prices that do not come from Spoolman"/>
   <translation tag="Gray" en-GB="Grey"/>
   <translation tag="Groups follow each slot&apos;s material and color" en-GB="Groups follow each slot&apos;s material and colour"/>
   <translation tag="HelixScreen will integrate with your filament changer for multi-spool/color print operations." en-GB="HelixScreen will integrate with your filament changer for multi-spool/colour print operations."/>
@@ -96,12 +97,12 @@
   <translation tag="Resume canceled" en-GB="Resume cancelled"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" en-GB="Set the X and Y belts with the motorised tensioners"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" en-GB="Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." en-GB="Set this to Spoolman&apos;s currency if you use both."/>
   <translation tag="Show sliced colors" en-GB="Show sliced colours"/>
   <translation tag="Sliced colors" en-GB="Sliced colours"/>
   <translation tag="Slot colors, materials, and levels" en-GB="Slot colours, materials, and levels"/>
   <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" en-GB="Spoolman already has &quot;{}&quot; from this brand in a close colour. Use it for lane {}, or add a new filament?"/>
   <translation tag="Spoolman needs a color for this filament." en-GB="Spoolman needs a colour for this filament."/>
-  <translation tag="Spoolman&apos;s currency is used when it is connected" en-GB="Spoolman&apos;s currency is used when it is connected"/>
   <translation tag="TD-1 filament color detection" en-GB="TD-1 filament colour detection"/>
   <translation tag="THEME COLORS" en-GB="THEME COLOURS"/>
   <translation tag="Temperature control optimized for {} at {}." en-GB="Temperature control optimised for {} at {}."/>

@@ -1685,6 +1685,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." zh="按手册更换喷嘴或热端。"/>
   <translation tag="For a first Z home: claim the tool you put on the head" zh="首次Z轴归零时：登记您装在打印头上的工具"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" zh="适用于需要温暖机箱的材料，如 ABS 或 ASA"/>
+  <translation tag="For prices that do not come from Spoolman" zh="用于不来自 Spoolman 的价格"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" zh="强制关闭或开启 MMU 风扇，或跟随风扇控制"/>
   <translation tag="Force/weight sensors" zh="力/重量传感器"/>
   <translation tag="Forget" zh="忘记"/>
@@ -3657,6 +3658,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" zh="用电动张紧器调整X和Y皮带"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." zh="设置时钟、主题和单位。之后可以随时在设置中更改。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" zh="请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." zh="如果两者都使用，请在此设置为 Spoolman 的货币。"/>
   <translation tag="Set up" zh="设置"/>
   <translation tag="Set up your label printer in Settings" zh="在设置中配置标签打印机"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." zh="设置实际选择和加载的状态。不会移动任何部件。"/>
@@ -3803,7 +3805,6 @@
   <translation tag="Spoolman support is off in Happy Hare" zh="Happy Hare 中的 Spoolman 支持已关闭"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" zh="Spoolman不可用 — 耗材重量可能已过期"/>
   <translation tag="Spoolman was not configured." zh="Spoolman 未配置。"/>
-  <translation tag="Spoolman&apos;s currency is used when it is connected" zh="连接 Spoolman 时使用其货币"/>
   <translation tag="Spoolman: %zu Spool" zh="Spoolman: %zu 个线轴"/>
   <translation tag="Spoolman: %zu Spools" zh="Spoolman: %zu 个线轴"/>
   <translation tag="Spoolman: %zu/%zu Spool" zh="Spoolman: %zu/%zu 个线轴"/>

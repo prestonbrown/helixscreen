@@ -28,7 +28,7 @@ struct Estimate {
     Choice choice = Choice::None;
     Breakdown own;                ///< Our own figure (complete or not)
     std::optional<Record> record; ///< The shared record, when one answered
-    std::string own_currency;     ///< Spoolman's when connected, else the setting
+    std::string own_currency; ///< Spoolman's when currency_source(own) says so, else the setting's
     double file_modified = 0.0;
     double estimated_seconds = 0.0;
     CostSettings settings;
@@ -80,6 +80,10 @@ class ActivePrintCost {
 
     /// Register the subjects; before any XML binding them. Idempotent.
     void init_subjects();
+
+    /// Forget the last print's file and estimate: the running file changed and
+    /// its own metadata has not arrived (and may never).
+    void clear();
 
     /// Price the file the printer is running (gcodes-relative name).
     void set_file(const std::string& filename, const FileMetadata& metadata);

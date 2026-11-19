@@ -182,6 +182,25 @@ TEST_CASE("scaled: filament by fraction, electricity by elapsed time", "[print_c
     CHECK(scaled(est, -1.0, 0.0, s).filament == 0.0);
 }
 
+TEST_CASE("currency_source: the setting's unless a line was priced from Spoolman",
+          "[print_cost][currency]") {
+    CostSettings s;
+    s.price_per_kg["PLA"] = 25.0;
+    s.watts = 100.0;
+    s.price_per_kwh = 0.30;
+    const ToolInput from_spool{0, 10.0, "PLA", SpoolPrice{20.0, 1000.0}};
+    const ToolInput from_setting{1, 10.0, "PLA", std::nullopt};
+    // A spool Spoolman knows but that has no price is priced by the setting.
+    const ToolInput priceless_spool{2, 10.0, "PLA", SpoolPrice{0.0, 1000.0}};
+
+    CHECK(currency_source(compute({from_setting, priceless_spool}, 3600.0, s)) ==
+          CurrencySource::Setting);
+    CHECK(currency_source(compute({from_spool}, 0.0, s)) == CurrencySource::Spoolman);
+    // A mix, or electricity beside a Spoolman price, assumes one currency: Spoolman's.
+    CHECK(currency_source(compute({from_spool, from_setting}, 0.0, s)) == CurrencySource::Spoolman);
+    CHECK(currency_source(compute({from_spool}, 3600.0, s)) == CurrencySource::Spoolman);
+}
+
 // ---------------------------------------------------------------------------
 // Record
 // ---------------------------------------------------------------------------

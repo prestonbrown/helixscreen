@@ -1740,6 +1740,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: Follow your manual to swap the nozzle or hotend.
   'For a first Z home: claim the tool you put on the head': 'For a first Z home: claim the tool you put on the head'
   For materials that need a warm enclosure, like ABS or ASA: For materials that need a warm enclosure, like ABS or ASA
+  For prices that do not come from Spoolman: For prices that do not come from Spoolman
   Force the MMU fans off or on, or follow Fan Control: Force the MMU fans off or on, or follow Fan Control
   Force/weight sensors: Force/weight sensors
   Forget: Forget
@@ -3729,6 +3730,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: Set the clock, theme and units. You can change any of these later in Settings.
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
+  Set this to Spoolman's currency if you use both.: Set this to Spoolman's currency if you use both.
   Set up: Set up
   Set up your label printer in Settings: Set up your label printer in Settings
   Set what is really selected and loaded. Nothing moves.: Set what is really selected and loaded. Nothing moves.
@@ -3875,7 +3877,6 @@ translations:
   Spoolman support is off in Happy Hare: Spoolman support is off in Happy Hare
   Spoolman unavailable — filament weights may be stale: Spoolman unavailable — filament weights may be stale
   Spoolman was not configured.: Spoolman was not configured.
-  Spoolman's currency is used when it is connected: Spoolman's currency is used when it is connected
   'Spoolman: %zu Spool': 'Spoolman: %zu Spool'
   'Spoolman: %zu Spools': 'Spoolman: %zu Spools'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu Spool'

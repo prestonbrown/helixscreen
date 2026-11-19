@@ -1753,6 +1753,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "マニュアルに従ってノズルまたはホットエンドを交換します。"
   'For a first Z home: claim the tool you put on the head': 初回のZホーミング用：ヘッドに取り付けたツールを登録
   For materials that need a warm enclosure, like ABS or ASA: 'ABSやASAなど、暖かいエンクロージャーが必要な材料向け'
+  For prices that do not come from Spoolman: "Spoolman 以外から来る価格に使います"
   Force the MMU fans off or on, or follow Fan Control: "MMU ファンを強制オフ／オンにするか、ファン制御に従う"
   Force/weight sensors: '力/重量センサー'
   Forget: 登録解除
@@ -3750,6 +3751,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
+  Set this to Spoolman's currency if you use both.: "両方を使う場合は、ここを Spoolman の通貨に合わせてください。"
   Set up: セットアップ
   Set up your label printer in Settings: 設定でラベルプリンターをセットアップしてください
   Set what is really selected and loaded. Nothing moves.: '実際に選択・装填されている状態を設定します。何も動きません。'
@@ -3896,7 +3898,6 @@ translations:
   Spoolman support is off in Happy Hare: "Happy Hare の Spoolman サポートはオフです"
   Spoolman unavailable — filament weights may be stale: Spoolmanが利用できません — フィラメント重量が古い可能性があります
   Spoolman was not configured.: Spoolman は設定されていませんでした。
-  Spoolman's currency is used when it is connected: "Spoolman接続時はその通貨を使います"
   'Spoolman: %zu Spool': 'Spoolman: %zu 個のスプール'
   'Spoolman: %zu Spools': 'Spoolman: %zu 個のスプール'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu 個のスプール'

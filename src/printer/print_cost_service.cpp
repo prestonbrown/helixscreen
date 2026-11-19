@@ -64,7 +64,8 @@ void finish(const std::shared_ptr<Pending>& p) {
     Estimate& e = p->estimate;
     e.own = compute(p->tools, e.estimated_seconds, e.settings);
     e.choice = choose_estimate(e.record, e.file_modified, e.own.complete);
-    e.own_currency = !p->spoolman_currency.empty()
+    const bool spoolman_priced = currency_source(e.own) == CurrencySource::Spoolman;
+    e.own_currency = spoolman_priced && !p->spoolman_currency.empty()
                          ? p->spoolman_currency
                          : SettingsManager::instance().get_cost_currency();
     spdlog::debug(
@@ -270,6 +271,13 @@ void ActivePrintCost::set_file(const std::string& filename, const FileMetadata& 
         estimate_ = e;
         publish();
     });
+}
+
+void ActivePrintCost::clear() {
+    filename_.clear();
+    filament_total_mm_ = 0.0;
+    estimate_.reset();
+    publish();
 }
 
 void ActivePrintCost::update(double filament_used_mm, double progress, double elapsed_seconds) {
