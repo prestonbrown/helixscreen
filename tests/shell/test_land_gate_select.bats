@@ -310,13 +310,13 @@ cxx() { # <root> <filter> <changed,...>: run the selector; the input file is $ro
     [ ! -s "$root/out.txt" ]
 }
 
-@test "cxx valve: a header in more than a quarter of the units runs everything" {
+@test "cxx: a header most units include selects them all, which the selection cap turns into everything" {
     local root
     root=$(cxx_fixture)
     run cxx "$root" "~[.] ~[slow]" include/core.h
-    [ "${lines[0]}" = "FULL include/core.h is in 10 of 10 test units" ]
+    [ "${lines[0]}" = "FULL 10 of 10 test units reached, over 50%" ] || fail "${lines[0]}"
     run cxx "$root" "~[.] ~[slow]" src/core.cpp
-    [ "${lines[0]}" = "FULL src/core.cpp implements include/core.h, which is in 10 of 10 test units" ]
+    [ "${lines[0]}" = "FULL 10 of 10 test units reached, over 50%" ]
 }
 
 @test "cxx valve: reaching more than half the units runs everything" {

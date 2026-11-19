@@ -45,11 +45,9 @@ dependency file cannot say what such a change reaches:
   - the test harness changed: a tests/*.cpp (the Catch2 main and amalgamation,
     the shared fixtures and UI test utilities, linked into every test), or this
     selector;
-  - a changed header, or a header a changed .cpp implements, is listed in the
-    .d of more than WIDE_FRACTION of the test units: a core header such a
-    change reaches is effectively everywhere;
   - the reached units are more than SELECTED_FRACTION of all of them, where a
-    selection saves nothing worth its blind spot.
+    selection saves nothing worth its blind spot. A core header lands here: a
+    header half the units include selects them all.
 
 Changes that reach no C++ test: docs/ and any *.md, scripts/ (other than those build
 steps), tests/shell/, tests/python/, tests/ui/, moonraker-plugin/, .github/,
@@ -57,8 +55,11 @@ android/, firmware/, server/, .claude/, .githooks/.
 
 What the rule cannot see: a production .cpp whose behaviour a test reaches
 only through another class (bar.cpp calls foo.cpp, the test includes bar.h
-alone). Rule 3 covers the class the .cpp implements, not its callers. The
-nightly and per-push runs are the backstop for that.
+alone). Rule 3 covers the class the .cpp implements, not its callers, and the
+selector does not follow callers: one hop would select most of the suite for
+any change to a class many others use. The backstop is CI: build.yml runs the
+whole C++ suite on every push to main, so such a break reds main within the
+hour, and the nightly runs everything again.
 """
 
 import argparse
@@ -74,7 +75,6 @@ MAX_CHANGED = 200
 # A path the gate can hand to make (and the test host's shell) as one word of
 # a comma-separated list.
 SAFE_PATH = re.compile(r'[A-Za-z0-9_./@+=-]+')
-WIDE_FRACTION = 0.25
 SELECTED_FRACTION = 0.5
 
 # Paths whose change makes the whole C++ suite run. A trailing / is a directory.
@@ -323,10 +323,6 @@ def select_units(root, changed, index):
     def reach(unit, why):
         reasons.setdefault(unit, why)
 
-    def too_wide(h):
-        n = len(includers(h))
-        return n > WIDE_FRACTION * total, n
-
     relevant = [c for c in changed if not matches(c, CXX_NONE) and not is_doc(c)]
     needles = set()
     for c in relevant:
@@ -335,20 +331,12 @@ def select_units(root, changed, index):
                 reach(c, 'changed')
             continue
         if c.endswith(SOURCE_EXT):
-            if c.endswith(HEADER_EXT):
-                wide, n = too_wide(c)
-                if wide:
-                    return CxxSelection('full', f'{c} is in {n} of {total} test units')
             for u in includers(c):
                 reach(u, f'includes {c}')
             if c.endswith(('.cpp', '.c', '.cc', '.mm')):
                 own = deps.get(c)
                 hdrs = implemented_headers(c, own) if own else index.headers_by_stem(root, c)
                 for h in hdrs:
-                    wide, n = too_wide(h)
-                    if wide:
-                        return CxxSelection(
-                            'full', f'{c} implements {h}, which is in {n} of {total} test units')
                     for u in includers(h):
                         reach(u, f'includes {h}, which {c} implements')
             continue

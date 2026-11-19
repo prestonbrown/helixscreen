@@ -946,8 +946,10 @@ under `build/test-select/` and shards them, one shard per case up to `NPROCS`. T
 its blind spot (a test that reaches a `.cpp` only through another class) and its valves
 are in the script's header. The valves run the whole suite: a change to the build
 (`Makefile`, `mk/`, `lv_conf.h`, `patches/`, `lib/`, the build steps the test link
-compiles), the test harness (`tests/*.cpp`), more than 200 changed paths, a header in more
-than a quarter of the test units, or a selection over half of them.
+compiles), the test harness (`tests/*.cpp`), more than 200 changed paths, or a selection
+over half of the test units, which is where a core header most of them include lands. The
+selector follows no callers, so a break a test reaches only through another class reds
+main instead: build.yml runs the whole C++ suite on every push to main, the backstop.
 
 The other steps go by path: `ui` and `no-mocks` run when an app input changed, `plugin`
 when `moonraker-plugin/` did, `python` whole for `scripts/` and the data it reads and only
