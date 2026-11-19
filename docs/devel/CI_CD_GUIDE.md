@@ -136,10 +136,10 @@ A red `main` gets handled without anyone noticing it first. When Build, esp32-bu
 | Run | What ci-watch does |
 |-----|--------------------|
 | Failed, every failing job an infrastructure signature, attempt 1 | Reruns the failed jobs once (`rerun-failed-jobs`). No issue |
-| Failed otherwise: a real failure, or infrastructure again on attempt 2+ | Opens the one open `ci-red` issue, or comments on it. The report names the workflow, the commit, the run, the failing jobs, the failing tests it can parse (Catch2 `FAILED:` with the case name and file:line, bats `not ok`, pytest `FAILED`) and a 40-line log excerpt |
+| Failed otherwise: a real failure, or infrastructure again on attempt 2+ | Opens the one open `ci-red` issue, or comments on it. The report names the workflow, the commit, the run, the failing jobs, each failure it can parse (Catch2 `FAILED:` with the case name and file:line, bats `not ok`, pytest `FAILED`, a sanitizer report's kind and first frame in `tests/`, `src/` or `include/`, a compiler error's location and message), and per job an excerpt of the lines that explain it, about 40 lines in all |
 | Succeeded | Closes the open `ci-red` issue, naming the green SHA, once the latest completed `main` run of every watched workflow is green. Nightly counts only when the issue reports a Nightly failure, because its latest run judges a commit hours old |
 
-A job is infrastructure when its log or its annotations (a lost runner often leaves no log) match a signature and no test failure was parsed in it; a run is infrastructure when every failing job is. The aggregator jobs (`Build Status`, `Nightly Status`) only repeat the others and decide nothing. Cancelled jobs decide only when nothing else failed, since a job-level timeout reports as cancelled.
+A job is infrastructure when its log or its annotations (a lost runner often leaves no log) match a signature and no failure was parsed in it; a run is infrastructure when every failing job is. The aggregator jobs (`Build Status`, `Nightly Status`) only repeat the others and decide nothing. Cancelled jobs decide only when nothing else failed, since a job-level timeout reports as cancelled.
 
 **Signatures** (`SIGNATURES` in `scripts/ci/ci_watch.py`; patterns match per line after the timestamp and colors are stripped):
 
@@ -155,6 +155,8 @@ A job is infrastructure when its log or its annotations (a lost runner often lea
 | `artifact-service` | `Failed to CreateArtifact: Unable to make request` |
 
 A timeout counts as infrastructure because the cost of being wrong is one rerun: a test that really hangs times out again on attempt 2 and is reported then.
+
+**The excerpt** keeps the lines that explain each failure and marks skipped stretches with `...`: Catch2 `FAILED:` with its expression, bats `not ok` with its `#` lines, the first three lines of each pytest `E` block and its `FAILED` summary line, a sanitizer's `==N==ERROR` line with its first three frames in this repo's code and its `SUMMARY`, a compiler `error:` with its source and caret lines. A job with none of those shows the lines before the step's final error. The ASAN and TSAN steps print only the report headers; the stacks are in the run's `asan-report` and `tsan-report` artifacts. Parsing lives in `failures()` and `_key_line_spans()` in `scripts/ci/ci_watch.py`.
 
 **Adding a signature:** add a `Signature` to `SIGNATURES` with `any_of` (one pattern on one line suffices) or `all_of` (every pattern somewhere in the job), cut a few lines of the real log into `tests/python/fixtures/ci_watch/`, and add a case to `tests/python/test_ci_watch.py`. Anchor on the error form of a message: apt prints the same text as a `W:` warning when it carries on. `scripts/ci/ci_watch.py classify LOG...` prints the verdict for downloaded job logs (`gh api repos/OWNER/REPO/actions/jobs/JOB_ID/logs`).
 

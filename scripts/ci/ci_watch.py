@@ -136,6 +136,35 @@ _SHARD_PREFIX = re.compile(r"^\[shard \d+\] ")
 _CATCH2_FAILED = re.compile(r"^(?P<loc>\S+?\.(?:cpp|cc|h|hpp|mm|c):\d+): FAILED:")
 _BATS_NOT_OK = re.compile(r"^not ok \d+ (?P<name>.+?)\s*$")
 _PYTEST_FAILED = re.compile(r"^FAILED (?P<name>\S+::\S+)")
+_PYTEST_E = re.compile(r"^E\s{2,}\S")
+# Sanitizer reports appear whole in a test step's output, or as `N:`-prefixed grep
+# hits in the summary the ASAN/TSAN steps print, so the match is not anchored.
+_SANITIZER = re.compile(
+    r"==\d+==(?:ERROR|WARNING): (?P<kind>(?:Address|Leak|Thread|Memory|UndefinedBehavior)"
+    r"Sanitizer: [\w-]+)"
+)
+_SANITIZER_SUMMARY = re.compile(r"SUMMARY: \w+Sanitizer: ")
+# The test-asan and test-tsan steps' verdict line; their logs carry only the report
+# headers, and the full stacks go to the run's asan-report or tsan-report artifact.
+_SANITIZER_STEP = re.compile(r"\b[AT]SAN FAILED\b")
+# A frame's path is relative (`src/x.cpp`) or absolute under the checkout; a
+# submodule's own src/ (lib/lvgl/src/...) is not this repo's code.
+_PROJECT_FRAME = re.compile(
+    r"#\d+ 0x[0-9a-f]+ in .*?\s(?P<prefix>\S*?)(?P<loc>(?:tests|src|include)/\S+?:\d+)"
+)
+
+
+def _project_frame(line: str) -> str | None:
+    m = _PROJECT_FRAME.search(line)
+    if m is None or "lib/" in m["prefix"]:
+        return None
+    if m["prefix"] and not m["prefix"].endswith("/"):
+        return None  # `gentests/`, not `tests/`
+    return m["loc"]
+_COMPILER_ERROR = re.compile(r"^(?P<loc>[\w./+-]+\.\w+:\d+(?::\d+)?): (?:fatal )?error: (?P<msg>.+)$")
+_LINKER_ERROR = re.compile(r"undefined reference to |: ld returned \d+ exit status")
+# The source and caret lines clang and gcc print under an error.
+_COMPILER_CONTEXT = re.compile(r"^\s*\d*\s*\|")
 _DASHES = re.compile(r"^-{20,}$")
 _SECRETS = re.compile(
     r"(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|"
@@ -164,25 +193,38 @@ def match_signature(text: str) -> Signature | None:
     return None
 
 
-def failing_tests(text: str) -> list[str]:
-    """Test failures named in `text` (already cleaned): Catch2 as `name (file:line)`,
-    bats as its `not ok` name, pytest as its node id. In log order, without repeats."""
+def failures(text: str) -> list[str]:
+    """What failed, one line each, from `text` (already cleaned): Catch2 cases as
+    `name (file:line)`, bats `not ok` names, pytest node ids, sanitizer reports with
+    their first frame in this repo's code, and compiler errors with their location.
+    In log order, without repeats."""
     lines = text.splitlines()
     found: list[str] = []
     for i, line in enumerate(lines):
-        m = _CATCH2_FAILED.match(line)
-        if m:
+        if m := _CATCH2_FAILED.match(line):
             name = _catch2_case_name(lines, i)
             found.append(f"{name} ({m['loc']})" if name else m["loc"])
-            continue
-        m = _BATS_NOT_OK.match(line)
-        if m:
+        elif m := _BATS_NOT_OK.match(line):
             found.append(f"bats: {m['name']}")
-            continue
-        m = _PYTEST_FAILED.match(line)
-        if m:
+        elif m := _PYTEST_FAILED.match(line):
             found.append(f"pytest: {m['name']}")
+        elif m := _SANITIZER.search(line):
+            frame = _first_project_frame(lines, i)
+            found.append(m["kind"] + (f" at {frame}" if frame else ""))
+        elif m := _COMPILER_ERROR.match(line):
+            found.append(f"compile error: {m['loc']}: {m['msg']}")
     return list(dict.fromkeys(found))
+
+
+def _first_project_frame(lines: list[str], report_at: int) -> str | None:
+    """The first stack frame in tests/, src/ or include/ of the sanitizer report
+    starting at `report_at`; frames in libc and LVGL say less about the bug."""
+    for line in lines[report_at + 1 : report_at + 60]:
+        if _SANITIZER.search(line):
+            break
+        if loc := _project_frame(line):
+            return loc
+    return None
 
 
 def _catch2_case_name(lines: list[str], failed_at: int) -> str | None:
@@ -198,26 +240,83 @@ def _catch2_case_name(lines: list[str], failed_at: int) -> str | None:
     return None
 
 
-def excerpt(text: str, limit: int = EXCERPT_LINES) -> str:
-    """Up to `limit` lines around the first failure marker in `text` (cleaned), or
-    the lines before the step's final error; long lines cut, secrets-shaped strings
-    redacted."""
-    lines = text.splitlines()
-    anchor = None
+def _key_line_spans(lines: list[str]) -> list[tuple[int, int]]:
+    """[start, end) spans of the lines that explain a failure: each failure marker
+    with the few lines that belong to it."""
+    spans = []
+    pytest_e_open = False
     for i, line in enumerate(lines):
-        if _CATCH2_FAILED.match(line) or _BATS_NOT_OK.match(line) or _PYTEST_FAILED.match(line):
-            anchor = i
-            break
-    if anchor is not None:
-        start = max(anchor - 8, 0)
-        chunk = lines[start : start + limit]
-    else:
+        if _CATCH2_FAILED.match(line):
+            end = i + 1
+            while end < min(i + 6, len(lines)) and lines[end].strip() and not _DASHES.match(lines[end]):
+                end += 1
+            spans.append((i, end))
+        elif _BATS_NOT_OK.match(line):
+            end = i + 1
+            while end < min(i + 8, len(lines)) and lines[end].startswith("#"):
+                end += 1
+            spans.append((i, end))
+        elif (
+            _PYTEST_FAILED.match(line)
+            or _SANITIZER_SUMMARY.search(line)
+            or _SANITIZER_STEP.search(line)
+            or _LINKER_ERROR.search(line)
+        ):
+            spans.append((i, i + 1))
+        elif _PYTEST_E.match(line):
+            # The first lines of each E block: the exception and its message head.
+            if not pytest_e_open:
+                spans.append((i, min(i + 3, len(lines))))
+            pytest_e_open = True
+            continue
+        elif _SANITIZER.search(line):
+            spans.append((i, i + 1))
+            frames = 0
+            for j in range(i + 1, min(i + 60, len(lines))):
+                if _SANITIZER.search(lines[j]):
+                    break
+                if _project_frame(lines[j]):
+                    spans.append((j, j + 1))
+                    frames += 1
+                    if frames == 3:
+                        break
+        elif _COMPILER_ERROR.match(line):
+            # A parallel make interleaves other jobs' lines between an error and
+            # its source and caret lines, so those are picked out, not taken whole.
+            spans.append((i, i + 1))
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if _COMPILER_CONTEXT.match(lines[j]):
+                    spans.append((j, j + 1))
+        pytest_e_open = False
+    return spans
+
+
+def excerpt(text: str, limit: int = EXCERPT_LINES) -> str:
+    """Up to `limit` lines of `text` (cleaned) that explain the failure: failure
+    markers, sanitizer reports and their frames, compiler errors, pytest's E lines,
+    with `...` where more than one line was skipped. With none of those, the lines before the
+    step's final error. Long lines cut, secrets-shaped strings redacted."""
+    lines = text.splitlines()
+    chunk: list[str] = []
+    last = None
+    for start, end in sorted(_key_line_spans(lines)):
+        if last is not None and start < last:
+            start = last
+        if start >= end:
+            continue
+        # One skipped line is a parallel make's interleaving, not a gap worth marking.
+        if last is not None and start > last + 1:
+            chunk.append("...")
+        chunk += [l.strip() if _SANITIZER.search(l) else l for l in lines[start:end]]
+        last = end
+    if not chunk:
         end = len(lines)
         for i in range(len(lines) - 1, -1, -1):
             if lines[i].startswith("##[error]"):
                 end = i + 1
                 break
         chunk = lines[max(end - limit, 0) : end]
+    chunk = chunk[:limit]
     chunk = [l if len(l) <= EXCERPT_WIDTH else l[:EXCERPT_WIDTH] + " ..." for l in chunk]
     return _SECRETS.sub("[redacted]", "\n".join(chunk)).strip("\n")
 
@@ -229,23 +328,24 @@ class JobReport:
     conclusion: str
     text: str = ""
     signature: Signature | None = None
-    tests: list[str] = field(default_factory=list)
+    # A parsed failure is never infrastructure, whatever else the log says.
+    failures: list[str] = field(default_factory=list)
 
     @property
     def infra(self) -> bool:
-        return self.signature is not None and not self.tests
+        return self.signature is not None and not self.failures
 
 
 def analyze_job(job: dict, raw_log: str, annotations: list[str]) -> JobReport:
     text = clean(raw_log + "\n" + "\n".join(annotations))
-    tests = failing_tests(text)
+    found = failures(text)
     return JobReport(
         id=job["id"],
         name=job["name"],
         conclusion=job["conclusion"],
         text=text,
-        signature=None if tests else match_signature(text),
-        tests=tests,
+        signature=None if found else match_signature(text),
+        failures=found,
     )
 
 
@@ -308,21 +408,23 @@ def report_body(run: dict, jobs: list[JobReport], repo: str) -> str:
             f"- Infrastructure ({', '.join(sigs)}) still failing on attempt "
             f"{run['run_attempt']}, so it was not rerun again."
         )
-    tests = [t for j in deciding for t in j.tests]
-    if tests:
-        lines += ["", "Failing tests:", ""] + [f"- `{t}`" for t in tests[:30]]
-        if len(tests) > 30:
-            lines.append(f"- ...and {len(tests) - 30} more")
-    first = next((j for j in deciding if j.tests), None) or next(
-        (j for j in deciding if j.text.strip()), None
-    )
-    if first:
+    found = [f for j in deciding for f in j.failures]
+    if found:
+        lines += ["", "Failures:", ""] + [f"- `{f}`" for f in found[:30]]
+        if len(found) > 30:
+            lines.append(f"- ...and {len(found) - 30} more")
+    shown = [j for j in deciding if j.failures] + [
+        j for j in deciding if not j.failures and j.text.strip()
+    ]
+    # One log excerpt per job, sharing about EXCERPT_LINES between them.
+    per_job = max(12, EXCERPT_LINES // max(len(shown), 1))
+    for j in shown:
         lines += [
             "",
-            f"<details><summary>Log excerpt: {first.name}</summary>",
+            f"<details><summary>Log excerpt: {j.name}</summary>",
             "",
             "```",
-            excerpt(first.text).replace("```", "'''"),
+            excerpt(j.text, per_job).replace("```", "'''"),
             "```",
             "",
             "</details>",
@@ -425,7 +527,7 @@ def collect_jobs(gh: GitHub, run: dict) -> list[JobReport]:
         rep = analyze_job(job, raw, [a.get("message") or "" for a in anns])
         log(
             f"job {job['name']!r} {job['conclusion']}: "
-            f"{'tests ' + str(len(rep.tests)) if rep.tests else (rep.signature.name if rep.signature else 'no signature')}"
+            f"{'failures ' + str(len(rep.failures)) if rep.failures else (rep.signature.name if rep.signature else 'no signature')}"
         )
         reports.append(rep)
     return reports
@@ -536,10 +638,10 @@ def main(argv: list[str]) -> int:
         for path in args.logs:
             with open(path, encoding="utf-8", errors="replace") as f:
                 text = clean(f.read())
-            tests = failing_tests(text)
-            sig = None if tests else match_signature(text)
-            verdict = "real" if tests else (f"infra:{sig.name}" if sig else "real")
-            print(f"{verdict}\t{path}" + (f"\t{len(tests)} tests" if tests else ""))
+            found = failures(text)
+            sig = None if found else match_signature(text)
+            verdict = "real" if found else (f"infra:{sig.name}" if sig else "real")
+            print(f"{verdict}\t{path}" + (f"\t{len(found)} failures" if found else ""))
         return 0
 
     gh = GitHub(args.repo, args.dry_run)
