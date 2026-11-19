@@ -26,6 +26,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "format_utils.h"
 #include "printer_state.h"
 
 #include <memory>
@@ -256,4 +257,27 @@ TEST_CASE("reprint_target extracts a staged archive plate again, and starts a co
     t = reprint_target("", helix::gcode::make_rewritten_gcode_path("parts/benchy.gcode"));
     CHECK(t.file == "parts/benchy.gcode");
     CHECK(t.archive_plate == 0);
+}
+
+TEST_CASE_METHOD(PreparingIdentityFixture,
+                 "Preparing remaining is pre-print plus the slicer estimate, counted once",
+                 "[print_status][preprint_eta]") {
+    // While preparing, print_time_left already carries the pre-print remaining
+    // plus the whole job; the panel must not add the pre-print to it again.
+    constexpr int kSlicerSeconds = 3600;
+    constexpr int kPreprintSeconds = 900;
+    auto& print = state().print_state();
+    print.begin_preparing(PrintJobRef{"part.gcode", "", ""});
+    print.set_estimated_print_time(kSlicerSeconds);
+    print.set_print_start_state(PrintStartPhase::HEATING_BED, "Heating bed", 10);
+    drain();
+    lv_subject_set_int(print.get_print_time_left_subject(), kPreprintSeconds + kSlicerSeconds);
+    drain();
+    print.set_preprint_remaining_seconds(kPreprintSeconds);
+    drain();
+
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "print_remaining");
+    REQUIRE(shown != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(shown)) ==
+            helix::format::duration_padded(kPreprintSeconds + kSlicerSeconds));
 }
