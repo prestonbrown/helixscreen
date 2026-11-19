@@ -1523,7 +1523,9 @@ attached and remote screens.
   the Operations card holds compact Load, Unload, Purge, Extrude and Retract buttons, with
   the row of heads and Pick up or Park on a multi-head printer. Cool Down is a fixed cell,
   dimmed while nothing is heating, so no button moves when a heater starts or stops; the
-  cold-extrusion warning takes the Operations heading's line for the same reason. In portrait
+  cold-extrusion warning takes the Operations heading's line for the same reason. In landscape
+  the Operations card lines up with the bottom of the left column, its buttons at standard
+  height. In portrait
   the cards stack in one column, the presets share one row with Cool Down in the Material
   card's header, and on a multi-head printer the lane bars move into the Operations header.
 - **Heater rows read the target after the reading** - on the Controls temperature card and
