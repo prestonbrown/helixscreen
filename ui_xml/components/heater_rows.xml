@@ -32,14 +32,16 @@
       <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
     </heater_row>
     <heater_row name="btn_bed_temp"
-                icon="radiator" glyph="bed_icon_glyph" label="Bed" current="bed_temp" target="bed_target"
-                state="bed_status_state" duty="bed_status" status_line="$status_lines" callback="on_heater_row_bed">
+                icon="radiator" glyph="bed_icon_glyph" label="Bed" label_tag="Bed" current="bed_temp"
+                target="bed_target" state="bed_status_state" duty="bed_status" status_line="$status_lines"
+                callback="on_heater_row_bed">
       <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
     </heater_row>
     <heater_row name="btn_chamber_temp"
-                icon="fridge_industrial" glyph="chamber_icon_glyph" label="Chamber" current="chamber_temp"
-                target="chamber_effective_target" mode="chamber_mode" state="chamber_status_state" duty="chamber_status"
-                status_line="$status_lines" callback="on_heater_row_chamber" hidden="true">
+                icon="fridge_industrial" glyph="chamber_icon_glyph" label="Chamber" label_tag="Chamber"
+                current="chamber_temp" target="chamber_effective_target" mode="chamber_mode"
+                state="chamber_status_state" duty="chamber_status" status_line="$status_lines"
+                callback="on_heater_row_chamber" hidden="true">
       <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
       <bind_style_if_eq name="heater_row_across" subject="$across" ref_value="1"/>
     </heater_row>

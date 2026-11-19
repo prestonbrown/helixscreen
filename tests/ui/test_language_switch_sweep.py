@@ -57,7 +57,7 @@ CONFIG_NAMES = {"Controller Fan", "Nevermore Fan"}
 def _ru_index() -> int:
     """Position of "ru" in SystemSettingsManager's language list."""
     codes = re.search(r"kLanguageCodes\[\] = \{([^}]*)\}", LANGUAGES.read_text()).group(1)
-    return re.findall(r'"(\w+)"', codes).index("ru")
+    return re.findall(r'"([\w-]+)"', codes).index("ru")
 
 
 def _translatable(en: str, ru: dict) -> tuple[str, str] | None:
