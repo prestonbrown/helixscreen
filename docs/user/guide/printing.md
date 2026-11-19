@@ -397,7 +397,7 @@ The overlay also holds the Z-Offset controls (see [Z-Offset / Baby Steps](#z-off
 
 ## Z-Offset / Baby Steps
 
-Fine-tune your first layer height, during a print or while idle.
+Fine-tune your first layer height, during a print or while idle. The [Z Offset guide](z-offset.md) covers calibration, firmware-managed printers, per-tool offsets and the gotchas in full.
 
 The [Z-Offset widget](home-widgets-print.md#z-offset-widget) puts the live offset, the baby-step buttons and **Save** on the home screen.
 

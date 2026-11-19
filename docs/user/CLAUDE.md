@@ -34,6 +34,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/home-widgets-controls.md` | Control and system widgets: Toolhead, Bed Mesh, Tool Switcher, GCode Console, power, LEDs |
 | `guide/home-edit-mode.md` | Edit Mode: adding, moving and resizing widgets, pages |
 | `guide/printer-manager.md` | Printer Manager: name, model, custom printer image, capability chips |
+| `guide/z-offset.md` | Z offset: what it is, calibration per probe type, baby steps and the tune hint, what Save does, firmware-managed printers, per-tool offsets, the save setting, gotchas |
 | `guide/printing.md` | File selection, printing, the file-fits-printer check, the door-open warning, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
 | `guide/z-offset-by-material.md` | Z offset and bed mesh per material: why, setup for the K2 `_START_PRINT_VARS`, a hand-made copy and HelixScreen's macro (PRINT_START line, `[save_variables]`, slicer `MATERIAL=`), saving during a print, stored meshes, DEFAULT, gotchas and limitations |
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |

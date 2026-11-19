@@ -161,7 +161,7 @@ View and control your Z probe from **Advanced > Probe Management**. HelixScreen 
 
 ![Z-Offset Panel](../../images/user/advanced-zoffset.png)
 
-Interactive panel for dialing in your Z-offset when not printing. Works with all probe types — Cartographer, Beacon, BLTouch, eddy current probes, and standard probes.
+Interactive panel for dialing in your Z-offset when not printing. The [Z Offset guide](z-offset.md) covers every probe type, what Save does, and the gotchas. Works with all probe types — Cartographer, Beacon, BLTouch, eddy current probes, and standard probes.
 
 1. Navigate to **Advanced > Z-Offset Calibration**, or tap **Z-Offset Cal** in the Probe Management overlay
 2. Optionally enable **Warm Bed** to heat the bed before calibrating (accounts for thermal expansion)
