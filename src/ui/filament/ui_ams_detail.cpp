@@ -324,12 +324,14 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
 
     // A drawn unit's labels stand above it, each centered over its own spool with a short
     // tick down to it: one row when every label fits a lane's pitch, else two alternating.
-    if (draws_tray() && helix::ui::ams_slot_spool_size() > 0) {
+    if (helix::ui::ams_slot_spool_size() > 0) {
         const int32_t spool = helix::ui::ams_detail_spool_size(available_width, count);
         for (int i = 0; i < count; ++i) {
             if (slot_widgets[i])
                 ui_ams_slot_set_spool_size(slot_widgets[i], spool);
         }
+    }
+    if (draws_tray() && helix::ui::ams_slot_spool_size() > 0) {
         result.layout.label_rows = over_lane_label_rows(slot_widgets, count, result.layout,
                                                         lv_obj_get_parent(w.slot_grid));
         for (int i = 0; i < count; ++i) {
