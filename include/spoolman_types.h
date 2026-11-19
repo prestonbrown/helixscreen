@@ -347,10 +347,12 @@ inline std::string format_spool_price(double price) {
  * @p currency is an ISO 4217 code ("EUR", "USD"). Codes with a symbol the
  * screen's fonts carry get the symbol in front ("$24.99", "€24.99"); any other
  * code follows the amount ("24.99 CHF"). Yen and won take no decimals. Empty
- * for no price (zero or negative), and the bare amount when no currency is
- * known.
+ * for no price (zero or negative) unless @p zero_is_amount, which shows zero
+ * as an amount (a cost so far at the start of a print), and the bare amount
+ * when no currency is known.
  */
-std::string format_price_with_currency(double price, const std::string& currency);
+std::string format_price_with_currency(double price, const std::string& currency,
+                                       bool zero_is_amount = false);
 } // namespace helix
 
 // ============================================================================

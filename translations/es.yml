@@ -211,6 +211,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un sensor que mide la temperatura del aire dentro de la cámara. Consúltalo en la pantalla de temperatura de la cámara.'
   A shell on the machine running this screen: 'Una shell en la máquina que ejecuta esta pantalla'
   A spool may be tangled or the drive gear is jammed: Puede que una bobina esté enredada o que el engranaje de arrastre esté atascado
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Se usa el precio propio de una bobina en Spoolman cuando lo tiene. Estos precios cubren cualquier otra bobina."
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Un sistema que alimenta varios filamentos al cabezal, mostrado con su número de ranuras. Gestiona las ranuras en la pantalla del sistema de filamento.'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'Hay una calibración de offsets de cabezales en curso, quizá desde otra pantalla. ¿Terminarla ahora?'
@@ -243,6 +244,7 @@ translations:
   API Key (if Moonraker requires a login): 'Clave API (si Moonraker requiere inicio de sesión)'
   API not available: API no disponible
   APPEARANCE: APARIENCIA
+  ASA: "ASA"
   AUTO FANS: VENTILADORES AUTO
   AUTO STATE: ESTADO AUTO
   AUTOMATION: AUTOMATIZACIÓN
@@ -356,6 +358,7 @@ translations:
   Anonymous usage statistics: Estadísticas de uso anónimas
   Another filament operation is heating the nozzle.: "Otra operación de filamento está calentando la boquilla."
   Any notes...: Notas...
+  Any other material: "Cualquier otro material"
   App Background: Fondo de la Aplicación
   App startup encountered an error. Some features may be unavailable.: El inicio de la aplicación encontró un error. Algunas funciones pueden no estar disponibles.
   Appearance: Apariencia
@@ -419,6 +422,7 @@ translations:
   Available Networks: Redes Disponibles
   Available networks: Redes disponibles
   Average: Promedio
+  Average draw while printing, in watts: "Consumo medio durante la impresión, en vatios"
   Axis Rows: 'Filas por eje'
   Axis limits unknown: Límites del eje desconocidos
   BACK: ATRÁS
@@ -1093,6 +1097,7 @@ translations:
   Creating spool...: Creando bobina...
   'Critical hardware missing: {}': 'Falta hardware crítico: {}'
   Ctrl: 'Ctrl'
+  Currency: "Moneda"
   Current / Target: Actual / Objetivo
   Current Configuration: Configuración Actual
   Current Mesh: Malla Actual
@@ -1299,6 +1304,8 @@ translations:
   Eject failed: Error al expulsar
   Eject needs [force_move] enabled in printer config: La expulsión requiere [force_move] habilitado en la configuración de la impresora
   Ejecting: Expulsando
+  Electricity: "Electricidad"
+  Electricity is added only when both are set: "La electricidad solo se suma cuando ambos están definidos"
   Electronics fans: "Ventiladores de electrónica"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: Elemento
@@ -1668,6 +1675,8 @@ translations:
   Filament not set: 'Filamento no asignado'
   Filament operation failed: Falló la operación de filamento
   Filament operation timed out: Operación de filamento — tiempo de espera agotado
+  Filament price per kg: "Precio del filamento por kg"
+  Filament prices and electricity: "Precios de filamento y electricidad"
   Filament ran out: Se acabó el filamento
   Filament ran out - nothing at the toolhead and the print is paused.: 'El filamento se agotó - no queda nada en el cabezal y la impresión está en pausa.'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -2872,6 +2881,7 @@ translations:
   PA: PA
   PA Calibration: 'Calibración PA'
   PAUSED: PAUSADO
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: El PIN debe tener 4-6 dígitos
@@ -3066,6 +3076,7 @@ translations:
   Print Complete!: ¡Impresión Completa!
   Print Completion Alert: Alerta de Impresión Completa
   Print Controls: 'Controles de impresión'
+  Print Cost: "Coste de impresión"
   Print Details: Detalles de Impresión
   Print Failed: Impresión fallida
   Print File: Archivo de Impresión
@@ -3157,6 +3168,7 @@ translations:
   Printer name: Nombre de impresora
   Printer not connected: Impresora no conectada
   Printer not ready: Impresora no lista
+  Printer power: "Potencia de la impresora"
   Printer ready: Impresora lista
   Printer status unknown: 'Estado de la impresora desconocido'
   Printer type mismatch: El tipo de impresora no coincide
@@ -3884,6 +3896,7 @@ translations:
   Spoolman support is off in Happy Hare: "El soporte de Spoolman está desactivado en Happy Hare"
   Spoolman unavailable — filament weights may be stale: Spoolman no disponible — los pesos del filamento pueden estar desactualizados
   Spoolman was not configured.: Spoolman no estaba configurado.
+  Spoolman's currency is used when it is connected: "Se usa la moneda de Spoolman cuando está conectado"
   'Spoolman: %zu Spool': 'Spoolman: %zu bobina'
   'Spoolman: %zu Spools': 'Spoolman: %zu bobinas'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu bobina'
@@ -5165,6 +5178,7 @@ translations:
   'Recycled': 'Reciclado'
   'Add to Spoolman + label': 'Añadir a Spoolman + etiqueta'
   'More': 'Más'
+  Price per kWh: "Precio por kWh"
   'Price, location, lot, notes': 'Precio, ubicación, lote, notas'
   'Product': 'Producto'
   'Remaining weight': 'Peso restante'

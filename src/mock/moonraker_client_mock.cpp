@@ -23,6 +23,7 @@
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
 #include "moonraker_status_notification.h"
+#include "print_cost.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "shaper_response.h"
@@ -216,6 +217,26 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     // A chat bot's featured line for the tips widget.
     seed_db_from_env("HELIX_MOCK_FEATURED_TIP", helix::featured_tip::kNamespace,
                      helix::featured_tip::kKey);
+
+    // HELIX_MOCK_PRINT_COST_RECORDS=<json file> pre-seeds shared print cost
+    // records: an object of {"<gcodes-relative file>": <record>}.
+    if (const char* records_path = std::getenv("HELIX_MOCK_PRINT_COST_RECORDS");
+        records_path && *records_path) {
+        std::ifstream records_file(records_path);
+        json records = records_file.good() ? json::parse(records_file, nullptr, false) : json();
+        if (records.is_discarded() || !records.is_object()) {
+            spdlog::warn("[MoonrakerClientMock] HELIX_MOCK_PRINT_COST_RECORDS '{}' is not a "
+                         "readable JSON object",
+                         records_path);
+        } else {
+            for (auto it = records.begin(); it != records.end(); ++it) {
+                mock_db_set(helix::print_cost::kRecordNamespace,
+                            helix::print_cost::record_key(it.key()), it.value());
+            }
+            spdlog::info("[MoonrakerClientMock] Pre-seeded {} print cost record(s) from '{}'",
+                         records.size(), records_path);
+        }
+    }
 
     last_activity_time_ = std::chrono::steady_clock::now();
 

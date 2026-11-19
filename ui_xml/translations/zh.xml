@@ -194,6 +194,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." zh="读取腔体内空气温度的传感器。在腔体温度界面查看。"/>
   <translation tag="A shell on the machine running this screen" zh="运行此屏幕的机器上的 Shell"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" zh="料盘可能缠绕，或驱动齿轮卡住"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." zh="Spoolman 中的料盘有自己的价格时使用该价格。其他料盘使用这些价格。"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." zh="向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。"/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" zh="工具头偏移校准正在进行，可能来自另一个屏幕。现在结束吗?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." zh="检测到顶盖。其风扇和空气模式位于风扇界面。"/>
@@ -228,6 +229,7 @@
   <translation tag="API Key (if Moonraker requires a login)" zh="API 密钥（如果 Moonraker 要求登录）"/>
   <translation tag="API not available" zh="API 不可用"/>
   <translation tag="APPEARANCE" zh="外观"/>
+  <translation tag="ASA" zh="ASA"/>
   <translation tag="AUTO FANS" zh="自动风扇"/>
   <translation tag="AUTO STATE" zh="自动状态"/>
   <translation tag="AUTOMATION" zh="自动化"/>
@@ -340,6 +342,7 @@
   <translation tag="Anonymous usage statistics" zh="匿名使用统计"/>
   <translation tag="Another filament operation is heating the nozzle." zh="其他耗材操作正在加热喷嘴。"/>
   <translation tag="Any notes..." zh="备注..."/>
+  <translation tag="Any other material" zh="其他所有材料"/>
   <translation tag="App Background" zh="应用背景"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." zh="应用程序启动时遇到错误。某些功能可能不可用。"/>
   <translation tag="Appearance" zh="外观"/>
@@ -403,6 +406,7 @@
   <translation tag="Available Networks" zh="可用网络"/>
   <translation tag="Available networks" zh="可用网络"/>
   <translation tag="Average" zh="平均值"/>
+  <translation tag="Average draw while printing, in watts" zh="打印时的平均功耗（瓦）"/>
   <translation tag="Axis Rows" zh="按轴分行"/>
   <translation tag="Axis limits unknown" zh="轴限位未知"/>
   <translation tag="BACK" zh="后侧"/>
@@ -1034,6 +1038,7 @@
   <translation tag="Creating spool..." zh="正在创建料盘…"/>
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
   <translation tag="Ctrl" zh="Ctrl"/>
+  <translation tag="Currency" zh="货币"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
   <translation tag="Current Configuration" zh="当前配置"/>
   <translation tag="Current Mesh" zh="当前网格"/>
@@ -1237,6 +1242,8 @@
   <translation tag="Eject failed" zh="弹出失败"/>
   <translation tag="Eject needs [force_move] enabled in printer config" zh="弹出需要在打印机配置中启用 [force_move]"/>
   <translation tag="Ejecting" zh="弹出中"/>
+  <translation tag="Electricity" zh="电费"/>
+  <translation tag="Electricity is added only when both are set" zh="仅在两项都设置时才计入电费"/>
   <translation tag="Electronics fans" zh="电控风扇"/>
   <translation tag="Elegoo Centauri Carbon" zh="Elegoo Centauri Carbon"/>
   <translation tag="Element" zh="加热元件"/>
@@ -1601,6 +1608,8 @@
   <translation tag="Filament not set" zh="未设置耗材"/>
   <translation tag="Filament operation failed" zh="耗材操作失败"/>
   <translation tag="Filament operation timed out" zh="耗材操作超时"/>
+  <translation tag="Filament price per kg" zh="耗材每公斤价格"/>
+  <translation tag="Filament prices and electricity" zh="耗材价格和电费"/>
   <translation tag="Filament ran out" zh="耗材已用尽"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." zh="耗材已用尽 - 工具头处没有耗材，打印已暂停。"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." zh="耗材已用尽，且 CFS 未找到可切换的匹配料盘。请装入相同材料和颜色的料盘后恢复打印。"/>
@@ -2786,6 +2795,7 @@
   <translation tag="PA" zh="PA"/>
   <translation tag="PA Calibration" zh="PA 校准"/>
   <translation tag="PAUSED" zh="已暂停"/>
+  <translation tag="PC" zh="PC"/>
   <translation tag="PETG" zh="PETG"/>
   <translation tag="PID" zh="PID"/>
   <translation tag="PIN must be 4-6 digits" zh="PIN 码必须为 4-6 位数字"/>
@@ -2965,6 +2975,7 @@
   <translation tag="Previous" zh="上一步"/>
   <translation tag="Previous IPv4 settings restored" zh="已恢复之前的 IPv4 设置"/>
   <translation tag="Price" zh="价格"/>
+  <translation tag="Price per kWh" zh="每千瓦时价格"/>
   <translation tag="Price, location, lot, notes" zh="价格、位置、批次、备注"/>
   <translation tag="Price: {}" zh="价格：{}"/>
   <translation tag="Primary" zh="主要"/>
@@ -2977,6 +2988,7 @@
   <translation tag="Print Complete!" zh="打印完成！"/>
   <translation tag="Print Completion Alert" zh="打印完成提醒"/>
   <translation tag="Print Controls" zh="打印控制"/>
+  <translation tag="Print Cost" zh="打印成本"/>
   <translation tag="Print Details" zh="打印详情"/>
   <translation tag="Print Failed" zh="打印失败"/>
   <translation tag="Print File" zh="打印文件"/>
@@ -3072,6 +3084,7 @@
   <translation tag="Printer name" zh="打印机名称"/>
   <translation tag="Printer not connected" zh="打印机未连接"/>
   <translation tag="Printer not ready" zh="打印机未就绪"/>
+  <translation tag="Printer power" zh="打印机功率"/>
   <translation tag="Printer ready" zh="打印机就绪"/>
   <translation tag="Printer status unknown" zh="打印机状态未知"/>
   <translation tag="Printer type mismatch" zh="打印机类型不匹配"/>
@@ -3790,6 +3803,7 @@
   <translation tag="Spoolman support is off in Happy Hare" zh="Happy Hare 中的 Spoolman 支持已关闭"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" zh="Spoolman不可用 — 耗材重量可能已过期"/>
   <translation tag="Spoolman was not configured." zh="Spoolman 未配置。"/>
+  <translation tag="Spoolman&apos;s currency is used when it is connected" zh="连接 Spoolman 时使用其货币"/>
   <translation tag="Spoolman: %zu Spool" zh="Spoolman: %zu 个线轴"/>
   <translation tag="Spoolman: %zu Spools" zh="Spoolman: %zu 个线轴"/>
   <translation tag="Spoolman: %zu/%zu Spool" zh="Spoolman: %zu/%zu 个线轴"/>

@@ -259,6 +259,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры.'
   A shell on the machine running this screen: 'Командная оболочка на машине, где работает этот экран'
   A spool may be tangled or the drive gear is jammed: Катушка может быть запутана или заклинило приводную шестерню
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Если у катушки в Spoolman есть цена, используется она. Эти цены применяются ко всем остальным катушкам."
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента.'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'Идёт калибровка смещений головок, возможно, с другого экрана. Завершить её сейчас?'
@@ -291,6 +292,7 @@ translations:
   API Key (if Moonraker requires a login): 'API-ключ (если Moonraker требует входа)'
   API not available: API недоступен
   APPEARANCE: ВНЕШНИЙ ВИД
+  ASA: "ASA"
   AUTO FANS: АВТО ВЕНТИЛЯТОРЫ
   AUTO STATE: АВТО СОСТОЯНИЕ
   AUTOMATION: АВТОМАТИЗАЦИЯ
@@ -404,6 +406,7 @@ translations:
   Anonymous usage statistics: Анонимная статистика использования
   Another filament operation is heating the nozzle.: "Другая операция с филаментом нагревает сопло."
   Any notes...: Заметки...
+  Any other material: "Любой другой материал"
   App Background: Фон приложения
   App startup encountered an error. Some features may be unavailable.: При запуске приложения произошла ошибка. Некоторые функции могут быть недоступны.
   Appearance: Внешний вид
@@ -471,6 +474,7 @@ translations:
   Available Networks: Доступные сети
   Available networks: Доступные сети
   Average: Среднее
+  Average draw while printing, in watts: "Средняя мощность при печати, в ваттах"
   Axis Rows: 'Ряды по осям'
   Axis limits unknown: Границы оси неизвестны
   BACK: ЗАД
@@ -1153,6 +1157,7 @@ translations:
   Creating spool...: Создание катушки...
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
   Ctrl: 'Ctrl'
+  Currency: "Валюта"
   Current / Target: Текущая / Цель
   Current Configuration: Текущая конфигурация
   Current Mesh: Текущая сетка
@@ -1359,6 +1364,8 @@ translations:
   Eject failed: Ошибка извлечения
   Eject needs [force_move] enabled in printer config: Для извлечения нужно включить [force_move] в конфигурации принтера
   Ejecting: Извлечение
+  Electricity: "Электричество"
+  Electricity is added only when both are set: "Электричество учитывается, только если заданы оба значения"
   Electronics fans: "Вентиляторы электроники"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: Элемент
@@ -1728,6 +1735,8 @@ translations:
   Filament not set: 'Филамент не задан'
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
+  Filament price per kg: "Цена филамента за кг"
+  Filament prices and electricity: "Цены филамента и электричество"
   Filament ran out: Филамент закончился
   Filament ran out - nothing at the toolhead and the print is paused.: 'Филамент закончился - у печатающей головки ничего нет, печать приостановлена.'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -2936,6 +2945,7 @@ translations:
   PA: PA
   PA Calibration: 'Калибровка PA'
   PAUSED: ПАУЗА
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: PIN должен содержать 4-6 цифр
@@ -3138,6 +3148,7 @@ translations:
   Print Complete!: Печать завершена!
   Print Completion Alert: Уведомление о завершении печати
   Print Controls: 'Управление печатью'
+  Print Cost: "Стоимость печати"
   Print Details: Информация о печати
   Print Failed: Печать не удалась
   Print File: Файл печати
@@ -3233,6 +3244,7 @@ translations:
   Printer name: Название принтера
   Printer not connected: Принтер не подключен
   Printer not ready: Принтер не готов
+  Printer power: "Мощность принтера"
   Printer ready: Принтер готов
   Printer status unknown: 'Состояние принтера неизвестно'
   Printer type mismatch: Несоответствие типа принтера
@@ -3964,6 +3976,7 @@ translations:
   Spoolman support is off in Happy Hare: "Поддержка Spoolman отключена в Happy Hare"
   Spoolman unavailable — filament weights may be stale: Spoolman недоступен — вес филамента может быть устаревшим
   Spoolman was not configured.: Spoolman не был настроен.
+  Spoolman's currency is used when it is connected: "При подключённом Spoolman используется его валюта"
   'Spoolman: %zu Spool': 'Spoolman: %zu катушка'
   'Spoolman: %zu Spools':
     one: 'Spoolman: %zu катушка'
@@ -5281,6 +5294,7 @@ translations:
   'Recycled': 'Переработанный'
   'Add to Spoolman + label': 'Добавить в Spoolman + этикетка'
   'More': 'Ещё'
+  Price per kWh: "Цена за кВт·ч"
   'Price, location, lot, notes': 'Цена, место, партия, заметки'
   'Product': 'Продукт'
   'Remaining weight': 'Остаток веса'

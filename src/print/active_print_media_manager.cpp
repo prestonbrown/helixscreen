@@ -12,6 +12,7 @@
 #include "json_utils.h"
 #include "memory_monitor.h"
 #include "print_3mf.h"
+#include "print_cost_service.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
 #include "three_mf_reader.h"
@@ -428,6 +429,7 @@ void ActivePrintMediaManager::describe_archive_plate(const std::string& filename
                     const FileMetadata meta = three_mf::plate_file_metadata(*shown);
                     auto& print_state = printer_state_.print_state();
                     print_state.set_print_materials(materials_in_metadata(meta));
+                    helix::print_cost::ActivePrintCost::instance().set_file(archive, meta);
                     if (meta.estimated_time > 0) {
                         print_state.set_estimated_print_time(static_cast<int>(meta.estimated_time));
                     }
@@ -639,6 +641,8 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 }
 
                 printer_state_.print_state().set_print_materials(materials_in_metadata(metadata));
+                helix::print_cost::ActivePrintCost::instance().set_file(metadata_filename,
+                                                                        metadata);
 
                 // Slice layer heights power the Z-height current-layer derivation
                 // for printers whose slicer never reports a layer number. Thread

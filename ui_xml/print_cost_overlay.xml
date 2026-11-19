@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Settings > Printing > Print Cost (prestonbrown/helixscreen#2132): the prices
+     a print is costed at when Spoolman has none, and the optional electricity. -->
+<component>
+  <view name="print_cost_overlay" extends="overlay_panel" title="Print Cost" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
+            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_xs" scrollable="true">
+      <text_small width="100%"
+                  text="A spool's own price in Spoolman is used when it has one. These prices cover every other spool."
+                  long_mode="wrap" style_text_color="#text_muted"/>
+      <setting_dropdown_row name="row_cost_currency"
+                            label="Currency" icon="cash" description="Spoolman's currency is used when it is connected"
+                            options="USD&#10;EUR&#10;GBP&#10;JPY&#10;CAD&#10;AUD&#10;CHF&#10;SEK&#10;NOK&#10;DKK&#10;PLN&#10;CZK&#10;CNY&#10;KRW&#10;INR&#10;BRL&#10;MXN&#10;NZD&#10;ZAR"
+                            bind_selected="print_cost_currency" callback="on_print_cost_currency_changed"/>
+      <setting_section_header title="Filament price per kg" hide_icon="true"/>
+      <print_cost_value_row label="Any other material"
+                            value_subject="print_cost_price_default" callback="on_print_cost_field_clicked"
+                            user_data="default"/>
+      <print_cost_value_row label="PLA"
+                            value_subject="print_cost_price_PLA" callback="on_print_cost_field_clicked" user_data="PLA"/>
+      <print_cost_value_row label="PETG"
+                            value_subject="print_cost_price_PETG" callback="on_print_cost_field_clicked"
+                            user_data="PETG"/>
+      <print_cost_value_row label="ABS"
+                            value_subject="print_cost_price_ABS" callback="on_print_cost_field_clicked" user_data="ABS"/>
+      <print_cost_value_row label="ASA"
+                            value_subject="print_cost_price_ASA" callback="on_print_cost_field_clicked" user_data="ASA"/>
+      <print_cost_value_row label="TPU"
+                            value_subject="print_cost_price_TPU" callback="on_print_cost_field_clicked" user_data="TPU"/>
+      <print_cost_value_row label="PA"
+                            value_subject="print_cost_price_PA" callback="on_print_cost_field_clicked" user_data="PA"/>
+      <print_cost_value_row label="PC"
+                            value_subject="print_cost_price_PC" callback="on_print_cost_field_clicked" user_data="PC"/>
+      <setting_section_header title="Electricity" hide_icon="true"/>
+      <print_cost_value_row label="Printer power"
+                            description="Average draw while printing, in watts" value_subject="print_cost_watts"
+                            callback="on_print_cost_field_clicked" user_data="watts"/>
+      <print_cost_value_row label="Price per kWh"
+                            description="Electricity is added only when both are set" value_subject="print_cost_kwh"
+                            callback="on_print_cost_field_clicked" user_data="kwh"/>
+    </lv_obj>
+  </view>
+</component>

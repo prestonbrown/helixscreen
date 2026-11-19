@@ -194,6 +194,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." en="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen."/>
   <translation tag="A shell on the machine running this screen" en="A shell on the machine running this screen"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" en="A spool may be tangled or the drive gear is jammed"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." en="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool."/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." en="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" en="A toolhead offset calibration is in progress, possibly from another screen. End it now?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." en="A top cover was detected. Its fans and air modes are on the Fans screen."/>
@@ -228,6 +229,7 @@
   <translation tag="API Key (if Moonraker requires a login)" en="API Key (if Moonraker requires a login)"/>
   <translation tag="API not available" en="API not available"/>
   <translation tag="APPEARANCE" en="APPEARANCE"/>
+  <translation tag="ASA" en="ASA"/>
   <translation tag="AUTO FANS" en="AUTO FANS"/>
   <translation tag="AUTO STATE" en="AUTO STATE"/>
   <translation tag="AUTOMATION" en="AUTOMATION"/>
@@ -340,6 +342,7 @@
   <translation tag="Anonymous usage statistics" en="Anonymous usage statistics"/>
   <translation tag="Another filament operation is heating the nozzle." en="Another filament operation is heating the nozzle."/>
   <translation tag="Any notes..." en="Any notes..."/>
+  <translation tag="Any other material" en="Any other material"/>
   <translation tag="App Background" en="App Background"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." en="App startup encountered an error. Some features may be unavailable."/>
   <translation tag="Appearance" en="Appearance"/>
@@ -403,6 +406,7 @@
   <translation tag="Available Networks" en="Available Networks"/>
   <translation tag="Available networks" en="Available networks"/>
   <translation tag="Average" en="Average"/>
+  <translation tag="Average draw while printing, in watts" en="Average draw while printing, in watts"/>
   <translation tag="Axis Rows" en="Axis Rows"/>
   <translation tag="Axis limits unknown" en="Axis limits unknown"/>
   <translation tag="BACK" en="BACK"/>
@@ -1034,6 +1038,7 @@
   <translation tag="Creating spool..." en="Creating spool..."/>
   <translation tag="Critical hardware missing: {}" en="Critical hardware missing: {}"/>
   <translation tag="Ctrl" en="Ctrl"/>
+  <translation tag="Currency" en="Currency"/>
   <translation tag="Current / Target" en="Current / Target"/>
   <translation tag="Current Configuration" en="Current Configuration"/>
   <translation tag="Current Mesh" en="Current Mesh"/>
@@ -1237,6 +1242,8 @@
   <translation tag="Eject failed" en="Eject failed"/>
   <translation tag="Eject needs [force_move] enabled in printer config" en="Eject needs [force_move] enabled in printer config"/>
   <translation tag="Ejecting" en="Ejecting"/>
+  <translation tag="Electricity" en="Electricity"/>
+  <translation tag="Electricity is added only when both are set" en="Electricity is added only when both are set"/>
   <translation tag="Electronics fans" en="Electronics fans"/>
   <translation tag="Elegoo Centauri Carbon" en="Elegoo Centauri Carbon"/>
   <translation tag="Element" en="Element"/>
@@ -1601,6 +1608,8 @@
   <translation tag="Filament not set" en="Filament not set"/>
   <translation tag="Filament operation failed" en="Filament operation failed"/>
   <translation tag="Filament operation timed out" en="Filament operation timed out"/>
+  <translation tag="Filament price per kg" en="Filament price per kg"/>
+  <translation tag="Filament prices and electricity" en="Filament prices and electricity"/>
   <translation tag="Filament ran out" en="Filament ran out"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." en="Filament ran out - nothing at the toolhead and the print is paused."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." en="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume."/>
@@ -2786,6 +2795,7 @@
   <translation tag="PA" en="PA"/>
   <translation tag="PA Calibration" en="PA Calibration"/>
   <translation tag="PAUSED" en="PAUSED"/>
+  <translation tag="PC" en="PC"/>
   <translation tag="PETG" en="PETG"/>
   <translation tag="PID" en="PID"/>
   <translation tag="PIN must be 4-6 digits" en="PIN must be 4-6 digits"/>
@@ -2965,6 +2975,7 @@
   <translation tag="Previous" en="Previous"/>
   <translation tag="Previous IPv4 settings restored" en="Previous IPv4 settings restored"/>
   <translation tag="Price" en="Price"/>
+  <translation tag="Price per kWh" en="Price per kWh"/>
   <translation tag="Price, location, lot, notes" en="Price, location, lot, notes"/>
   <translation tag="Price: {}" en="Price: {}"/>
   <translation tag="Primary" en="Primary"/>
@@ -2977,6 +2988,7 @@
   <translation tag="Print Complete!" en="Print Complete!"/>
   <translation tag="Print Completion Alert" en="Print Completion Alert"/>
   <translation tag="Print Controls" en="Print Controls"/>
+  <translation tag="Print Cost" en="Print Cost"/>
   <translation tag="Print Details" en="Print Details"/>
   <translation tag="Print Failed" en="Print Failed"/>
   <translation tag="Print File" en="Print File"/>
@@ -3072,6 +3084,7 @@
   <translation tag="Printer name" en="Printer name"/>
   <translation tag="Printer not connected" en="Printer not connected"/>
   <translation tag="Printer not ready" en="Printer not ready"/>
+  <translation tag="Printer power" en="Printer power"/>
   <translation tag="Printer ready" en="Printer ready"/>
   <translation tag="Printer status unknown" en="Printer status unknown"/>
   <translation tag="Printer type mismatch" en="Printer type mismatch"/>
@@ -3790,6 +3803,7 @@
   <translation tag="Spoolman support is off in Happy Hare" en="Spoolman support is off in Happy Hare"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" en="Spoolman unavailable — filament weights may be stale"/>
   <translation tag="Spoolman was not configured." en="Spoolman was not configured."/>
+  <translation tag="Spoolman&apos;s currency is used when it is connected" en="Spoolman&apos;s currency is used when it is connected"/>
   <translation tag="Spoolman: %zu Spool" en="Spoolman: %zu Spool"/>
   <translation tag="Spoolman: %zu Spools" en="Spoolman: %zu Spools"/>
   <translation tag="Spoolman: %zu/%zu Spool" en="Spoolman: %zu/%zu Spool"/>

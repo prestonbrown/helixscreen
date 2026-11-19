@@ -6,6 +6,8 @@
 #include "ams_types.h"
 #include "lane_observation.h"
 
+#include <cctype>
+#include <cstdio>
 #include <string>
 
 // NAMESPACE_OK: defines the file-scope declaration in spoolman_types.h
@@ -45,3 +47,54 @@ void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
         info.color_name.clear();
     }
 }
+
+namespace helix {
+
+// Here rather than beside the Spoolman client: the print cost formats
+// amounts with it on builds that carry no Spoolman.
+std::string format_price_with_currency(double price, const std::string& currency,
+                                       bool zero_is_amount) {
+    if (zero_is_amount && price == 0.0) {
+        price = 0.0; // a negative zero would print "-0.00"
+    } else if (!(price > 0)) {
+        return {};
+    }
+
+    struct CurrencyStyle {
+        const char* code;
+        const char* symbol;
+        int decimals;
+    };
+    // Only symbols the text fonts carry: ASCII, Latin-1 (pound, yen) and the euro sign.
+    static constexpr CurrencyStyle kStyles[] = {
+        {"USD", "$", 2},        {"EUR", "\xE2\x82\xAC", 2}, {"GBP", "\xC2\xA3", 2},
+        {"JPY", "\xC2\xA5", 0}, {"KRW", nullptr, 0},
+    };
+
+    std::string code;
+    for (char c : currency) {
+        code += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+    }
+
+    const CurrencyStyle* style = nullptr;
+    for (const auto& s : kStyles) {
+        if (code == s.code) {
+            style = &s;
+            break;
+        }
+    }
+
+    const int decimals = style ? style->decimals : 2;
+    char amount[32];
+    snprintf(amount, sizeof(amount), "%.*f", decimals, price);
+
+    if (style && style->symbol) {
+        return std::string(style->symbol) + amount;
+    }
+    if (code.empty()) {
+        return amount;
+    }
+    return std::string(amount) + " " + code;
+}
+
+} // namespace helix

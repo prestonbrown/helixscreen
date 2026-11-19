@@ -211,6 +211,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: '读取腔体内空气温度的传感器。在腔体温度界面查看。'
   A shell on the machine running this screen: '运行此屏幕的机器上的 Shell'
   A spool may be tangled or the drive gear is jammed: 料盘可能缠绕，或驱动齿轮卡住
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Spoolman 中的料盘有自己的价格时使用该价格。其他料盘使用这些价格。"
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: '工具头偏移校准正在进行，可能来自另一个屏幕。现在结束吗?'
@@ -243,6 +244,7 @@ translations:
   API Key (if Moonraker requires a login): 'API 密钥（如果 Moonraker 要求登录）'
   API not available: API 不可用
   APPEARANCE: 外观
+  ASA: "ASA"
   AUTO FANS: 自动风扇
   AUTO STATE: 自动状态
   AUTOMATION: 自动化
@@ -356,6 +358,7 @@ translations:
   Anonymous usage statistics: 匿名使用统计
   Another filament operation is heating the nozzle.: "其他耗材操作正在加热喷嘴。"
   Any notes...: 备注...
+  Any other material: "其他所有材料"
   App Background: 应用背景
   App startup encountered an error. Some features may be unavailable.: 应用程序启动时遇到错误。某些功能可能不可用。
   Appearance: 外观
@@ -419,6 +422,7 @@ translations:
   Available Networks: 可用网络
   Available networks: 可用网络
   Average: 平均值
+  Average draw while printing, in watts: "打印时的平均功耗（瓦）"
   Axis Rows: '按轴分行'
   Axis limits unknown: 轴限位未知
   BACK: 后侧
@@ -1093,6 +1097,7 @@ translations:
   Creating spool...: 正在创建料盘…
   'Critical hardware missing: {}': '缺少关键硬件: {}'
   Ctrl: 'Ctrl'
+  Currency: "货币"
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格
@@ -1299,6 +1304,8 @@ translations:
   Eject failed: 弹出失败
   Eject needs [force_move] enabled in printer config: 弹出需要在打印机配置中启用 [force_move]
   Ejecting: 弹出中
+  Electricity: "电费"
+  Electricity is added only when both are set: "仅在两项都设置时才计入电费"
   Electronics fans: "电控风扇"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: 加热元件
@@ -1668,6 +1675,8 @@ translations:
   Filament not set: '未设置耗材'
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
+  Filament price per kg: "耗材每公斤价格"
+  Filament prices and electricity: "耗材价格和电费"
   Filament ran out: 耗材已用尽
   Filament ran out - nothing at the toolhead and the print is paused.: '耗材已用尽 - 工具头处没有耗材，打印已暂停。'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -2872,6 +2881,7 @@ translations:
   PA: PA
   PA Calibration: 'PA 校准'
   PAUSED: 已暂停
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: PIN 码必须为 4-6 位数字
@@ -3066,6 +3076,7 @@ translations:
   Print Complete!: 打印完成！
   Print Completion Alert: 打印完成提醒
   Print Controls: '打印控制'
+  Print Cost: "打印成本"
   Print Details: 打印详情
   Print Failed: 打印失败
   Print File: 打印文件
@@ -3157,6 +3168,7 @@ translations:
   Printer name: 打印机名称
   Printer not connected: 打印机未连接
   Printer not ready: 打印机未就绪
+  Printer power: "打印机功率"
   Printer ready: 打印机就绪
   Printer status unknown: '打印机状态未知'
   Printer type mismatch: 打印机类型不匹配
@@ -3884,6 +3896,7 @@ translations:
   Spoolman support is off in Happy Hare: "Happy Hare 中的 Spoolman 支持已关闭"
   Spoolman unavailable — filament weights may be stale: Spoolman不可用 — 耗材重量可能已过期
   Spoolman was not configured.: Spoolman 未配置。
+  Spoolman's currency is used when it is connected: "连接 Spoolman 时使用其货币"
   'Spoolman: %zu Spool': 'Spoolman: %zu 个线轴'
   'Spoolman: %zu Spools': 'Spoolman: %zu 个线轴'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu 个线轴'
@@ -5165,6 +5178,7 @@ translations:
   'Recycled': '再生'
   'Add to Spoolman + label': '添加到 Spoolman + 标签'
   'More': '更多'
+  Price per kWh: "每千瓦时价格"
   'Price, location, lot, notes': '价格、位置、批次、备注'
   'Product': '产品'
   'Remaining weight': '剩余重量'

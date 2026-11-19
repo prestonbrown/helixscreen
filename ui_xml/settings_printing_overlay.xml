@@ -50,6 +50,9 @@
         <setting_action_row name="row_material_temps"
                             label="Material Temperatures" icon="thermometer" description="Customize preset temperatures"
                             callback="on_material_temps_clicked"/>
+        <setting_action_row name="row_print_cost"
+                            label="Print Cost" icon="cash" description="Filament prices and electricity"
+                            callback="on_print_cost_clicked"/>
         <setting_toggle_row name="row_allow_cold_extrude"
                             label="Allow cold load/unload" icon="cooldown"
                             description="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)"
