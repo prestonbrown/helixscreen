@@ -49,7 +49,7 @@ endif
 # Git reads drivers only from config, so each clone sets it once.
 define HELIX_GIT_MERGE_DRIVER
 if [ "$$(git config merge.helix-generated.driver 2>/dev/null)" != true ]; then \
-	git config merge.helix-generated.name "keep this side; the merge hooks regenerate it" && \
+	git config merge.helix-generated.name "keep this side; qc_translation_packs_fresh flags stale packs" && \
 	git config merge.helix-generated.driver true; \
 fi
 endef
