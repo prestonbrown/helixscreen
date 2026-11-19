@@ -132,14 +132,17 @@ esp32_covered_by_gate() {
     git merge-base --is-ancestor "$fork" "$BASE" 2>/dev/null &&
         git merge-base --is-ancestor "$BASE" "$TARGET" 2>/dev/null
 }
-if [ -n "$GATE_PASSED" ] && esp32_covered_by_gate; then
-    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and the ESP32 check its esp32 row covered (HELIX_PREPUSH_FULL=1 runs them)"
-    prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || exit 1
-    exit 0
-fi
+# A push the gate's esp32 row covered needs nothing from the pushed commit's
+# own checkout, so it takes the in-place path below whatever the tree holds.
+ESP32_COVERED=""
+if [ -n "$GATE_PASSED" ] && esp32_covered_by_gate; then ESP32_COVERED=1; fi
 
 gate_passed_note() {
-    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
+    if [ -n "$ESP32_COVERED" ]; then
+        echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and the ESP32 check its esp32 row covered (HELIX_PREPUSH_FULL=1 runs them)"
+    else
+        echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
+    fi
 }
 
 # Code that compiles on the host can still fail on the ESP32 image: int32_t is
@@ -156,7 +159,7 @@ esp32_syntax_check() {
 
 TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . | head -1)"
 
-if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
+if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ] || [ -n "$ESP32_COVERED" ]; then
     STATUS=0
     if [ -n "$GATE_PASSED" ]; then
         gate_passed_note
@@ -167,7 +170,7 @@ if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
         env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
     fi
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
-    esp32_syntax_check "$REPO_ROOT" || STATUS=1
+    [ -n "$ESP32_COVERED" ] || esp32_syntax_check "$REPO_ROOT" || STATUS=1
     exit "$STATUS"
 fi
 
