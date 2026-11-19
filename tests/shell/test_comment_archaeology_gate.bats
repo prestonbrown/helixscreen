@@ -108,7 +108,7 @@ run_gate() {
     [ "$status" -eq 1 ]
 }
 
-@test "removing a citation is an improvement at commit and a baseline to lower at a push" {
+@test "removing a citation is an improvement by default and a baseline to lower under HELIX_RATCHET_STRICT=1" {
     # A shallow clone (CI's checkout) skips the under-baseline verdict, so the gate
     # runs from a full repository of its own here.
     unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX
@@ -125,7 +125,7 @@ run_gate() {
     contains "improved" "$output"
     HELIX_RATCHET_STRICT=1 run python3 "$full/scripts/check_comment_archaeology.py" \
         --repo-root "$ROOT" --baseline "$ROOT/base.txt"
-    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    [ "$status" -eq 1 ] || fail "under the baseline passed under HELIX_RATCHET_STRICT=1: $output"
     contains "src/clean.cpp: 1 -> 0" "$output"
 }
 

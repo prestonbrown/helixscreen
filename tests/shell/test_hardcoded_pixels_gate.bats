@@ -266,7 +266,7 @@ run_gate() {
     [[ "$output" == *'== baseline'* ]]
 }
 
-@test "--max-allowed above the count asks for a lower baseline at commit and fails at a push" {
+@test "--max-allowed above the count asks for a lower baseline by default and fails under HELIX_RATCHET_STRICT=1" {
     printf '%s\n' '<component><view>
   <lv_obj style_pad_all="12"/>
 </view></component>' > "$FIXTURE_DIR/below.xml"
@@ -274,17 +274,17 @@ run_gate() {
     [ "$status" -eq 0 ]
     contains 'ratchet the baseline down' "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
-    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    [ "$status" -eq 1 ] || fail "under the baseline passed under HELIX_RATCHET_STRICT=1: $output"
     contains "scripts/qc/design_pixels.sh" "$output"
     contains "--max-allowed: 5 -> 1" "$output"
 }
 
-@test "--max-allowed below the count fails: the ratchet only turns one way" {
+@test "--max-allowed below the count warns with the ratchet exit: the ratchet only turns one way" {
     printf '%s\n' '<component><view>
   <lv_obj style_pad_all="12" style_pad_top="8" style_pad_left="4"/>
 </view></component>' > "$FIXTURE_DIR/over.xml"
     run python3 "$GATE" --max-allowed 2 "$FIXTURE_DIR/over.xml"
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     [[ "$output" == *'exceeds baseline'* ]]
 }
 
@@ -295,14 +295,14 @@ tree_count() {
     python3 "$GATE" --summary 2>/dev/null | awk '/^  TOTAL/ { print $2 }'
 }
 
-@test "the gate goes red when one more hardcoded pixel is added to the tree" {
+@test "the gate warns when one more hardcoded pixel is added to the tree" {
     # The proof that the ratchet works on the REAL tree, not just a fixture:
-    # one below the current count must fail. Derived, not hardcoded, so a
+    # one below the current count must warn. Derived, not hardcoded, so a
     # legitimate conversion cannot silently turn this into a no-op.
     count=$(tree_count)
     [ -n "$count" ] && [ "$count" -gt 0 ]
     run python3 "$GATE" --max-allowed "$(( count - 1 ))" --summary
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     [[ "$output" == *'exceeds baseline'* ]]
 }
 

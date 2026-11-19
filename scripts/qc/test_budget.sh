@@ -10,24 +10,20 @@
 # Test budget: a branch does not grow the C++ test suite
 # ====================================================================
 qc_test_budget() {
-  local EXIT_CODE=0 out="$QC_TMP/test_budget.out"
+  local out="$QC_TMP/test_budget.out" rc=0 args=(--base auto)
   SECTION_START=$(date +%s)
   echo -n "🧮 Checking the branch's test budget..."
-  # Branch-level by construction: a single commit may add a test that a later
-  # commit on the same branch pays for, so this measures the fork point to
-  # HEAD and runs at pre-push and land-gate only.
-  if python3 scripts/check_test_budget.py --base auto >"$out" 2>&1; then
-    section_time "$SECTION_START"
-    echo ""
-    tail -1 "$out"
-  else
-    section_time "$SECTION_START"
-    echo ""
-    cat "$out"
-    EXIT_CODE=1
-  fi
+  # Branch-level by construction: a commit may add a test that a later commit
+  # on the same branch pays for, so this measures from the fork point. A commit
+  # measures to the index, so the commit being made counts. Growth is a
+  # bookkeeping warning and never fails the run.
+  [ "$STAGED_ONLY" != true ] || args+=(--staged)
+  python3 scripts/check_test_budget.py "${args[@]}" >"$out" 2>&1 || rc=$?
+  section_time "$SECTION_START"
   echo ""
-  return $EXIT_CODE
+  qc_ratchet_verdict "$rc" "$out" || { echo ""; return 1; }
+  echo ""
+  return 0
 }
 
 QC_TRIGGER_qc_test_budget='^(tests|src|include)/.*\.(cpp|h)$|^scripts/check_test_budget\.py$'

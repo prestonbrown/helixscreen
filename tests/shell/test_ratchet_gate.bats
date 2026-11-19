@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Meta-tests for scripts/ratchet.py, the under-baseline verdict every count ratchet
-# shares, and for the stage decision in scripts/qc/_lib.sh that makes it strict. A count
-# under its baseline passes a commit and fails the stages a push to main runs, naming the
-# baseline to lower and the value to lower it to. Each ratchet's own bats file pins that
-# the ratchet routes its under path here.
+# shares, and for qc_ratchet_verdict in scripts/qc/_lib.sh, which passes a checker's
+# ratchet warnings. A count under its baseline passes at every stage and fails only when
+# HELIX_RATCHET_STRICT=1 asks, naming the baseline to lower and the value to lower it to.
+# Each ratchet's own bats file pins that the ratchet routes its under path here.
 
 setup() {
     load helpers
@@ -41,28 +41,32 @@ setup() {
     [ "$output" = "lenient" ]
 }
 
-@test "strict at a full sweep only: a commit and a work-branch push stay lenient" {
-    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_strictness true 0'
-    [ "$output" = 0 ] || fail "a commit was strict"
-    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_strictness false 1'
-    [ "$output" = 0 ] || fail "a work-branch push was strict"
-    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_strictness false 0'
-    [ "$output" = 1 ] || fail "a full sweep (main push, land gate, CI) was lenient"
+@test "quality-checks.sh leaves the under-baseline verdict lenient at every stage" {
+    run bash -c 'HELIX_RATCHET_STRICT=; . scripts/qc/_lib.sh; echo "${HELIX_RATCHET_STRICT:-unset}"'
+    [ "$output" = unset ]
+    run grep -c 'HELIX_RATCHET_STRICT=' scripts/quality-checks.sh
+    [ "$output" = 0 ] || fail "quality-checks.sh sets HELIX_RATCHET_STRICT again"
 }
 
-@test "quality-checks.sh exports the strictness it derives from its own mode" {
-    run grep -F 'HELIX_RATCHET_STRICT="$(qc_ratchet_strictness "$STAGED_ONLY" "${HELIX_QC_SKIP_PUSH_ONLY:-0}")"' \
-        scripts/quality-checks.sh
-    [ "$status" -eq 0 ] || fail "quality-checks.sh no longer derives HELIX_RATCHET_STRICT"
-    run grep -Fx 'export HELIX_RATCHET_STRICT' scripts/quality-checks.sh
+@test "qc_ratchet_verdict passes a ratchet warning with its output and fails anything else" {
+    out="$BATS_TEST_TMPDIR/out"
+    printf 'first\n⚠️  grew\n' > "$out"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 3 "$1"' _ "$out"
     [ "$status" -eq 0 ]
+    contains "⚠️  grew" "$output"
+    contains "blocks nothing" "$output"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 0 "$1"' _ "$out"
+    [ "$status" -eq 0 ]
+    [ "$output" = "⚠️  grew" ]
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 1 "$1"' _ "$out"
+    [ "$status" -eq 1 ]
+    contains "first" "$output"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 2 "$1"' _ "$out"
+    [ "$status" -eq 1 ]
 }
 
-@test "the hardcoded-colour baseline is the tree's count" {
-    run bash -c 'HEX_ALLOW=$(sed -n "s/^HEX_ALLOW=\x27\(.*\)\x27$/\1/p" scripts/qc/design_tokens.sh)
-        grep -rn "lv_color_hex(0x" src include | grep -vcE "$HEX_ALLOW"'
-    count="$output"
-    baseline=$(sed -n 's/^HEX_BASELINE=\([0-9]*\)$/\1/p' scripts/qc/design_tokens.sh)
-    [ -n "$baseline" ] || fail "no HEX_BASELINE in scripts/qc/design_tokens.sh"
-    [ "$count" -eq "$baseline" ] || fail "HEX_BASELINE $baseline, tree count $count"
+@test "ratchet.WARN_EXIT and the shell's QC_RATCHET_WARN_EXIT agree" {
+    py=$(python3 -c 'import sys; sys.path.insert(0, "scripts"); import ratchet; print(ratchet.WARN_EXIT)')
+    sh=$(bash -c '. scripts/qc/_lib.sh; echo "$QC_RATCHET_WARN_EXIT"')
+    [ "$py" = "$sh" ]
 }

@@ -216,12 +216,12 @@ run_gate() {
     [[ "$output" == *"❌"* ]]
 }
 
-@test "the real tree under a raised baseline passes at commit and fails at a push" {
+@test "the real tree under a raised baseline passes by default and fails under HELIX_RATCHET_STRICT=1" {
     run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
-    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    [ "$status" -eq 0 ] || fail "under the baseline failed by default: $output"
     contains "ratchet the baseline down" "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
-    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    [ "$status" -eq 1 ] || fail "under the baseline passed under HELIX_RATCHET_STRICT=1: $output"
     contains "--max-allowed: $((BASELINE + 1)) -> $BASELINE" "$output"
 }
 

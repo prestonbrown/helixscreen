@@ -20,12 +20,18 @@ branch pays for the tests it adds:
   friend         net `friend` declarations in src/ and include/. No budget.
 
 Measured from the branch's fork point (scripts/diff_base.py) to HEAD over
-committed work only, so there is no baseline file for parallel branches to
-conflict on: every landing can only hold the totals or lower them.
+committed work, so there is no baseline file for parallel branches to conflict
+on. --staged measures to the index instead, so the commit hook sees the commit
+being made as part of the branch.
+
+All three are bookkeeping: growth prints warnings and exits ratchet.WARN_EXIT
+(3), and blocks nothing (prestonbrown/helixscreen#2004). scripts/ratchet_report.py
+tracks the totals weekly.
 
 Usage:
   check_test_budget.py --base auto     # the fork point diff_base.py picks
   check_test_budget.py --base REV      # REV...HEAD
+  check_test_budget.py --base auto --staged   # the fork point to the index
 """
 
 from __future__ import annotations
@@ -35,6 +41,9 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ratchet  # noqa: E402
 
 TEST_SOURCES = (":(glob)tests/**/*.cpp", ":(glob)tests/**/*.h")
 ACCESS_SOURCES = TEST_SOURCES + (":(glob)src/**/*.cpp", ":(glob)src/**/*.h",
@@ -51,21 +60,28 @@ def git(root: Path, *args: str) -> str:
                           capture_output=True, text=True).stdout
 
 
-def net_lines(root: Path, base: str) -> int:
+def span(base: str, staged: bool) -> list[str]:
+    """The diff the budget measures: the branch's commits, or with `staged` the fork
+    point (a merge-base) against the index."""
+    return ["--cached", base] if staged else [f"{base}...HEAD"]
+
+
+def net_lines(root: Path, base: str, staged: bool = False) -> int:
     net = 0
     for row in git(root, "diff", "--numstat", "--no-ext-diff", "--no-renames",
-                   f"{base}...HEAD", "--", *TEST_SOURCES).splitlines():
+                   *span(base, staged), "--", *TEST_SOURCES).splitlines():
         added, deleted, _ = row.split("\t", 2)
         if added != "-":
             net += int(added) - int(deleted)
     return net
 
 
-def net_matches(root: Path, base: str, pattern: re.Pattern, paths) -> int:
+def net_matches(root: Path, base: str, pattern: re.Pattern, paths,
+                staged: bool = False) -> int:
     """Matches on added lines minus matches on removed lines."""
     net = 0
     for line in git(root, "diff", "-U0", "--no-ext-diff", "--no-renames",
-                    f"{base}...HEAD", "--", *paths).splitlines():
+                    *span(base, staged), "--", *paths).splitlines():
         if line.startswith(("+++", "---")):
             continue
         if line.startswith("+"):
@@ -84,6 +100,8 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--base", required=True, help="REV, or 'auto' for diff_base.py's fork point")
     ap.add_argument("--root", default=".")
+    ap.add_argument("--staged", action="store_true",
+                    help="measure the fork point to the index, the commit being made included")
     args = ap.parse_args(argv)
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").strip())
 
@@ -92,19 +110,22 @@ def main(argv=None) -> int:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from diff_base import resolve_base  # noqa: E402
         base, why = resolve_base(root)
-        if base == "HEAD":
+        if base == "HEAD" and not args.staged:
             print(f"❌ Test budget: no fork point to measure from ({why}). A shallow or "
                   f"single-branch checkout has no upstream; fetch one, or pass --base REV")
             return 1
-    if base == "HEAD" or git(root, "rev-parse", base) == git(root, "rev-parse", "HEAD"):
+    scope = f"{base[:12]}...HEAD"
+    if args.staged:
+        base = git(root, "merge-base", base, "HEAD").strip()
+        scope = f"{base[:12]}...index"
+    elif base == "HEAD" or git(root, "rev-parse", base) == git(root, "rev-parse", "HEAD"):
         print("✅ Test budget: no committed work to measure")
         return 0
 
-    lines = net_lines(root, base)
+    lines = net_lines(root, base, args.staged)
     budget = granted_budget(root, base)
-    access = net_matches(root, base, TEST_ACCESS_RE, ACCESS_SOURCES)
-    friends = net_matches(root, base, FRIEND_RE, FRIEND_SOURCES)
-    scope = f"{base[:12]}...HEAD"
+    access = net_matches(root, base, TEST_ACCESS_RE, ACCESS_SOURCES, args.staged)
+    friends = net_matches(root, base, FRIEND_RE, FRIEND_SOURCES, args.staged)
 
     failures = []
     if lines > budget:
@@ -120,9 +141,10 @@ def main(argv=None) -> int:
                         f"interface instead of befriending the class")
     if failures:
         for f in failures:
-            print(f"❌ {f}")
-        print(f"   Measured {scope}. Policy: tests/CLAUDE.md § \"A test earns its place\".")
-        return 1
+            print(f"⚠️  {f}")
+        print(f"   Measured {scope}. Policy: tests/CLAUDE.md § \"A test earns its place\". "
+              f"A warning: the budget blocks nothing.")
+        return ratchet.WARN_EXIT
     print(f"✅ Test budget ({scope}): test lines {lines:+d} (budget {budget}), "
           f"TestAccess {access:+d}, friend {friends:+d}")
     return 0

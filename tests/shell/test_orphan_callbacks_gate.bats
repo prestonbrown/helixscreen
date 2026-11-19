@@ -83,14 +83,55 @@ CPP
     contains "unregistered:on_other" "$output"
 }
 
-@test "an accepted finding that went away passes at commit and fails at a push" {
+@test "a new unreferenced name only warns; a new unregistered one beside it still fails" {
+    : > "$ROOT/baseline.txt"
+    cat > "$ROOT/src/demo.cpp" <<'CPP'
+void reg() { lv_xml_register_event_cb(nullptr, "on_dead", on_dead); }
+CPP
+    run python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 3 ] || fail "a dead registration did not warn: $status $output"
+    contains "⚠️  Orphan callbacks: 1 registered name(s) no XML uses" "$output"
+    contains "unreferenced:on_dead" "$output"
+    echo '<component><view><x callback="on_ghost"/></view></component>' > "$ROOT/ui_xml/demo.xml"
+    run python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
+    [ "$status" -eq 1 ]
+    contains "❌ Orphan callbacks: 1 not in" "$output"
+    contains "unregistered:on_ghost" "$output"
+    contains "unreferenced:on_dead" "$output"
+}
+
+qc_orphans() { # <staged-only>
+    run bash -c '
+        STAGED_ONLY=$3; QC_TMP="$(mktemp -d)"; QC_COUNTS="$QC_TMP/counts"
+        . "$1/scripts/qc/_lib.sh"
+        . "$1/scripts/qc/orphan_callbacks.sh"
+        cd "$2" && mkdir -p scripts && ln -sf "$1/scripts/check_orphan_callbacks.py" \
+            "$1/scripts/check_required_names.py" "$1/scripts/source_strip.py" "$1/scripts/ratchet.py" scripts/
+        qc_orphan_callbacks' _ "$BATS_TEST_DIRNAME/../.." "$ROOT" "$1"
+}
+
+@test "the qc wrapper at commit reads the index, so unstaged XML cannot fail it" {
+    git -C "$ROOT" init -q
+    mkdir -p "$ROOT/scripts"
+    : > "$ROOT/scripts/orphan_callback_baseline.txt"
+    echo '<component><view><x callback="on_live"/></view></component>' > "$ROOT/ui_xml/demo.xml"
+    echo 'void reg() { register_xml_callbacks({{"on_live", on_live}}); }' > "$ROOT/src/demo.cpp"
+    git -C "$ROOT" add ui_xml src scripts/orphan_callback_baseline.txt
+    echo '<component><view><x callback="on_ghost"/></view></component>' > "$ROOT/ui_xml/wip.xml"
+    qc_orphans true
+    [ "$status" -eq 0 ] || fail "unstaged WIP failed the commit: $output"
+    qc_orphans false
+    [ "$status" -eq 1 ]
+    contains "unregistered:on_ghost" "$output"
+}
+@test "an accepted finding that went away passes by default and fails under HELIX_RATCHET_STRICT=1" {
     echo '<component><view><x callback="on_ghost"/></view></component>' > "$ROOT/ui_xml/demo.xml"
     printf 'unregistered:on_ghost\nunregistered:on_fixed\n' > "$ROOT/baseline.txt"
     run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
-    [ "$status" -eq 0 ] || fail "a fixed finding failed at commit: $output"
+    [ "$status" -eq 0 ] || fail "a fixed finding failed by default: $output"
     contains "hold the gain" "$output"
     run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --repo-root "$ROOT" --baseline "$ROOT/baseline.txt"
-    [ "$status" -eq 1 ] || fail "a fixed finding passed at a push: $output"
+    [ "$status" -eq 1 ] || fail "a fixed finding passed under HELIX_RATCHET_STRICT=1: $output"
     contains "unregistered:on_fixed: no longer a finding" "$output"
 }
 

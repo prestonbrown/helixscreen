@@ -25,8 +25,11 @@ attributes, and the value half of a C++ "..._callback", "name" attribute pair
 handed to lv_xml_create/modal_show. A value forwarded from a component
 parameter ($name) is the caller's business and is skipped.
 
-This is a RATCHET keyed on names: --baseline lists today's accepted debt, the
-gate fails on anything not listed, and says when an entry can be dropped.
+This is a RATCHET keyed on names: --baseline lists today's accepted debt and
+says when an entry can be dropped. A new unregistered or duplicate name fails:
+each is a widget that misbehaves. A new unreferenced name is bookkeeping, dead
+code that harms nothing at runtime, so it warns and exits ratchet.WARN_EXIT (3)
+when it is the only finding (prestonbrown/helixscreen#2004).
 
 Usage:
   check_orphan_callbacks.py                    # counts
@@ -168,21 +171,33 @@ def main() -> int:
         return 0
 
     accepted = read_baseline(args.baseline)
+    where = ratchet.shown(args.baseline, args.repo_root)
     new = sorted(set(found) - accepted)
-    if new:
-        print(f"❌ Orphan callbacks: {len(new)} not in {args.baseline}:")
-        for k in new:
+    broken = [k for k in new if not k.startswith("unreferenced:")]
+    dead = [k for k in new if k.startswith("unreferenced:")]
+    if broken:
+        print(f"❌ Orphan callbacks: {len(broken)} not in {where}:")
+        for k in broken:
             print(f"     {k}  ({found[k]})")
+    if dead:
+        print(f"⚠️  Orphan callbacks: {len(dead)} registered name(s) no XML uses, not in "
+              f"{where}. Dead code, so a warning: delete the registration, or add "
+              f"it with --write-baseline.")
+        for k in dead:
+            print(f"     {k}  ({found[k]})")
+    if broken:
         return 1
+    if dead:
+        return ratchet.WARN_EXIT
     gone = sorted(accepted - set(found))
     if gone:
         return ratchet.under_baseline(
-            "Orphan callbacks", f"{args.baseline} (re-run with --write-baseline)",
+            "Orphan callbacks", f"{where} (re-run with --write-baseline)",
             [f"{k}: no longer a finding" for k in gone],
             f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
-            f"{args.baseline}; re-run with --write-baseline to hold the gain "
+            f"{where}; re-run with --write-baseline to hold the gain "
             f"({', '.join(gone)}).")
-    print(f"✅ Orphan callbacks: {len(found)} findings, all accepted debt in {args.baseline}")
+    print(f"✅ Orphan callbacks: {len(found)} findings, all accepted debt in {where}")
     return 0
 
 

@@ -79,11 +79,11 @@ tests/shell/test_generate_whatsnew.bats	CHANGELOG.md VERSION.txt android/whatsne
 tests/shell/test_gpu_lib_callers_gate.bats	scripts/check_gpu_lib_callers.py
 tests/shell/test_gpu_libs_hidden_smoke.bats	.github/workflows/release.yml scripts/ci/gpu_libs_hidden_smoke.sh
 tests/shell/test_grid_metrics_gate.bats	scripts/check_source_rules.py scripts/source_strip.py src/ui/home/grid_edit_mode.cpp
-tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh scripts/source_strip.py ui_xml/globals.xml
+tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvgl scripts/check_growth_ratchets.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/growth_ratchets.sh scripts/ratchet.py scripts/source_strip.py ui_xml/globals.xml
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/qc/layering.sh
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/ratchet.py scripts/staged_content.py src/ui/components/ui_swatch.cpp ui_xml/components/color_swatch.xml
 tests/shell/test_lvgl_subject_api_gate.bats	scripts/check_lvgl_subject_api.py scripts/qc/lvgl_subject_api.sh scripts/source_strip.py scripts/staged_content.py
-tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/notify/ui_fatal_error.cpp ui_xml/globals.xml
+tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/qc/_lib.sh scripts/qc/design_pixels.sh scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/notify/ui_fatal_error.cpp ui_xml/globals.xml
 tests/shell/test_helix_claim_date.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_helix_claim_jobs.bats	Makefile mk/rules.mk mk/tests.mk scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/qc/_lib.sh
 tests/shell/test_helix_claim_liveness.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
@@ -126,7 +126,7 @@ tests/shell/test_no_echo_ansi.bats	scripts/install-dev.sh scripts/lib/installer/
 tests/shell/test_no_mocks_gate.bats	Makefile scripts/check_no_mocks.py scripts/compile_command.py scripts/diff_base.py scripts/esp32_syntax_check.py scripts/merge_compile_commands.py scripts/mock_symbol_pattern.txt
 tests/shell/test_old_toolchain_gate.bats	.github/workflows/nightly.yml scripts/check_old_toolchain.py scripts/merge_compile_commands.py
 tests/shell/test_order_dependence_gate.bats	scripts/check_test_order_dependence.py
-tests/shell/test_orphan_callbacks_gate.bats	scripts/check_orphan_callbacks.py scripts/check_required_names.py scripts/ratchet.py scripts/source_strip.py
+tests/shell/test_orphan_callbacks_gate.bats	scripts/check_orphan_callbacks.py scripts/check_required_names.py scripts/qc/_lib.sh scripts/qc/orphan_callbacks.sh scripts/ratchet.py scripts/source_strip.py
 tests/shell/test_orphan_subjects_gate.bats	assets/config/default_layout.json scripts/check_orphan_subjects.py scripts/ratchet.py
 tests/shell/test_overlay_boilerplate_gate.bats	scripts/check_overlay_boilerplate.py scripts/check_required_names.py scripts/ratchet.py scripts/source_strip.py
 tests/shell/test_overlay_width_gate.bats	scripts/check_overlay_width.py scripts/staged_content.py
@@ -189,7 +189,7 @@ tests/shell/test_telemetry_pull_args.bats	scripts/telemetry-pull.sh tests/shell/
 tests/shell/test_telemetry_pull_download.bats	scripts/telemetry-pull.sh tests/shell/helpers.bash
 tests/shell/test_telemetry_update_printer_db.bats	scripts/telemetry-update-printer-db.py
 tests/shell/test_test_binary_current.bats	scripts/check_test_binary_current.sh scripts/qc/hidden_tests.sh src/system/helix_version.cpp src/ui/home/ui_panel_home.cpp
-tests/shell/test_test_budget_gate.bats	scripts/check_test_budget.py scripts/qc/_lib.sh scripts/qc/test_budget.sh ui_xml/globals.xml
+tests/shell/test_test_budget_gate.bats	scripts/check_test_budget.py scripts/qc/_lib.sh scripts/qc/test_budget.sh scripts/ratchet.py ui_xml/globals.xml
 tests/shell/test_test_host_run_lock.bats	scripts/diff_base.py scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/mutate_diff.py scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_run_mirror.bats	lib/lvgl scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/plugin-host-matrix.sh scripts/test-host-run.sh tests/shell/test_host_run_drop.bash
 tests/shell/test_test_host_setup.bats	scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/test-host-setup.sh

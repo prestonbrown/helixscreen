@@ -75,26 +75,6 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🔌 Checking XML event callbacks against their registrations..."
-# A ratchet keyed on names: an XML callback nothing registers, a registered name
-# no XML uses, and a name registered from two files (the table is
-# last-write-wins). scripts/orphan_callback_baseline.txt is accepted debt.
-if python3 scripts/check_orphan_callbacks.py --baseline scripts/orphan_callback_baseline.txt \
-    >/tmp/orphan_callbacks.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/orphan_callbacks.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/orphan_callbacks.out
-  echo "   Run: python3 scripts/check_orphan_callbacks.py --list"
-  EXIT_CODE=1
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
 echo -n "🔎 Checking find_required() names exist in every layout variant..."
 # find_required() aborts a --test run on a missing name, but only on paths the
 # run reaches; this covers every literal statically, in every variant chain.
