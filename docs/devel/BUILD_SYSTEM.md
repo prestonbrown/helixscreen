@@ -951,7 +951,20 @@ over half of the test units, which is where a core header most of them include l
 selector follows no callers, so a break a test reaches only through another class reds
 main instead: build.yml runs the whole C++ suite on every push to main, the backstop.
 
-The other steps go by path: `ui` and `no-mocks` run when an app input changed, `plugin`
+`ui` runs when an app input changed, and then only some `tests/ui` files (`make test-ui-ci
+UI_TESTS=<files>`): five smoke files always (boot, XML expressions, navigation, text,
+state), a changed file, a file one of whose `UI_TRIGGERS` paths changed (the components,
+sources and data behind its screens; a header counts as its same-stem sources), and a file
+naming a changed component. Every file runs for a change to the ui harness
+(`tests/ui/conftest.py`, `tests/ui/helix/`), `ui_xml/globals.xml`, the UI framework at the
+top of `src/ui/` and the theme, the app's startup, navigation and ctl server, a mock
+(`src/mock/`, any `*mock*` source or header), fonts, the build, a building block most
+components use (`icon`, `header_bar`, `ui_button`), or a pick of more than three quarters of
+the files. A new `tests/ui` file with screens of its own wants a `UI_TRIGGERS` row in
+`scripts/gate_select.py`; without one it runs only when it changes, when the change names its
+components, or under a valve. build.yml runs the whole slice on every push to main.
+
+The other steps go by path: `no-mocks` runs when an app input changed, `plugin`
 when `moonraker-plugin/` did, `python` whole for `scripts/` and the data it reads and only
 its C++-reading files for a change to `src/` or `include/`, `esp32` for firmware inputs.
 bats runs with `BATS_GATE=1` (`scripts/bats_select.py --gate`): a change confined to the

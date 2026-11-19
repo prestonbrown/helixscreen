@@ -165,7 +165,9 @@ shortest target name is the one people type, so it must not start a full run.
 
 `make land-gate` is the gate a batch landing runs on the combined result. It runs what the
 change can reach: the C++ cases whose dependency files reach a changed file, in CI's 8-shard
-layout, the bats, python, plugin and `tests/ui` steps whose inputs changed, and the quality
+layout, the bats, python and plugin steps whose inputs changed, the `tests/ui` files whose
+screens the change reaches (a new ui test with screens of its own adds a `UI_TRIGGERS` row
+in `scripts/gate_select.py`), and the quality
 sweep; a docs-only change runs the doc gates alone. It prints the plan before it starts,
 each skipped step's row says why, and `HELIX_GATE_FULL=1` runs everything (the release gate
 does). The whole suites run nightly and on every push to main, which catch what a selection
