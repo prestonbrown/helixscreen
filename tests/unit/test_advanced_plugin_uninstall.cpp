@@ -27,6 +27,7 @@
 #include "../test_helpers/advanced_panel_test_access.h"
 #include "../test_helpers/plugin_script_sandbox.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/slow_lane_settle.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -117,7 +118,8 @@ struct PluginUninstallFixture : LVGLUITestFixture {
         REQUIRE(button != nullptr);
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
         process_lvgl(50);
-        UpdateQueue::instance().drain();
+        // Install hands install.sh to the slow lane, so its outcome is waited for.
+        helix::test::settle_slow_lane();
     }
 
     /// The install row, then the modal's Install button, with a stub install.sh
