@@ -142,3 +142,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "A regional variant reads its own string, else
     const char* tag = "Color";
     CHECK(lv_translation_get(tag) == tag);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "A context key reads its own sense, and its text in English",
+                 "[translation][i18n]") {
+    ScopedLanguage restore_lang;
+
+    lv_translation_set_language(helix::ui::kIdentityLocale);
+    CHECK(std::string(helix::ui::tr_context("buffer|Neutral")) == "Neutral");
+
+    helix::ui::ensure_translation_loaded("zh");
+    lv_translation_set_language("zh");
+    CHECK(std::string(helix::ui::tr_context("buffer|Neutral")) == "中位");
+    CHECK(std::string(lv_tr("Neutral")) == "中性");
+    // A bar inside an ordinary string is not a context prefix.
+    CHECK(std::string(helix::ui::tr_context("ON: {} | OFF: {}")) == lv_tr("ON: {} | OFF: {}"));
+}

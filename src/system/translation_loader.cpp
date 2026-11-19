@@ -10,6 +10,7 @@
 #include <spdlog/spdlog.h>
 
 #include <array>
+#include <cstring>
 #include <lvgl.h>
 #include <set>
 #include <string>
@@ -194,6 +195,20 @@ bool is_translation_key(std::string_view text) {
         regex_search(stripped, measurement) || regex_search(stripped, numeric_placeholder))
         return false;
     return true;
+}
+
+const char* tr_context(const char* key) {
+    const char* translated = lv_tr(key);
+    // The context is lowercase letters and underscores up to the bar; English
+    // strings that use a bar ("ON: {} | OFF: {}") never start that way.
+    const char* p = key;
+    while ((*p >= 'a' && *p <= 'z') || *p == '_')
+        ++p;
+    if (p == key || *p != '|')
+        return translated;
+    if (translated == nullptr || *translated == '\0' || std::strcmp(translated, key) == 0)
+        return p + 1;
+    return translated;
 }
 
 } // namespace helix::ui

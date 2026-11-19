@@ -341,6 +341,16 @@ the existing tag instead of adding a near-duplicate key.
 `scripts/check_translation_identity.py` (wired into `quality-checks.sh`) fails
 the build if `en.yml` ever grows a non-identity entry.
 
+**One English word, two meanings.** A tag has one translation per language, so
+"Neutral" the buffer position and "Neutral" the LED white tone would share one.
+The sense that needs its own word takes a context key: a lowercase context, a bar,
+then the English text (`buffer|Neutral`). C++ looks it up with
+`helix::ui::tr_context("buffer|Neutral")` (`include/translation_loader.h`), which
+returns the text after the bar wherever no translation exists, English included.
+The key is still identity in `en.yml`, the extractor reads `tr_context()` literals,
+and Weblate shows the context in the source string; a translator writes only the
+word. XML has no context form, so a two-sense word in XML text keeps the plain tag.
+
 ## XML Usage
 
 ### Static Text: the literal is the tag

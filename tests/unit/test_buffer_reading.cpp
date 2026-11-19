@@ -9,7 +9,9 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/buffer_infos.h"
 #include "buffer_reading.h"
+#include "translation_loader.h"
 
+#include <lvgl.h>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -226,6 +228,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words", "[buffer][reading][tex
         info.units.push_back(unit);
         CHECK(std::string(buffer_label(buffer_reading(info, 0))) == "Buffer");
         CHECK(buffer_short_text(buffer_reading(info, 0)) == "Neutral");
+        // The middle position has its own word, apart from the LED white tone's "Neutral".
+        helix::ui::ensure_translation_loaded("zh");
+        lv_translation_set_language("zh");
+        CHECK(buffer_short_text(buffer_reading(info, 0)) == "中位");
+        lv_translation_set_language(helix::ui::kIdentityLocale);
         info.units[0].buffer_health->motion = BufferMotion::Compressed;
         CHECK(buffer_short_text(buffer_reading(info, 0)) == "Compressed");
         info.units[0].buffer_health->motion = BufferMotion::Expanded;

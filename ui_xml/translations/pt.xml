@@ -539,7 +539,7 @@
   <translation tag="Brush the gear teeth clean." pt="Escove os dentes da engrenagem."/>
   <translation tag="Brush the mounted tool&apos;s nozzle clean" pt="Limpar com a escova o bico da ferramenta montada"/>
   <translation tag="Buffer" pt="Buffer"/>
-  <translation tag="Buffer Status" pt="Estado do Buffer"/>
+  <translation tag="Buffer Status" pt="Estado do buffer"/>
   <translation tag="Buffer tube problem" pt="Problema no tubo do buffer"/>
   <translation tag="Buffer-driven gear speed control" pt="Velocidade da engrenagem controlada pelo buffer"/>
   <translation tag="Build Volume" pt="Volume de impressão"/>
@@ -1389,8 +1389,8 @@
   <translation tag="Exhaust fan speed" pt="Velocidade da ventoinha de exaustão"/>
   <translation tag="Exhaust: keep chamber at or below" pt="Exaustão: manter a câmara no máximo a"/>
   <translation tag="Exit Code" pt="Código de Saída"/>
-  <translation tag="Expanded" pt="Expandido"/>
-  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" pt="Expandido: o cabeçote puxa o filamento mais rápido do que ele chega"/>
+  <translation tag="Expanded" pt="Esticado"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" pt="Esticado: o cabeçote puxa o filamento mais rápido do que ele chega"/>
   <translation tag="Expected boolean" pt="Esperava-se um valor booleano"/>
   <translation tag="Expected float" pt="Esperava-se um número decimal"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." pt="Explore como a paleta selecionada molda texto, controles e cores de status."/>
@@ -4857,6 +4857,7 @@
   <translation tag="attempt {}" pt="tentativa {}"/>
   <translation tag="auto" pt="auto"/>
   <translation tag="bed" pt="mesa"/>
+  <translation tag="buffer|Neutral" pt="Centrado"/>
   <translation tag="busy" pt="ocupado"/>
   <translation tag="by" pt="por"/>
   <translation tag="by Preston Brown" pt="por Preston Brown"/>

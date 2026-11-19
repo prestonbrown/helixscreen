@@ -2568,7 +2568,7 @@
   <translation tag="Network name cannot be empty" ru="Имя сети не может быть пустым"/>
   <translation tag="Network, display, sound, printer setup, and more. You can replay this tour anytime from Help &amp; About." ru="Сеть, дисплей, звук, настройка принтера и многое другое. Этот тур можно повторить в любой момент из раздела «Справка и о программе»."/>
   <translation tag="Neutral" ru="Нейтральный"/>
-  <translation tag="Neutralize Tension" ru="Снять натяжение"/>
+  <translation tag="Neutralize Tension" ru="Выровнять натяжение"/>
   <translation tag="Never" ru="Никогда"/>
   <translation tag="Never sleeps" ru="Никогда не спит"/>
   <translation tag="New Spool" ru="Новая катушка"/>
@@ -4923,6 +4923,7 @@
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
   <translation tag="bed" ru="стол"/>
+  <translation tag="buffer|Neutral" ru="Нейтрален"/>
   <translation tag="busy" ru="занят"/>
   <translation tag="by" ru="автор:"/>
   <translation tag="by Preston Brown" ru="от Preston Brown"/>
