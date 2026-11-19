@@ -412,7 +412,7 @@ TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labell
     // The plan's script for head 0 running out and head 3 chosen, Auto-Replenish off.
     const std::string script =
         "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1\n"
-        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Snapmaker FILAMENT_TYPE=PLA "
+        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"Snapmaker\" FILAMENT_TYPE=PLA "
         "FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 COLORS=F08000 MULTI_MODE=0 ALPHA=255 FORCE=1\n"
         "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0\n"
         "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0";
@@ -421,13 +421,25 @@ TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labell
     REQUIRE(u1_mock.start_print_internal("3DBenchy.gcode"));
     REQUIRE(u1_mock.gcode_script("PAUSE") == 0);
     REQUIRE(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PAUSED);
+    const bool spool_empty = GENERATE(true, false);
+    if (spool_empty) {
+        REQUIRE(u1_mock.gcode_script("AUTO_FEEDING EXTRUDER=0 UNLOAD=1") == 0);
+    }
     REQUIRE(u1_mock.gcode_script(script) == 0);
 
     const json status = u1_mock.u1_snapswap_status_json();
+    CHECK(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PRINTING);
+    if (!spool_empty) {
+        // Filament still at the runout head's port: the firmware resumes on
+        // that head and never looks at the others.
+        CHECK(status["print_task_config"]["extruder_map_table"][0] == 0);
+        CHECK(status["extruder"]["active_pin"] == true);
+        return;
+    }
     const json& ptc = status["print_task_config"];
     CHECK(ptc["extruder_map_table"][0] == 3);
+    CHECK(ptc["filament_vendor"][0] == "Snapmaker");
     CHECK(ptc["filament_color_multi"][0]["colors"][0] == "F08000");
     CHECK(ptc["auto_replenish_filament"] == false);
     CHECK(status["extruder3"]["active_pin"] == true);
-    CHECK(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PRINTING);
 }

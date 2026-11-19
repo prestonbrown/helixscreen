@@ -21,14 +21,20 @@ using mock_internal::effective_mock_ams_env;
 
 namespace {
 
-/// The value of ` KEY=` on a command line, empty when absent.
+/// The value of ` KEY=` on a command line, empty when absent. A double-quoted
+/// value is read to its closing quote, spaces included, without the quotes.
 std::string param(const std::string& gcode, const char* key) {
     const std::string needle = std::string(" ") + key + "=";
     const size_t at = gcode.find(needle);
     if (at == std::string::npos) {
         return {};
     }
-    const size_t start = at + needle.size();
+    size_t start = at + needle.size();
+    if (start < gcode.size() && gcode[start] == '"') {
+        const size_t close = gcode.find('"', start + 1);
+        return gcode.substr(start + 1,
+                            close == std::string::npos ? std::string::npos : close - start - 1);
+    }
     const size_t end = gcode.find_first_of(" \t", start);
     return gcode.substr(start, end == std::string::npos ? std::string::npos : end - start);
 }
@@ -263,6 +269,12 @@ void MoonrakerClientMock::u1_auto_replenish(int empty_head) {
                          empty_head);
             return;
         }
+        // Filament still at the runout head's port (a jam, a tangle): the
+        // firmware resumes on that head and never looks at another.
+        const auto idx = static_cast<size_t>(empty_head);
+        if (u1_filament_detected_[idx] && !u1_disable_auto_[idx]) {
+            replacement = empty_head;
+        }
         // The colour record as the status reports it: one colour unless listed.
         const auto colors_of = [](const U1Spool& s) {
             return s.colors.empty() ? std::vector<std::string>{fmt::format("{:06X}", s.rgb)}
@@ -283,6 +295,10 @@ void MoonrakerClientMock::u1_auto_replenish(int empty_head) {
         if (replacement < 0) {
             spdlog::info("[MoonrakerClientMock] U1: cannot auto-replenish head {}", empty_head);
             return;
+        }
+        if (replacement == empty_head) {
+            spdlog::info("[MoonrakerClientMock] U1: auto-replenish refeeds T{} in place",
+                         empty_head);
         }
         for (int& h : u1_map_table_) {
             if (h == empty_head) {
