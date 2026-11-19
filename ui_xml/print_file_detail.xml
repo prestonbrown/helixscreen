@@ -265,9 +265,18 @@
                           style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center"
                           scrollable="false">
                     <icon src="weight" size="xs" variant="primary"/>
-                    <text_small name="detail_filament_label"
-                                bind_text="selected_filament_weight" long_mode="dots" flex_grow="1"
-                                style_translate_y="2"/>
+                    <text_small name="detail_filament_label" bind_text="selected_filament_weight" style_translate_y="2"/>
+                    <!-- What the print would cost, beside its weight so the rows below
+                         keep their two columns; hidden until it can be priced -->
+                    <lv_obj name="detail_cost_cluster"
+                            width="0" height="content" flex_grow="1" style_pad_all="0" style_pad_left="#space_xs"
+                            flex_flow="row" style_pad_gap="#space_xxs" style_flex_cross_place="center"
+                            scrollable="false">
+                      <bind_flag_if_eq subject="detail_print_cost_visible" flag="hidden" ref_value="0"/>
+                      <icon src="cash" size="xs" variant="primary"/>
+                      <text_small name="detail_cost_label"
+                                  bind_text="detail_print_cost" long_mode="dots" flex_grow="1" style_translate_y="2"/>
+                    </lv_obj>
                   </lv_obj>
                 </lv_obj>
                 <!-- Row 2: Print height + Layer count. Hidden at micro: the

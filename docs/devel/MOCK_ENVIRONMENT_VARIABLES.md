@@ -377,6 +377,22 @@ Pair it with `HELIX_MOCK_REMOTE_PRINTER=1` and a fresh `HELIX_CONFIG_DIR` to wat
 HELIX_MOCK_REMOTE_PRINTER=1 HELIX_MOCK_HOME_LAYOUT=/tmp/layout.json ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_PRINT_COST_RECORDS`
+
+**Shared print cost records:** Pre-seeds the mock Moonraker database's `helix-screen` / `print_cost.<file>` records, the ones another program on the printer host writes so HelixScreen shows its cost of a print instead of computing one (prestonbrown/helixscreen#2132).
+
+| Property | Value |
+|----------|-------|
+| **Values** | Path to a JSON object mapping a gcodes-relative file name to its record |
+| **Default** | unset (no records) |
+| **File** | `src/mock/moonraker_client_mock.cpp` (constructor); record shape and key in `include/print_cost.h` |
+
+A record shows only when its `file_modified` matches the file's, so copy that from the file's metadata. The auto-print file is `assets/test_gcodes/3DBenchy.gcode`.
+
+```bash
+HELIX_MOCK_PRINT_COST_RECORDS=/tmp/cost.json HELIX_MOCK_AUTO_PRINT=1 ./build/bin/helix-screen --test -vv
+```
+
 #### Seeing the Adaptive Bed Mesh toggle
 
 Adaptive bed mesh is a property of the **single** Bed Mesh pre-print option (on a

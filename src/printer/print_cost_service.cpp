@@ -67,8 +67,15 @@ void finish(const std::shared_ptr<Pending>& p) {
     e.own_currency = !p->spoolman_currency.empty()
                          ? p->spoolman_currency
                          : SettingsManager::instance().get_cost_currency();
-    spdlog::debug("[PrintCost] {}: own {:.2f} (complete {}), record {}, showing {}", p->filename,
-                  e.own.total, e.own.complete, e.record.has_value(), static_cast<int>(e.choice));
+    spdlog::debug(
+        "[PrintCost] {} (modified {:.1f}): own {:.2f} (complete {}), record {}, showing {}",
+        p->filename, e.file_modified, e.own.total, e.own.complete, e.record.has_value(),
+        static_cast<int>(e.choice));
+    for (size_t i = 0; i < e.own.tools.size(); ++i) {
+        const ToolLine& line = e.own.tools[i];
+        spdlog::debug("[PrintCost]   tool {} spool {}: {:.1f} g, {:.2f} from '{}'", line.tool,
+                      p->spool_ids[i], line.grams, line.cost, price_source_name(line.source));
+    }
     p->on_done(e);
 }
 
