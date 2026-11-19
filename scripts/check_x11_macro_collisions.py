@@ -102,13 +102,9 @@
 #
 #   X.h and nothing else, because X.h is what SDL's include chain reaches.
 #   Xlib.h / Xutil.h sit a level further out and are pulled only by SDL_syswm.h /
-#   SDL_egl.h, which nothing here includes. The tree proves it: this repo's
-#   src/application/application.cpp includes <SDL.h> AND writes
-#   `UpdateChecker::Status` (line 2377). `Status` is `#define Status int` in
-#   Xlib.h and appears nowhere in X.h -- if that macro were reachable the line
-#   would preprocess to `UpdateChecker::int` and fail -- and that file compiles on
-#   all three platforms the `None` collision broke. An Xlib tier would therefore
-#   contribute exactly one finding to this tree, and that finding would be wrong.
+#   SDL_egl.h, which nothing here includes, so their macros (`#define Status int`
+#   in Xlib.h, for one) never reach a translation unit through <SDL.h>. An Xlib
+#   tier would only report names that cannot collide.
 #
 #   Embedded rather than read at runtime, because the gate has to give the same
 #   verdict on a CI container and on a printer, neither of which ships X11

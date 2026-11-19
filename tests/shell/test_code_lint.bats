@@ -2168,7 +2168,7 @@ EOF
     printf '#include "ui_nav_manager.h"\n' | put src/application/application_startup.cpp
     run lint_ui_nav_manager_includers
     [ "$status" -eq 0 ] || fail "$output"
-    printf '#include "ui_nav_manager.h"\n' | put src/application/applications_other.cpp
+    printf '#include "ui_nav_manager.h"\n' | put src/application/application_sdl_shortcuts.cpp
     run lint_ui_nav_manager_includers
     [ "$status" -eq 1 ]
 }

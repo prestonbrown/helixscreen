@@ -1205,7 +1205,7 @@ lint_ui_nav_manager_includers() {
     local includers count
     includers=$(grep -rlE '^#include "ui_nav_manager\.h"' src include |
         grep -vE '^src/ui/ui_nav_(navbar|transitions)\.cpp$' |
-        sed -E 's#^src/application/application_[a-z_]+\.cpp$#src/application/application.cpp#' |
+        sed -E 's#^src/application/application_(bootstrap|display|startup|shutdown)\.cpp$#src/application/application.cpp#' |
         sort -u)
     count=$(printf '%s\n' "$includers" | grep -c .)
     [ "$count" -le "$UI_NAV_MANAGER_INCLUDER_LIMIT" ] && return 0

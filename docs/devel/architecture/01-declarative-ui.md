@@ -35,7 +35,7 @@ flowchart TD
 | File | Role |
 |------|------|
 | [`src/xml_registration.cpp`](../../../src/xml_registration.cpp) | Registers `styles.xml` at boot and installs the first-use component loader; registers global event callbacks |
-| [`src/application/application.cpp`](../../../src/application/application.cpp) | Startup ordering: widgets → XML components → subjects → root layout |
+| [`src/application/application.cpp`](../../../src/application/application.cpp), [`application_startup.cpp`](../../../src/application/application_startup.cpp) | Startup ordering: widgets → XML components → subjects → root layout |
 | [`src/application/session_wiring.cpp`](../../../src/application/session_wiring.cpp) | `create_app_layout()`: the single `lv_xml_create` of the root layout |
 | [`src/application/subject_initializer.cpp`](../../../src/application/subject_initializer.cpp) | Creates subjects and publishes C++ state into them |
 | [`src/application/xml_hot_reloader.cpp`](../../../src/application/xml_hot_reloader.cpp) | `HELIX_HOT_RELOAD` live re-registration and active-view rebuild |
@@ -57,7 +57,7 @@ Four mechanics carry the load: the file-to-widget pipeline (including live editi
 
 ### From XML file to live widget
 
-At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp)):
+At boot, `Application` runs the phases in a fixed order (phase numbers and lines from [`src/application/application.cpp`](../../../src/application/application.cpp) and [`application_startup.cpp`](../../../src/application/application_startup.cpp)):
 
 1. Phase 7 - `register_widgets()` (`src/application/application_startup.cpp#register_widgets`): registers the first wave of C++ widget types so the engine knows tags like `ui_card` and `ui_dialog`.
 2. Phase 8a - translations, before any UI exists.
