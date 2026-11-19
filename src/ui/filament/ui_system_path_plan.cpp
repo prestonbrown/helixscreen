@@ -942,12 +942,12 @@ bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
     cfg.bus_pitch = (float)lane_pitch(data);
     cfg.group_gap = (float)(2 * lane_pitch(data));
     cfg.fillet_r = kFanFillet;
-    // The steepest jog that fits the height, down the same ladder tilt_runs leans
-    // with; a level jog only when no lean fits.
+    // The steepest jog that fits the height, in steps fine enough that a tight
+    // rig leans as far as its height allows; a level jog only when no lean fits.
     tuberoute::Trace traces[SystemPathData::kMaxTools];
     bool fits = false;
     cfg.allow_horizontal = false;
-    for (float slope : {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f, 0.0f}) {
+    for (float slope : {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f, 0.0f}) {
         cfg.slope = slope > 0.0f ? slope : 1.0f;
         cfg.allow_horizontal = slope == 0.0f;
         if (tuberoute::plan_routes(buses, bus_count, cfg, traces, n) ==
