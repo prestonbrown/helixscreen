@@ -1393,3 +1393,37 @@ TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",
         }
     }
 }
+
+TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig has room",
+          "[system_path][route_spacing]") {
+    // A level run with square bends reads as a cable harness, not a line converging on its
+    // nozzle. The full-size rigs have the room to lean every run; the route spacing cases
+    // above hold them apart.
+    for (const Rig& rig : mock_rigs()) {
+        if (std::string(rig.name).find("micro") != std::string::npos)
+            continue;
+        CAPTURE(rig.name);
+        const SystemPathData& d = *rig.data;
+        const SysLayout L = compute_sys_layout(d, rig.area);
+        if (!L.multi_tool)
+            continue;
+        PathPlan plan;
+        OverviewBoxes boxes;
+        plan_overview(d, L, plan, boxes);
+        int leaning = 0, level = 0;
+        for (int i = 0; i < plan.route_count; i++) {
+            const Route& r = plan.routes[i];
+            for (int k = 0; k < r.path.count; k++) {
+                const pg::PathSeg& s = r.path.segs[k];
+                if (s.type != pg::PathSeg::LINE || !r.style[k].painted)
+                    continue;
+                const float dx = std::fabs(s.p1.x - s.p0.x), dy = std::fabs(s.p1.y - s.p0.y);
+                if (dx < 2 * (float)d.tube_gauge)
+                    continue;
+                (dy < 1.0f ? level : leaning)++;
+            }
+        }
+        CHECK(leaning > 0);
+        CHECK(level == 0);
+    }
+}
