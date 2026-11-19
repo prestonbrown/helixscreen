@@ -1045,18 +1045,37 @@ FILAMENT_USED_G  FILAMENT_USED_MM
 
 The firmware takes no tool map while paused and has no "resume on head N", so HelixScreen
 steers its Auto-Replenish instead (`src/printer/runout_other_head.cpp#u1_plan`). Auto-Replenish
-compares each candidate head's vendor, type, subtype and `filament_color_multi` exactly against
-`filament_info_backup` for the empty head, and `SET_PRINT_FILAMENT_CONFIG` on a head refreshes
-that backup (`backup_filament_info`). The plan therefore writes the chosen head's record onto
-the empty head (multi-colour form, `FORCE=1`), then sends
-`INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=<empty>`, wrapped in `AUTO_REPLENISH_FILAMENT=1` and
-back to `0` when the switch was off. The firmware takes the first head, in order, whose record
-matches, so a lower head holding the identical spool record wins over the choice; the plan
-names it. Which heads qualify (nozzle size and flow type, fed by the feeder, a compatible
-material) is `runout_other_head::assess()`, and the backend's facts come from
-`src/printer/ams_backend_snapmaker.cpp#runout_other_head_facts`. Source:
-Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`. **hw-verify:** not yet run on a
-real U1.
+first checks whether the runout head itself can still be fed (feeder present, Auto loading on,
+filament at the port, runout sensor enabled); if so it resumes on that head and never looks
+further, so no other head is offered then. Otherwise it compares each candidate head's vendor,
+type, subtype and `filament_color_multi` exactly against `filament_info_backup` for the empty
+head, and `SET_PRINT_FILAMENT_CONFIG` on a head refreshes that backup (`backup_filament_info`).
+The plan therefore writes the chosen head's record onto the empty head (multi-colour form, the
+vendor always quoted, `FORCE=1`), then sends `INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=<empty>`,
+wrapped in `AUTO_REPLENISH_FILAMENT=1` and back to `0` when the switch was off. While the
+switch state is unreported nothing is offered. The firmware takes the first head, in order,
+whose record matches, so a lower head holding the identical spool record wins over the choice;
+the plan names it.
+
+`filament_info_backup` is not in the firmware's status, so the backend keeps each head's record
+as it read when the pause began (`src/printer/ams_backend_snapmaker.cpp#note_pause_records_locked`)
+and compares against that: a spool swapped in during the pause changes the live record only.
+
+Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
+nothing. After sending, the chooser watches for the pause ending or `extruder_map_table`
+changing (`runout_other_head::judge_switch`); without either it reports the print still paused
+and the empty head relabelled, and sends the Auto-Replenish restore on its own. The send waits
+150 s, and a timed-out send is judged by the outcome up to three minutes. Source:
+Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`.
+
+**hw-verify** (none of this has run on a real U1 yet):
+- the record write and `INNER_AUTO_REPLENISH_FILAMENT` accepted while paused, sent by hand
+  rather than from the firmware's runout handler;
+- whether `SET_PRINT_PREFERENCES` persists the Auto-Replenish setting across a reboot;
+- how long `RESUME REPLENISH=1` really takes (heat, prime, clean) against the 150 s wait;
+- whether a filament-entangle pause opens the runout dialog, and so offers the switch;
+- the empty head keeps the borrowed filament label after the switch, until it is reloaded or
+  edited.
 
 #### Error-id convention
 Blocked-during-print errors all use `id=531` with a distinguishing `code` (15 = set map, 16 = used/prefs/params,
