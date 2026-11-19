@@ -1844,19 +1844,22 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "[ams][tray][ui_integration][over-lane][short-label]") {
     // At 480x272 twelve "Silk PLA" lanes fit no row; four take two rows whole and one row as
     // "PLA", which the unit's height wants more; two fit one row whole. 800x480 keeps whole
-    // names.
+    // names. A filled grade keeps its filler: "PLA-CF" reads "PLA-CF" short too.
     struct Case {
         int32_t w, h;
         int lanes;
         bool short_form;
+        const char* material = "Silk PLA";
+        const char* short_text = "PLA";
     };
-    const Case c = GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, true},
-                            Case{480, 272, 2, false}, Case{800, 480, 12, false});
+    const Case c =
+        GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, true}, Case{480, 272, 2, false},
+                 Case{800, 480, 12, false}, Case{480, 272, 4, true, "Silk PLA-CF", "PLA-CF"});
     CAPTURE(c.w, c.h, c.lanes);
     helix::test::ScopedGeometry geometry(c.w, c.h);
     build("passive", c.lanes);
     for (int i = 0; i < c.lanes; ++i)
-        set_lane_live(i, "Silk PLA");
+        set_lane_live(i, c.material);
     panel_->refresh_slots();
     process_lvgl(20);
     lv_obj_update_layout(test_screen());
@@ -1868,14 +1871,14 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     for (int i = 0; i < c.lanes; ++i) {
         CAPTURE(i);
         // The lane card's text stays the whole name.
-        CHECK(ui_ams_slot_get_material_text(slot(i), false) == "Silk PLA");
+        CHECK(ui_ams_slot_get_material_text(slot(i), false) == c.material);
         if (lv_obj_is_hidden(labels[(size_t)i]))
             continue;
         ++shown;
         const std::string text = lv_label_get_text(labels[(size_t)i]);
         CAPTURE(text);
         if (c.short_form)
-            CHECK(text == "PLA");
+            CHECK(text == c.short_text);
         else
             CHECK(text.rfind("Si", 0) == 0); // whole, or cut to its room
         if (c.lanes <= 4) {

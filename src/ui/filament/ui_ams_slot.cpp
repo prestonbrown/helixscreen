@@ -196,10 +196,10 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data, bool short_form)
         data->last_lane_state == helix::ui::LaneState::Empty);
     if (data->label_spread) {
         lines.name.clear();
-        // Too tight for whole names, a spread label reads the base material ("Silk PLA" reads
-        // "PLA"); the lane card keeps the whole name.
+        // Too tight for whole names, a spread label reads the base material and the fillers it
+        // carries ("Silk PLA" reads "PLA", "PLA-CF" stays); the lane card keeps the whole name.
         if (short_form && material[0] && lines.lower == material)
-            lines.lower = ::filament::display_family(material);
+            lines.lower = ::filament::display_grade(material);
     }
     return lines;
 }

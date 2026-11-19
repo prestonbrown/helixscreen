@@ -688,7 +688,8 @@ int32_t place_unit_labels() {
         if (!show)
             continue;
         shown_x[shown] = s_tray.label_x[i];
-        text_w[shown] = label_whole(slot, false) + label_tag_room(slot);
+        s_tray.label_whole_w[i] = label_whole(slot, false);
+        text_w[shown] = s_tray.label_whole_w[i] + label_tag_room(slot);
         base_w[shown] = label_whole(slot, true) + label_tag_room(slot);
         one_word = one_word && label_base_one_word(slot);
         lane_of[shown++] = i;
@@ -919,10 +920,11 @@ void place_tool_badges() {
     }
 }
 
-/// A lane filled or emptied while the unit is shown: its label comes or goes, and the labels
-/// and ticks are laid out again. Where the labels then rise past the unit row's top, or the
-/// numbers under the art need another row or lose their "+", the whole tray is laid out again
-/// (ams_detail_update_tray), which makes the room; otherwise only the labels move.
+/// A lane filled or emptied, or its name changed width, while the unit is shown: its label comes,
+/// goes or takes new room, and the labels and ticks are laid out again. Where the labels then rise
+/// past the unit row's top, or the numbers under the art need another row or lose their "+", the
+/// whole tray is laid out again (ams_detail_update_tray), which makes the room; otherwise only the
+/// labels move.
 void relabel_if_lanes_changed() {
     if (!s_tray.valid || !s_tray.labels_layer || !s_tray.container)
         return;
@@ -931,8 +933,11 @@ void relabel_if_lanes_changed() {
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
         lv_obj_t* label = slot ? ui_ams_slot_get_material_label(slot) : nullptr;
-        if (label && lv_obj_get_parent(label) == s_tray.labels_layer)
-            changed |= lane_shows_label(slot) != s_tray.label_shown[i];
+        if (label && lv_obj_get_parent(label) == s_tray.labels_layer) {
+            const bool show = lane_shows_label(slot);
+            changed |= show != s_tray.label_shown[i] ||
+                       (show && label_whole(slot, false) != s_tray.label_whole_w[i]);
+        }
     }
     if (!changed)
         return;

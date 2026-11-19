@@ -63,8 +63,9 @@ struct TrayState {
     uint32_t lane_color[kAmsDetailMaxSlots] = {};
     int active_lane = -1;
     // Where the labels over the unit stand, kept so they can be laid out again when a lane
-    // fills or empties: each lane's spool column and tick end (relative to the container),
-    // the nearest row's bottom (absolute), and which lanes show a label.
+    // fills or empties or its name changes: each lane's spool column and tick end (relative to
+    // the container), the nearest row's bottom (absolute), which lanes show a label, and how
+    // wide each label's whole name was.
     helix::ui::WidgetRef labels_layer;
     // The rest of the unit view the tray was laid out in, to lay it out again in place.
     helix::ui::WidgetRef slot_grid, slot_tray, badge_layer, env_indicator;
@@ -72,6 +73,7 @@ struct TrayState {
     float tick_end_y[kAmsDetailMaxSlots] = {};
     int32_t label_bottom = 0;
     bool label_shown[kAmsDetailMaxSlots] = {};
+    int32_t label_whole_w[kAmsDetailMaxSlots] = {};
     // Leaders from the labels above the unit to their spools: label, knee, spool top.
     tray::PointF leader[kAmsDetailMaxSlots][3] = {};
     int leader_count = 0;
