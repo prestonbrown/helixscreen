@@ -43,9 +43,7 @@ class MaterialZOffsetState {
   public:
     static MaterialZOffsetState& instance();
 
-    /// Publishes material_zoffset_status, material_zoffset_enabled,
-    /// material_zoffset_active (Saves go per material: they move nothing and
-    /// restart nothing, so a print does not withhold them) and
+    /// Publishes material_zoffset_status, material_zoffset_enabled and
     /// material_zoffset_rev. Main thread, before XML binds them.
     void init_subjects();
 

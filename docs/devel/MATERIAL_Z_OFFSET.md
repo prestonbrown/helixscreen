@@ -95,10 +95,15 @@ are not followed.
 dirty when the live offset differs from what the macro applies for that material, not when
 it is non-zero.
 
-**During a print.** The machine-wide Save buttons carry `moves_machine="true"` because that
-save restarts Klipper. A per-material save moves nothing and restarts nothing, so
-`header_bar.xml` and `controls_panel.xml` carry an unguarded twin shown only while
-`material_zoffset_active` is 1. The home widget's Save is still withheld during a print.
+**During a print.** `helix::zoffset::save_route()` is the one decision: nothing to save,
+per-material, machine-wide, or refused (machine-wide while `machine_motion_blocked`). The
+machine-wide save restarts Klipper, so a job holding the machine refuses it, in
+`save_dirty_offsets_shared()` as well as at the button; a per-material save moves nothing and
+restarts nothing, so it goes through. Every Save button (header, Controls, both home-widget
+sizes) is one button guarded by `z_offset_save_motion_blocked`, published beside
+`z_offset_save_available` and 1 only while the route would be refused. The toolhead census
+counts that binding as a guard (`kDerivedGuards` in `tests/unit/test_job_holds_machine.cpp`),
+so the buttons stay classified exactly as they were with `moves_machine="true"`.
 
 **Primary material for a print the screen starts:** the tool that prints the most by
 weight (`primary_material_for_file()`, reusing `print_cost::file_tool_grams()` and the

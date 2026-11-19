@@ -63,10 +63,10 @@
           <bind_flag_if_lt subject="z_offset_rung" flag="hidden" ref_value="4"/>
         </z_offset_indicator>
         <ui_button name="z_offset_save_wide"
-                   width="#button_height_sm" height="#button_height_sm" variant="success" icon="check" hidden="true"
-                   moves_machine="true">
+                   width="#button_height_sm" height="#button_height_sm" variant="success" icon="check" hidden="true">
           <bind_flag_if cond="z_offset_save_available eq 0 or z_offset_show_save eq 0 or z_offset_rung eq 5"
                         flag="hidden"/>
+          <bind_state_if_eq subject="z_offset_save_motion_blocked" state="disabled" ref_value="1"/>
           <event_cb trigger="clicked" callback="z_offset_save_cb"/>
         </ui_button>
       </pass_through>
@@ -85,9 +85,9 @@
         </ui_button>
       </pass_through>
       <ui_button name="z_offset_save_full"
-                 width="100%" height="#button_height_sm" variant="success" icon="check" text="Save" hidden="true"
-                 moves_machine="true">
+                 width="100%" height="#button_height_sm" variant="success" icon="check" text="Save" hidden="true">
         <bind_flag_if cond="z_offset_save_available eq 0 or z_offset_show_save eq 0 or z_offset_rung ne 5" flag="hidden"/>
+        <bind_state_if_eq subject="z_offset_save_motion_blocked" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="z_offset_save_cb"/>
       </ui_button>
     </pass_through>

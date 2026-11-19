@@ -33,7 +33,6 @@ helix::WidgetSubjects s_subjects{"MaterialZOffsetState"};
 helix::Subject s_status;
 helix::Subject s_enabled;
 helix::Subject s_rev;
-helix::Subject s_active;
 
 /// How many config files a search for the section reads at most.
 constexpr size_t kMaxScannedFiles = 64;
@@ -82,7 +81,6 @@ void MaterialZOffsetState::init_subjects() {
         UI_MANAGED_SUBJECT_INT(s_status, 0, "material_zoffset_status", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_enabled, 0, "material_zoffset_enabled", s_subjects);
         UI_MANAGED_SUBJECT_INT(s_rev, 0, "material_zoffset_rev", s_subjects);
-        UI_MANAGED_SUBJECT_INT(s_active, 0, "material_zoffset_active", s_subjects);
     });
     publish();
 }
@@ -101,7 +99,6 @@ void MaterialZOffsetState::publish() {
     }
     lv_subject_set_int(&s_status, static_cast<int>(status()));
     lv_subject_set_int(&s_enabled, enabled() ? 1 : 0);
-    lv_subject_set_int(&s_active, active() ? 1 : 0);
 }
 
 void MaterialZOffsetState::bump() {
