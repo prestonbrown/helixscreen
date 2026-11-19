@@ -29,6 +29,7 @@
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/slow_lane_settle.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "discovery_steps.h"
@@ -41,7 +42,6 @@
 #include <fstream>
 #include <iterator>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -106,8 +106,9 @@ struct PromptFixture : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
         lv_obj_t* button = lv_obj_find_by_name(dialog, name);
         REQUIRE(button != nullptr);
         // The modal's handlers run inside send_event; no render pass is needed.
+        // Install hands install.sh to the slow lane, so its outcome is waited for.
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-        drain();
+        test::settle_slow_lane([&] { drain(); });
     }
 
     std::string result_message() {
@@ -474,15 +475,7 @@ struct SelfHealFixture : PromptFixture {
     /// The check's install.sh runs on the slow lane; wait for it, then for its
     /// outcome on this thread.
     void settle() {
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-        drain();
-        // An outcome drained here may start the restart, the next script run.
-        while (http::HttpExecutor::slow().inflight() > 0 &&
-               std::chrono::steady_clock::now() < deadline) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            drain();
-        }
-        drain();
+        test::settle_slow_lane([&] { drain(); });
     }
 
     /// The plugin reads as absent at a new app start, and the check runs again.

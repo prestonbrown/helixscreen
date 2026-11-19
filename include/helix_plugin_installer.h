@@ -15,6 +15,8 @@
  * safer than client-side modification on memory-constrained devices.
  */
 
+#include "system/process_runner.h"
+
 #include <atomic>
 #include <functional>
 #include <string>
@@ -66,8 +68,8 @@ enum class UninstallOutcome {
  *       - uninstall_local(): MUST be called from main thread only. It blocks
  *         during script execution and invokes its callback inline. For
  *         non-blocking UI, wrap in std::thread or std::async.
- *       - install_local_sync(): Blocks during script execution; invokes no
- *         callback, so it is safe to call from a worker thread.
+ *       - install_local_sync(): Blocks during script execution.
+ *       - run_local_install(): Any thread; touches no installer state.
  *       - get_state() / is_installing(): Thread-safe (atomic read).
  *       - All other methods: Main thread only.
  *
@@ -75,7 +77,8 @@ enum class UninstallOutcome {
  *   1. Create installer and set API
  *   2. Check if plugin is missing: !PrinterState::service_has_helix_plugin()
  *   3. Check if should prompt: installer.should_prompt_install()
- *   4. For local: installer.install_local_sync()
+ *   4. For local: begin_local_install() on the main thread, run_local_install()
+ *      on a worker, finish_local_install() back on the main thread
  *   5. For remote: show dialog with installer.get_remote_install_command()
  */
 class HelixPluginInstaller {
@@ -129,15 +132,56 @@ class HelixPluginInstaller {
     };
 
     /**
-     * @brief Attempt local auto-installation (synchronous, no callback)
+     * @brief A local install, prepared on the main thread to run on any thread
      *
-     * This method blocks during script execution (up to 60s timeout).
-     * Returns a result struct instead of using callbacks, which avoids
-     * std::function-related crashes on ARM/glibc static builds.
+     * An empty script_path means nothing runs, and refusal says why.
+     */
+    struct LocalInstallJob {
+        std::string script_path;
+        int timeout_seconds = 0;
+        SyncInstallResult refusal;
+    };
+
+    /// What install.sh did, before it is put into words on the main thread.
+    struct LocalInstallRun {
+        bool installed = false;
+        CommandResult failure; ///< the failing command, when not installed
+    };
+
+    /**
+     * @brief Attempt local auto-installation, blocking the calling thread
+     *
+     * begin_local_install(), run_local_install() and finish_local_install()
+     * in a row, for callers that may block (up to the script timeout).
      *
      * @return Result with success flag and message
      */
     [[nodiscard]] SyncInstallResult install_local_sync();
+
+    /**
+     * @brief Find install.sh and mark the installer INSTALLING. Main thread only.
+     *
+     * Remote Moonraker or no bundled script: the job has no script, carries
+     * the refusal, and the state is left as it was.
+     */
+    [[nodiscard]] LocalInstallJob begin_local_install();
+
+    /**
+     * @brief Run a job from begin_local_install(), blocking while install.sh runs
+     *
+     * Touches no installer state and translates nothing, so a worker thread may
+     * run it, even while the installer itself is destroyed. A job with no
+     * script runs nothing.
+     */
+    [[nodiscard]] static LocalInstallRun run_local_install(const LocalInstallJob& job);
+
+    /**
+     * @brief Record a job's outcome as SUCCESS or FAILED and word it. Main thread only.
+     *
+     * A job with no script returns its refusal and leaves the state as it was.
+     */
+    [[nodiscard]] SyncInstallResult finish_local_install(const LocalInstallJob& job,
+                                                         const LocalInstallRun& run);
 
     /**
      * @brief Attempt local auto-uninstallation

@@ -395,42 +395,69 @@ LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds) {
 }
 
 HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync() {
-    // Blocks while install.sh runs; it runs the steps inline on the calling
-    // thread and starts no thread of its own.
+    const LocalInstallJob job = begin_local_install();
+    return finish_local_install(job, run_local_install(job));
+}
 
+HelixPluginInstaller::LocalInstallJob HelixPluginInstaller::begin_local_install() {
+    LocalInstallJob job;
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-install on remote Moonraker");
-        return {false, lv_tr("Auto-install only works on local Moonraker")};
+        job.refusal = {false, lv_tr("Auto-install only works on local Moonraker")};
+        return job;
     }
 
-    std::string script_path = get_install_script_path();
-    if (script_path.empty()) {
-        return {false, lv_tr("Install script not found. Use the remote install command instead.")};
+    job.script_path = get_install_script_path();
+    if (job.script_path.empty()) {
+        job.refusal = {false,
+                       lv_tr("Install script not found. Use the remote install command instead.")};
+        return job;
     }
-
+    job.timeout_seconds = script_timeout_seconds_;
     state_.store(PluginInstallState::INSTALLING);
+    return job;
+}
+
+HelixPluginInstaller::LocalInstallRun
+HelixPluginInstaller::run_local_install(const LocalInstallJob& job) {
+    LocalInstallRun run;
+    if (job.script_path.empty()) {
+        return run;
+    }
     spdlog::info("[PluginInstaller] Starting local installation: {} --no-restart --auto",
-                 script_path);
+                 job.script_path);
 
     // The plugin ships beside install.sh: nothing to fetch, no dependencies.
     LocalPluginPlan plan;
-    plan.install_script = script_path;
-    const LocalPluginResult installed = install_plugin_locally(
-        helix_print_plugin_recipe(script_timeout_seconds_), plan, run_process);
-    if (installed.outcome != LocalPluginOutcome::Failed) {
+    plan.install_script = job.script_path;
+    const LocalPluginResult installed =
+        install_plugin_locally(helix_print_plugin_recipe(job.timeout_seconds), plan, run_process);
+    run.installed = installed.outcome != LocalPluginOutcome::Failed;
+    if (!run.installed) {
+        run.failure = installed.failure;
+    }
+    return run;
+}
+
+HelixPluginInstaller::SyncInstallResult
+HelixPluginInstaller::finish_local_install(const LocalInstallJob& job, const LocalInstallRun& run) {
+    if (job.script_path.empty()) {
+        return job.refusal;
+    }
+    if (run.installed) {
         state_.store(PluginInstallState::SUCCESS);
         spdlog::info("[PluginInstaller] Installation completed successfully");
         return {true, lv_tr("Plugin installed successfully.")};
     }
 
     state_.store(PluginInstallState::FAILED);
-    const CommandResult& result = installed.failure;
+    const CommandResult& result = run.failure;
     if (!result.started) {
         return {false, lv_tr("Failed to start installer: ") + result.error};
     }
     if (result.timed_out) {
         spdlog::error("[PluginInstaller] Installation timed out after {} seconds",
-                      script_timeout_seconds_);
+                      job.timeout_seconds);
         return {false, lv_tr("Installation timed out. The script may be stuck.")};
     }
     if (!result.error.empty()) {

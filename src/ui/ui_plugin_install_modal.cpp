@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "http_executor.h"
 #include "i_moonraker_api.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -19,7 +20,6 @@
 #ifdef HELIX_DISPLAY_SDL
 #include <SDL.h>
 #endif
-#include <thread>
 
 // ============================================================================
 // Configuration
@@ -150,6 +150,11 @@ void PluginInstallModal::on_show() {
         }
     }
 
+    // Reopened while install.sh still runs: the result arrives here when it ends.
+    if (install_running_) {
+        show_installing_state();
+    }
+
     // Wire cancel button and set user_data for all buttons
     wire_cancel_button("btn_cancel");
     wire_cancel_button("btn_done");
@@ -260,6 +265,10 @@ void PluginInstallModal::check_dont_ask_preference() {
 // ============================================================================
 
 void PluginInstallModal::on_install_clicked() {
+    if (install_running_) {
+        spdlog::debug("[Plugin Install] Install already running");
+        return;
+    }
     if (!installer_) {
         spdlog::error("[Plugin Install] No installer set");
         return;
@@ -273,16 +282,44 @@ void PluginInstallModal::on_install_clicked() {
     spdlog::info("[Plugin Install] Starting local installation");
     show_installing_state();
 
-    // Run installation synchronously. This blocks the UI but is necessary because
-    // std::thread causes SIGABRT on ARM Linux with static glibc linking when the
-    // thread exits. The install script typically runs in <30 seconds, and this is
-    // a one-time operation, so blocking is acceptable.
-    //
-    // Technical background: On ARM Linux with musl or static glibc, thread-local
-    // storage (TLS) cleanup during std::thread exit can trigger SIGABRT. This
-    // affects any code that uses TLS (spdlog, std::function, etc.) on a detached
-    // thread. The only reliable workaround is to avoid detached threads entirely.
-    auto install_result = installer_->install_local_sync();
+    using Installer = helix::HelixPluginInstaller;
+    const Installer::LocalInstallJob job = installer_->begin_local_install();
+    if (job.script_path.empty()) {
+        on_install_finished(job, {});
+        return;
+    }
+
+    // install.sh blocks for up to its timeout, so it runs on a worker and the
+    // outcome comes back to this thread.
+    install_running_ = true;
+    auto tok = install_lifetime_.token();
+    auto work = [this, tok, job]() {
+        const Installer::LocalInstallRun run = Installer::run_local_install(job);
+        tok.defer("PluginInstall::finished", [this, job, run]() { on_install_finished(job, run); });
+    };
+    if (install_submitter_) {
+        install_submitter_(std::move(work));
+        return;
+    }
+    auto& executor = helix::http::HttpExecutor::slow();
+    if (!executor.running()) {
+        // A stopped pool drops the work, which would leave the dialog installing.
+        Installer::LocalInstallRun not_started;
+        not_started.failure.error = "no worker thread";
+        on_install_finished(job, not_started);
+        return;
+    }
+    executor.submit(std::move(work));
+}
+
+void PluginInstallModal::on_install_finished(
+    const helix::HelixPluginInstaller::LocalInstallJob& job,
+    const helix::HelixPluginInstaller::LocalInstallRun& run) {
+    install_running_ = false;
+    if (!installer_) {
+        return;
+    }
+    const auto install_result = installer_->finish_local_install(job, run);
 
     spdlog::info("[Plugin Install] Installation {}: {}",
                  install_result.success ? "succeeded" : "failed", install_result.message);
@@ -294,6 +331,7 @@ void PluginInstallModal::on_install_clicked() {
                              : lv_tr("Restart Moonraker to finish the plugin change");
     }
 
+    // Closed meanwhile: the widget references are null and both calls skip them.
     show_result_state(install_result.success, message);
     check_dont_ask_preference();
 }
