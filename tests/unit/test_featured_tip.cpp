@@ -2,9 +2,8 @@
 
 #include "featured_tip.h"
 
-#include "hv/json.hpp"
-
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 
@@ -13,7 +12,7 @@ TEST_CASE("featured_tip: parses the record a chat bot writes", "[featured_tip]")
         "id": "a1b2", "title": "Two prints at the same time man.",
         "details": "Lawrence in Office Space (1999).", "source": "Print Handy",
         "posted_at": 1763400000.5})");
-    const auto tip = featured_tip::parse(value);
+    const auto tip = featured_tip::parse_record(value);
     REQUIRE(tip);
     CHECK(tip->id == "a1b2");
     CHECK(tip->title == "Two prints at the same time man.");
@@ -23,16 +22,16 @@ TEST_CASE("featured_tip: parses the record a chat bot writes", "[featured_tip]")
 }
 
 TEST_CASE("featured_tip: a record without an id or a title is no tip", "[featured_tip]") {
-    CHECK_FALSE(featured_tip::parse(nlohmann::json::parse(R"({"title": "x"})")));
-    CHECK_FALSE(featured_tip::parse(nlohmann::json::parse(R"({"id": "x"})")));
-    CHECK_FALSE(featured_tip::parse(nlohmann::json::parse(R"({"id": "x", "title": ""})")));
-    CHECK_FALSE(featured_tip::parse(nlohmann::json::parse(R"({"id": 7, "title": "x"})")));
-    CHECK_FALSE(featured_tip::parse(nlohmann::json::parse(R"("just a string")")));
-    CHECK_FALSE(featured_tip::parse(nlohmann::json()));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json::parse(R"({"title": "x"})")));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json::parse(R"({"id": "x"})")));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json::parse(R"({"id": "x", "title": ""})")));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json::parse(R"({"id": 7, "title": "x"})")));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json::parse(R"("just a string")")));
+    CHECK_FALSE(featured_tip::parse_record(nlohmann::json()));
 }
 
 TEST_CASE("featured_tip: optional fields default when missing or mistyped", "[featured_tip]") {
-    const auto tip = featured_tip::parse(
+    const auto tip = featured_tip::parse_record(
         nlohmann::json::parse(R"({"id": "x", "title": "t", "details": 3, "posted_at": "soon"})"));
     REQUIRE(tip);
     CHECK(tip->details.empty());
@@ -50,8 +49,7 @@ TEST_CASE("featured_tip: freshness", "[featured_tip]") {
     CHECK(featured_tip::is_fresh(tip, 1e12));
 }
 
-TEST_CASE("featured_tip: lines replace the tips unless the tile says otherwise",
-          "[featured_tip]") {
+TEST_CASE("featured_tip: lines replace the tips unless the tile says otherwise", "[featured_tip]") {
     CHECK(featured_tip::featured_only(nlohmann::json()));
     CHECK(featured_tip::featured_only(nlohmann::json::object()));
     CHECK(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": true})")));

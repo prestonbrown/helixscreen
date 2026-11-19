@@ -405,24 +405,21 @@ void TipsWidget::poll_featured_tip() {
     if (!api) {
         return;
     }
-    api->database_get_item(featured_tip::kNamespace, featured_tip::kKey,
-                           lifetime_.bg_cb("TipsWidget::featured_tip",
-                                           [this](const nlohmann::json& value) {
-                                               apply_featured_tip(value);
-                                           }),
-                           // No featured line: Moonraker answers a missing key with an
-                           // error, which is the normal state without a writer, and
-                           // after a switch to a printer that has none.
-                           lifetime_.bg_cb("TipsWidget::featured_tip_missing",
-                                           [this](const MoonrakerError& err) {
-                                               spdlog::trace("[TipsWidget] No featured tip: {}",
-                                                             err.message);
-                                               drop_featured_tip();
-                                           }));
+    api->database_get_item(
+        featured_tip::kNamespace, featured_tip::kKey,
+        lifetime_.bg_cb("TipsWidget::featured_tip",
+                        [this](const nlohmann::json& value) { apply_featured_tip(value); }),
+        // No featured line: Moonraker answers a missing key with an
+        // error, which is the normal state without a writer, and
+        // after a switch to a printer that has none.
+        lifetime_.bg_cb("TipsWidget::featured_tip_missing", [this](const MoonrakerError& err) {
+            spdlog::trace("[TipsWidget] No featured tip: {}", err.message);
+            drop_featured_tip();
+        }));
 }
 
 void TipsWidget::apply_featured_tip(const nlohmann::json& value) {
-    const auto featured = featured_tip::parse(value);
+    const auto featured = featured_tip::parse_record(value);
     if (!featured || featured->id == s_last_featured_id) {
         return;
     }

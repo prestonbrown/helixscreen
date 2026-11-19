@@ -6,7 +6,7 @@
 
 namespace helix::featured_tip {
 
-std::optional<FeaturedTip> parse(const nlohmann::json& value) {
+std::optional<FeaturedTip> parse_record(const nlohmann::json& value) {
     if (!value.is_object()) {
         return std::nullopt;
     }

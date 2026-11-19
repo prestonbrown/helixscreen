@@ -40,7 +40,7 @@ struct FeaturedTip {
 };
 
 /// The record, or nullopt when it has no id or no title. Never throws.
-std::optional<FeaturedTip> parse(const nlohmann::json& value);
+std::optional<FeaturedTip> parse_record(const nlohmann::json& value);
 
 /// Whether featured lines replace the tips under this widget @p config. Default true.
 bool featured_only(const nlohmann::json& config);
