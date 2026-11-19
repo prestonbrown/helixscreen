@@ -1699,7 +1699,4 @@ TEST_CASE("Spool prices format in the configured currency", "[filament][spoolman
     // No price: nothing to show.
     CHECK(format_price_with_currency(0, "EUR").empty());
     CHECK(format_price_with_currency(-1, "EUR").empty());
-    // A cost is an amount even at zero; a negative one is still nothing.
-    CHECK(format_price_with_currency(-0.0, "USD", true) == "$0.00");
-    CHECK(format_price_with_currency(-1, "USD", true).empty());
 }

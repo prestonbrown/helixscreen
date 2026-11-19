@@ -56,12 +56,7 @@ class PrintCostOverlay : public OverlayBase {
     char watts_buf_[32]{};
     helix::Subject kwh_subject_{};
     char kwh_buf_[32]{};
-    lv_obj_t* currency_dropdown_ = nullptr;
     std::string editing_title_; ///< The open keypad's title
-
-    void on_ui_destroyed() override {
-        currency_dropdown_ = nullptr;
-    }
 };
 
 inline PrintCostOverlay& get_print_cost_overlay() {

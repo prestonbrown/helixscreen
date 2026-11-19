@@ -11,6 +11,7 @@
 #include "json_fwd.h"
 #include "moonraker_types.h"
 #include "print_cost.h"
+#include "spoolman_types.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -301,4 +302,10 @@ TEST_CASE("choose_actual: the record's actual for this print, else wait for it",
     CHECK(choose_actual(r, kModified + 60.0, 1731979000.0, true) == Choice::Own);
     CHECK(choose_actual(std::nullopt, kModified, 0.0, true) == Choice::Own);
     CHECK(choose_actual(std::nullopt, kModified, 0.0, false) == Choice::None);
+}
+
+TEST_CASE("A cost formats as an amount even at zero", "[print_cost][price]") {
+    CHECK(helix::format_price_with_currency(-0.0, "USD", true) == "$0.00");
+    CHECK(helix::format_price_with_currency(-1, "USD", true).empty());
+    CHECK(helix::format_price_with_currency(0, "USD").empty());
 }

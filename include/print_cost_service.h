@@ -14,13 +14,12 @@
 #pragma once
 
 #include "async_lifetime_guard.h"
+#include "moonraker_types.h"
 #include "print_cost.h"
 
 #include <functional>
 #include <optional>
 #include <string>
-
-struct FileMetadata;
 
 namespace helix::print_cost {
 

@@ -90,8 +90,6 @@ lv_obj_t* PrintCostOverlay::create(lv_obj_t* parent) {
         spdlog::error("[{}] Failed to create overlay from XML", get_name());
         return nullptr;
     }
-    lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_cost_currency", get_name());
-    currency_dropdown_ = row ? helix::ui::find_required(row, "dropdown", get_name()) : nullptr;
     return overlay_root_;
 }
 
@@ -112,9 +110,12 @@ void PrintCostOverlay::refresh_values() {
     lv_subject_set_string(&kwh_subject_, kwh_buf_);
 
     // The dropdown's own options are the list of codes; the saved code picks one.
-    if (currency_dropdown_) {
+    lv_obj_t* row =
+        overlay_root_ ? lv_obj_find_by_name(overlay_root_, "row_cost_currency") : nullptr;
+    lv_obj_t* dropdown = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+    if (dropdown) {
         const int32_t index =
-            lv_dropdown_get_option_index(currency_dropdown_, settings.get_cost_currency().c_str());
+            lv_dropdown_get_option_index(dropdown, settings.get_cost_currency().c_str());
         lv_subject_set_int(&currency_subject_, index < 0 ? 0 : index);
     }
 }

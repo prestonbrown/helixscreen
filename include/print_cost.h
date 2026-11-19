@@ -21,14 +21,13 @@
 #pragma once
 
 #include "json_fwd.h"
+#include "moonraker_types.h"
 
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-struct FileMetadata;
 
 namespace helix::print_cost {
 
