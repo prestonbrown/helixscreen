@@ -521,6 +521,16 @@ int32_t place_unit_labels() {
     // Each label takes the room its whole text asks, as far as its neighbours allow.
     helix::ui::ams_over_lane_label_spans(shown_x, row_of, text_w, shown, label_gap, 0.0f, row_w,
                                          span);
+    // A lane's climate reading stands over its label, so a row of labels steps up past the
+    // tallest reading too.
+    int32_t reading_h = 0;
+    for (int k = 0; k < shown && rows > 1; ++k) {
+        lv_obj_t* reading = ui_ams_slot_get_lane_humidity(s_tray.slot[lane_of[k]]);
+        if (reading && !lv_obj_is_hidden(reading)) {
+            lv_obj_update_layout(reading);
+            reading_h = std::max(reading_h, lv_obj_get_height(reading) + 1);
+        }
+    }
     for (int k = 0; k < shown; ++k) {
         lv_obj_t* label = ui_ams_slot_get_material_label(s_tray.slot[lane_of[k]]);
         // A centered label takes all the room either side allows evenly, so a longer name
@@ -535,7 +545,8 @@ int32_t place_unit_labels() {
         lv_obj_update_layout(label);
         lv_area_t la;
         lv_obj_get_coords(label, &la);
-        const int32_t row_step = lv_area_get_height(&la) + theme_manager_get_spacing("space_xxs");
+        const int32_t row_step =
+            lv_area_get_height(&la) + reading_h + theme_manager_get_spacing("space_xxs");
         // Its middle over the spool, or slid toward the side with room.
         const float middle = shown_x[k] + (float)(span[k].right - span[k].left) / 2.0f;
         lv_obj_set_style_translate_x(
