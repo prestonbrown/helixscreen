@@ -128,6 +128,7 @@ translations:
   '1 unit': '1 unité'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Chaque buse est chauffée, essuyée puis garée à l'avant pour que vous la brossiez
+  1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Installez les macros d'aide. Elles ajoutent HELIX_MATERIAL_OFFSET et un stockage [save_variables] pour les décalages."
   1. Printer homes all axes (~1 minute): 1. L'imprimante prend l'origine de tous les axes (~1 minute)
   1. Printer homes and probes the bed: 1. L'imprimante fait l'origine et palpe le plateau
   1. Printer will home and probe each screw: 1. L'imprimante fera l'origine et palpera chaque vis
@@ -140,6 +141,7 @@ translations:
   180° Upside Down: 180° à l'envers
   2 min: '2 min'
   2 minutes: 2 minutes
+  '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. Dans PRINT_START, après la mise à l'origine et le palpage et avant votre propre étape de maillage, ajoutez cette ligne :"
   2. Jog X and Y until the nozzle is centered over the chute opening: 2. Déplacez X et Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte
   2. Jog Y until the nozzle is centered over the chute opening: 2. Déplacez Y jusqu'à ce que la buse soit centrée sur l'ouverture de la goulotte
 
@@ -156,6 +158,7 @@ translations:
   2D Layers: Couches 2D
   3. Adjust screws, then re-probe to verify: 3. Ajustez les vis, puis re-palpez pour vérifier
   3. Every toolhead is probed and the offsets are saved: 3. Chaque tête d'outil est palpée et les offsets sont enregistrés
+  "3. Have the slicer's start G-code pass the material to PRINT_START:": "3. Faites passer le matériau à PRINT_START par le G-code de démarrage du trancheur :"
   3. Lower nozzle until paper drags slightly: 3. Abaissez la buse jusqu'à ce que le papier frotte légèrement
   3. Save the position: 3. Enregistrez la position
 
@@ -189,8 +192,12 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Une imprimante delta ne peut pas référencer X et Y sans déplacer Z, donc une impression ne peut pas être reprise."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilateur qui fait passer l''air de l''enceinte à travers un filtre. Commandez-le sur l''écran de température de l''enceinte.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Quelques minutes, presque tout en chauffage. Vous ne jugez rien à l''œil.'
+  A first-layer offset and bed mesh for each material: "Un décalage de première couche et un maillage du plateau pour chaque matériau"
   A folder name in moonraker.conf is unsafe.: "Un nom de dossier dans moonraker.conf n'est pas sûr."
+  A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "Une grille marque un matériau avec un maillage enregistré, chargé au démarrage des impressions qui ne font pas de maillage."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Une macro de heat soak est configurée sur l''imprimante. HelixScreen la détecte mais ne l''exécute pas.'
+  ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
+  : "Un plateau chauffant se dilate avec la température, chaque matériau peut donc garder son propre décalage de première couche. La macro de démarrage l'applique, et Enregistrer pendant une impression ne modifie que le matériau de cette impression."
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un chauffage qui réchauffe l''air de l''enceinte. Réglez sa température sur l''écran de température de l''enceinte.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Une carte des hauteurs du plateau que Klipper utilise pour compenser une surface irrégulière. Consultez-la et calibrez-la sur l''écran Maillage du plateau.'
   A left, B right: "A gauche, B droite"
@@ -341,6 +348,7 @@ translations:
   Allwinner: Allwinner
   Already connecting — wait a moment and try again: Connexion déjà en cours — patientez un instant et réessayez
   Already mounted: 'Déjà monté'
+  Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Garder aussi ce maillage pour {} ? Ses impressions sans maillage le chargent au démarrage."
   Always Show Bypass Spool: Toujours afficher la bobine de bypass
   Always show Android navigation bar instead of using gestures: Toujours afficher la barre de navigation Android au lieu des gestes
   Ambient Transfer: Transfert ambiant
@@ -375,6 +383,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: Le démarrage de l'application a rencontré une erreur. Certaines fonctionnalités peuvent être indisponibles.
   Appearance: Apparence
   Appearance & Region: "Apparence et région"
+  'Applied for this session only: {}': "Appliqué pour cette session uniquement : {}"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : "Appliqué à {}. Klipper l'oublie au redémarrage : saisissez {} comme Pressure Advance dans le profil de filament de votre trancheur, ou enregistrez-le sur la bobine."
   Applies to: S'applique à
@@ -498,6 +507,7 @@ translations:
   Bed warming timed out: Préchauffage du plateau — délai dépassé
   Bed {}: Plateau {}
   Bed {} / {}: Plateau {} / {}
+  Bed {} °C: "Plateau {} °C"
   Before starting: 'Avant de commencer'
   Below target: Sous la cible
   Belt Tension: Tension de courroie
@@ -1044,6 +1054,7 @@ translations:
   "Setup, navigation and gestures": "Configuration, navigation et gestes"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Touchez un slot pour le charger ou le décharger, choisir une bobine ou modifier ses informations. Vos modifications restent synchronisées avec l'imprimante et Spoolman."
   Unload stopped: 'Déchargement arrêté'
+  Used when a material has no entry: "Utilisé quand un matériau n'a pas d'entrée"
   "User Guide": "Guide d'utilisation"
   "Your filament system": "Votre système de filament"
   '{} could not be checked from Home - review it and tap Print': '{} n''a pas pu être vérifié depuis l''accueil – vérifiez-le et touchez Imprimer'
@@ -2128,6 +2139,7 @@ translations:
   Invert: Inverser
   Is the bed clear?: "Le plateau est-il dégagé ?"
   Issue description: Description du problème
+  It applies after the next Klipper restart.: "Il s'applique après le prochain redémarrage de Klipper."
   It can be un-archived in Spoolman's web UI.: Elle peut être désarchivée dans l'interface web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Il n'a pas encore signalé ses emplacements. Réessayez dans un instant.
   It homes and heats on its own (no start macro found).: Elle fait l'origine et chauffe seule (aucune macro de démarrage trouvée).
@@ -2496,6 +2508,7 @@ translations:
   Memory: Mémoire
   Memory (MB): Mémoire (Mo)
   Memory Snapshot: Instantané de la mémoire
+  Mesh kept for {}: "Maillage gardé pour {}"
   Mesh saved as '{}': Maillage enregistré sous '{}'
   Method: Méthode
   Min: Min
@@ -2843,6 +2856,7 @@ translations:
   'Off: runs with these values without asking': 'Désactivé : exécute avec ces valeurs sans demander'
   Offer to save Z-offset changes to the printer config: 'Proposer d''enregistrer les modifications du Z-Offset dans la configuration de l''imprimante'
   Offset: Décalage
+  Offset per material: "Décalage par matériau"
   Offsets Saved: Offsets enregistrés
   Offsets saved: Offsets enregistrés
   Old logs: 'Anciens journaux'
@@ -2857,6 +2871,7 @@ translations:
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : 'Une fois par jour, supprime les copies d''impression de plus d''une semaine et les journaux de plus d''un mois. Vos fichiers, photos et vidéos timelapse sont conservés.'
   One tap runs this macro. Dangerous macros still ask.: 'Un appui exécute cette macro. Les macros dangereuses demandent toujours confirmation.'
+  One-time setup: "Configuration initiale"
   'Only on {0}: {1} Hz': "Seulement sur {0} : {1} Hz"
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'Uniquement tant que cette appli est connectée. Installez le plugin HelixPrint pour couvrir chaque impression.'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'Uniquement tant que cette appli est connectée. Mettez à jour le plugin HelixPrint pour couvrir chaque impression.'
@@ -3611,6 +3626,7 @@ translations:
   Save Z-Offset: Enregistrer le Z-Offset
   Save Z-Offset Buttons: 'Boutons d''enregistrement du Z-Offset'
   Save Z-Offset?: Enregistrer le Z-Offset ?
+  Save as {} mesh?: "Enregistrer comme maillage {} ?"
   Save calibration: Enregistrer la calibration
   Save changes to persist them across restarts?: Enregistrer les modifications pour les conserver après redémarrage ?
   'Save failed: {}': 'Échec de l''enregistrement : {}'
@@ -3619,9 +3635,12 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre.
   Save to Spool: Enregistrer sur la bobine
   Save to Spoolman: Enregistrer dans Spoolman
+  Save writes the print's material; off, it saves one offset for every print: "Enregistrer écrit le matériau de l'impression ; désactivé, un seul décalage pour toutes les impressions"
+  Save {} mm for {}? Other materials keep their own offsets.: "Enregistrer {} mm pour {} ? Les autres matériaux gardent leurs propres décalages."
   Saved Z-Offset: Z-Offset enregistré
   Saved for the mounted head; other heads keep their own: 'Enregistré pour la tête d''outil montée ; les autres têtes d''outil gardent le leur'
   "Saved {} mm": "Enregistré {} mm"
+  Saved {} mm for {}: "{} mm enregistré pour {}"
   "Saved {} mm, {} mm after Save": "Enregistré {} mm, {} mm après enregistrement"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Enregistré dans Spoolman, mais le prix, l''emplacement, le lot et les notes de la bobine n''ont pas été enregistrés.'
   Saved to crash_report.txt (QR not available): Enregistré dans crash_report.txt (QR non disponible)
@@ -4449,6 +4468,7 @@ translations:
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Cette imprimante dispose d''une compensation moteur, la vérification s''exécute donc deux fois : désactivée, puis activée.'
   This printer has no IFS.: "Cette imprimante n'a pas d'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Cette imprimante n'a pas de macro INDX LOAD_FILAMENT"
+  This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Cette imprimante n'a pas encore de stockage [save_variables]. Mettez à jour les macros d'aide pour en ajouter un, puis redémarrez Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Cette imprimante n'a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
@@ -4939,6 +4959,7 @@ translations:
   Z Calibration: Calibration Z
   Z Movement: Mouvement Z
   Z Offset: Z Offset
+  Z Offset by Material: "Z-Offset par matériau"
   Z Probe: Sonde Z
   Z Range: Plage Z
   Z Tilt Adjust...: Ajustement inclinaison Z...
@@ -4946,6 +4967,7 @@ translations:
   Z is at its limit ({}mm): Z est à sa limite ({}mm)
   Z jog feedrate: Vitesse d'avance du déplacement Z
   Z motor calibration failed: Échec de l'étalonnage du moteur Z
+  Z offset by material: "Z-Offset par matériau"
   Z probes for bed leveling and mesh generation: Sondes Z pour la mise à niveau du plateau et la génération de maillage
   Z tilt: Inclinaison Z
   Z {:.2f} mm: Z {:.2f} mm
@@ -4974,6 +4996,7 @@ translations:
   'Z: 0.000': 'Z: 0.000'
   Zone {:.0f}-{:.0f} Hz: "Zone {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] n''a pas de probe_points, la tête n''a donc pas de hauteur sûre pour les tours de mise en place.'
+  '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] trouvé {} fois dans les fichiers de configuration chargés par printer.cfg, une seule fois attendue"
   already loaded: 'déjà chargé'
   attempt {}: 'essai {}'
   auto: auto
@@ -5119,6 +5142,7 @@ translations:
   '{} axes homed': 'Axes {} référencés'
   '{} axis homed': Axe {} référencé
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} ne peut pas être exclu : son nom contient des caractères impossibles à envoyer à l''imprimante'
+  '{} cannot be stored on this printer.': "{} ne peut pas être enregistré sur cette imprimante."
   '{} changed': '{} modifié(s)'
   '{} command timed out': Délai d'attente dépassé pour la commande {}
   '{} complete': '{} terminé'
@@ -5219,6 +5243,7 @@ translations:
   'Product': 'Produit'
   'Remaining weight': 'Poids restant'
   'Reset to tag': 'Rétablir depuis le tag'
+  'Save the Z-offset after the print: saving restarts Klipper.': "Enregistrez le Z-Offset après l'impression : l'enregistrement redémarre Klipper."
   'Save the changes to this spool?': 'Enregistrer les modifications de cette bobine ?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Cela ne correspond pas à la bobine Spoolman liée. La mettre à jour dans Spoolman, ou délier et la garder sur cet emplacement ?'
   'Unlink': 'Délier'

@@ -952,6 +952,12 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("gcode_macro START_PRINT")) {
                 status_obj["gcode_macro START_PRINT"] = {{"preparation_done", false}};
             }
+            const json material_zoffset = self->material_zoffset_status_json();
+            for (const auto& [name, value] : material_zoffset.items()) {
+                if (objects.contains(name)) {
+                    status_obj[name] = value;
+                }
+            }
             if (objects.contains("gcode_macro _HELIX_STATE")) {
                 status_obj["gcode_macro _HELIX_STATE"] = {{"print_started", false}};
             }

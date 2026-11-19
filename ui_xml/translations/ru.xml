@@ -141,6 +141,7 @@
   <translation tag="1 unit" ru="1 ед."/>
   <translation tag="1, 2, 3" ru="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ru="1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой"/>
+  <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." ru="1. Установите вспомогательные макросы. Они добавляют HELIX_MATERIAL_OFFSET и хранилище [save_variables] для смещений."/>
   <translation tag="1. Printer homes all axes (~1 minute)" ru="1. Принтер ищет ноль по всем осям (~1 минута)"/>
   <translation tag="1. Printer homes and probes the bed" ru="1. Принтер паркуется и зондирует стол"/>
   <translation tag="1. Printer will home and probe each screw" ru="1. Принтер запаркуется и проверит каждый винт"/>
@@ -153,6 +154,7 @@
   <translation tag="180° Upside Down" ru="180° вверх ногами"/>
   <translation tag="2 min" ru="2 мин"/>
   <translation tag="2 minutes" ru="2 минуты"/>
+  <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" ru="2. В PRINT_START после парковки и зондирования, но до вашего шага построения сетки, добавьте строку:"/>
   <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ru="2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ru="2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба"/>
   <translation tag="2. Place paper between nozzle and bed" ru="2. Положите бумагу между соплом и столом"/>
@@ -168,6 +170,7 @@
   <translation tag="2D Layers" ru="2D слои"/>
   <translation tag="3. Adjust screws, then re-probe to verify" ru="3. Отрегулируйте винты, затем перепроверьте"/>
   <translation tag="3. Every toolhead is probed and the offsets are saved" ru="3. Каждая печатающая головка измеряется, и смещения сохраняются"/>
+  <translation tag="3. Have the slicer&apos;s start G-code pass the material to PRINT_START:" ru="3. Пусть стартовый G-код слайсера передаёт материал в PRINT_START:"/>
   <translation tag="3. Lower nozzle until paper drags slightly" ru="3. Опустите сопло, пока бумага не начнёт слегка цепляться"/>
   <translation tag="3. Save the position" ru="3. Сохраните позицию"/>
   <translation tag="30 minutes" ru="30 минут"/>
@@ -199,8 +202,11 @@
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." ru="Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ru="Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз."/>
+  <translation tag="A first-layer offset and bed mesh for each material" ru="Смещение первого слоя и сетка стола для каждого материала"/>
   <translation tag="A folder name in moonraker.conf is unsafe." ru="Имя папки в moonraker.conf небезопасно."/>
+  <translation tag="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh." ru="Сетка отмечает материал с сохранённой сеткой стола, которая загружается при старте печати без построения сетки."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ru="На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает."/>
+  <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." ru="Нагретый стол расширяется с температурой, поэтому у каждого материала может быть своё смещение первого слоя. Стартовый макрос применяет его, а сохранение во время печати меняет только материал этой печати."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." ru="Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры."/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." ru="Карта высот стола, по которой Klipper компенсирует неровности поверхности. Просмотр и калибровка на экране «Сетка стола»."/>
   <translation tag="A left, B right" ru="A слева, B справа"/>
@@ -351,6 +357,7 @@
   <translation tag="Allwinner" ru="Allwinner"/>
   <translation tag="Already connecting — wait a moment and try again" ru="Подключение уже выполняется — подождите и попробуйте снова"/>
   <translation tag="Already mounted" ru="Уже установлен"/>
+  <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ru="Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."/>
   <translation tag="Always Show Bypass Spool" ru="Всегда показывать катушку байпаса"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ru="Всегда показывать панель навигации Android вместо жестов"/>
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
@@ -383,6 +390,7 @@
   <translation tag="App startup encountered an error. Some features may be unavailable." ru="При запуске приложения произошла ошибка. Некоторые функции могут быть недоступны."/>
   <translation tag="Appearance" ru="Внешний вид"/>
   <translation tag="Appearance &amp; Region" ru="Внешний вид и регион"/>
+  <translation tag="Applied for this session only: {}" ru="Применено только на этот сеанс: {}"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ru="Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку."/>
   <translation tag="Applies to" ru="Применяется к"/>
   <translation tag="Apply" ru="Применить"/>
@@ -512,6 +520,7 @@
   <translation tag="Bed warming timed out" ru="Нагрев стола — время ожидания истекло"/>
   <translation tag="Bed {}" ru="Стол {}"/>
   <translation tag="Bed {} / {}" ru="Стол {} / {}"/>
+  <translation tag="Bed {} °C" ru="Стол {} °C"/>
   <translation tag="Before starting" ru="Перед началом"/>
   <translation tag="Below target" ru="Ниже цели"/>
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
@@ -2088,6 +2097,7 @@
   <translation tag="Is new filament coming out of the nozzle?" ru="Выходит ли новый филамент из сопла?"/>
   <translation tag="Is the bed clear?" ru="Стол свободен?"/>
   <translation tag="Issue description" ru="Описание проблемы"/>
+  <translation tag="It applies after the next Klipper restart." ru="Вступит в силу после следующего перезапуска Klipper."/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ru="Это можно восстановить из архива в веб-интерфейсе Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ru="Она ещё не сообщила о своих слотах. Повторите попытку через минуту."/>
   <translation tag="It homes and heats on its own (no start macro found)." ru="Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден)."/>
@@ -2454,6 +2464,7 @@
   <translation tag="Memory" ru="Память"/>
   <translation tag="Memory (MB)" ru="Память (МБ)"/>
   <translation tag="Memory Snapshot" ru="Снимок памяти"/>
+  <translation tag="Mesh kept for {}" ru="Сетка сохранена для {}"/>
   <translation tag="Mesh saved as &apos;{}&apos;" ru="Сетка сохранена как &apos;{}&apos;"/>
   <translation tag="Method" ru="Метод"/>
   <translation tag="Min" ru="Мин"/>
@@ -2798,6 +2809,7 @@
   <translation tag="Off: runs with these values without asking" ru="Выкл.: запуск с этими значениями без запроса"/>
   <translation tag="Offer to save Z-offset changes to the printer config" ru="Предлагать сохранить изменения Z-Offset в конфигурации принтера"/>
   <translation tag="Offset" ru="Смещение"/>
+  <translation tag="Offset per material" ru="Смещение по материалу"/>
   <translation tag="Offsets Saved" ru="Смещения сохранены"/>
   <translation tag="Offsets saved" ru="Смещения сохранены"/>
   <translation tag="Old logs" ru="Старые журналы"/>
@@ -2811,6 +2823,7 @@
   <translation tag="On:" ru="Вкл:"/>
   <translation tag="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept." ru="Раз в день удаляет копии для печати старше недели и журналы старше месяца. Ваши файлы, фото и видео таймлапса сохраняются."/>
   <translation tag="One tap runs this macro. Dangerous macros still ask." ru="Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение."/>
+  <translation tag="One-time setup" ru="Первоначальная настройка"/>
   <translation tag="Only on {0}: {1} Hz" ru="Только {0}: {1} Гц"/>
   <translation tag="Only while this app is connected. Install the HelixPrint plugin to cover every print." ru="Только пока это приложение подключено. Установите плагин HelixPrint, чтобы охватить всю печать."/>
   <translation tag="Only while this app is connected. Update the HelixPrint plugin to cover every print." ru="Только пока это приложение подключено. Обновите плагин HelixPrint, чтобы охватить всю печать."/>
@@ -3570,14 +3583,18 @@
   <translation tag="Save Z-Offset" ru="Сохранить Z-Offset"/>
   <translation tag="Save Z-Offset Buttons" ru="Кнопки сохранения Z-Offset"/>
   <translation tag="Save Z-Offset?" ru="Сохранить Z-Offset?"/>
+  <translation tag="Save as {} mesh?" ru="Сохранить как сетку {}?"/>
   <translation tag="Save calibration" ru="Сохранить калибровку"/>
   <translation tag="Save changes to persist them across restarts?" ru="Сохранить изменения, чтобы они сохранились после перезапуска?"/>
   <translation tag="Save failed: {}" ru="Ошибка сохранения: {}"/>
   <translation tag="Save offsets?" ru="Сохранить смещения?"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." ru="Сохраните Z-Offset после печати: сохранение перезапускает Klipper."/>
   <translation tag="Save the changes to this spool?" ru="Сохранить изменения этой катушки?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ru="Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится."/>
   <translation tag="Save to Spool" ru="Сохранить на катушку"/>
   <translation tag="Save to Spoolman" ru="Сохранить в Spoolman"/>
+  <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" ru="Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"/>
+  <translation tag="Save {} mm for {}? Other materials keep their own offsets." ru="Сохранить {} мм для {}? Другие материалы сохранят свои смещения."/>
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ru="Сохранено для установленной печатающей головки; остальные головки сохраняют своё"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ru="Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились."/>
@@ -3586,6 +3603,7 @@
   <translation tag="Saved to {}. It applies whenever this filament becomes active." ru="Сохранено в {}. Применяется каждый раз, когда этот филамент становится активным."/>
   <translation tag="Saved values, and whether to ask before running" ru="Сохранённые значения и запрос перед запуском"/>
   <translation tag="Saved {} mm" ru="Сохранено {} мм"/>
+  <translation tag="Saved {} mm for {}" ru="Сохранено {} мм для {}"/>
   <translation tag="Saved {} mm, {} mm after Save" ru="Сохранено {} мм, {} мм после сохранения"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." ru="Сохранено. Spoolman не в сети, поэтому цена, расположение, партия и заметки остаются здесь несохранёнными."/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ru="Сохраняет снимок камеры после 2-го слоя и в конце каждой печати; он показывается в истории печати."/>
@@ -4368,6 +4386,7 @@
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ru="У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой."/>
   <translation tag="This printer has no IFS." ru="У этого принтера нет IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
+  <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ru="На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
@@ -4663,6 +4682,7 @@
   <translation tag="Use first HID scanner found" ru="Использовать первый найденный HID-сканер"/>
   <translation tag="Use printer type to select image" ru="Использовать тип принтера для выбора изображения"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ru="Использовать раскладку главного экрана, заданную на экране принтера"/>
+  <translation tag="Used when a material has no entry" ru="Используется, если у материала нет записи"/>
   <translation tag="User Guide" ru="Руководство пользователя"/>
   <translation tag="User intervention required" ru="Требуется ручное вмешательство"/>
   <translation tag="Uses tool T{}, and this printer&apos;s last tool is T{}." ru="Использует инструмент T{}, а последний инструмент этого принтера — T{}."/>
@@ -4859,6 +4879,7 @@
   <translation tag="Z Calibration" ru="Калибровка Z"/>
   <translation tag="Z Movement" ru="Движение Z"/>
   <translation tag="Z Offset" ru="Z Offset"/>
+  <translation tag="Z Offset by Material" ru="Z-Offset по материалу"/>
   <translation tag="Z Probe" ru="Z-зонд"/>
   <translation tag="Z Range" ru="Диапазон Z"/>
   <translation tag="Z Tilt Adjust..." ru="Регулировка наклона Z..."/>
@@ -4866,6 +4887,7 @@
   <translation tag="Z is at its limit ({}mm)" ru="Z на пределе ({}mm)"/>
   <translation tag="Z jog feedrate" ru="Скорость перемещения по оси Z"/>
   <translation tag="Z motor calibration failed" ru="Не удалась калибровка двигателя Z"/>
+  <translation tag="Z offset by material" ru="Z-Offset по материалу"/>
   <translation tag="Z probes for bed leveling and mesh generation" ru="Z-зонды для выравнивания стола и создания сетки"/>
   <translation tag="Z tilt" ru="Наклон Z"/>
   <translation tag="Z {:.2f} mm" ru="Z {:.2f} мм"/>
@@ -4894,6 +4916,7 @@
   <translation tag="Z: 0.000" ru="Z: 0.000"/>
   <translation tag="Zone {:.0f}-{:.0f} Hz" ru="Зона {:.0f}-{:.0f} Гц"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." ru="В [resonance_tester] нет probe_points, поэтому у головы нет безопасной высоты для кругов приработки."/>
+  <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" ru="[{}] найден {} раз в файлах конфигурации, которые загружает printer.cfg; ожидался один"/>
   <translation tag="already loaded" ru="уже загружен"/>
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
@@ -5035,6 +5058,7 @@
   <translation tag="{} axes homed" ru="Оси {} запаркованы"/>
   <translation tag="{} axis homed" ru="Ось {} запаркована"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" ru="{} нельзя исключить: имя содержит символы, которые нельзя отправить на принтер"/>
+  <translation tag="{} cannot be stored on this printer." ru="{} нельзя сохранить на этом принтере."/>
   <translation tag="{} changed" ru="изменено: {}"/>
   <translation tag="{} command timed out" ru="Время команды {} истекло"/>
   <translation tag="{} complete" ru="{} завершено"/>

@@ -57,6 +57,15 @@ def parse_test(src: str) -> dict:
         block(src, "kNoMachineControlFiles[] = {", "};"))]
     markers = [unescape(s) for s in STRING_RE.findall(
         block(src, "bool declares_a_control(const std::string& xml) {", "if (xml.find"))]
+    derived_start = src.find("kDerivedGuards[] = {")
+    derived = []
+    if derived_start >= 0:
+        body = block(src, "kDerivedGuards[] = {", "};")
+        # Adjacent C++ string literals concatenate.
+        for entry in re.split(r'",\s*\n', body):
+            parts = STRING_RE.findall(entry + '"')
+            if parts:
+                derived.append("".join(unescape(p) for p in parts))
     raw = re.search(r'bind\.find\("((?:[^"\\]|\\.)*)"\) == std::string::npos', src)
     if not raw:
         raise ValueError(f"{TEST_PATH}: cannot find the raw print subject the binds are checked for")
@@ -70,6 +79,7 @@ def parse_test(src: str) -> dict:
         "guard": constant(src, "kGuardAttribute"),
         "guard_name": constant(src, "kGuardAttributeName"),
         "socket": constant(src, "kSocketGuard"),
+        "derived": derived,
     }
 
 
@@ -107,9 +117,10 @@ def check(test_src: str, xml: dict[str, str]) -> list[str]:
         text = xml.get(path)
         if text is None:
             continue
-        have = text.count(t["guard"])
-        if attrs(text) != have:
-            problems.append(f'{path} carries {attrs(text)} moves_machine attributes but {have} '
+        spelled = text.count(t["guard"])
+        have = spelled + sum(text.count(d) for d in t["derived"])
+        if attrs(text) != spelled:
+            problems.append(f'{path} carries {attrs(text)} moves_machine attributes but {spelled} '
                             'spelled "true". Spell it "true" or drop the attribute.')
         elif have != want:
             problems.append(f"{path} pins {want} toolhead guards and carries {have}. If a "
@@ -117,10 +128,11 @@ def check(test_src: str, xml: dict[str, str]) -> list[str]:
                             f"kGuardedFiles row in {TEST_PATH}.")
     for path in t["none"]:
         text = xml.get(path)
-        if text is not None and attrs(text):
-            problems.append(f"{path} carries {attrs(text)} moves_machine attributes, so a "
-                            "control in it does command the printer. Move its row to "
-                            "kGuardedFiles with that count.")
+        derived_here = sum(text.count(d) for d in t["derived"]) if text is not None else 0
+        if text is not None and (attrs(text) or derived_here):
+            problems.append(f"{path} carries {attrs(text)} moves_machine attributes and "
+                            f"{derived_here} derived guards, so a control in it does command "
+                            "the printer. Move its row to kGuardedFiles with that count.")
     for path, text in sorted(xml.items()):
         mentions = text.count(t["subject"])
         if mentions:

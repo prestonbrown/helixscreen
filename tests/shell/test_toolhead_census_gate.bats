@@ -30,6 +30,10 @@ constexpr const char* kDisabled = "state=\"disabled\"";
 constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
 constexpr const char* kGuardAttributeName = "moves_machine=\"";
 constexpr const char* kSocketGuard = "moves_machine=\"$";
+constexpr const char* kDerivedGuards[] = {
+    "<bind_state_if_eq subject=\"save_blocked\" state=\"disabled\" "
+    "ref_value=\"1\"/>",
+};
 constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/motion.xml", 1},
 };
@@ -93,6 +97,24 @@ run_staged() {
     run_staged
     [ "$status" -eq 1 ]
     contains "pins 1 toolhead guards and carries 2" "$output"
+}
+
+@test "a registered derived guard counts as a guard" {
+    printf '<view><lv_button moves_machine="true"/><lv_button><bind_state_if_eq subject="save_blocked" state="disabled" ref_value="1"/></lv_button></view>\n' \
+        > ui_xml/motion.xml
+    git add ui_xml/motion.xml
+    run_staged
+    [ "$status" -eq 1 ]
+    contains "pins 1 toolhead guards and carries 2" "$output"
+}
+
+@test "a derived guard in a file classified as commanding nothing fails" {
+    printf '<view><lv_obj clickable="true"><bind_state_if_eq subject="save_blocked" state="disabled" ref_value="1"/></lv_obj></view>\n' \
+        > ui_xml/components/about.xml
+    git add ui_xml/components/about.xml
+    run_staged
+    [ "$status" -eq 1 ]
+    contains "1 derived guards" "$output"
 }
 
 @test "a file with no control needs no row" {

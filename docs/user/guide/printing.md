@@ -433,6 +433,10 @@ An adjustment made from the Tune overlay is temporary: it lasts for this print u
 
 The Save Z-Offset buttons can be turned off for a printer with **Save Z-Offset Buttons** in **Settings > Printing > Motion** (see [Motion](motion.md#motion-settings)). They start off on tool changers, and the switch is hidden on printers whose firmware saves the offset itself.
 
+### A Z offset for each material
+
+A bed heated for PETG or ABS sits at a slightly different height than one heated for PLA. **Settings > Printing > Z Offset by Material** keeps a separate offset (and optionally a bed mesh) for each material and applies the right one at every print. With it on, **Save** writes only the print's material, works during a print, and does not restart Klipper. Setup and limitations: [Z Offset by Material](z-offset-by-material.md).
+
 **The hint under the Z-Offset controls** tells you what happens to your adjustment:
 
 - **"Temporary adjustment for this print, unless saved on Controls panel"**: the normal case. Save it from Controls to keep it.

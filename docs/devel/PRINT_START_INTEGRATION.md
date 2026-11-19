@@ -245,6 +245,40 @@ The HelixPrint plugin renames the visible calls the pre-1.1 instrumentation wrot
 
 The uninstall path (`moonraker-plugin/install.sh`) also runs `strip_phase_tracking.py` over the Klipper config tree. Each marker block is a pair of `HELIX_TRACKING` comment lines wrapped around a single `HELIX_PHASE_*`/`HELIX_READY` call; the script removes those blocks from inside `[gcode_macro ...]` bodies, writes a `.bak.<timestamp>` backup of every file it edits, and never touches a file whose markers look anomalous (unmatched, nested, or not exactly the three lines a marker block consists of). It does not restart Klipper - the edit takes effect at the next restart. Exit status: `0` all clean or stripped, `2` nothing failed but a file needs a human to look, `1` an edit failed.
 
+## Z Offset and Bed Mesh by Material
+
+A heated bed expands with temperature, so the first-layer offset that is right for PLA at 60°C is off for PETG at 80°C. HelixScreen can keep one Z offset per material, and optionally one stored bed mesh per material, and apply it at print start whichever program started the print. Turn it on in **Settings > Printing > Z Offset by Material**. How it works inside: [MATERIAL_Z_OFFSET.md](MATERIAL_Z_OFFSET.md).
+
+**Printers that already keep a table.** Jacobean's K2 Plus firmware, and any printer with a hand-made `[gcode_macro _START_PRINT_VARS]` holding `variable_offset_<MATERIAL>` lines that its start macro applies, need no setup: HelixScreen reads that table, and a Save writes the one line for the material in the file that defines the section. A material the section does not list yet gets its line added, and applies after the next Klipper restart.
+
+**Everyone else: HelixScreen's macro.** The helper macros (v2.3.0 and later) carry `HELIX_MATERIAL_OFFSET`, which keeps its values in `[save_variables]`.
+
+1. Install or update the helper macros (Advanced panel, **Helper Macros**). If the printer has no `[save_variables]` section, HelixScreen adds one to `helix_macros.cfg`, storing the values in `helix_variables.cfg` beside `printer.cfg`. A printer with its own `[save_variables]` keeps it.
+2. In `PRINT_START`, after homing and probing and before your own mesh step, call the macro with the material:
+
+   ```gcode
+   [gcode_macro PRINT_START]
+   gcode:
+       {% set MATERIAL = params.MATERIAL|default("") %}
+       G28
+       # ... heat, level ...
+       HELIX_MATERIAL_OFFSET MATERIAL={MATERIAL}
+       BED_MESH_CALIBRATE ADAPTIVE=1   # optional: replaces the stored mesh
+       _HELIX_READY
+   ```
+
+3. Have the slicer pass the material. OrcaSlicer and PrusaSlicer machine start G-code:
+
+   ```gcode
+   PRINT_START BED_TEMP=[first_layer_bed_temperature] EXTRUDER_TEMP=[first_layer_temperature] MATERIAL={filament_type[initial_extruder]}
+   ```
+
+`HELIX_MATERIAL_OFFSET` applies `helix_zoffset_<material>` (else `helix_zoffset_default`, else 0) as an absolute `SET_GCODE_OFFSET Z=`, on top of the probe's own `z_offset`, and loads the bed mesh profile `helix_<material>` when one exists. The material is lower-cased with `-`, ` `, `+` and `.` turned into `_`, so `PETG-CF` is `helix_zoffset_petg_cf`. A print the screen starts uses the material it prints the most of by weight, passed in `_HELIX_MATERIAL.next` just before the start.
+
+**Saving.** With the feature on, **Save Z-Offset** during or after a print writes the live offset into that print's material only, after a confirmation naming it ("Save +0.040 mm for PETG?"). It sends `SAVE_VARIABLE` (or `SET_GCODE_VARIABLE` and the one-line edit), never `Z_OFFSET_APPLY_PROBE` or `SAVE_CONFIG`, so Klipper does not restart and a running print is not interrupted. The Settings screen edits any material's value directly. With the feature off, Save works exactly as before.
+
+**Meshes.** After a bed mesh calibration on a heated bed, the Bed Mesh panel offers to keep the mesh as the material whose usual bed temperature is closest. Mesh profiles live in `printer.cfg`, so that save ends in the panel's usual SAVE_CONFIG prompt.
+
 ## Controllable Pre-Print Operations
 
 HelixScreen can analyze your `PRINT_START` macro to detect which operations can be toggled from the print details panel. This allows you to skip bed mesh, QGL, etc. on a per-print basis.

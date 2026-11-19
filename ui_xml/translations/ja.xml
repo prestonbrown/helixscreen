@@ -105,6 +105,7 @@
   <translation tag="1 unit" ja="1ユニット"/>
   <translation tag="1, 2, 3" ja="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ja="1. 各ノズルを加熱・拭き取りし、ブラシで清掃できるよう前方に移動します"/>
+  <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." ja="1. ヘルパーマクロをインストールします。HELIX_MATERIAL_OFFSET とオフセット用の [save_variables] ストアが追加されます。"/>
   <translation tag="1. Printer homes all axes (~1 minute)" ja="1. プリンターが全軸の原点復帰を行います（約1分）"/>
   <translation tag="1. Printer homes and probes the bed" ja="1. プリンターがホーミングしてベッドをプローブします"/>
   <translation tag="1. Printer will home and probe each screw" ja="1. プリンターがホーミングして各ネジをプローブします"/>
@@ -117,6 +118,7 @@
   <translation tag="180° Upside Down" ja="180° 上下反転"/>
   <translation tag="2 min" ja="2分"/>
   <translation tag="2 minutes" ja="2分"/>
+  <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" ja="2. PRINT_START で、ホーミングとプローブの後、独自のメッシュ処理の前に次の行を追加します:"/>
   <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ja="2. XとYをジョグして、ノズルがシュートの開口部の中心に来るようにします"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ja="2. Yをジョグして、ノズルがシュートの開口部の中心に来るようにします"/>
   <translation tag="2. Place paper between nozzle and bed" ja="2. ノズルとベッドの間に紙を置いてください"/>
@@ -132,6 +134,7 @@
   <translation tag="2D Layers" ja="2Dレイヤー"/>
   <translation tag="3. Adjust screws, then re-probe to verify" ja="3. ネジを調整し、再度プローブして確認してください"/>
   <translation tag="3. Every toolhead is probed and the offsets are saved" ja="3. 各ツールヘッドを計測し、オフセットを保存します"/>
+  <translation tag="3. Have the slicer&apos;s start G-code pass the material to PRINT_START:" ja="3. スライサーの開始 G-code から素材を PRINT_START へ送ります:"/>
   <translation tag="3. Lower nozzle until paper drags slightly" ja="3. 紙がわずかに引っかかるまでノズルを下げてください"/>
   <translation tag="3. Save the position" ja="3. 位置を保存します"/>
   <translation tag="30 minutes" ja="30分"/>
@@ -163,8 +166,11 @@
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." ja="デルタプリンターはZを動かさずにXとYをホーミングできないため、印刷を再開できません。"/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ja="チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。"/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ja="数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。"/>
+  <translation tag="A first-layer offset and bed mesh for each material" ja="素材ごとの1層目オフセットとベッドメッシュ"/>
   <translation tag="A folder name in moonraker.conf is unsafe." ja="moonraker.conf のフォルダー名が安全ではありません。"/>
+  <translation tag="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh." ja="グリッドは保存済みベッドメッシュのある素材を示します。メッシュを取らない印刷の開始時に読み込まれます。"/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." ja="プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。"/>
+  <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." ja="加熱ベッドは温度で膨張するため、素材ごとに1層目のオフセットを持てます。印刷開始マクロがそれを適用し、印刷中の保存はその印刷の素材だけを変更します。"/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." ja="チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。"/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." ja="Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。"/>
   <translation tag="A left, B right" ja="A左・B右"/>
@@ -315,6 +321,7 @@
   <translation tag="Allwinner" ja="Allwinner"/>
   <translation tag="Already connecting — wait a moment and try again" ja="接続処理中です — 少し待ってからもう一度お試しください"/>
   <translation tag="Already mounted" ja="装着済み"/>
+  <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ja="このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"/>
   <translation tag="Always Show Bypass Spool" ja="バイパススプールを常に表示"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ja="ジェスチャーの代わりにAndroidナビゲーションバーを常に表示"/>
   <translation tag="Ambient Transfer" ja="環境熱伝達"/>
@@ -347,6 +354,7 @@
   <translation tag="App startup encountered an error. Some features may be unavailable." ja="アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。"/>
   <translation tag="Appearance" ja="外観"/>
   <translation tag="Appearance &amp; Region" ja="外観と地域"/>
+  <translation tag="Applied for this session only: {}" ja="このセッションのみ適用: {}"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." ja="{}に適用しました。Klipperは再起動で忘れます: スライサーのフィラメントプロファイルでPressure Advanceに{}を入力するか、スプールに保存してください。"/>
   <translation tag="Applies to" ja="適用対象"/>
   <translation tag="Apply" ja="適用"/>
@@ -470,6 +478,7 @@
   <translation tag="Bed warming timed out" ja="ベッド加熱がタイムアウトしました"/>
   <translation tag="Bed {}" ja="ベッド {}"/>
   <translation tag="Bed {} / {}" ja="ベッド {} / {}"/>
+  <translation tag="Bed {} °C" ja="ベッド {} °C"/>
   <translation tag="Before starting" ja="開始前に"/>
   <translation tag="Below target" ja="目標より低い"/>
   <translation tag="Belt Tension" ja="ベルトテンション"/>
@@ -2040,6 +2049,7 @@
   <translation tag="Is new filament coming out of the nozzle?" ja="ノズルから新しいフィラメントが出ていますか？"/>
   <translation tag="Is the bed clear?" ja="ベッドは空いていますか？"/>
   <translation tag="Issue description" ja="問題の説明"/>
+  <translation tag="It applies after the next Klipper restart." ja="次回の Klipper 再起動後に適用されます。"/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." ja="Spoolman の Web 画面でアーカイブを解除できます。"/>
   <translation tag="It has not reported its slots yet. Try again in a moment." ja="スロットがまだ報告されていません。しばらくしてからもう一度お試しください。"/>
   <translation tag="It homes and heats on its own (no start macro found)." ja="ホーミングと加熱を自分で行います(開始マクロが見つかりません)。"/>
@@ -2406,6 +2416,7 @@
   <translation tag="Memory" ja="メモリ"/>
   <translation tag="Memory (MB)" ja="メモリ (MB)"/>
   <translation tag="Memory Snapshot" ja="メモリースナップショット"/>
+  <translation tag="Mesh kept for {}" ja="{} 用にメッシュを保存しました"/>
   <translation tag="Mesh saved as &apos;{}&apos;" ja="&quot;メッシュを &apos;{}&apos; として保存しました&quot;"/>
   <translation tag="Method" ja="方法"/>
   <translation tag="Min" ja="最小"/>
@@ -2750,6 +2761,7 @@
   <translation tag="Off: runs with these values without asking" ja="オフ: これらの値で確認なしに実行"/>
   <translation tag="Offer to save Z-offset changes to the printer config" ja="Z-Offset の変更をプリンター設定に保存する操作を表示します"/>
   <translation tag="Offset" ja="オフセット"/>
+  <translation tag="Offset per material" ja="素材ごとのオフセット"/>
   <translation tag="Offsets Saved" ja="オフセットを保存しました"/>
   <translation tag="Offsets saved" ja="オフセットを保存しました"/>
   <translation tag="Old logs" ja="古いログ"/>
@@ -2763,6 +2775,7 @@
   <translation tag="On:" ja="オン:"/>
   <translation tag="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept." ja="1日1回、1週間より古い印刷コピーと1か月より古いログを削除します。ファイル、写真、タイムラプス動画は残ります。"/>
   <translation tag="One tap runs this macro. Dangerous macros still ask." ja="ワンタップでこのマクロを実行します。危険なマクロは確認を求めます。"/>
+  <translation tag="One-time setup" ja="初回セットアップ"/>
   <translation tag="Only on {0}: {1} Hz" ja="{0}のみ: {1} Hz"/>
   <translation tag="Only while this app is connected. Install the HelixPrint plugin to cover every print." ja="このアプリが接続している間のみ有効です。すべての印刷に適用するにはHelixPrintプラグインをインストールしてください。"/>
   <translation tag="Only while this app is connected. Update the HelixPrint plugin to cover every print." ja="このアプリが接続している間のみ有効です。すべての印刷に適用するにはHelixPrintプラグインを更新してください。"/>
@@ -3510,14 +3523,18 @@
   <translation tag="Save Z-Offset" ja="Z-Offset を保存"/>
   <translation tag="Save Z-Offset Buttons" ja="Z-Offset 保存ボタン"/>
   <translation tag="Save Z-Offset?" ja="Z-Offset を保存しますか？"/>
+  <translation tag="Save as {} mesh?" ja="{} のメッシュとして保存しますか？"/>
   <translation tag="Save calibration" ja="校正を保存"/>
   <translation tag="Save changes to persist them across restarts?" ja="再起動後も変更を保持するために保存しますか？"/>
   <translation tag="Save failed: {}" ja="保存に失敗しました: {}"/>
   <translation tag="Save offsets?" ja="オフセットを保存しますか？"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." ja="印刷後に Z-Offset を保存してください。保存すると Klipper が再起動します。"/>
   <translation tag="Save the changes to this spool?" ja="このスプールの変更を保存しますか？"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." ja="新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。"/>
   <translation tag="Save to Spool" ja="スプールに保存"/>
   <translation tag="Save to Spoolman" ja="Spoolman に保存"/>
+  <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" ja="保存は印刷中の素材に書き込みます。オフにすると全印刷で1つのオフセットを保存します"/>
+  <translation tag="Save {} mm for {}? Other materials keep their own offsets." ja="{} mm を {} に保存しますか？他の素材のオフセットは変わりません。"/>
   <translation tag="Saved Z-Offset" ja="保存されたZ-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ja="装着中のツールヘッドに保存されます。他のツールヘッドは各自の値を保持します"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ja="Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。"/>
@@ -3526,6 +3543,7 @@
   <translation tag="Saved to {}. It applies whenever this filament becomes active." ja="{}に保存しました。このフィラメントが使用中になるたびに適用されます。"/>
   <translation tag="Saved values, and whether to ask before running" ja="保存した値と、実行前に確認するかどうか"/>
   <translation tag="Saved {} mm" ja="保存値 {} mm"/>
+  <translation tag="Saved {} mm for {}" ja="{} mm を {} に保存しました"/>
   <translation tag="Saved {} mm, {} mm after Save" ja="保存値 {} mm、保存後 {} mm"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." ja="保存しました。Spoolmanがオフラインのため、価格、場所、ロット、メモは未保存のままここに残ります。"/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ja="レイヤー2の後と各印刷の終了時にカメラの写真を保存し、印刷履歴に表示します。"/>
@@ -4302,6 +4320,7 @@
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ja="このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。"/>
   <translation tag="This printer has no IFS." ja="このプリンターにはIFSがありません。"/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ja="このプリンターにはINDXのLOAD_FILAMENTマクロがありません"/>
+  <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ja="このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ja="このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ja="このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ja="このプリンターには {} コマンドがないため、Zオフセットを保存できません。"/>
@@ -4597,6 +4616,7 @@
   <translation tag="Use first HID scanner found" ja="最初に見つかった HID スキャナーを使用"/>
   <translation tag="Use printer type to select image" ja="プリンタータイプで画像を選択"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" ja="プリンター本体の画面で設定したホームレイアウトを使用"/>
+  <translation tag="Used when a material has no entry" ja="素材に項目がない場合に使用"/>
   <translation tag="User Guide" ja="ユーザーガイド"/>
   <translation tag="User intervention required" ja="手動での対応が必要です"/>
   <translation tag="Uses tool T{}, and this printer&apos;s last tool is T{}." ja="ツールT{}を使用しますが、このプリンターの最後のツールはT{}です。"/>
@@ -4793,6 +4813,7 @@
   <translation tag="Z Calibration" ja="Z キャリブレーション"/>
   <translation tag="Z Movement" ja="Z移動"/>
   <translation tag="Z Offset" ja="Zオフセット"/>
+  <translation tag="Z Offset by Material" ja="素材別 Z-Offset"/>
   <translation tag="Z Probe" ja="Zプローブ"/>
   <translation tag="Z Range" ja="Z 範囲"/>
   <translation tag="Z Tilt Adjust..." ja="Zチルト調整中..."/>
@@ -4800,6 +4821,7 @@
   <translation tag="Z is at its limit ({}mm)" ja="Z軸は限界に達しています ({}mm)"/>
   <translation tag="Z jog feedrate" ja="Z軸のジョグ移動速度"/>
   <translation tag="Z motor calibration failed" ja="Z モーターの校正に失敗しました"/>
+  <translation tag="Z offset by material" ja="素材別 Z-Offset"/>
   <translation tag="Z probes for bed leveling and mesh generation" ja="ベッドレベリングとメッシュ生成用 Z プローブ"/>
   <translation tag="Z tilt" ja="Zチルト"/>
   <translation tag="Z {:.2f} mm" ja="Z {:.2f} mm"/>
@@ -4828,6 +4850,7 @@
   <translation tag="Z: 0.000" ja="Z: 0.000"/>
   <translation tag="Zone {:.0f}-{:.0f} Hz" ja="ゾーン {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." ja="[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。"/>
+  <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" ja="[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"/>
   <translation tag="already loaded" ja="装填済み"/>
   <translation tag="attempt {}" ja="試行 {}"/>
   <translation tag="auto" ja="自動"/>
@@ -4966,6 +4989,7 @@
   <translation tag="{} axes homed" ja="{} 軸がホーミング済み"/>
   <translation tag="{} axis homed" ja="{} 軸がホーミング済み"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" ja="{} は除外できません: 名前にプリンターへ送信できない文字が含まれています"/>
+  <translation tag="{} cannot be stored on this printer." ja="{} はこのプリンターに保存できません。"/>
   <translation tag="{} changed" ja="変更 {} 件"/>
   <translation tag="{} command timed out" ja="{} コマンドがタイムアウトしました"/>
   <translation tag="{} complete" ja="{} 完了"/>

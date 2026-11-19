@@ -301,6 +301,14 @@ constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
 /// carries no guard while reading like a deliberate one.
 constexpr const char* kGuardAttributeName = "moves_machine=\"";
 constexpr const char* kSocketGuard = "moves_machine=\"$";
+/// Guards published from C++ for a control whose toolhead risk depends on what
+/// a tap would do now. Each subject reads 1 only while machine_motion_blocked
+/// does and the action would command the machine, so the binding is the same
+/// guard as moves_machine for exactly those taps. Counted like it.
+constexpr const char* kDerivedGuards[] = {
+    "<bind_state_if_eq subject=\"z_offset_save_motion_blocked\" state=\"disabled\" "
+    "ref_value=\"1\"/>",
+};
 
 struct GuardedFile {
     const char* path;
@@ -578,6 +586,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/macro_param_modal.xml",
     "ui_xml/maintenance_overlay.xml",
     "ui_xml/material_temps_overlay.xml",
+    "ui_xml/material_z_offset_overlay.xml",
+    "ui_xml/material_z_offset_row.xml",
     "ui_xml/modal_button_row.xml",
     "ui_xml/modal_dialog.xml",
     "ui_xml/modal_header.xml",
@@ -777,13 +787,18 @@ size_t count_occurrences(const std::string& haystack, const std::string& needle)
 }
 
 struct GuardScan {
-    size_t recognized = 0; ///< moves_machine="true" attributes
-    size_t attributes = 0; ///< moves_machine attributes at any value
+    size_t recognized = 0;   ///< moves_machine="true" attributes plus derived guards
+    size_t spelled_true = 0; ///< moves_machine="true" attributes
+    size_t attributes = 0;   ///< moves_machine attributes at any value
 };
 
 GuardScan scan_guards(const std::string& xml) {
     GuardScan scan;
-    scan.recognized = count_occurrences(xml, kGuardAttribute);
+    scan.spelled_true = count_occurrences(xml, kGuardAttribute);
+    scan.recognized = scan.spelled_true;
+    for (const char* derived : kDerivedGuards) {
+        scan.recognized += count_occurrences(xml, derived);
+    }
     // A `moves_machine="$prop"` socket is the component plumbing that carries
     // a caller's decision, not a guard decision itself: the caller's literal
     // is what the census row at the call site counts, so subtract the socket
@@ -867,12 +882,12 @@ TEST_CASE("each guarded file carries exactly the toolhead guards its census row 
         const GuardScan scan = scan_guards(xml);
         {
             INFO(row.path << " carries " << scan.attributes << " moves_machine attributes but "
-                          << scan.recognized
+                          << scan.spelled_true
                           << " spelled \"true\". Every other value installs no guard, or "
                              "installs one while reading as a refusal - the engine treats "
                              "everything but the literal \"false\" as true. Spell it "
                              "\"true\" or drop the attribute.");
-            REQUIRE(scan.attributes == scan.recognized);
+            REQUIRE(scan.attributes == scan.spelled_true);
         }
         INFO(row.path << " pins " << row.guards << " toolhead guards and carries "
                       << scan.recognized
@@ -889,10 +904,12 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
         INFO("reading " << path);
         REQUIRE_FALSE(xml.empty());
         const GuardScan scan = scan_guards(xml);
-        INFO(path << " carries " << scan.attributes
-                  << " moves_machine attributes, so a control in it does command the printer. "
+        INFO(path << " carries " << scan.attributes << " moves_machine attributes and "
+                  << scan.recognized - scan.spelled_true
+                  << " derived guards, so a control in it does command the printer. "
                      "Move its row to kGuardedFiles with that count.");
         REQUIRE(scan.attributes == 0);
+        REQUIRE(scan.recognized == 0);
     }
 }
 

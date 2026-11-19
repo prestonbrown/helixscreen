@@ -13,6 +13,7 @@
 #include "core/subject.h"
 #include "gcode_help.h"
 #include "i_moonraker_api.h"
+#include "material_z_offset_state.h"
 #include "save_config_restart.h"
 #include "settings_manager.h"
 #include "state/subject_macros.h"
@@ -417,6 +418,17 @@ SaveAvailability current_save_availability() {
     facts.tools_dirty =
         lv_subject_get_int(helix::ToolState::instance().get_any_tool_offset_dirty_subject()) == 1;
     facts.save_enabled = save_enabled();
+
+    // With Z offset by material on, a save writes one material's entry and the
+    // machine-wide save is never the answer: the start macro re-applies the
+    // offset every print, so folding it into the probe would double it.
+    auto& by_material = helix::material_zoffset::MaterialZOffsetState::instance();
+    if (by_material.active()) {
+        const auto target = by_material.save_target();
+        const int live = lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject());
+        facts.manual_save_supported = target.has_value();
+        facts.global_dirty = target && live != target->stored.value_or(0);
+    }
     return facts;
 }
 
@@ -481,6 +493,11 @@ namespace {
 
 void republish_save_available(lv_observer_t*, lv_subject_t*);
 
+bool machine_motion_blocked_now() {
+    return lv_subject_get_int(
+               get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+}
+
 /// Publishes `z_offset_save_available` and holds the observers that keep it
 /// current.
 ///
@@ -496,15 +513,19 @@ struct SaveAvailabilityPublisher {
     SubjectManager subjects;
     helix::Subject z_offset_save_available_{};
     helix::Subject z_offset_save_enabled_{};
+    helix::Subject z_offset_save_motion_blocked_{};
     ObserverGuard global_offset_obs;
+    ObserverGuard motion_blocked_obs;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;
     ObserverGuard per_tool_z_obs;
     ObserverGuard save_mode_obs;
+    ObserverGuard by_material_obs;
 
     void init(bool register_xml) {
         INIT_SUBJECT_INT(z_offset_save_available, 0, subjects, register_xml);
         INIT_SUBJECT_INT(z_offset_save_enabled, 1, subjects, register_xml);
+        INIT_SUBJECT_INT(z_offset_save_motion_blocked, 0, subjects, register_xml);
 
         PrinterState& ps = get_printer_state();
         auto& ts = helix::ToolState::instance();
@@ -512,10 +533,14 @@ struct SaveAvailabilityPublisher {
                 ps.get_subjects_lifetime());
         observe(can_save_obs, ps.profile_state().get_z_offset_can_save_subject(),
                 ps.get_subjects_lifetime());
+        observe(motion_blocked_obs, ps.print_state().get_machine_motion_blocked_subject(),
+                ps.get_subjects_lifetime());
         observe(tools_dirty_obs, ts.get_any_tool_offset_dirty_subject(),
                 ts.get_subjects_lifetime());
         observe(per_tool_z_obs, ts.get_per_tool_axis_supported_subject(Axis::Z),
                 ts.get_subjects_lifetime());
+        auto& by_material = helix::material_zoffset::MaterialZOffsetState::instance();
+        observe(by_material_obs, by_material.rev_subject(), by_material.rev_lifetime());
         // The settings toggle writes this subject. A printer switch needs nothing
         // here: its soft restart re-initialises these subjects for the new printer.
         auto& settings = SettingsManager::instance();
@@ -525,9 +550,10 @@ struct SaveAvailabilityPublisher {
         }
     }
 
-    void publish(bool enabled, bool available) {
+    void publish(bool enabled, bool available, bool motion_blocked) {
         lv_subject_set_int(&z_offset_save_enabled_, enabled ? 1 : 0);
         lv_subject_set_int(&z_offset_save_available_, available ? 1 : 0);
+        lv_subject_set_int(&z_offset_save_motion_blocked_, motion_blocked ? 1 : 0);
     }
 
   private:
@@ -555,7 +581,12 @@ void republish_save_available(lv_observer_t*, lv_subject_t*) {
     const SaveAvailability facts = current_save_availability();
     // Print Tune's hint is one decision in PrinterProfileState; hand it the setting.
     get_printer_state().profile_state().set_z_offset_save_enabled(facts.save_enabled);
-    storage->publish(facts.save_enabled, save_available(facts));
+    // The guard follows the route a tap would take: machine-wide while a job
+    // holds the machine is the only blocked one.
+    const bool per_material =
+        helix::material_zoffset::MaterialZOffsetState::instance().save_target().has_value();
+    storage->publish(facts.save_enabled, save_available(facts),
+                     !per_material && machine_motion_blocked_now());
 }
 
 } // namespace
@@ -590,8 +621,15 @@ void deinit_save_available_subject() {
     storage->tools_dirty_obs.reset();
     storage->per_tool_z_obs.reset();
     storage->save_mode_obs.reset();
+    storage->by_material_obs.reset();
+    storage->motion_blocked_obs.reset();
     storage->subjects.deinit_all();
     storage.reset();
+}
+
+lv_subject_t* get_save_motion_blocked_subject() {
+    auto& storage = save_available_storage();
+    return storage ? &storage->z_offset_save_motion_blocked_ : nullptr;
 }
 
 lv_subject_t* get_save_available_subject() {
@@ -687,20 +725,83 @@ void run_shared_save() {
         &ps);
 }
 
+/// Write the live offset into one material's entry, once confirmed. No
+/// Z_OFFSET_APPLY_*, no SAVE_CONFIG: the start macro applies the value itself.
+void run_material_save(const std::string& material, int microns) {
+    if (shared_save_in_flight()) {
+        spdlog::warn("[ZOffsetUtils] Z-offset save already in progress, ignoring");
+        return;
+    }
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (!api) {
+        NOTIFY_ERROR("{}", lv_tr("No printer connection"));
+        return;
+    }
+    g_shared_save_started_ms = lv_tick_get();
+    g_shared_save_running = true;
+    helix::material_zoffset::MaterialZOffsetState::instance().save_offset(
+        api, material, microns, [](bool ok, const std::string& message) {
+            end_shared_save();
+            if (ok) {
+                get_printer_state().motion_state().clear_pending_z_offset_delta();
+                NOTIFY_SUCCESS("{}", message);
+            } else {
+                NOTIFY_ERROR("{}", message);
+            }
+            // A dirty tool still saves the way it always does; the machine-wide
+            // offset is the material's and stays out of it. That save may
+            // restart Klipper, so never while a job holds the machine.
+            PrinterState& ps = get_printer_state();
+            if (helix::ToolState::instance().dirty_tool_indices().empty() ||
+                lv_subject_get_int(ps.print_state().get_machine_motion_blocked_subject()) != 0) {
+                return;
+            }
+            if (IMoonrakerAPI* again = get_moonraker_api()) {
+                save_dirty_offsets(
+                    again, shared_save_watch(), ps.profile_state().z_offset_calibration_strategy(),
+                    ps.get_discovery(), false, nullptr,
+                    [](const std::string& error) { NOTIFY_ERROR("{}", error); }, &ps);
+            }
+        });
+}
+
 } // namespace
 
 void save_dirty_offsets_shared() {
     PrinterState& ps = get_printer_state();
     const SaveAvailability facts = current_save_availability();
 
+    const auto target = helix::material_zoffset::MaterialZOffsetState::instance().save_target();
     // The rule both surfaces' buttons bind to, so a click that got through
     // cannot mean something different from what the button offered.
-    if (!save_available(facts)) {
+    const SaveRoute route =
+        save_route(save_available(facts), target.has_value(), machine_motion_blocked_now());
+    if (route == SaveRoute::None) {
         spdlog::debug("[ZOffsetUtils] No Z-offset adjustment to save");
+        return;
+    }
+    if (route == SaveRoute::Refused) {
+        // The buttons are disabled here; this holds for any other caller.
+        spdlog::warn("[ZOffsetUtils] Machine-wide Z-offset save refused while a job holds the "
+                     "machine");
+        NOTIFY_WARNING("{}", lv_tr("Save the Z-offset after the print: saving restarts Klipper."));
         return;
     }
     if (shared_save_in_flight()) {
         spdlog::warn("[ZOffsetUtils] Z-offset save already in progress, ignoring");
+        return;
+    }
+
+    if (route == SaveRoute::PerMaterial) {
+        const int live = lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject());
+        const std::string material = target->material;
+        // Naming the material is the point: a Save changes only its entry.
+        const std::string message = fmt::format(
+            fmt::runtime(lv_tr("Save {} mm for {}? Other materials keep their own offsets.")),
+            fmt::format("{:+.3f}", live / 1000.0), material);
+        helix::ui::modal_confirm(lv_tr("Save Z-Offset?"), message.c_str(), ModalSeverity::Info,
+                                 lv_tr("Save"),
+                                 [material, live]() { run_material_save(material, live); });
         return;
     }
 

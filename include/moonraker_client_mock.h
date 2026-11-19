@@ -3141,6 +3141,25 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// SET_PURIFIER_MODE, SET_PURIFIER and the mock-only HELIX_MOCK_TOP_COVER
     /// PRESENT=0|1, which lifts the top off or puts it back. U1 only.
     GcodeResult gcode_u1_purifier(const std::string& gcode);
+
+    // Z offset by material: moonraker_client_mock_material_zoffset.cpp.
+  public:
+    enum class MaterialZOffsetMock { None, StartPrintVars, HelixMacro };
+    static MaterialZOffsetMock material_zoffset_mock();
+    json material_zoffset_status_json() const;
+    /// The config files the start_print_vars mode serves; empty otherwise.
+    static std::map<std::string, std::string> material_zoffset_config_files();
+
+  private:
+    void append_material_zoffset_objects(json& objects) const;
+    GcodeResult gcode_material_zoffset(const std::string& gcode);
+    void apply_material_zoffset_at_start(const std::string& filament_type);
+    static std::map<std::string, double> initial_material_zoffset_values();
+    mutable std::mutex material_zoffset_mutex_;
+    std::map<std::string, double> material_zoffset_values_ = initial_material_zoffset_values();
+    std::string material_zoffset_next_;
+    std::string material_zoffset_applied_;
+    int material_zoffset_apply_count_ = 0;
     /// Accrues the inner fan's work time over @p dt simulated seconds.
     void service_purifier(double dt);
     void publish_purifier();

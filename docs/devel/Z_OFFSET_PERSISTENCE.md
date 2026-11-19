@@ -318,6 +318,9 @@ reads the same key after discovery completes and calls
 
 ## Related
 
+- A Z offset per material, applied by the start macro and saved per material, is
+  [MATERIAL_Z_OFFSET.md](MATERIAL_Z_OFFSET.md). It never matches a printer a provider here
+  matches.
 - `z_offset_calibration_strategy` in the printer database (`docs/devel/PRINTER_MANAGER.md`)
   is a **different** axis: it selects the *calibration* command sequence and whether
   a Save button is offered. A printer can be `firmware_managed` there without having

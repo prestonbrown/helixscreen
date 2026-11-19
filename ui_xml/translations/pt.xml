@@ -105,6 +105,7 @@
   <translation tag="1 unit" pt="1 unidade"/>
   <translation tag="1, 2, 3" pt="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" pt="1. Cada bico é aquecido, limpo e estacionado na frente para você escová-lo"/>
+  <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." pt="1. Instale as macros de ajuda. Elas adicionam HELIX_MATERIAL_OFFSET e um armazenamento [save_variables] para os offsets."/>
   <translation tag="1. Printer homes all axes (~1 minute)" pt="1. A impressora referencia todos os eixos (~1 minuto)"/>
   <translation tag="1. Printer homes and probes the bed" pt="1. A impressora faz home e sonda a mesa"/>
   <translation tag="1. Printer will home and probe each screw" pt="1. A impressora fará home e sondará cada parafuso"/>
@@ -117,6 +118,7 @@
   <translation tag="180° Upside Down" pt="180° invertido"/>
   <translation tag="2 min" pt="2 min"/>
   <translation tag="2 minutes" pt="2 minutos"/>
+  <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" pt="2. No PRINT_START, depois do homing e da sondagem e antes do seu próprio passo de malha, adicione esta linha:"/>
   <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" pt="2. Mova X e Y até o bocal ficar centralizado sobre a abertura da calha"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" pt="2. Mova Y até o bocal ficar centralizado sobre a abertura da calha"/>
   <translation tag="2. Place paper between nozzle and bed" pt="2. Coloque papel entre o bico e a mesa"/>
@@ -132,6 +134,7 @@
   <translation tag="2D Layers" pt="Camadas 2D"/>
   <translation tag="3. Adjust screws, then re-probe to verify" pt="3. Ajuste os parafusos, depois sonde novamente para verificar"/>
   <translation tag="3. Every toolhead is probed and the offsets are saved" pt="3. Cada cabeçote é medido e os offsets são salvos"/>
+  <translation tag="3. Have the slicer&apos;s start G-code pass the material to PRINT_START:" pt="3. Faça o G-code inicial do fatiador passar o material ao PRINT_START:"/>
   <translation tag="3. Lower nozzle until paper drags slightly" pt="3. Abaixe o bico até o papel arrastar levemente"/>
   <translation tag="3. Save the position" pt="3. Salve a posição"/>
   <translation tag="30 minutes" pt="30 minutos"/>
@@ -163,8 +166,11 @@
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." pt="Uma impressora delta não consegue fazer home de X e Y sem mover Z, então uma impressão não pode ser retomada."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." pt="Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." pt="Alguns minutos, quase todo aquecendo. Você não julga nada a olho."/>
+  <translation tag="A first-layer offset and bed mesh for each material" pt="Um offset de primeira camada e uma malha da mesa para cada material"/>
   <translation tag="A folder name in moonraker.conf is unsafe." pt="Um nome de pasta em moonraker.conf não é seguro."/>
+  <translation tag="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh." pt="Uma grade marca um material com uma malha salva, carregada no início das impressões que não fazem malha."/>
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." pt="Há uma macro de heat soak configurada na impressora. O HelixScreen a detecta, mas não a executa."/>
+  <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." pt="Uma mesa aquecida se dilata com a temperatura, então cada material pode ter seu próprio offset de primeira camada. A macro de início o aplica, e Salvar durante uma impressão muda só o material dessa impressão."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." pt="Um aquecedor que esquenta o ar dentro da câmara. Defina a temperatura na tela de temperatura da câmara."/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." pt="Um mapa de alturas da mesa que o Klipper usa para compensar uma superfície irregular. Veja e calibre na tela Malha da Mesa."/>
   <translation tag="A left, B right" pt="A esquerda, B direita"/>
@@ -315,6 +321,7 @@
   <translation tag="Allwinner" pt="Allwinner"/>
   <translation tag="Already connecting — wait a moment and try again" pt="Já está conectando — aguarde um momento e tente novamente"/>
   <translation tag="Already mounted" pt="Já montada"/>
+  <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." pt="Manter esta malha também para {}? As impressões dele sem malha a carregam no início."/>
   <translation tag="Always Show Bypass Spool" pt="Sempre Mostrar Carretel de Bypass"/>
   <translation tag="Always show Android navigation bar instead of using gestures" pt="Mostrar sempre a barra de navegação Android em vez de usar gestos"/>
   <translation tag="Ambient Transfer" pt="Transferência Ambiente"/>
@@ -347,6 +354,7 @@
   <translation tag="App startup encountered an error. Some features may be unavailable." pt="A inicialização do aplicativo encontrou um erro. Alguns recursos podem estar indisponíveis."/>
   <translation tag="Appearance" pt="Aparência"/>
   <translation tag="Appearance &amp; Region" pt="Aparência e região"/>
+  <translation tag="Applied for this session only: {}" pt="Aplicado apenas nesta sessão: {}"/>
   <translation tag="Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer&apos;s filament profile, or save it to the spool." pt="Aplicado a {}. O Klipper esquece ao reiniciar: insira {} como Pressure Advance no perfil de filamento do seu fatiador, ou salve no carretel."/>
   <translation tag="Applies to" pt="Aplica-se a"/>
   <translation tag="Apply" pt="Aplicar"/>
@@ -470,6 +478,7 @@
   <translation tag="Bed warming timed out" pt="Aquecimento da mesa — tempo esgotado"/>
   <translation tag="Bed {}" pt="Mesa {}"/>
   <translation tag="Bed {} / {}" pt="Mesa {} / {}"/>
+  <translation tag="Bed {} °C" pt="Mesa {} °C"/>
   <translation tag="Before starting" pt="Antes de começar"/>
   <translation tag="Below target" pt="Abaixo do alvo"/>
   <translation tag="Belt Tension" pt="Tensão da correia"/>
@@ -2040,6 +2049,7 @@
   <translation tag="Is new filament coming out of the nozzle?" pt="O filamento novo está saindo pelo bico?"/>
   <translation tag="Is the bed clear?" pt="A mesa está livre?"/>
   <translation tag="Issue description" pt="Descrição do problema"/>
+  <translation tag="It applies after the next Klipper restart." pt="Vale após o próximo reinício do Klipper."/>
   <translation tag="It can be un-archived in Spoolman&apos;s web UI." pt="Pode ser desarquivado na interface web do Spoolman."/>
   <translation tag="It has not reported its slots yet. Try again in a moment." pt="Ainda não informou seus slots. Tente novamente em instantes."/>
   <translation tag="It homes and heats on its own (no start macro found)." pt="Ela faz o homing e aquece sozinha (nenhuma macro de início encontrada)."/>
@@ -2406,6 +2416,7 @@
   <translation tag="Memory" pt="Memória"/>
   <translation tag="Memory (MB)" pt="Memória (MB)"/>
   <translation tag="Memory Snapshot" pt="Captura de Memória"/>
+  <translation tag="Mesh kept for {}" pt="Malha mantida para {}"/>
   <translation tag="Mesh saved as &apos;{}&apos;" pt="Malha salva como &apos;{}&apos;"/>
   <translation tag="Method" pt="Método"/>
   <translation tag="Min" pt="Mín"/>
@@ -2750,6 +2761,7 @@
   <translation tag="Off: runs with these values without asking" pt="Desativado: executa com estes valores sem perguntar"/>
   <translation tag="Offer to save Z-offset changes to the printer config" pt="Oferecer salvar alterações de Z-Offset na configuração da impressora"/>
   <translation tag="Offset" pt="Deslocamento"/>
+  <translation tag="Offset per material" pt="Offset por material"/>
   <translation tag="Offsets Saved" pt="Offsets salvos"/>
   <translation tag="Offsets saved" pt="Offsets salvos"/>
   <translation tag="Old logs" pt="Registros antigos"/>
@@ -2763,6 +2775,7 @@
   <translation tag="On:" pt="Ligado:"/>
   <translation tag="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept." pt="Uma vez por dia, exclui cópias de impressão com mais de uma semana e registros com mais de um mês. Seus arquivos, fotos e vídeos de timelapse são mantidos."/>
   <translation tag="One tap runs this macro. Dangerous macros still ask." pt="Um toque executa esta macro. Macros perigosas ainda pedem confirmação."/>
+  <translation tag="One-time setup" pt="Configuração inicial"/>
   <translation tag="Only on {0}: {1} Hz" pt="Somente em {0}: {1} Hz"/>
   <translation tag="Only while this app is connected. Install the HelixPrint plugin to cover every print." pt="Somente enquanto este app estiver conectado. Instale o plugin HelixPrint para cobrir todas as impressões."/>
   <translation tag="Only while this app is connected. Update the HelixPrint plugin to cover every print." pt="Somente enquanto este app estiver conectado. Atualize o plugin HelixPrint para cobrir todas as impressões."/>
@@ -3510,14 +3523,18 @@
   <translation tag="Save Z-Offset" pt="Salvar Z-Offset"/>
   <translation tag="Save Z-Offset Buttons" pt="Botões de salvar Z-Offset"/>
   <translation tag="Save Z-Offset?" pt="Salvar Z-Offset?"/>
+  <translation tag="Save as {} mesh?" pt="Salvar como malha de {}?"/>
   <translation tag="Save calibration" pt="Salvar calibração"/>
   <translation tag="Save changes to persist them across restarts?" pt="Salvar alterações para persistir entre reinicializações?"/>
   <translation tag="Save failed: {}" pt="Falha ao salvar: {}"/>
   <translation tag="Save offsets?" pt="Salvar offsets?"/>
+  <translation tag="Save the Z-offset after the print: saving restarts Klipper." pt="Salve o Z-Offset depois da impressão: salvar reinicia o Klipper."/>
   <translation tag="Save the changes to this spool?" pt="Salvar as alterações deste carrete?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." pt="Salvar os novos valores do aquecedor em printer.cfg? O Klipper reinicia."/>
   <translation tag="Save to Spool" pt="Salvar no carretel"/>
   <translation tag="Save to Spoolman" pt="Salvar no Spoolman"/>
+  <translation tag="Save writes the print&apos;s material; off, it saves one offset for every print" pt="Salvar grava o material da impressão; desligado, salva um offset para todas as impressões"/>
+  <translation tag="Save {} mm for {}? Other materials keep their own offsets." pt="Salvar {} mm para {}? Os outros materiais mantêm seus próprios offsets."/>
   <translation tag="Saved Z-Offset" pt="Z-Offset Salvo"/>
   <translation tag="Saved for the mounted head; other heads keep their own" pt="Salvo para o cabeçote montado; os outros cabeçotes mantêm o seu"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." pt="Salvo no Spoolman, mas o preço, a localização, o lote e as notas do carretel não foram salvos."/>
@@ -3526,6 +3543,7 @@
   <translation tag="Saved to {}. It applies whenever this filament becomes active." pt="Salvo em {}. É aplicado sempre que este filamento ficar ativo."/>
   <translation tag="Saved values, and whether to ask before running" pt="Valores salvos e se deve perguntar antes de executar"/>
   <translation tag="Saved {} mm" pt="Salvo {} mm"/>
+  <translation tag="Saved {} mm for {}" pt="Salvo {} mm para {}"/>
   <translation tag="Saved {} mm, {} mm after Save" pt="Salvo {} mm, {} mm após salvar"/>
   <translation tag="Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved." pt="Salvo. O Spoolman está offline, então o preço, a localização, o lote e as notas ficam aqui sem salvar."/>
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." pt="Salva uma foto da câmera após a camada 2 e ao fim de cada impressão, exibida no histórico de impressão."/>
@@ -4302,6 +4320,7 @@
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." pt="Esta impressora tem compensação do motor, então a verificação é executada duas vezes: com ela desligada e depois ligada."/>
   <translation tag="This printer has no IFS." pt="Esta impressora não tem IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" pt="Esta impressora não tem a macro LOAD_FILAMENT do INDX"/>
+  <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." pt="Esta impressora ainda não tem um armazenamento [save_variables]. Atualize as macros de ajuda para adicioná-lo e reinicie o Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pt="Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." pt="Esta impressora não tem fuso horário, então o relógio mostra UTC. Escolha o seu."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." pt="Esta impressora não tem o comando {}, então o Z-offset não pode ser salvo."/>
@@ -4597,6 +4616,7 @@
   <translation tag="Use first HID scanner found" pt="Usar o primeiro leitor HID encontrado"/>
   <translation tag="Use printer type to select image" pt="Usar tipo de impressora para selecionar imagem"/>
   <translation tag="Use the home layout set on the printer&apos;s own screen" pt="Usar o layout inicial definido na tela da impressora"/>
+  <translation tag="Used when a material has no entry" pt="Usado quando um material não tem entrada"/>
   <translation tag="User Guide" pt="Guia do usuário"/>
   <translation tag="User intervention required" pt="Intervenção manual necessária"/>
   <translation tag="Uses tool T{}, and this printer&apos;s last tool is T{}." pt="Usa a ferramenta T{}, e a última ferramenta desta impressora é T{}."/>
@@ -4793,6 +4813,7 @@
   <translation tag="Z Calibration" pt="Calibração Z"/>
   <translation tag="Z Movement" pt="Movimento Z"/>
   <translation tag="Z Offset" pt="Z Offset"/>
+  <translation tag="Z Offset by Material" pt="Z-Offset por material"/>
   <translation tag="Z Probe" pt="Sonda Z"/>
   <translation tag="Z Range" pt="Alcance Z"/>
   <translation tag="Z Tilt Adjust..." pt="Ajuste de inclinação Z..."/>
@@ -4800,6 +4821,7 @@
   <translation tag="Z is at its limit ({}mm)" pt="Z está no seu limite ({}mm)"/>
   <translation tag="Z jog feedrate" pt="Velocidade de movimento do eixo Z"/>
   <translation tag="Z motor calibration failed" pt="Falha na calibração do motor Z"/>
+  <translation tag="Z offset by material" pt="Z-Offset por material"/>
   <translation tag="Z probes for bed leveling and mesh generation" pt="Sondas Z para nivelamento da mesa e geração de malha"/>
   <translation tag="Z tilt" pt="Inclinação Z"/>
   <translation tag="Z {:.2f} mm" pt="Z {:.2f} mm"/>
@@ -4828,6 +4850,7 @@
   <translation tag="Z: 0.000" pt="Z: 0.000"/>
   <translation tag="Zone {:.0f}-{:.0f} Hz" pt="Zona {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." pt="[resonance_tester] não tem probe_points, então o cabeçote não tem uma altura segura para as voltas de assentamento."/>
+  <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" pt="[{}] foi encontrado {} vezes nos arquivos de configuração que o printer.cfg carrega; esperado uma vez"/>
   <translation tag="already loaded" pt="já carregado"/>
   <translation tag="attempt {}" pt="tentativa {}"/>
   <translation tag="auto" pt="auto"/>
@@ -4966,6 +4989,7 @@
   <translation tag="{} axes homed" pt="Eixos {} referenciados"/>
   <translation tag="{} axis homed" pt="Eixo {} referenciado"/>
   <translation tag="{} cannot be skipped: its name has characters the printer cannot be sent" pt="{} não pode ser excluído: o nome tem caracteres que não podem ser enviados à impressora"/>
+  <translation tag="{} cannot be stored on this printer." pt="{} não pode ser salvo nesta impressora."/>
   <translation tag="{} changed" pt="{} alterado(s)"/>
   <translation tag="{} command timed out" pt="Comando {} expirou"/>
   <translation tag="{} complete" pt="{} concluído"/>
