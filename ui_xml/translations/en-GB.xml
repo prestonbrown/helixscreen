@@ -2,11 +2,15 @@
 <translations languages="en-GB">
   <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" en-GB="2. Jog X and Y until the nozzle is centred over the chute opening"/>
   <translation tag="2. Jog Y until the nozzle is centered over the chute opening" en-GB="2. Jog Y until the nozzle is centred over the chute opening"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." en-GB="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool."/>
+  <translation tag="ASA" en-GB="ASA"/>
   <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." en-GB="Afterwards, Vertical Artefact Check in this menu shows how much it helped."/>
   <translation tag="Analyzing data..." en-GB="Analysing data..."/>
   <translation tag="Analyzing data... {}s" en-GB="Analysing data... {}s"/>
+  <translation tag="Any other material" en-GB="Any other material"/>
   <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." en-GB="Auto loading is off for this toolhead. Turn it on under Print Behaviour, or load the filament by hand."/>
   <translation tag="Auto loading is off; turn it on under Print Behavior" en-GB="Auto loading is off; turn it on under Print Behaviour"/>
+  <translation tag="Average draw while printing, in watts" en-GB="Average draw while printing, in watts"/>
   <translation tag="Bed Leveling" en-GB="Bed Levelling"/>
   <translation tag="Bluetooth initialization failed" en-GB="Bluetooth initialisation failed"/>
   <translation tag="Bluetooth not initialized" en-GB="Bluetooth not initialised"/>
@@ -30,17 +34,22 @@
   <translation tag="Colors for every screen" en-GB="Colours for every screen"/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." en-GB="Could not analyse PRINT_START macro. Some print options may be unavailable."/>
   <translation tag="Could not initialize WiFi hardware. Check system configuration." en-GB="Could not initialise WiFi hardware. Check system configuration."/>
+  <translation tag="Currency" en-GB="Currency"/>
   <translation tag="Customize Macro Button" en-GB="Customise Macro Button"/>
   <translation tag="Customize preset temperatures" en-GB="Customise preset temperatures"/>
   <translation tag="Customize your home screen" en-GB="Customise your home screen"/>
   <translation tag="Delete the layer indexes? Previews read each file again until it is analyzed again." en-GB="Delete the layer indexes? Previews read each file again until it is analysed again."/>
   <translation tag="Edit Theme Colors" en-GB="Edit Theme Colours"/>
   <translation tag="Edit Theme Colors (Modified)" en-GB="Edit Theme Colours (Modified)"/>
+  <translation tag="Electricity" en-GB="Electricity"/>
+  <translation tag="Electricity is added only when both are set" en-GB="Electricity is added only when both are set"/>
   <translation tag="Exclusion canceled" en-GB="Exclusion cancelled"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." en-GB="Explore how the selected palette shapes text, controls, and status colours."/>
   <translation tag="Failed to initialize Bluetooth" en-GB="Failed to initialise Bluetooth"/>
   <translation tag="Failed to initialize Bluetooth context" en-GB="Failed to initialise Bluetooth context"/>
   <translation tag="Favorites" en-GB="Favourites"/>
+  <translation tag="Filament price per kg" en-GB="Filament price per kg"/>
+  <translation tag="Filament prices and electricity" en-GB="Filament prices and electricity"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." en-GB="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and colour, then resume."/>
   <translation tag="Gray" en-GB="Grey"/>
   <translation tag="Groups follow each slot&apos;s material and color" en-GB="Groups follow each slot&apos;s material and colour"/>
@@ -70,12 +79,16 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" en-GB="OpenAMS keeps this spool in Spoolman, which takes only material, colour, brand and weight here"/>
   <translation tag="Optimize Your Printing" en-GB="Optimise Your Printing"/>
   <translation tag="Optimizes temperature control for stable, consistent heating." en-GB="Optimises temperature control for stable, consistent heating."/>
+  <translation tag="PC" en-GB="PC"/>
   <translation tag="Pick Color" en-GB="Pick Colour"/>
   <translation tag="Preheat canceled" en-GB="Preheat cancelled"/>
+  <translation tag="Price per kWh" en-GB="Price per kWh"/>
   <translation tag="Print Behavior" en-GB="Print Behaviour"/>
   <translation tag="Print Canceled" en-GB="Print Cancelled"/>
+  <translation tag="Print Cost" en-GB="Print Cost"/>
   <translation tag="Print canceled" en-GB="Print cancelled"/>
   <translation tag="Printer is not ready. Please wait for initialization." en-GB="Printer is not ready. Please wait for initialisation."/>
+  <translation tag="Printer power" en-GB="Printer power"/>
   <translation tag="Reaches {:g} mm from the center, past this printer&apos;s {:g} mm radius." en-GB="Reaches {:g} mm from the centre, past this printer&apos;s {:g} mm radius."/>
   <translation tag="Reduce ringing and ghosting artifacts" en-GB="Reduce ringing and ghosting artefacts"/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" en-GB="Reduce vibration artefacts like ringing and ghosting"/>
@@ -88,6 +101,7 @@
   <translation tag="Slot colors, materials, and levels" en-GB="Slot colours, materials, and levels"/>
   <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" en-GB="Spoolman already has &quot;{}&quot; from this brand in a close colour. Use it for lane {}, or add a new filament?"/>
   <translation tag="Spoolman needs a color for this filament." en-GB="Spoolman needs a colour for this filament."/>
+  <translation tag="Spoolman&apos;s currency is used when it is connected" en-GB="Spoolman&apos;s currency is used when it is connected"/>
   <translation tag="TD-1 filament color detection" en-GB="TD-1 filament colour detection"/>
   <translation tag="THEME COLORS" en-GB="THEME COLOURS"/>
   <translation tag="Temperature control optimized for {} at {}." en-GB="Temperature control optimised for {} at {}."/>

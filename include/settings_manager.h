@@ -179,10 +179,6 @@ class SettingsManager {
     /// material uses the default price.
     static constexpr const char* kCostMaterials[] = {"PLA", "PETG", "ABS", "ASA",
                                                      "TPU", "PA",   "PC"};
-    /// Currency codes the setting offers, in its dropdown's order.
-    static constexpr const char* kCostCurrencies[] = {
-        "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "SEK", "NOK", "DKK",
-        "PLN", "CZK", "CNY", "KRW", "INR", "BRL", "MXN", "NZD", "ZAR"};
 
     /// Prices per kg, electricity price (global) and printer watts (this printer).
     helix::print_cost::CostSettings get_cost_settings() const;

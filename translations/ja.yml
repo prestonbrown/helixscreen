@@ -211,6 +211,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。'
   A shell on the machine running this screen: 'この画面を動かしているマシンのシェル'
   A spool may be tangled or the drive gear is jammed: スプールが絡まっているか、駆動ギアが詰まっている可能性があります
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Spoolmanのスプールに価格がある場合はその価格を使います。それ以外のスプールにはこれらの価格を使います。"
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '複数のフィラメントをツールヘッドに送るシステムで、スロット数を表示します。スロットはフィラメントシステム画面で管理できます。'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'ツールヘッドオフセットのキャリブレーションが実行中です（別の画面からの可能性があります）。今すぐ終了しますか?'
@@ -243,6 +244,7 @@ translations:
   API Key (if Moonraker requires a login): 'APIキー（Moonrakerがログインを要求する場合）'
   API not available: APIが利用できません
   APPEARANCE: 外観
+  ASA: "ASA"
   AUTO FANS: 自動ファン
   AUTO STATE: 自動ステータス
   AUTOMATION: 自動化
@@ -356,6 +358,7 @@ translations:
   Anonymous usage statistics: 匿名の使用統計
   Another filament operation is heating the nozzle.: "別のフィラメント操作がノズルを加熱しています。"
   Any notes...: メモ...
+  Any other material: "その他の素材"
   App Background: アプリ背景
   App startup encountered an error. Some features may be unavailable.: アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。
   Appearance: 外観
@@ -419,6 +422,7 @@ translations:
   Available Networks: 利用可能なネットワーク
   Available networks: 利用可能なネットワーク
   Average: 平均
+  Average draw while printing, in watts: "印刷中の平均消費電力（ワット）"
   Axis Rows: '軸ごとの列'
   Axis limits unknown: 軸の限界は不明です
   BACK: 背面
@@ -1093,6 +1097,7 @@ translations:
   Creating spool...: スプールを作成中...
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
   Ctrl: 'Ctrl'
+  Currency: "通貨"
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
   Current Mesh: 現在のメッシュ
@@ -1299,6 +1304,8 @@ translations:
   Eject failed: イジェクトに失敗しました
   Eject needs [force_move] enabled in printer config: 取り出しにはプリンター設定で [force_move] を有効にする必要があります
   Ejecting: 排出中
+  Electricity: "電気代"
+  Electricity is added only when both are set: "両方を設定した場合のみ電気代を加算します"
   Electronics fans: "電装ファン"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: 発熱体
@@ -1668,6 +1675,8 @@ translations:
   Filament not set: 'フィラメント未設定'
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
+  Filament price per kg: "フィラメントのkg単価"
+  Filament prices and electricity: "フィラメント価格と電気代"
   Filament ran out: フィラメントがなくなりました
   Filament ran out - nothing at the toolhead and the print is paused.: 'フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -2870,6 +2879,7 @@ translations:
   PA: PA
   PA Calibration: 'PAキャリブレーション'
   PAUSED: 一時停止
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: PIN は 4〜6 桁にしてください
@@ -3064,6 +3074,7 @@ translations:
   Print Complete!: 印刷完了！
   Print Completion Alert: 印刷完了通知
   Print Controls: '印刷コントロール'
+  Print Cost: "印刷コスト"
   Print Details: 印刷詳細
   Print Failed: 印刷失敗
   Print File: 印刷ファイル
@@ -3155,6 +3166,7 @@ translations:
   Printer name: プリンター名
   Printer not connected: プリンターが接続されていません
   Printer not ready: プリンターの準備ができていません
+  Printer power: "プリンターの消費電力"
   Printer ready: プリンター準備完了
   Printer status unknown: 'プリンターの状態が不明です'
   Printer type mismatch: プリンタータイプの不一致
@@ -3882,6 +3894,7 @@ translations:
   Spoolman support is off in Happy Hare: "Happy Hare の Spoolman サポートはオフです"
   Spoolman unavailable — filament weights may be stale: Spoolmanが利用できません — フィラメント重量が古い可能性があります
   Spoolman was not configured.: Spoolman は設定されていませんでした。
+  Spoolman's currency is used when it is connected: "Spoolman接続時はその通貨を使います"
   'Spoolman: %zu Spool': 'Spoolman: %zu 個のスプール'
   'Spoolman: %zu Spools': 'Spoolman: %zu 個のスプール'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu 個のスプール'
@@ -5163,6 +5176,7 @@ translations:
   'Recycled': 'リサイクル'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'
   'More': 'その他'
+  Price per kWh: "kWh単価"
   'Price, location, lot, notes': '価格、場所、ロット、メモ'
   'Product': '製品'
   'Remaining weight': '残り重量'

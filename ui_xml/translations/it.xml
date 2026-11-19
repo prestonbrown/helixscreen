@@ -194,6 +194,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." it="Un sensore che legge la temperatura dell&apos;aria dentro la camera. Controllala nella schermata della temperatura camera."/>
   <translation tag="A shell on the machine running this screen" it="Una shell sulla macchina che esegue questo schermo"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" it="Una bobina potrebbe essere aggrovigliata o l&apos;ingranaggio di trascinamento è bloccato"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." it="Si usa il prezzo della bobina in Spoolman quando ne ha uno. Questi prezzi valgono per ogni altra bobina."/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." it="Un sistema che alimenta più filamenti alla testina, mostrato con il numero di slot. Gestisci gli slot nella schermata del sistema filamento."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" it="È in corso una calibrazione offset testine, forse da un altro schermo. Terminarla ora?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." it="È stata rilevata una copertura superiore. Le sue ventole e modalità aria sono nella schermata Ventole."/>
@@ -228,6 +229,7 @@
   <translation tag="API Key (if Moonraker requires a login)" it="Chiave API (se Moonraker richiede l&apos;accesso)"/>
   <translation tag="API not available" it="API non disponibile"/>
   <translation tag="APPEARANCE" it="ASPETTO"/>
+  <translation tag="ASA" it="ASA"/>
   <translation tag="AUTO FANS" it="VENTOLE AUTO"/>
   <translation tag="AUTO STATE" it="STATO AUTO"/>
   <translation tag="AUTOMATION" it="AUTOMAZIONE"/>
@@ -340,6 +342,7 @@
   <translation tag="Anonymous usage statistics" it="Statistiche di utilizzo anonime"/>
   <translation tag="Another filament operation is heating the nozzle." it="Un&apos;altra operazione sul filamento sta riscaldando l&apos;ugello."/>
   <translation tag="Any notes..." it="Note..."/>
+  <translation tag="Any other material" it="Qualsiasi altro materiale"/>
   <translation tag="App Background" it="Sfondo applicazione"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." it="Si è verificato un errore all&apos;avvio dell&apos;app. Alcune funzioni potrebbero non essere disponibili."/>
   <translation tag="Appearance" it="Aspetto"/>
@@ -403,6 +406,7 @@
   <translation tag="Available Networks" it="Reti disponibili"/>
   <translation tag="Available networks" it="Reti disponibili"/>
   <translation tag="Average" it="Media"/>
+  <translation tag="Average draw while printing, in watts" it="Consumo medio durante la stampa, in watt"/>
   <translation tag="Axis Rows" it="Righe per asse"/>
   <translation tag="Axis limits unknown" it="Limiti dell&apos;asse sconosciuti"/>
   <translation tag="BACK" it="RETRO"/>
@@ -1034,6 +1038,7 @@
   <translation tag="Creating spool..." it="Creazione bobina..."/>
   <translation tag="Critical hardware missing: {}" it="Hardware critico mancante: {}"/>
   <translation tag="Ctrl" it="Ctrl"/>
+  <translation tag="Currency" it="Valuta"/>
   <translation tag="Current / Target" it="Attuale / Target"/>
   <translation tag="Current Configuration" it="Configurazione attuale"/>
   <translation tag="Current Mesh" it="Mesh attuale"/>
@@ -1237,6 +1242,8 @@
   <translation tag="Eject failed" it="Espulsione fallita"/>
   <translation tag="Eject needs [force_move] enabled in printer config" it="L&apos;espulsione richiede [force_move] abilitato nella configurazione della stampante"/>
   <translation tag="Ejecting" it="Espulsione"/>
+  <translation tag="Electricity" it="Elettricità"/>
+  <translation tag="Electricity is added only when both are set" it="L&apos;elettricità viene aggiunta solo quando entrambi sono impostati"/>
   <translation tag="Electronics fans" it="Ventole elettronica"/>
   <translation tag="Elegoo Centauri Carbon" it="Elegoo Centauri Carbon"/>
   <translation tag="Element" it="Elemento"/>
@@ -1601,6 +1608,8 @@
   <translation tag="Filament not set" it="Filamento non impostato"/>
   <translation tag="Filament operation failed" it="Operazione filamento fallita"/>
   <translation tag="Filament operation timed out" it="Operazione filamento — tempo scaduto"/>
+  <translation tag="Filament price per kg" it="Prezzo del filamento al kg"/>
+  <translation tag="Filament prices and electricity" it="Prezzi del filamento ed elettricità"/>
   <translation tag="Filament ran out" it="Il filamento è esaurito"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." it="Filamento esaurito - non c&apos;è più nulla alla testina e la stampa è in pausa."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." it="Filamento esaurito e il CFS non ha trovato una bobina compatibile su cui passare. Carica una bobina dello stesso materiale e colore, poi riprendi."/>
@@ -2784,6 +2793,7 @@
   <translation tag="PA" it="PA"/>
   <translation tag="PA Calibration" it="Calibrazione PA"/>
   <translation tag="PAUSED" it="IN PAUSA"/>
+  <translation tag="PC" it="PC"/>
   <translation tag="PETG" it="PETG"/>
   <translation tag="PID" it="PID"/>
   <translation tag="PIN must be 4-6 digits" it="Il PIN deve avere 4-6 cifre"/>
@@ -2963,6 +2973,7 @@
   <translation tag="Previous" it="Precedente"/>
   <translation tag="Previous IPv4 settings restored" it="Impostazioni IPv4 precedenti ripristinate"/>
   <translation tag="Price" it="Prezzo"/>
+  <translation tag="Price per kWh" it="Prezzo per kWh"/>
   <translation tag="Price, location, lot, notes" it="Prezzo, posizione, lotto, note"/>
   <translation tag="Price: {}" it="Prezzo: {}"/>
   <translation tag="Primary" it="Primario"/>
@@ -2975,6 +2986,7 @@
   <translation tag="Print Complete!" it="Stampa completata!"/>
   <translation tag="Print Completion Alert" it="Avviso completamento stampa"/>
   <translation tag="Print Controls" it="Controlli di stampa"/>
+  <translation tag="Print Cost" it="Costo di stampa"/>
   <translation tag="Print Details" it="Dettagli stampa"/>
   <translation tag="Print Failed" it="Stampa Fallita"/>
   <translation tag="Print File" it="File stampa"/>
@@ -3070,6 +3082,7 @@
   <translation tag="Printer name" it="Nome stampante"/>
   <translation tag="Printer not connected" it="Stampante non connessa"/>
   <translation tag="Printer not ready" it="Stampante non pronta"/>
+  <translation tag="Printer power" it="Potenza della stampante"/>
   <translation tag="Printer ready" it="Stampante pronta"/>
   <translation tag="Printer status unknown" it="Stato della stampante sconosciuto"/>
   <translation tag="Printer type mismatch" it="Tipo stampante non corrispondente"/>
@@ -3788,6 +3801,7 @@
   <translation tag="Spoolman support is off in Happy Hare" it="Il supporto Spoolman è disattivato in Happy Hare"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" it="Spoolman non disponibile — i pesi del filamento potrebbero non essere aggiornati"/>
   <translation tag="Spoolman was not configured." it="Spoolman non era configurato."/>
+  <translation tag="Spoolman&apos;s currency is used when it is connected" it="Con Spoolman connesso si usa la sua valuta"/>
   <translation tag="Spoolman: %zu Spool" it="Spoolman: %zu bobina"/>
   <translation tag="Spoolman: %zu Spools" it="Spoolman: %zu bobine"/>
   <translation tag="Spoolman: %zu/%zu Spool" it="Spoolman: %zu/%zu bobina"/>

@@ -768,6 +768,7 @@ src/ui/settings/ui_settings_machine_limits.cpp
 src/ui/settings/ui_settings_macro_buttons.cpp
 src/ui/settings/ui_settings_material_temps.cpp
 src/ui/settings/ui_settings_motion.cpp
+src/ui/settings/ui_settings_print_cost.cpp
 src/ui/settings/ui_settings_printing.cpp
 src/ui/settings/ui_settings_safety.cpp
 src/ui/settings/ui_settings_security.cpp

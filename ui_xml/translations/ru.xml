@@ -230,6 +230,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ru="Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры."/>
   <translation tag="A shell on the machine running this screen" ru="Командная оболочка на машине, где работает этот экран"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" ru="Катушка может быть запутана или заклинило приводную шестерню"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." ru="Если у катушки в Spoolman есть цена, используется она. Эти цены применяются ко всем остальным катушкам."/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." ru="Система, подающая несколько филаментов на печатающую головку, отображается с числом слотов. Слотами можно управлять на экране системы филамента."/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" ru="Идёт калибровка смещений головок, возможно, с другого экрана. Завершить её сейчас?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." ru="Обнаружена верхняя крышка. Её вентиляторы и режимы воздуха находятся на экране «Вентиляторы»."/>
@@ -264,6 +265,7 @@
   <translation tag="API Key (if Moonraker requires a login)" ru="API-ключ (если Moonraker требует входа)"/>
   <translation tag="API not available" ru="API недоступен"/>
   <translation tag="APPEARANCE" ru="ВНЕШНИЙ ВИД"/>
+  <translation tag="ASA" ru="ASA"/>
   <translation tag="AUTO FANS" ru="АВТО ВЕНТИЛЯТОРЫ"/>
   <translation tag="AUTO STATE" ru="АВТО СОСТОЯНИЕ"/>
   <translation tag="AUTOMATION" ru="АВТОМАТИЗАЦИЯ"/>
@@ -376,6 +378,7 @@
   <translation tag="Anonymous usage statistics" ru="Анонимная статистика использования"/>
   <translation tag="Another filament operation is heating the nozzle." ru="Другая операция с филаментом нагревает сопло."/>
   <translation tag="Any notes..." ru="Заметки..."/>
+  <translation tag="Any other material" ru="Любой другой материал"/>
   <translation tag="App Background" ru="Фон приложения"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." ru="При запуске приложения произошла ошибка. Некоторые функции могут быть недоступны."/>
   <translation tag="Appearance" ru="Внешний вид"/>
@@ -442,6 +445,7 @@
   <translation tag="Available Networks" ru="Доступные сети"/>
   <translation tag="Available networks" ru="Доступные сети"/>
   <translation tag="Average" ru="Среднее"/>
+  <translation tag="Average draw while printing, in watts" ru="Средняя мощность при печати, в ваттах"/>
   <translation tag="Axis Rows" ru="Ряды по осям"/>
   <translation tag="Axis limits unknown" ru="Границы оси неизвестны"/>
   <translation tag="BACK" ru="ЗАД"/>
@@ -1079,6 +1083,7 @@
   <translation tag="Creating spool..." ru="Создание катушки..."/>
   <translation tag="Critical hardware missing: {}" ru="Отсутствует критическое оборудование: {}"/>
   <translation tag="Ctrl" ru="Ctrl"/>
+  <translation tag="Currency" ru="Валюта"/>
   <translation tag="Current / Target" ru="Текущая / Цель"/>
   <translation tag="Current Configuration" ru="Текущая конфигурация"/>
   <translation tag="Current Mesh" ru="Текущая сетка"/>
@@ -1282,6 +1287,8 @@
   <translation tag="Eject failed" ru="Ошибка извлечения"/>
   <translation tag="Eject needs [force_move] enabled in printer config" ru="Для извлечения нужно включить [force_move] в конфигурации принтера"/>
   <translation tag="Ejecting" ru="Извлечение"/>
+  <translation tag="Electricity" ru="Электричество"/>
+  <translation tag="Electricity is added only when both are set" ru="Электричество учитывается, только если заданы оба значения"/>
   <translation tag="Electronics fans" ru="Вентиляторы электроники"/>
   <translation tag="Elegoo Centauri Carbon" ru="Elegoo Centauri Carbon"/>
   <translation tag="Element" ru="Элемент"/>
@@ -1646,6 +1653,8 @@
   <translation tag="Filament not set" ru="Филамент не задан"/>
   <translation tag="Filament operation failed" ru="Операция с филаментом не удалась"/>
   <translation tag="Filament operation timed out" ru="Операция с филаментом — время ожидания истекло"/>
+  <translation tag="Filament price per kg" ru="Цена филамента за кг"/>
+  <translation tag="Filament prices and electricity" ru="Цены филамента и электричество"/>
   <translation tag="Filament ran out" ru="Филамент закончился"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ru="Филамент закончился - у печатающей головки ничего нет, печать приостановлена."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." ru="Филамент закончился, и CFS не нашла подходящей катушки для замены. Загрузите катушку того же материала и цвета и продолжите печать."/>
@@ -2832,6 +2841,7 @@
   <translation tag="PA" ru="PA"/>
   <translation tag="PA Calibration" ru="Калибровка PA"/>
   <translation tag="PAUSED" ru="ПАУЗА"/>
+  <translation tag="PC" ru="PC"/>
   <translation tag="PETG" ru="PETG"/>
   <translation tag="PID" ru="PID"/>
   <translation tag="PIN must be 4-6 digits" ru="PIN должен содержать 4-6 цифр"/>
@@ -3017,6 +3027,7 @@
   <translation tag="Previous" ru="Прежняя"/>
   <translation tag="Previous IPv4 settings restored" ru="Прежние настройки IPv4 восстановлены"/>
   <translation tag="Price" ru="Цена"/>
+  <translation tag="Price per kWh" ru="Цена за кВт·ч"/>
   <translation tag="Price, location, lot, notes" ru="Цена, место, партия, заметки"/>
   <translation tag="Price: {}" ru="Цена: {}"/>
   <translation tag="Primary" ru="Основной"/>
@@ -3029,6 +3040,7 @@
   <translation tag="Print Complete!" ru="Печать завершена!"/>
   <translation tag="Print Completion Alert" ru="Уведомление о завершении печати"/>
   <translation tag="Print Controls" ru="Управление печатью"/>
+  <translation tag="Print Cost" ru="Стоимость печати"/>
   <translation tag="Print Details" ru="Информация о печати"/>
   <translation tag="Print Failed" ru="Печать не удалась"/>
   <translation tag="Print File" ru="Файл печати"/>
@@ -3127,6 +3139,7 @@
   <translation tag="Printer name" ru="Название принтера"/>
   <translation tag="Printer not connected" ru="Принтер не подключен"/>
   <translation tag="Printer not ready" ru="Принтер не готов"/>
+  <translation tag="Printer power" ru="Мощность принтера"/>
   <translation tag="Printer ready" ru="Принтер готов"/>
   <translation tag="Printer status unknown" ru="Состояние принтера неизвестно"/>
   <translation tag="Printer type mismatch" ru="Несоответствие типа принтера"/>
@@ -3848,6 +3861,7 @@
   <translation tag="Spoolman support is off in Happy Hare" ru="Поддержка Spoolman отключена в Happy Hare"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" ru="Spoolman недоступен — вес филамента может быть устаревшим"/>
   <translation tag="Spoolman was not configured." ru="Spoolman не был настроен."/>
+  <translation tag="Spoolman&apos;s currency is used when it is connected" ru="При подключённом Spoolman используется его валюта"/>
   <translation tag="Spoolman: %zu Spool" ru="Spoolman: %zu катушка"/>
   <translation tag="Spoolman: %zu Spools" ru="Spoolman: %zu катушки"/>
   <translation tag="Spoolman: %zu Spools_few" ru="Spoolman: %zu катушки"/>

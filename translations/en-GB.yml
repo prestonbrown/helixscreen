@@ -212,6 +212,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: ''
   A shell on the machine running this screen: ''
   A spool may be tangled or the drive gear is jammed: ''
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "A spool's own price in Spoolman is used when it has one. These prices cover every other spool."
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : ''
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: ''
@@ -246,6 +247,7 @@ translations:
   API Key (if Moonraker requires a login): ''
   API not available: ''
   APPEARANCE: ''
+  ASA: "ASA"
   AUTO FANS: ''
   AUTO STATE: ''
   AUTOMATION: ''
@@ -360,6 +362,7 @@ translations:
   Anonymous usage statistics: ''
   Another filament operation is heating the nozzle.: ''
   Any notes...: ''
+  Any other material: "Any other material"
   App Background: ''
   App startup encountered an error. Some features may be unavailable.: ''
   Appearance: ''
@@ -423,6 +426,7 @@ translations:
   Available Networks: ''
   Available networks: ''
   Average: ''
+  Average draw while printing, in watts: "Average draw while printing, in watts"
   Axis Rows: ''
   Axis limits unknown: ''
   BACK: ''
@@ -1092,6 +1096,7 @@ translations:
   Creating spool...: ''
   'Critical hardware missing: {}': ''
   Ctrl: ''
+  Currency: "Currency"
   Current / Target: ''
   Current Configuration: ''
   Current Mesh: ''
@@ -1293,6 +1298,8 @@ translations:
   Eject failed: ''
   Eject needs [force_move] enabled in printer config: ''
   Ejecting: ''
+  Electricity: "Electricity"
+  Electricity is added only when both are set: "Electricity is added only when both are set"
   Electronics fans: ''
   Elegoo Centauri Carbon: ''
   Element: ''
@@ -1659,6 +1666,8 @@ translations:
   Filament not set: ''
   Filament operation failed: ''
   Filament operation timed out: ''
+  Filament price per kg: "Filament price per kg"
+  Filament prices and electricity: "Filament prices and electricity"
   Filament ran out: ''
   Filament ran out - nothing at the toolhead and the print is paused.: ''
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -2854,6 +2863,7 @@ translations:
   PA: ''
   PA Calibration: ''
   PAUSED: ''
+  PC: "PC"
   PETG: ''
   PID: ''
   PIN must be 4-6 digits: ''
@@ -3036,6 +3046,7 @@ translations:
   Previous: ''
   Previous IPv4 settings restored: ''
   Price: ''
+  Price per kWh: "Price per kWh"
   Price, location, lot, notes: ''
   'Price: {}': ''
   Primary: ''
@@ -3048,6 +3059,7 @@ translations:
   Print Complete!: ''
   Print Completion Alert: ''
   Print Controls: ''
+  Print Cost: "Print Cost"
   Print Details: ''
   Print Failed: ''
   Print File: ''
@@ -3139,6 +3151,7 @@ translations:
   Printer name: ''
   Printer not connected: ''
   Printer not ready: ''
+  Printer power: "Printer power"
   Printer ready: ''
   Printer status unknown: ''
   Printer type mismatch: ''
@@ -3863,6 +3876,7 @@ translations:
   Spoolman support is off in Happy Hare: ''
   Spoolman unavailable — filament weights may be stale: ''
   Spoolman was not configured.: ''
+  Spoolman's currency is used when it is connected: "Spoolman's currency is used when it is connected"
   'Spoolman: %zu Spool': ''
   'Spoolman: %zu Spools': ''
   'Spoolman: %zu/%zu Spool': ''
