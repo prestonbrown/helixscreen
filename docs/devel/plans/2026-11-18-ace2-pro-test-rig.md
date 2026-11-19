@@ -48,8 +48,12 @@ gen-1 pinout in Kobra-S1/ACEPRO's README. The ACE's 4-pin socket is unused by ev
 page seen. The BMCU RS-485 adapter is not needed.
 
 - [x] Identify the cables and the ACE sockets; meter the K3 cable's printer end.
-- [ ] Rewirable USB-A adapter (D+, D-, GND), then enumeration on thelio: expect a WCH
-      (`1a86`) serial device under `/dev/serial/by-id/`.
+- [x] USB-A adapter (D+, D-, GND). On thelio 2026-11-19 it enumerated as `1a86:55d3`
+      "USB Single Serial" (CH343, `cdc_acm`, `ttyACM`), by-id
+      `usb-1a86_USB_Single_Serial_5B61000190-if00`. AFC's ACE 2 protocol code, run
+      standalone at 230400 baud, got answers to discover (UID), `get_info` (`ACE 2 Pro`,
+      firmware `V1.1.22`, boot `V1.0.1`) and `get_status` (four empty slots, dryer `stop`,
+      20 C, 43 % humidity). Link proven on stock firmware.
 - [ ] Crimp a proper 2x2 receptacle once it enumerates.
 - [ ] RDM pinout (its 6-pin cable goes to the printer per the manual; Kobra-S1 wires it as a
       `filament_switch_sensor`, optionally a `filament_tracker` with an encoder line).
