@@ -17,6 +17,7 @@
 
 #include "ams_types.h"
 #include "settings_manager.h"
+#include "tube_router.h"
 
 namespace helix::ui::syspath {
 
@@ -63,8 +64,8 @@ struct SystemPathData {
     // box the unit view draws for the system reading, so its label and severity
     // come from ams_detail_buffer_box().
     bool has_buffer = false;
-    int buffer_fault = 0; // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
-    char buffer_label[8] = {};
+    int buffer_fault = 0;         // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
+    float buffer_position = 0.0f; // buffer_meter_position(): +1 compressed .. -1 expanded
 
     // Per-unit hub (several-toolhead layout): units carrying the same non-zero
     // group are on one physical hub; 0 is a unit on a hub of its own. The plan
@@ -74,7 +75,7 @@ struct SystemPathData {
     // Per-unit buffer under that unit's hub, in the same terms as buffer_*.
     bool unit_has_buffer[kMaxUnits] = {};
     int unit_buffer_fault[kMaxUnits] = {};
-    char unit_buffer_label[kMaxUnits][8] = {};
+    float unit_buffer_position[kMaxUnits] = {};
 
     // Per-unit tool routing (mixed topology support)
     int unit_tool_count[kMaxUnits] = {};     // Tools per unit (BT=4, OpenAMS=1)
@@ -101,6 +102,8 @@ struct SystemPathData {
     lv_color_t color_error;
     lv_color_t color_bg;
     lv_color_t color_accent;
+    lv_color_t color_success; // the buffer meter's fill, centered
+    lv_color_t color_warning; // the buffer meter's fill, expanded
 
     ToolheadStyle toolhead_style = ToolheadStyle::DEFAULT; // effective style, read each draw
 
@@ -117,6 +120,33 @@ struct SystemPathData {
     // label_font's line height; 0 when no font is measured (every box then
     // takes its labels).
     int32_t label_line_h = 0;
+
+    // The "+N units" chips drawn this pass, relative to the canvas's top left,
+    // and who pages the card row when one is tapped (side 0 left, 1 right).
+    lv_area_t parked_chip_area[2] = {};
+    bool parked_chip_drawn[2] = {};
+    void (*parked_chip_cb)(int side, void* user_data) = nullptr;
+    void* parked_chip_user_data = nullptr;
+
+    // The several-toolhead routing, kept against the router's whole input: the
+    // routes' ends, their buses and the router config. A draw or a room check
+    // whose routes start and end where the last one's did takes the kept answer
+    // instead of routing again; anything that moves an end misses. Written only
+    // by the plan code (ui_system_path_plan.cpp).
+    struct RouteMemo {
+        // The routes the plan draws: whether the slope ladder fit them, and how.
+        tuberoute::InputKey routes_key;
+        bool routes_kept = false;
+        bool routes_fit = false;
+        tuberoute::Trace traces[kMaxTools] = {};
+        // overview_lean_shortfall's least extra height, in pixels below the sinks.
+        tuberoute::InputKey lean_key;
+        bool lean_kept = false;
+        float lean_short_px = 0.0f;
+        // Router searches run rather than reused (a slope ladder or a lean search).
+        int searches = 0;
+    };
+    mutable RouteMemo route_memo;
 };
 
 // Vertical layout. The unit stems start at kEntryYRatio of the height, and the
@@ -141,6 +171,13 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
 /// of the label font plus space_xs when that fits in @p room. When it does not,
 /// the box keeps @p base_h and @p labeled says to draw it without text.
 int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled);
+
+/// What a hub box says.
+inline constexpr const char* kHubLabel = "HUB";
+
+/// The width a hub box needs for its label, and for the buffer's meter beside it when
+/// @p with_buffer, in a box @p box_h tall; never less than two thirds of hub_width.
+int32_t junction_label_w(const SystemPathData& data, int32_t box_h, bool with_buffer);
 
 /// The single-toolhead buffer box on the trunk: its center, height and
 /// whether its label fits.
@@ -173,9 +210,8 @@ int32_t small_tool_scale(const SystemPathData& data);
 // box; two or more routes, from any units and topologies, meet in ONE box
 // just above the nozzle.
 struct NozzleFeed {
-    int routes = 0;          // routes entering the nozzle
-    bool junction = false;   // routes >= 2: one hub box joins them
-    bool hub_sensor = false; // a hub at the junction reads filament presence
+    int routes = 0;        // routes entering the nozzle
+    bool junction = false; // routes >= 2: one hub box joins them
     // A buffer on the way into the nozzle: inside the junction's hub box, or
     // inline on the one route. buffer_unit is the unit whose buffer it is
     // (unit_buffer_*), or -1 for the system reading (buffer_*).
@@ -185,10 +221,15 @@ struct NozzleFeed {
 
 /// The routes into physical nozzle @p tool and what joins them. With one
 /// toolhead every present unit feeds it; with several, a PARALLEL or MIXED unit
-/// feeds each of its tools and any other unit feeds its first tool. The hub
-/// sensor and the buffer come from the units with a hub on the way in (a HUB or
-/// LINEAR unit, a MIXED unit's hub-routed tool).
+/// feeds each of its tools and any other unit feeds its first tool. The buffer
+/// comes from the units with a hub on the way in (a HUB or LINEAR unit).
 NozzleFeed nozzle_feed(const SystemPathData& data, int tool);
+
+/// How much taller the canvas at @p coords would have to be for the several-toolhead
+/// overview's tubes to jog on a lean rather than run level: positive when they need
+/// more height, negative for the height they could spare, 0 with one toolhead or
+/// when the tubes are out of the router's reach whatever the height.
+int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coords);
 
 // What the canvas draws over the tubes at one nozzle of the several-toolhead
 // layout: the junction's hub box, or the buffer on a lone route.
@@ -212,8 +253,18 @@ struct HubInfo {
 };
 
 // What the canvas draws on top of the planned tubes.
+// The units scrolled off one edge of the card row: their shared tubes enter
+// from that edge under a "+N units" chip that pages toward them.
+struct ParkedChip {
+    bool present = false;
+    int units = 0;                    // units past the edge
+    int32_t stem_lo = 0, stem_hi = 0; // x span of their tubes' stems
+    int32_t room_lo = 0, room_hi = 0; // x span the chip may cover, clear of visible stems
+};
+
 struct OverviewBoxes {
     HubInfo hubs[SystemPathData::kMaxTools] = {}; // by physical tool
+    ParkedChip parked[2] = {};                    // [0] left edge, [1] right edge
     // One toolhead: the combiner hub box, drawn when two or more units meet,
     // and whether it carries the system buffer.
     bool combiner = false;

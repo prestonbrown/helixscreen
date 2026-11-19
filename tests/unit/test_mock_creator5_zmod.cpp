@@ -212,6 +212,7 @@ TEST_CASE("The mock persona and HELIX_MOCK_AMS pick the mock AMS's type",
     auto [variable, value, type] = GENERATE(table<const char*, const char*, helix::AmsType>(
         {{"HELIX_MOCK_AMS", "quattro_box", helix::AmsType::AFC},
          {"HELIX_MOCK_AMS", "quattrobox", helix::AmsType::AFC},
+         {"HELIX_MOCK_AMS", "afc_bmcu", helix::AmsType::AFC},
          {"HELIX_MOCK_AMS", "ace", helix::AmsType::ACE}}));
     CAPTURE(variable, value);
     helix::ScopedEnv env{variable, value};

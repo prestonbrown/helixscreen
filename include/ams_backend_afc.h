@@ -853,6 +853,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     void apply_toolchange_hold_locked(AmsAction action_at_frame_start,
                                       const std::string& detail_at_frame_start);
 
+    /// Name the lane a load is headed for (pending_target_slot) from the
+    /// frame's final action: AFC's next_lane while a toolchange is under way,
+    /// cleared once the action is IDLE or ERROR. Runs after the hold so a held
+    /// Idle keeps the target. Caller holds mutex_.
+    void apply_load_target_locked();
+
     /// Drop the hold and show the Idle AFC reported. Caller holds mutex_.
     void release_toolchange_hold_locked();
 
@@ -879,9 +885,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// under, so an ack that lands after a newer dispatch resolves nothing.
     uint64_t dispatch_generation_{0};
 
-    /// Set @p action optimistically for a dispatch that is about to go out and
-    /// return the generation its ack must present. Caller holds mutex_.
-    uint64_t begin_dispatch_locked(AmsAction action);
+    /// Set @p action and the lane it heads for (@p target_slot, -1 for none)
+    /// optimistically for a dispatch that is about to go out, and return the
+    /// generation its ack must present. Caller holds mutex_.
+    uint64_t begin_dispatch_locked(AmsAction action, int target_slot);
 
     /// Undo an optimistic set whose gcode never left the building. Caller must
     /// NOT hold mutex_.
@@ -891,10 +898,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// never took the operation over. Main thread; must NOT hold mutex_.
     void finalize_dispatch_after_macro(uint64_t generation);
 
-    /// Send a filament operation: set @p action optimistically, dispatch
+    /// Send a filament operation: set @p action (and @p target_slot) optimistically, dispatch
     /// @p gcode through ensure_homed_then(), and resolve on the macro's ack.
     /// Caller must NOT hold mutex_ and must have passed check_preconditions().
-    AmsError dispatch_operation(std::string gcode, AmsAction action);
+    AmsError dispatch_operation(std::string gcode, AmsAction action, int target_slot = -1);
 
     /**
      * @brief Query current AFC state from Moonraker
@@ -1438,7 +1445,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     std::set<std::string> acknowledged_lane_errors_;
 
     /// The SlotError a lane in AFC's `status: Error` shows. Caller holds mutex_.
-    [[nodiscard]] SlotError lane_error_locked() const;
+    /// @p lane's error from AFC's latest message, with the lane sensor that message names.
+    [[nodiscard]] SlotError lane_error_locked(const std::string& lane) const;
+    /// Errored lanes whose error places no sensor read AFC's latest message again: the
+    /// sentence can arrive in a later frame than the lane's Error status.
+    void rederive_lane_sensors_locked();
 
     /// Acknowledges the errors @p lanes still show, once AFC accepted the
     /// RESET_FAILURE that cleared them. Main thread, mutex_ not held.

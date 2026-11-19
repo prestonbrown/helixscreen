@@ -182,6 +182,21 @@ Add N macros (`MOCK_MACRO_000` onward) to the mock printer, every third with a d
 HELIX_MOCK_MACRO_COUNT=130 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_MATERIAL_ZOFFSET`
+
+A printer with a per-material Z offset table (prestonbrown/helixscreen#2142, [MATERIAL_Z_OFFSET.md](MATERIAL_Z_OFFSET.md)). `start_print_vars` adds a K2-style `[gcode_macro _START_PRINT_VARS]` (PLA 0, PETG 0.04, ABS -0.02, ASA 0, DEFAULT 0) defined in a mock `overrides.cfg` that `printer.cfg` includes, so a Save edits that file. `helix_macro` adds HelixScreen's `HELIX_MATERIAL_OFFSET` with `[save_variables]` (PLA 0.02, PETG 0.06, DEFAULT 0). Every mock print start applies the file's first filament's offset as the start macro would, preferring the material the screen passed in `_HELIX_MATERIAL.next` on the helper-macro printer. Turn the feature on in Settings > Printing > Z Offset by Material.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `start_print_vars`, `helix_macro` |
+| **Default** | unset (no table) |
+| **File** | `src/mock/moonraker_client_mock_material_zoffset.cpp` |
+
+```bash
+# Save a babystep made during a print into the PLA entry, through SAVE_VARIABLE
+HELIX_MOCK_MATERIAL_ZOFFSET=helix_macro ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_METADATA_404`
 
 Make `server.files.metadata` and `server.files.metascan` fail with a 404, as Moonraker forks without the metadata component do.
@@ -775,13 +790,25 @@ it reproduces the widest firmware row:
 HELIX_MOCK_KALICO=1 HELIX_MOCK_KLIPPER_VERSION=v2026.07.00-0-g30c65e09-dirty ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_U1_EMPTY_PORTS`
+
+Snapmaker U1 mock only. The digits name heads whose spool has run out at the feeder port: their
+`filament_detected` reads false and their channel rests at `wait_insert`, as after a real runout.
+With a paused print on such a head, the firmware's Auto-Replenish looks for another head instead
+of refeeding in place, which is what the runout dialog's "Use Another Toolhead" needs.
+
+```bash
+HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_U1_EMPTY_PORTS=0 HELIX_MOCK_AUTO_PRINT=1 \
+  ./build/bin/helix-screen --test --sim-speed 6 -vv
+```
+
 ### `HELIX_MOCK_AMS`
 
 Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `afc_bmcu`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
 | **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -805,6 +832,7 @@ Select the mock AMS topology/type.
 | `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB (a VirtualSelector), 4 lanes |
 | `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: model `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
 | `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
+| `afc_bmcu` | 1 | AFC BMCU (`BMCU BMCU_1`), HUB, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
@@ -1174,7 +1202,7 @@ HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --tes
 
 ### `HELIX_MOCK_AMS_FILL`
 
-Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
+Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool; `ghost` takes the spool out but keeps what is known about it (a ghosted lane). The AFC Box Turtle mock (`HELIX_MOCK_AMS=afc`) reads `empty` and `ghost` too, and also `loadfault`: the lane stands in error with AFC's sentence for a lane that never reached its load sensor, one line per faulted lane. `toolfault` puts AFC in error with the loaded lane short of the toolhead's post-gear sensor. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
 
 | Property | Value |
 |----------|-------|

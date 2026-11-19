@@ -246,6 +246,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: flattens its layers once siz
           lv_color_to_u32(lv_color_hex(0x00ff00)));
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: a press is drawn over the image, not baked in",
+                 "[ams][unit-art]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 120, 90);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+    lv_obj_t* flat = lv_obj_get_child(art, 1);
+    const void* before = lv_image_get_src(flat);
+
+    std::vector<UnitArtLaneMark> marks(4);
+    marks[1].outline = true;
+    unit_art_set_lane_marks(art, marks);
+    CHECK(lv_image_get_src(flat) == before);
+    CHECK(unit_art_lane_mark(art, 1).outline);
+    lv_obj_t* press = lv_obj_find_by_name(art, "press_outline");
+    REQUIRE(press != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(press));
+
+    unit_art_set_lane_marks(art, std::vector<UnitArtLaneMark>(4));
+    CHECK(lv_image_get_src(flat) == before);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "unit art widget: hides itself with no art", "[ams][unit-art]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
     AmsSystemInfo info;
@@ -592,10 +614,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
     for (int lane = 0; lane < 4; ++lane) {
         const std::string n = "lane" + std::to_string(lane);
         // A spool-only stack dims by recoloring itself, with no layer of its own.
-        for (const char* part : {"_glow", "_body", "_tint", "_shade"})
+        // Its ghost rim stands in its own place in the depth, so nearer lanes cover it.
+        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_rim"})
             want.push_back(n + part);
     }
     want.push_back("front");
+    // A faulted sensor shows over everything it is drawn in.
+    want.push_back("sensor_faults");
     CHECK(unit_art_compose_order(art) == want);
 
     // A thumbnail carries each lane's stack but no marks.
@@ -732,4 +757,201 @@ TEST_CASE_METHOD(LVGLTestFixture,
         REQUIRE(front != nullptr);
         CHECK(lv_obj_get_index(behind) < lv_obj_get_index(front));
     }
+}
+
+namespace {
+
+/// A lane feeding a print at @p feed_centimm, as decide_spool_spin turns it.
+SpoolSpin feeding_spin(int lane, int feed_centimm) {
+    SpoolSpinInput in;
+    in.lane = lane;
+    in.current_slot = lane;
+    in.printing = true;
+    in.lane_active_loaded = true;
+    in.extruder_velocity_centimm = feed_centimm;
+    in.animations_enabled = true;
+    return decide_spool_spin(in);
+}
+
+/// The alpha the spin image of @p lane draws at @p x, @p y of the widget.
+int spin_alpha_at(lv_obj_t* art, int lane, int32_t x, int32_t y, bool far_flange = false) {
+    lv_obj_t* image = unit_art_lane_spin_obj(art, lane, far_flange);
+    REQUIRE(image != nullptr);
+    lv_obj_update_layout(art);
+    const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(image));
+    REQUIRE(buf != nullptr);
+    const int32_t px = x - lv_obj_get_x(image), py = y - lv_obj_get_y(image);
+    if (px < 0 || py < 0 || px >= (int32_t)buf->header.w || py >= (int32_t)buf->header.h)
+        return 0;
+    return static_cast<const uint8_t*>(lv_draw_buf_goto_xy(buf, px, py))[3];
+}
+
+std::vector<uint8_t> spin_pixels(lv_obj_t* art, int lane) {
+    const auto* buf =
+        static_cast<const lv_draw_buf_t*>(lv_image_get_src(unit_art_lane_spin_obj(art, lane)));
+    return {buf->data, buf->data + buf->data_size};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "unit art spin: the feeding lane's vents turn while it feeds and hold when stopped",
+    "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400)); // a typical print's 4 mm/s
+    REQUIRE(unit_art_lane_spin_obj(art, 3) != nullptr);
+    process_lvgl(20);
+    const auto start = spin_pixels(art, 3);
+    process_lvgl(1000);
+    const float turned = unit_art_lane_spin_angle(art, 3);
+    // At print flow the floor sets the pace: a whole turn in kSpoolSpinFloorTurnS at most. A
+    // feed turns the face positively: its front edge moves down toward the outlet.
+    CHECK(turned >= 360.0f / kSpoolSpinFloorTurnS * 0.8f);
+    CHECK(turned <= 180.0f);
+    const bool redrawn = spin_pixels(art, 3) != start;
+    CHECK(redrawn);
+    // Only the feeding lane turns.
+    CHECK(unit_art_lane_spin_obj(art, 0) == nullptr);
+    CHECK(unit_art_lane_spin_angle(art, 0) == 0.0f);
+
+    // The ACE's outlets stand in front of and below its spools: paying out turns the flange's
+    // front edge down, from its back toward up, and winding back turns it the other way.
+    unit_art_set_lane_spin(art, 3, SpoolSpin{-1, feeding_spin(3, 400).step_ms});
+    const float before_retract = unit_art_lane_spin_angle(art, 3);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) < before_retract);
+
+    unit_art_set_lane_spin(art, 3, SpoolSpin{});
+    const float held = unit_art_lane_spin_angle(art, 3);
+    const auto stopped = spin_pixels(art, 3);
+    process_lvgl(1000);
+    CHECK(unit_art_lane_spin_angle(art, 3) == held);
+    const bool still = spin_pixels(art, 3) == stopped;
+    CHECK(still);
+    CHECK_FALSE(lv_obj_is_hidden(unit_art_lane_spin_obj(art, 3))); // it keeps its angle in view
+    // A stopped spool keeps no layers to redraw it: a refresh shows it at rest in the flat image.
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK(lv_obj_is_hidden(unit_art_lane_spin_obj(art, 3)));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a spin asked off screen turns once it is shown",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    lv_obj_set_hidden(art, true); // an overlay still sliding in, or a page scrolled away
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) == 0.0f);
+    lv_obj_set_hidden(art, false);
+    lv_refr_now(nullptr); // the test display draws only when told to
+    process_lvgl(1000);
+    CHECK(unit_art_lane_spin_angle(art, 3) > 0.0f);
+
+    // Hidden mid-turn it stands still, and turns on when shown again.
+    lv_obj_set_hidden(art, true);
+    process_lvgl(100);
+    const float held = unit_art_lane_spin_angle(art, 3);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) == held);
+    lv_obj_set_hidden(art, false);
+    lv_refr_now(nullptr);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) != held);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: spools stand still while the display sleeps",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    process_lvgl(200);
+    unit_art_set_display_asleep(true);
+    const float asleep = unit_art_lane_spin_angle(art, 3);
+    CHECK(lv_anim_get(unit_art_lane_spin_obj(art, 3), nullptr) == nullptr);
+    process_lvgl(1000);
+    CHECK(unit_art_lane_spin_angle(art, 3) == asleep);
+    unit_art_set_display_asleep(false);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) != asleep);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a rebuilt drawing leaves no old spin turning",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    lv_obj_t* old = unit_art_lane_spin_obj(art, 3);
+    REQUIRE(lv_anim_get(old, nullptr) != nullptr);
+    // The old image is deleted later; its animation must not outlive the rebuild meanwhile.
+    unit_art_set_unit(art, rail_system("YAMMU", "Other", 4, PathTopology::HUB), 0);
+    REQUIRE(unit_art_lane_spin_obj(art, 3) != old);
+    CHECK(lv_anim_get(old, nullptr) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a spool in front covers a turning one",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    REQUIRE(geom->spins);
+    const float aspect = geom->aspect;
+    const float drawn_w = std::min(320.0f, 271.0f * aspect);
+    const float ox = (320.0f - drawn_w) / 2, oy = (271.0f - drawn_w / aspect) / 2;
+    const auto near_center = [&](int lane, int32_t& x, int32_t& y) {
+        x = (int32_t)std::lround(ox + geom->lane[lane].near_x * drawn_w);
+        y = (int32_t)std::lround(oy + geom->lane[lane].near_y * drawn_w);
+    };
+    for (int lane : {0, 3})
+        unit_art_set_lane_spin(art, lane, feeding_spin(lane, 400));
+    process_lvgl(200);
+    int32_t x = 0, y = 0;
+    // The last lane's near flange stands in front of everything; lane 0's has lane 1 over it.
+    near_center(3, x, y);
+    CHECK(spin_alpha_at(art, 3, x, y) == 255);
+    near_center(0, x, y);
+    CHECK(spin_alpha_at(art, 0, x, y) == 0);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a thumbnail never turns",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 40, 40);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 1, feeding_spin(1, 400));
+    process_lvgl(200);
+    CHECK(unit_art_lane_spin_obj(art, 1) == nullptr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: the far flange turns with the near one",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 0, feeding_spin(0, 400));
+    lv_obj_t* far = unit_art_lane_spin_obj(art, 0, /*far_flange=*/true);
+    REQUIRE(far != nullptr);
+    REQUIRE(far != unit_art_lane_spin_obj(art, 0));
+    process_lvgl(20);
+    const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(far));
+    const std::vector<uint8_t> start(buf->data, buf->data + buf->data_size);
+    process_lvgl(1000);
+    buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(far));
+    const bool redrawn = std::vector<uint8_t>(buf->data, buf->data + buf->data_size) != start;
+    CHECK(redrawn);
+    // Its center stands behind the core, which covers it.
+    const tray::UnitArtGeom* geom = tray::unit_art_geometry("ace_pro", 4);
+    REQUIRE(geom != nullptr);
+    const int32_t x = (int32_t)std::lround(geom->lane[0].far_x * 320.0f);
+    const int32_t y = (int32_t)std::lround(geom->lane[0].far_y * 320.0f);
+    CHECK(spin_alpha_at(art, 0, x, y, /*far_flange=*/true) == 0);
 }

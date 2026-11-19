@@ -9,11 +9,21 @@
 namespace helix::ui {
 
 std::vector<UnitPage> build_unit_pages(const AmsSystemInfo& info,
-                                       const std::function<bool(int)>& is_drying) {
-    // Members of each group, in info.units order; groups in first-member order.
+                                       const std::function<bool(int)>& is_drying,
+                                       const std::vector<int>& order) {
+    // Members of each group, in display order; groups in first-member order.
+    std::vector<int> positions = order;
+    if (positions.size() != info.units.size()) {
+        positions.resize(info.units.size());
+        for (size_t i = 0; i < positions.size(); ++i)
+            positions[i] = static_cast<int>(i);
+    }
     std::vector<std::vector<int>> groups;
     std::map<std::string, size_t> group_of_hub;
-    for (size_t i = 0; i < info.units.size(); ++i) {
+    for (const int pos : positions) {
+        if (pos < 0 || pos >= static_cast<int>(info.units.size()))
+            continue;
+        const size_t i = static_cast<size_t>(pos);
         const AmsUnit& unit = info.units[i];
         if (unit.absent)
             continue;

@@ -12,6 +12,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
+#include "path_view_scale.h"
 #include "settings_manager.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
@@ -468,6 +469,18 @@ TEST_CASE_METHOD(HubStackFixture, "Rail art replaces the bar, takes each lane to
     REQUIRE(c.data->hits.buffer_valid);
     check_buffer_on_drop(f, buffered, toolhead_top_y(f.nozzle_y, f.tool_scale));
     CHECK(center_y(c.data->hits.buffer) == Catch::Approx(f.buffer_y).margin(2));
+    // Under a view scale the buffer rides on the selector art: no box on the trunk.
+    ui_filament_path_canvas_set_view_scale(c.obj, helix::ui::path_view_scale(220, {4, 8}));
+    render(c);
+    plan_of(c, &f);
+    REQUIRE(c.data->hits.buffer_valid);
+    CHECK_FALSE(f.has_buffer);
+    const lv_area_t& meter = c.data->hits.buffer;
+    CHECK((meter.x1 >= f.rail.x && meter.x2 <= f.rail.x + f.rail.w));
+    CHECK((meter.y1 >= f.rail.y && meter.y2 <= f.rail.y + f.rail.h));
+    ui_filament_path_canvas_set_view_scale(c.obj, helix::ui::PathViewScale{});
+    render(c);
+    plan_of(c, &f);
     // A new selection slides the exit toward that gate's outlet, before any repaint.
     ui_filament_path_canvas_set_active_slot(c.obj, 3);
     CHECK(c.data->anim.output_x_target == rail_outlet_x(*art, f.rail, 3));
@@ -534,6 +547,60 @@ TEST_CASE("The required height is the least that lays the path out at full size"
     // A canvas that already fits needs nothing more.
     g.height = need + 40;
     CHECK(linear_hub_required_height(d, g) == need + 40);
+}
+
+TEST_CASE("Under a view scale a squeezed canvas still learns the height its path needs",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    // A unit drawn too tall has left the path a sliver, far less than a quarter of its need.
+    g.height = 30;
+    const int32_t need = linear_hub_required_height(d, g);
+    CAPTURE(need);
+    CHECK(need > 4 * g.height);
+    CHECK(full_size_at(d, g, need, false));
+}
+
+TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entries",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(
+        d, g, toolhead_top_y(linear_hub_nozzle_y(d, g), d.theme.extruder_scale));
+    // Narrower than the lanes' own span: they lean in.
+    CHECK(f.hub_box_w < g.slot_x[3] - g.slot_x[0]);
+    // And every lane leans no flatter than the fan allows: no sideways jog over the hub.
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
+        CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
+    }
+    // The tube router lays the lanes leaning one way as a ribbon: their diagonals parallel, at
+    // 45 degrees where the height allows, else the fan's flattest slope.
+    float slope = 0.0f;
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float dx = lane.pts[2].x - lane.pts[1].x;
+        if (std::fabs(dx) < 0.5f)
+            continue;
+        const float k = std::fabs((lane.pts[2].y - lane.pts[1].y) / dx);
+        if (slope == 0.0f)
+            slope = k;
+        CHECK(k == Catch::Approx(slope).margin(0.01));
+    }
+    CHECK((slope == Catch::Approx(1.0f).margin(0.01) ||
+           slope == Catch::Approx(kFanMinSlope).margin(0.01)));
 }
 
 TEST_CASE("A path no taller canvas would help asks for no height past its own",

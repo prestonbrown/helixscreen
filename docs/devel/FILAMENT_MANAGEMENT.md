@@ -1212,8 +1212,9 @@ drawing is `src/ui/filament/ui_ams_detail.cpp`.
   "+" badge says it, and the backend's slot status decides, so the label comes or goes the
   moment a lane fills or empties (the lane spool's listener, `unit_view_lane_changed`,
   lays the labels out again without placing the tray). Labels take the fewest rows, up to
-  three (`ams_over_lane_label_rows`), that show every name whole, else at least three
-  characters before the ellipsis, cycling label by label. Each keeps clear of its same-row
+  three (two on a compact screen, Tiny and below; `ams_over_lane_label_rows`), that show
+  every name whole, else at least three characters before the ellipsis, cycling label by
+  label; at the most rows a label with no room for three characters is left out. Each keeps clear of its same-row
   neighbours and of the ticks of labels in higher rows, and stays inside the unit's row
   (`ams_over_lane_label_spans`); centered where the room allows, it slides off a crowded side
   with its tick still under it.
@@ -1334,10 +1335,10 @@ has no room for both side by side), and the step progress is a row instead of a 
 there. The row shows only the current step's label, centred under its dots
 (`ui_step_progress_set_current_label_only`), because a label under each of four 66 px steps
 collides; the row is 39 px. The portrait 2x2 cells (480x800 and up) lay each button's icon beside its
-label: the longest, "Check slots", takes 126 px of a 223 px cell at 480x800. In the overview's unit view the page dots float
-over the canvas's empty bottom-left corner in portrait (`dots_portrait`, half the width,
-`floating`), and the unit view's row gap is `space_xxs`, so the unit view fits 272x480 and
-320x480 without scrolling. `[portrait]`
+label: the longest, "Check slots", takes 126 px of a 223 px cell at 480x800. In the overview's unit view the page dots take
+their own row under the path, which the unit sizer counts below the diagram
+(`on_screen_bottom`), and the unit view's row gap is `space_xxs`, so the unit view fits 272x480
+and 320x480 without scrolling. `[portrait]`
 pins the 272x480 panel: the strip and status above the diagram, the bottom section under
 it, the capped canvas with the toolhead whole, eight lane badges apart.
 
@@ -1353,9 +1354,9 @@ Key files:
 | `ui_xml/ams_overview_panel.xml` | Two-column layout: cards and system path, or the unit view, on the left; loaded info right |
 | `ui_xml/ams_unit_card.xml` | Mini unit card with slot bars and hub sensor dot |
 | `include/ams_unit_pages.h`, `src/ui/filament/ams_unit_pages.cpp` | The page model: `build_unit_pages()`, `page_of_unit()`, `initial_unit_page()`. Pure data, no LVGL |
-| `src/ui/filament/ui_filament_path_plan.cpp` | Off-page stub geometry (`layout_offpage_stub`), widened hub |
+| `src/ui/filament/ui_filament_path_plan.cpp` | Off-page chip placement (`offpage_chip_rect`) |
 
-**The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). A hub is a combiner, so the overview draws a hub box only where two or more lines enter one toolhead and one leaves: a unit card stands for the merge of its own lanes, a line that is the only one into its toolhead has no box, and every line into a shared toolhead (any unit, any topology, a shared hub or several hubs of their own) meets in ONE box above it. `syspath::nozzle_feed()` makes that call for the plan and the canvas. With several toolheads every line runs down from its card, across at its own height and down to its nozzle or junction slot; the heights are chosen so no two lines cross or come within a haloed tube's width unless their ends are swapped, and stems of cards scrolled off one side stand a tube pitch apart. The one-toolhead drawing is the case where every unit feeds the one toolhead. A hub at a junction may carry its buffer: the box then reads "Hub+BUF" in the buffer's tint; a buffer on a lone line stays a box on that line. A buffer box is the box the unit view shows for its unit (`ams_detail_buffer_box()`, same label and tint); the one-toolhead drawing shows the system reading's box the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
+**The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). A hub is a combiner, so the overview draws a hub box only where two or more lines enter one toolhead and one leaves: a unit card stands for the merge of its own lanes, a line that is the only one into its toolhead has no box, and every line into a shared toolhead (any unit, any topology, a shared hub or several hubs of their own) meets in ONE box above it. `syspath::nozzle_feed()` makes that call for the plan and the canvas. With several toolheads the tube router (`include/tube_router.h`) lays every line out: a drop from its card, one diagonal jog at the steepest slope the height allows, and a drop into its nozzle or junction slot, in card order so no two lines cross or come within a haloed tube's width (a PARALLEL unit's lines jog as one ribbon). When the router cannot fit them, each line instead runs across at its own height, the heights chosen to the same rule. Cards scrolled off one side share one line per destination from that edge (the active unit's when it is among them), those lines a tube pitch apart under a "+N units" chip that counts the units past the edge; tapping it (or within a finger's reach of it) scrolls the card row toward them. A box stands only where two or more lines visibly enter it: when the units sharing a hub are all off-screen, their one line runs on to its toolhead with no box, the merge implied off-screen. Overview lines carry no hub-sensor bands; sensor detail stays on the unit pages, and the one-toolhead trunk keeps its own toolhead band. The one-toolhead drawing is the case where every unit feeds the one toolhead. A hub box reads HUB. A hub at a junction may carry its buffer: the box then holds the buffer's mini meter at its right end, the same meter the unit view's hub carries (`include/hub_buffer_meter.h`), its fill colored by the buffer's state; a buffer on a lone line is a box on that line holding only the meter. The meter shows what `ams_detail_buffer_box()` reports for the unit; the one-toolhead drawing shows the system reading the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
 
 **Current scope**: The overview panel queries `get_backend(0)` and displays all units from that single backend's `AmsSystemInfo`. This covers the common case of a single multi-unit AMS system (e.g., AFC with multiple Box Turtle units).
 
@@ -1435,12 +1436,9 @@ token, the current page's in the accent). An action that is unavailable is hidde
 disabled. The header reads "Multi-Filament", a colon, the unit's logo and its name; below
 the SMALL breakpoint the title and the colon give way to the logo and name.
 
-**A hub that holds still.** `ui_filament_path_canvas_set_fixed_hub(canvas, lanes)` stands
-the hub, buffer and toolhead on the canvas's own center line instead of the center of the
-shown unit's spools, and sizes the hub box for the widest unit of the hub (the panel passes
-the largest `slot_count` in the page's group), so a one-bay unit and a four-bay unit sit
-over the same hub. The hub box's *width* still follows the lanes' geometry (a unit with
-fewer lanes leaves it narrower); its position does not move.
+**The hub on a page.** Each unit's lanes converge into a hub sized for them, as on the
+single-unit panel. The hub stands on the centered unit's center line, so paging changes
+only its width, and only where the lane counts differ.
 
 **Measured layout (C++).** The arrows are 48 px touch targets at every breakpoint
 (`ams_page_arrow_hit`, with a smaller disc drawn inside where room is tight). They float
@@ -1463,19 +1461,14 @@ cards row scrolls as before. The plain swipe direction (`lv_indev_get_gesture_di
 calls `lv_indev_wait_release()` so the release that ends a swipe is not a click on the spool
 it began on.
 
-**Off-page stubs.** When other units of the shown unit's hub lie on earlier pages the hub
-draws one dashed stub on its left; units on later pages draw one on its right. Each stub is
-a lane that is only suggested: a short run outward (about 5/6 of the hub width, shrinking to
-a floor so it and its label stay clear of the arrows), a diagonal at the slope of the
-outermost real lane on that side, and a drop into the top of the hub box like the lanes'.
-It ends in a label, `N units` (`1 unit`), with the heat glyph the environment pill shows
-while drying before it, while one of those units is drying. A canvas with no room for the label beside the diagonal
-(the smallest screens) draws the stub bare, a dashed hint without its count. The canvas takes the counts through
-`ui_filament_path_canvas_set_offpage_units()`. While either stub exists the merge fan
-reserves one entry beside its outermost lanes on **both** sides (`reserve_each_side` in
-`pathgeo::build_merge_fan()`), so the hub box is a fixed width across a hub's pages and the
-real lanes do not move when a page has one stub or two. LINEAR, MIXED, PARALLEL and
-on-toolhead hubs draw no stub.
+**Off-page stubs.** When other units of the shown unit's hub lie on earlier pages, a chip
+on the hub's left edge says so (`+1 unit`, `+N units`, or `+N` where the full text has no
+room), and units on later pages put one on its right edge. A tap on a chip pages toward
+those units. While one of them is drying the chip carries the heat glyph the environment
+pill shows. The canvas takes the counts through `ui_filament_path_canvas_set_offpage_units()`
+and the tap through `ui_filament_path_canvas_set_offpage_callback()`. The chips stand beside
+the hub on its rows, so they cross no tube. LINEAR, MIXED, PARALLEL and on-toolhead hubs draw
+no chip.
 
 **Bypass.** The bypass spool floats beside the path as on `AmsPanel`
 (`bypass_spool_sync_from_state()` is the shared state push); the canvas draws the

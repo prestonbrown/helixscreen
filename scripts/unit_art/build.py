@@ -201,6 +201,7 @@ class LaneGeometry:
     core: float
     box: tuple
     outlet: tuple
+    prep: tuple = ()  # the prep sensor's region as drawn: its outline's corners, x, y in turn
 
 
 def art_drawn_box(scene):
@@ -242,6 +243,34 @@ def art_bottom_edge(scene):
     return (a[0], a[1], b[0], b[1])
 
 
+def _hull(points):
+    """The convex hull of points, at most MAX_REGION_POINTS corners, counter-clockwise."""
+    pts = sorted(set(points))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    hull = lower[:-1] + upper[:-1]
+    if len(hull) > MAX_REGION_POINTS:
+        raise ValueError(f"a sensor region's outline has {len(hull)} corners, more than {MAX_REGION_POINTS}")
+    return hull
+
+
+# The most corners a baked sensor region keeps (ArtLaneGeom::prep).
+MAX_REGION_POINTS = 8
+
+
 def art_lane_geometry(scene, lane_count):
     """Each lane's spool and outlet in scene, or [] when the drawing has no spool per lane."""
     if any(lane not in scene.spools for lane in range(lane_count)):
@@ -267,7 +296,9 @@ def art_lane_geometry(scene, lane_count):
         box = (min(far[0], near[0]) - hx, min(far[1], near[1]) - hy, max(far[0], near[0]) + hx, max(far[1], near[1]) + hy)
         xc = (sp["far"][0] + sp["near"][0]) / 2
         point = scene.outlets.get(lane, (xc, 0.0, 0.0))
-        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point)))
+        prep = _hull([share(p) for p in scene.sensors.get(lane, {}).get("prep", [])])
+        out.append(LaneGeometry(far, near, ey, ez, sp["wound"] / r, sp["core"] / r, box, share(point),
+                                tuple(v for p in prep for v in p)))
     return out
 
 
@@ -299,8 +330,20 @@ def _bake_layers(unit_id, draw, target, lane_count, render, has_carriage):
                     if silhouettes:
                         names["silhouette"] = f"{tier}_lane{lane}_silhouette.png"
                         render(scene.lane_silhouette_svg(lane, width), width, target / names["silhouette"])
+                    # A feeding spool turns its vents over its near flange (Scene.lane_face_svg).
+                    if scene.spools_turn():
+                        for key, far in (("face", False), ("far_face", True)):
+                            names[key] = f"{tier}_lane{lane}_{key}.png"
+                            render(scene.lane_face_svg(lane, width, far), width, target / names[key])
             lanes.append(names)
         manifest["tiers"][tier] = {"width": width, "back": back, "front": front, "lanes": lanes}
+        if tier == "full" and scene.spools_turn():
+            # One set of vents for every lane, centered on lane 0's near flange.
+            for key, lit, far in (("vents", False, False), ("vents_lit", True, False), ("far_vents", False, True)):
+                name = f"{tier}_{key}.png"
+                vents_w, _ = scene.vents_size(0, width, far)
+                render(scene.vents_svg(0, width, lit, far), vents_w, target / name)
+                manifest["tiers"][tier][key] = name
         if tier == "full":
             geometry = art_lane_geometry(scene, lane_count)
             if geometry:
@@ -326,8 +369,8 @@ def _rounded(value):
 
 
 def _geometry_rows(unit):
-    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes, lane order)
-    per baked lane count."""
+    """(lanes, aspect, drawn box, bottom edge, ArtLaneGeom initialisers, silhouettes, lane order,
+    whether every spool turns) per baked lane count."""
     rows = []
     for _, lanes in art_dirs(unit, "."):
         scene = kit.Scene(kit.ART_CAMERA)
@@ -340,12 +383,16 @@ def _geometry_rows(unit):
         def f(v):
             return f"{v:.5f}f"
 
-        lane_rows = [
-            "{" + ", ".join(f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)) + "}"
-            for g in geometry
-        ]
+        def lane_row(g):
+            fields = [f(v) for v in (*g.far, *g.near, *g.ey, *g.ez, g.wound, g.core, *g.box, *g.outlet)]
+            if g.prep:
+                fields += ["{" + ", ".join(f(v) for v in g.prep) + "}", str(len(g.prep) // 2)]
+            return "{" + ", ".join(fields) + "}"
+
+        lane_rows = [lane_row(g) for g in geometry]
         rows.append((lanes, vw / vh, art_drawn_box(scene), art_bottom_edge(scene), lane_rows,
-                     scene.stacks_hold_more_than_spools(), scene.lane_order()))
+                     scene.stacks_hold_more_than_spools(), scene.lane_order(),
+                     scene.spools_turn()))
     return rows
 
 
@@ -425,13 +472,14 @@ def generate_shell_table(units):
     for unit in units:
         if unit.tray is None:
             continue
-        for lanes, aspect, drawn, edge, lane_rows, silhouettes, order in _geometry_rows(unit):
+        for lanes, aspect, drawn, edge, lane_rows, silhouettes, order, spins in _geometry_rows(unit):
             name = f"k_{unit.id}_{lanes}_lanes"
             out.append(f"constexpr ArtLaneGeom {name}[] = {{{', '.join(lane_rows)}}};")
             box = ", ".join(f"{v:.5f}f" for v in drawn)
             foot = ", ".join(f"{v:.5f}f" for v in edge)
             # The painter order only where it is not the lanes' own numbering.
             tail = _trailing_fields([
+                ("true" if spins else "false", "false"),
                 ("true" if silhouettes else "false", "false"),
                 ("{" + ", ".join(str(lane) for lane in order) + "}", "{" + ", ".join(str(i) for i in range(lanes)) + "}"),
             ])

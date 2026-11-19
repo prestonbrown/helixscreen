@@ -12,6 +12,7 @@
  */
 
 #include "lvgl/lvgl.h"
+#include "spool_spin.h"
 
 #include <cstdint>
 #include <string>
@@ -101,6 +102,9 @@ bool unit_art_lane_place(lv_obj_t* art, int lane, lv_area_t& spool, lv_point_t& 
 /// widget, from the bake. False without geometry.
 bool unit_art_bottom_edge(lv_obj_t* art, lv_point_t& a, lv_point_t& b);
 
+/// Whether the drawing shows its lanes' prep sensors (they redden on a fault).
+bool unit_art_draws_prep(lv_obj_t* art);
+
 /// What the drawing covers at @p art's current size, relative to the widget.
 bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 
@@ -108,7 +112,11 @@ bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 struct UnitArtLaneMark {
     bool glow = false; ///< soft light just behind the spool, in @p color
     lv_color_t color{};
-    bool dim = false; ///< the spool faded into the card, as a bay that is not there
+    bool dim = false;    ///< the spool faded into the card, as a bay that is not there
+    bool absent = false; ///< no spool in the bay: its spool is not drawn at all
+    bool ghost = false;  ///< a remembered spool, not confirmed there: see-through, grayed, dashed
+    bool prep_fault = false; ///< its prep sensor reports a fault: the drawn sensor turns red
+    bool outline = false;    ///< a finger is down on it: a bright solid ring on both flanges
 };
 
 /// Marks each lane of @p art, in its own place in the drawing's depth: a glow just behind
@@ -121,11 +129,30 @@ UnitArtLaneMark unit_art_lane_mark(lv_obj_t* art, int lane);
 
 /// The drawing's layers in the order they are composed, back to front: "back", each lane's
 /// stack left to right ("lane<N>_glow", "lane<N>_body", "lane<N>_tint", "lane<N>_shade",
-/// "lane<N>_dim", as the drawing has them), then "front".
+/// "lane<N>_dim", "lane<N>_rim", as the drawing has them), then "front" and, on a full
+/// drawing, "sensor_faults".
 std::vector<std::string> unit_art_compose_order(lv_obj_t* art);
 
 /// Whether lane @p lane's filament is masked to a part-wound spool, and to what percent.
 int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
+
+/// Turn lane @p lane's spool as @p spin says (decide_spool_spin): both flanges' vents rotate
+/// together in their own planes, under whatever stands in front of them. Only a full drawing whose
+/// bake has the vents apart turns; a stopped spool holds its angle. A spin asked of an art that is
+/// off screen is kept and starts when the art is next drawn.
+void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin);
+
+/// Pause every unit art's turning spools while the display sleeps and resume them on wake.
+/// Application's display sleep callback calls it; each spool keeps its requested spin.
+void unit_art_set_display_asleep(bool asleep);
+
+/// How far lane @p lane's near flange has turned in its own plane, in degrees within
+/// (-180, 180]: positive from the unit's back toward up, so its front edge moves down.
+float unit_art_lane_spin_angle(lv_obj_t* art, int lane);
+
+/// The image drawing lane @p lane's turning near flange (or @p far_flange), or nullptr before
+/// it first turns.
+lv_obj_t* unit_art_lane_spin_obj(lv_obj_t* art, int lane, bool far_flange = false);
 
 /// The image currently showing the sliding selector, or nullptr for a unit without one.
 lv_obj_t* unit_art_carriage_obj(lv_obj_t* art);

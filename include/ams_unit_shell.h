@@ -158,6 +158,9 @@ struct ArtLaneGeom {
     float wound, core;
     float box_x0, box_y0, box_x1, box_y1;
     float outlet_x, outlet_y;
+    /// The lane's prep sensor as drawn: prep_n corners (x, y in turn), 0 where it is not drawn.
+    float prep[16] = {};
+    int prep_n = 0;
 };
 
 /// A unit drawing's lanes at one lane count: its aspect (width over height), what the drawing
@@ -172,6 +175,9 @@ struct UnitArtGeom {
     float drawn[4];       // x0, y0, x1, y1
     float bottom_edge[4]; // the unit's front bottom edge as drawn: x0, y0, x1, y1
     const ArtLaneGeom* lane;
+    /// Every lane bakes its near flange's face apart (`laneN_face`) and the drawing has one set
+    /// of vents (`vents`, `vents_lit`), so a feeding spool can turn them.
+    bool spins = false;
     /// Its lanes' stacks hold parts besides their spools, so a dim lays each spool's own baked
     /// silhouette over its stack instead of recoloring the stack.
     bool silhouettes = false;

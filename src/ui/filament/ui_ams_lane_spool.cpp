@@ -219,6 +219,9 @@ struct LaneSpoolData {
     /// Told when what the lane shows changes, for a view that draws the lane itself.
     void (*listener)(void*) = nullptr;
     void* listener_user = nullptr;
+    /// Told the spin instead of the spool, for a view that draws the lane itself.
+    void (*spin_sink)(void*, const helix::ui::SpoolSpin&) = nullptr;
+    void* spin_sink_user = nullptr;
 };
 
 static helix::WidgetDataRegistry<LaneSpoolData> s_lane_spool_registry;
@@ -735,6 +738,11 @@ bool ams_lane_spool_empty(lv_obj_t* spool) {
     return data && data->lane_state == helix::ui::LaneState::Empty;
 }
 
+bool ams_lane_spool_ghosted(lv_obj_t* spool) {
+    const LaneSpoolData* data = get_lane_spool_data(spool);
+    return data && data->lane_state == helix::ui::LaneState::Ghosted;
+}
+
 bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity) {
     const LaneSpoolData* data = get_lane_spool_data(spool);
     if (!data || !data->has_error || data->lane_state != helix::ui::LaneState::Empty)
@@ -748,6 +756,16 @@ void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void*
         data->listener = listener;
         data->listener_user = user;
     }
+}
+
+/// Turns the lane's own spool, or tells its sink while a view draws the lane itself.
+static void show_spin(LaneSpoolData* data) {
+    if (data->spin_sink) {
+        spool_canvas_set_spin(data->sv.canvas, SpoolSpin{});
+        data->spin_sink(data->spin_sink_user, data->spin);
+        return;
+    }
+    spool_canvas_set_spin(data->sv.canvas, data->spin);
 }
 
 void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {
@@ -768,7 +786,7 @@ void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size) {
     show_fill(data);
     apply_lane_state(data, data->lane_state); // also the glow and error dot
     apply_color(data, static_cast<int>(data->color_int));
-    spool_canvas_set_spin(data->sv.canvas, data->spin);
+    show_spin(data);
 }
 
 void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin) {
@@ -776,7 +794,17 @@ void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin) {
     if (!data)
         return;
     data->spin = spin;
-    spool_canvas_set_spin(data->sv.canvas, spin);
+    show_spin(data);
+}
+
+void ams_lane_spool_set_spin_sink(lv_obj_t* spool, void (*sink)(void*, const SpoolSpin&),
+                                  void* user) {
+    auto* data = get_lane_spool_data(spool);
+    if (!data)
+        return;
+    data->spin_sink = sink;
+    data->spin_sink_user = user;
+    show_spin(data);
 }
 
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight) {

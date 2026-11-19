@@ -32,6 +32,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
+#include "src/ui/filament/ui_system_path_plan.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -360,8 +361,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's page",
                  "[ams][pages][panel][overview]") {
-    // The cards run in nozzle order, so units feeding one extruder sit together there, and the
-    // pages keep the backend's order when no unit names a hub: the two lists disagree.
+    // The cards run in nozzle order, so units feeding one extruder sit together there, unlike
+    // the backend's order; the pages follow the cards.
     install([](PagedFleet& f) {
         f.specs = {{"unit_0", "", false, kSlotsPerUnit, true, "e0"},
                    {"unit_1", "", false, kSlotsPerUnit, true, "e1"},
@@ -382,11 +383,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's pag
         tap(named("back_button"));
         REQUIRE_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     }
-    // At least one unit sits on a card position different from its page.
-    bool differs = false;
+    // The cards are not in the backend's order, and each unit's page is its card's position.
+    REQUIRE(card_units != std::vector<int>({0, 1, 2, 3}));
     for (size_t card = 0; card < card_units.size(); ++card)
-        differs = differs || page_of[card_units[card]] != static_cast<int>(card);
-    REQUIRE(differs);
+        CHECK(page_of[card_units[card]] == static_cast<int>(card));
 
     // Each card opens its own unit, whichever card position and page that is.
     const auto cards = AmsPanelTestAccess::unit_cards(panel());
@@ -683,6 +683,28 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the hub stays put from page to page 
     CHECK(middle.y1 == last.y1);
 }
 
+TEST_CASE_METHOD(PagingFixture, "Unit view: a tap on an off-page chip pages to its side",
+                 "[ams][pages][panel][offpage]") {
+    open_at(2);
+    const int start = page_current();
+    lv_obj_t* canvas = named("detail_path_canvas");
+    auto tap_chip = [&](int side) {
+        lv_obj_invalidate(canvas);
+        process_lvgl(30);
+        const auto* data = get_data(canvas);
+        REQUIRE(data != nullptr);
+        REQUIRE(data->hits.offpage_valid[side]);
+        const lv_area_t& chip = data->hits.offpage[side];
+        REQUIRE(UITest::click_at((chip.x1 + chip.x2) / 2, (chip.y1 + chip.y2) / 2));
+        settle();
+        process_lvgl(30);
+    };
+    tap_chip(1);
+    CHECK(page_current() == start + 1);
+    tap_chip(0);
+    CHECK(page_current() == start);
+}
+
 TEST_CASE_METHOD(PagingFixture, "Unit view: the canvas is told the units on other pages",
                  "[ams][pages][panel][stubs]") {
     open_at(2);
@@ -822,6 +844,26 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a change in the system keeps the sho
     }
 }
 
+TEST_CASE_METHOD(PagingFixture, "A panel opened on one unit makes way for the overview",
+                 "[ams][pages][panel][overview]") {
+    // multiACE reports the SnapSwap first and its ACEs a moment later.
+    PagedFleet* fleet = install([](PagedFleet& f) {
+        f.specs.resize(1);
+        f.own_number_base = 0;
+    });
+    open();
+    AmsPanel* single = get_existing_ams_panel();
+    REQUIRE(single != nullptr);
+    REQUIRE(helix::nav::is_showing(single->get_panel()));
+
+    fleet->specs.push_back({"unit_1", "fps", false});
+    AmsState::instance().sync_from_backend();
+    settle();
+    process_lvgl(80);
+    CHECK(helix::nav::is_showing(root()));
+    CHECK_FALSE(helix::nav::is_in_stack(single->get_panel()));
+}
+
 TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Back again leaves",
                  "[ams][pages][panel][overview]") {
     install([](PagedFleet& f) { f.specs[2].connected = false; });
@@ -833,7 +875,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Ba
 
     tap(named("back_button"));
     CHECK(helix::nav::is_showing(panel_root));
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
     CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
@@ -856,7 +898,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     close();
     open();
     CHECK(helix::nav::is_showing(root()));
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
     CHECK(lv_obj_is_hidden(named("unit_detail_container")));
@@ -864,6 +906,52 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     // A card opens its own page again, not the one left behind.
     enter(2);
     CHECK(page_current() == 2);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview: the canvases keep no chip callback into a cleared panel",
+                 "[ams][pages][panel][overview]") {
+    open();
+    lv_obj_t* area = named("system_path_area");
+    lv_obj_t* overview_canvas = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(area); ++i)
+        if (helix::ui::syspath::system_path_data(lv_obj_get_child(area, i)))
+            overview_canvas = lv_obj_get_child(area, i);
+    REQUIRE(overview_canvas != nullptr);
+    lv_obj_t* unit_canvas = named("detail_path_canvas");
+    REQUIRE(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb != nullptr);
+    REQUIRE(get_data(unit_canvas)->offpage_callback != nullptr);
+
+    // The panel lets go of its widgets before their tree is deleted.
+    panel().clear_panel_reference();
+    CHECK(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb == nullptr);
+    CHECK(get_data(unit_canvas)->offpage_callback == nullptr);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview: tile height given to the path goes with its card row",
+                 "[ams][pages][panel][overview]") {
+    open();
+    constexpr int32_t kStaleNeed = 17;
+    auto path_room = [&] {
+        const AmsOverviewPanel& p = panel();
+        return std::make_pair(AmsPanelTestAccess::path_extra(p),
+                              AmsPanelTestAccess::settled_need(p));
+    };
+
+    SECTION("a torn-down panel reopens with full-height tiles") {
+        AmsPanelTestAccess::set_path_room(panel(), 40, kStaleNeed);
+        destroy_ams_overview_panel_ui();
+        CHECK(path_room() == std::make_pair(int32_t{0}, int32_t{INT32_MIN}));
+    }
+    SECTION("a rebuilt card row fits its path afresh") {
+        AmsPanelTestAccess::set_path_room(panel(), 0, kStaleNeed);
+        auto* fleet = static_cast<PagedFleet*>(AmsState::instance().get_backend());
+        fleet->specs.push_back({"unit_new", "fps2", false});
+        AmsState::instance().bump_slots_version();
+        drain();
+        process_lvgl(30);
+        REQUIRE(cards().size() == 13);
+        CHECK(path_room().second != kStaleNeed);
+    }
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages nothing",
@@ -876,7 +964,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages noth
     const lv_point_t on_path = {(path.x1 + path.x2) / 2, (path.y1 + path.y2) / 2};
     swipe(on_path, -150);
     swipe(on_path, +150);
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(page_count() == 0);
 
     // The cards row still scrolls sideways under a drag, and that pages nothing either.
@@ -887,7 +975,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages noth
     const int32_t before = lv_obj_get_scroll_x(row);
     swipe(on_row, -150);
     CHECK(lv_obj_get_scroll_x(row) > before);
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(page_count() == 0);
 }
 
@@ -898,7 +986,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: coming back from an overlay keeps th
     // An overlay covers the panel and goes away; the panel never closed.
     panel().on_deactivate(DeactivateReason::NavigateAway);
     panel().on_activate();
-    CHECK(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK(in_unit_view());
     CHECK(page_current() == 7);
     CHECK(unit_name() == "Box unit 7");
 }
@@ -949,7 +1037,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: with no room beside the hub the arro
     CHECK(get_data(named("detail_path_canvas"))->edge_reserve == 0);
 }
 
-TEST_CASE_METHOD(PagingFixture, "Unit view: the hub holds still on a unit with fewer lanes",
+TEST_CASE_METHOD(PagingFixture,
+                 "Unit view: a unit with fewer lanes converges into its own hub on the same line",
                  "[ams][pages][panel]") {
     install([](PagedFleet& f) {
         // A one-bay unit first, then four-bay units, all on one hub.
@@ -959,24 +1048,14 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the hub holds still on a unit with f
         f.loaded_slot = -1;
     });
     open_at(0);
-    lv_obj_t* canvas = named("detail_path_canvas");
-    REQUIRE(get_data(canvas)->fixed_hub_lanes == kSlotsPerUnit);
-    // At the lane pitch of a four-bay unit's slot row.
-    CHECK(get_data(canvas)->fixed_hub_pitch > 0);
 
     const lv_area_t first = hub_box();
     go_to(1);
     const lv_area_t second = hub_box();
-    // The hub's center line is the widget's, whichever unit stands over it.
-    lv_area_t c;
-    lv_obj_get_coords(canvas, &c);
-    CHECK(std::abs((first.x1 + first.x2) / 2 - (c.x1 + c.x2) / 2) <= 1);
-    CHECK(std::abs((second.x1 + second.x2) / 2 - (c.x1 + c.x2) / 2) <= 1);
-    CHECK(first.y1 == second.y1);
-    // And the box itself is the widest unit's, not the one-bay unit's.
-    CHECK(first.x1 == second.x1);
-    CHECK(first.x2 == second.x2);
-    CHECK(first.y2 == second.y2);
+    // The hub keeps its center line from page to page, under the centered unit.
+    CHECK(std::abs((first.x1 + first.x2) / 2 - (second.x1 + second.x2) / 2) <= 1);
+    // The four-bay unit's hub is its own, wider than the one-bay unit's.
+    CHECK(lv_area_get_width(&second) > lv_area_get_width(&first));
 }
 
 TEST_CASE_METHOD(PagingFixture,
@@ -1217,9 +1296,11 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: refresh cost bench", "[.][bench][ams
                                     << (after - before) / double(kRuns));
 }
 
-TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over the canvas",
+TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots take a row under the path",
                  "[ams][pages][panel][portrait]") {
-    helix::test::ScopedGeometry portrait(272, 480);
+    const int size = GENERATE(0, 1);
+    const int32_t sizes[][2] = {{272, 480}, {480, 800}};
+    helix::test::ScopedGeometry portrait(sizes[size][0], sizes[size][1]);
     lv_subject_t* is_portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(is_portrait != nullptr);
     REQUIRE(lv_subject_get_int(is_portrait) == 1);
@@ -1228,16 +1309,19 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     lv_obj_t* dots = named("page_dots");
     lv_obj_t* canvas = named("detail_path_canvas");
     REQUIRE_FALSE(lv_obj_is_hidden(dots));
-    // Floating, so the dots take no row of the unit view's height...
-    CHECK(lv_obj_is_floating(dots));
-    // ...and they sit inside the canvas's bottom-left quarter.
-    lv_area_t da, ca;
+    // A row of the column, so the unit sizer leaves it room under the path...
+    CHECK_FALSE(lv_obj_is_floating(dots));
+    lv_area_t da, ca, head;
     lv_obj_get_coords(dots, &da);
     lv_obj_get_coords(canvas, &ca);
-    CAPTURE(da.x1, da.y1, da.x2, da.y2, ca.x1, ca.y1, ca.x2, ca.y2);
-    CHECK(da.y2 <= ca.y2);
-    CHECK(da.y1 >= (ca.y1 + ca.y2) / 2);
-    CHECK(da.x2 <= (ca.x1 + ca.x2) / 2 + 1);
+    CAPTURE(size, da.x1, da.y1, da.x2, da.y2, ca.x1, ca.y1, ca.x2, ca.y2);
+    // ...wholly below the path, its toolhead included, and on screen.
+    CHECK(da.y1 > ca.y2);
+    if (ui_filament_path_canvas_get_toolhead_box(canvas, &head)) {
+        CAPTURE(head.y1, head.y2);
+        CHECK(da.y1 > head.y2);
+    }
+    CHECK(da.y2 < sizes[size][1]);
 }
 
 // ---- Art tiles on the overview ----
@@ -1256,6 +1340,26 @@ void art_fleet(PagedFleet& f, int units) {
 }
 
 } // namespace
+
+TEST_CASE("Overview tiles take the height the path leaves and show whole tiles only",
+          "[ams][overview-tiles]") {
+    using helix::ui::overview_tile_fit;
+    // Two units in a 414 px row with 200 px of height for art: each takes half the row.
+    auto two = overview_tile_fit(2, 414, 12, 200, 96);
+    CHECK(two.across == 2);
+    CHECK(two.width == 201);
+    // A short column caps the width at what the art's height allows (3:4).
+    auto short_col = overview_tile_fit(2, 414, 12, 90, 60);
+    CHECK(short_col.width == 120);
+    // Twelve units: never below a little under half the largest tile; whole tiles share the
+    // row exactly.
+    auto many = overview_tile_fit(12, 414, 12, 200, 60);
+    CHECK(many.across < 12);
+    CHECK(many.width >= 200 * 100 / 75 * 45 / 100);
+    CHECK(many.across * many.width + (many.across - 1) * 12 <= 414);
+    CHECK(many.across * many.width + (many.across - 1) * 12 > 414 - many.across);
+    CHECK(overview_tile_fit(0, 414, 12, 200, 60).across == 0);
+}
 
 TEST_CASE("Overview row: a row that fits lets flex share it", "[ams][overview-tiles]") {
     CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 72}) == 0);
@@ -1313,6 +1417,60 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not 
 
     tap(tiles[1]);
     CHECK(in_unit_view());
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a tile with room keeps its readout on itself",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.own_number_base = 0;
+    });
+    open();
+    process_lvgl(50);
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* room = lv_obj_find_by_name(card, "tile_readout_room");
+        REQUIRE(room != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(room));
+        lv_area_t c, r;
+        lv_obj_get_coords(card, &c);
+        lv_obj_get_coords(room, &r);
+        CHECK(r.x2 <= c.x2);
+    }
+}
+
+TEST_CASE_METHOD(
+    PagingFixture,
+    "Overview tile: a crowded row drops readouts it has no room for and hides cut names",
+    "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 6);
+        f.own_number_base = 0;
+    });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    lv_area_t row_area;
+    lv_obj_get_coords(row, &row_area);
+    int cut = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_area_t c;
+        lv_obj_get_coords(card, &c);
+        lv_obj_t* room = lv_obj_find_by_name(card, "tile_readout_room");
+        REQUIRE(room != nullptr);
+        lv_obj_t* readout = lv_obj_find_by_name(room, "tile_readout");
+        REQUIRE(readout != nullptr);
+        CHECK(lv_obj_is_hidden(room) == !helix::ui::overview_tile_holds_readout(
+                                            lv_area_get_width(&c), lv_obj_get_width(readout)));
+        lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
+        REQUIRE(name != nullptr);
+        const bool whole = c.x1 >= row_area.x1 && c.x2 <= row_area.x2;
+        cut += whole ? 0 : 1;
+        CHECK(lv_obj_get_style_opa(name, LV_PART_MAIN) == (whole ? LV_OPA_COVER : LV_OPA_TRANSP));
+    }
+    CHECK(cut > 0);
 }
 
 TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of bars",
@@ -1407,39 +1565,39 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest
     lv_subject_set_int(bp, original);
 }
 
-TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of the next tile",
+TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows only whole tiles",
                  "[ams][overview-tiles]") {
+    // A tile is a tap target: the row shows as many whole tiles as fit, shares its width
+    // between them exactly, and scrolls a tile at a time to the rest.
     install([](PagedFleet& f) { art_fleet(f, 12); });
     open();
     process_lvgl(50);
 
     lv_obj_t* row = lv_obj_get_parent(cards()[0]);
-    // A row that narrows sizes its tiles again: unsized, it would end 4 px into the fourth.
+    // A row that narrows sizes its tiles again.
     if (GENERATE(false, true)) {
-        lv_obj_set_width(row, lv_obj_get_x(cards()[3]) + 4);
+        lv_obj_set_width(row, lv_obj_get_width(row) * 2 / 3);
         lv_obj_update_layout(row);
         settle();
         process_lvgl(50);
     }
     lv_obj_update_layout(row);
     REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    CHECK(lv_obj_get_scroll_snap_x(row) == LV_SCROLL_SNAP_START);
     lv_area_t row_box;
     lv_obj_get_coords(row, &row_box);
-
-    int cut_off = 0;
+    const int32_t content_x2 = row_box.x2 - lv_obj_get_style_pad_right(row, LV_PART_MAIN);
+    int whole = 0;
     for (lv_obj_t* card : cards()) {
         lv_area_t box;
         lv_obj_get_coords(card, &box);
-        if (box.x1 <= row_box.x2 && box.x2 > row_box.x2) {
-            ++cut_off;
-            const int32_t shown = row_box.x2 - box.x1 + 1;
-            const int32_t width = lv_area_get_width(&box);
-            INFO("shown " << shown << " of " << width);
-            CHECK(shown >= width / 5);
-            CHECK(shown <= width * 4 / 5);
-        }
+        INFO("tile " << box.x1 << ".." << box.x2 << " in a row to " << content_x2);
+        const bool inside = box.x2 <= content_x2 + 1;
+        const bool outside = box.x1 > content_x2;
+        CHECK((inside || outside));
+        whole += inside ? 1 : 0;
     }
-    CHECK(cut_off == 1);
+    CHECK(whole >= 1);
 }
 
 // ============================================================================

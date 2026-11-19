@@ -688,7 +688,7 @@ def test_a_unit_painted_out_of_lane_order_records_its_order(tmp_path):
     row = next(line for line in table.splitlines() if line.startswith('    {"ams_lite", 4, '))
     assert row.rstrip("},").endswith("{" + ", ".join(str(lane) for lane in manifest["lane_order"]))
     bt = next(line for line in table.splitlines() if line.startswith('    {"box_turtle", 4, '))
-    assert bt.endswith("_lanes},")
+    assert bt.endswith("_lanes, true},")  # its spools turn; nothing after that
 
 
 def test_each_lane_bakes_its_spool_stack_and_full_tier_glow(tmp_path):
@@ -719,8 +719,9 @@ def test_only_a_drawing_with_more_than_spools_in_its_stacks_bakes_silhouettes(tm
         assert names["silhouette"] == f"full_lane{lane}_silhouette.png"
     table = build.generate_shell_table(build.UNITS)
     rows = [line for line in table.splitlines() if line.startswith("    {\"") and "_lanes" in line]
-    assert any(r.startswith('    {"emu", 2, ') and r.endswith("_lanes, true},") for r in rows)
-    assert any(r.startswith('    {"box_turtle", 4, ') and r.endswith("_lanes},") for r in rows)
+    # Each row's spools turn, then its silhouettes flag.
+    assert any(r.startswith('    {"emu", 2, ') and r.endswith("_lanes, true, true},") for r in rows)
+    assert any(r.startswith('    {"box_turtle", 4, ') and r.endswith("_lanes, true},") for r in rows)
 
 
 def test_a_baked_png_is_recompressed_losslessly(tmp_path):
@@ -738,3 +739,80 @@ def test_a_baked_png_is_recompressed_losslessly(tmp_path):
     assert len(png.read_bytes()) < len(plain)
     assert (after.mode, after.size) == (before.mode, before.size)
     assert after.tobytes() == before.tobytes()
+
+
+def test_a_turning_spool_bakes_a_face_per_lane_and_one_set_of_vents(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=fake_render)
+    manifest = json.loads((tmp_path / ace_pro.UNIT.id / "manifest.json").read_text())
+    full, thumb = manifest["tiers"]["full"], manifest["tiers"]["thumb"]
+    assert all("face" in lane for lane in full["lanes"])
+    assert (full["vents"], full["vents_lit"]) == ("full_vents.png", "full_vents_lit.png")
+    assert not any("face" in lane for lane in thumb["lanes"]) and "vents" not in thumb
+
+
+def _ace_scene():
+    scene = kit.Scene(kit.ART_CAMERA)
+    ace_pro.UNIT.draw_art(scene, ["#ffffff"] * 4, "full")
+    return scene
+
+
+def test_the_vents_are_baked_whole_and_centered_on_the_near_flange():
+    scene = _ace_scene()
+    w, h = scene.vents_size(0, 320)
+    assert w % 2 == 0 and h % 2 == 0
+    svg = scene.vents_svg(0, 320, lit=False)
+    vx, vy, vw, vh = (float(v) for v in svg.split('viewBox="')[1].split('"')[0].split())
+    cx, cy = scene.camera.project(scene.spools[0]["near"])
+    assert vx + vw / 2 == pytest.approx(cx) and vy + vh / 2 == pytest.approx(cy)
+    hollow, lit = scene.vents_svg(0, 320, lit=False), scene.vents_svg(0, 320, lit=True)
+    assert hollow.count("<polygon") > 0 and lit.count("<polygon") > 0
+    # Nothing but the vents: the flange they turn on stays in the face layer.
+    vents = scene._vent_items(0)
+    assert hollow.count("<polygon") + lit.count("<polygon") == len(vents)
+
+
+def test_a_near_flange_is_cut_by_every_lane_in_front_of_it_and_none_behind_nor_the_front():
+    scene = _ace_scene()
+    order = scene.lane_order()
+    first, last = order[0], order[-1]
+    over_first = {id(i) for i in scene._over_face(first)}
+    over_last = {id(i) for i in scene._over_face(last)}
+    assert all(id(i) in over_first for i in scene.lane_items(order[1]))
+    assert not any(id(i) in over_last for m in order[:-1] for i in scene.lane_items(m))
+    # The front layer, glass included, goes over the turning vents at runtime, not into the cut.
+    assert not any(id(i) in over_first for i in scene.items if i.layer == "front")
+
+
+def test_only_spools_of_one_size_with_vents_turn():
+    assert _ace_scene().spools_turn()
+    thumb = kit.Scene(kit.ART_CAMERA)
+    ace_pro.UNIT.draw_art(thumb, ["#ffffff"] * 4, "thumb")
+    assert not thumb.spools_turn()  # a thumbnail has no vents
+    assert not kit.Scene(kit.ART_CAMERA).spools_turn()
+
+
+def test_the_far_flange_bakes_its_own_face_and_vents(tmp_path):
+    def fake_render(svg_text, width, png_path):
+        png_path.write_bytes(b"png")
+
+    build.bake_unit(ace_pro.UNIT, tmp_path, render=fake_render)
+    full = json.loads((tmp_path / ace_pro.UNIT.id / "manifest.json").read_text())["tiers"]["full"]
+    assert all(lane["far_face"] == f"full_lane{i}_far_face.png" for i, lane in enumerate(full["lanes"]))
+    assert full["far_vents"] == "full_far_vents.png"
+    scene = _ace_scene()
+    far = scene._vent_items(0, far=True)
+    assert far and all(i.lane is None for i in far)  # dark hollows only, never tinted
+
+
+def test_a_far_flange_is_cut_by_its_own_core_and_near_flange_but_not_its_filament():
+    scene = _ace_scene()
+    over = {id(i) for i in scene._over_face(0, far=True)}
+    own = [i for i in scene.items if i.spool == 0]
+    near = [i for i in own if i.tag == "face"]
+    filament = [i for i in own if i.lane == 0]
+    assert near and all(id(i) in over for i in near)
+    assert filament and not any(id(i) in over for i in filament)
+    assert not any(id(i) in over for i in scene._vent_items(0, far=True))

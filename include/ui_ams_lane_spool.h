@@ -115,6 +115,12 @@ void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight);
 /// Turn the lane's spool as @p spin says. Survives a size or style rebuild.
 void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin);
 
+/// Hand the lane's spin to @p sink, with @p user, instead of turning its own spool: for a view
+/// that draws the lane itself. The sink hears the current spin at once and every one after;
+/// nullptr turns the lane's own spool again.
+void ams_lane_spool_set_spin_sink(lv_obj_t* spool, void (*sink)(void*, const SpoolSpin&),
+                                  void* user);
+
 /**
  * @brief Resize the spool graphic (px; <= 0 is refused)
  *
@@ -130,6 +136,9 @@ bool ams_lane_spool_glow(lv_obj_t* spool, lv_color_t& color);
 
 /// Whether the lane shows as empty.
 bool ams_lane_spool_empty(lv_obj_t* spool);
+
+/// Whether the lane shows a ghost: no filament confirmed, but an identity or weight kept.
+bool ams_lane_spool_ghosted(lv_obj_t* spool);
 
 /// Whether the lane shows its error as a dot (an empty lane in error), and how severe.
 bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity);

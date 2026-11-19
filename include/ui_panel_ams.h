@@ -218,12 +218,19 @@ class AmsPanel : public PanelBase {
     bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes
     bool slot_creation_pending_ = false;   ///< Coalesces rapid slot count changes
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
+    /// Opened while the backend reported one unit. A backend that reports its units one at a
+    /// time (multiACE's ACEs arrive after the SnapSwap) can turn that into several while the
+    /// panel is up, and several units belong on the overview.
+    bool opened_single_unit_ = false;
+    bool overview_handoff_queued_ = false;
+    /// Hands the panel to the overview once the units it was opened for have become several.
+    void hand_off_if_multi_unit(const helix::AmsSystemInfo& info);
     bool path_update_pending_ = false; ///< Coalesces rapid path state changes
 
     // === Dynamic Slot State ===
 
     int current_slot_count_ = 0; ///< Number of slots currently created
-    static constexpr int kMaxRelayoutPasses = 2;
+    static constexpr int kMaxRelayoutPasses = helix::ui::kAmsDetailMaxRelayoutPasses;
     int relayout_passes_ = 0; ///< how deep create_slots() is in laying a too-tall unit out again
     bool relayout_pending_ = false; ///< a relayout_if_capped() pass is queued
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots

@@ -44,6 +44,11 @@ inline constexpr int32_t kHaloInnerExtra = 3; // inner band: gauge + 3
 inline constexpr float kHaloOuterMix = 0.25f; // wall share, outer band
 inline constexpr float kHaloInnerMix = 0.55f; // wall share, inner band
 
+/// A tube's full drawn width with its outer halo: what two neighbouring tubes must clear.
+inline constexpr int32_t haloed_tube_width(int32_t gauge) {
+    return gauge + kHaloWidthExtra;
+}
+
 /// Whether a board's row or its memory size calls for reduced effects. Pure: the
 /// decision behind reduced_effects(), separate from its cached evaluation.
 bool reduced_effects_for(const board::Info& board, bool constrained_memory);

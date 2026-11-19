@@ -31,6 +31,27 @@ namespace helix::ui {
 int32_t overview_peek_card_width(int32_t row_width, int32_t gap,
                                  const std::vector<int32_t>& min_widths);
 
+/// How a row of overview tiles is laid out: every tile one width, @p across of them whole in
+/// the row at once (the rest reached by scrolling, a tile at a time).
+struct OverviewTileFit {
+    int across = 0;
+    int32_t width = 0;
+};
+
+/// Fits @p count tiles to a row @p row_w wide with @p gap between them. Each takes an equal
+/// share of the row, as wide as the height left for its art (@p art_room_h, the art standing
+/// 3:4) allows, and never narrower than @p min_w nor than a little under half that largest
+/// width. When the row cannot hold them all that wide, it shows as many whole tiles as fit,
+/// sharing the row exactly, so none is cut off at its edge.
+OverviewTileFit overview_tile_fit(int count, int32_t row_w, int32_t gap, int32_t art_room_h,
+                                  int32_t min_w);
+
+/// Whether an art tile @p tile_w wide keeps its environment readout, @p readout_w wide, over
+/// its own art: the readout may cover the art's right side, never more than half the tile.
+inline bool overview_tile_holds_readout(int32_t tile_w, int32_t readout_w) {
+    return readout_w > 0 && readout_w * 2 <= tile_w;
+}
+
 /// The inputs a unit card's lane bars are built from.
 struct LaneBarsGeometry {
     int first_slot = -1;
@@ -186,6 +207,11 @@ class AmsOverviewPanel : public PanelBase {
     /// Step one page. False, and nothing changes, at the last (first) page.
     bool next_page();
     bool prev_page();
+    /// A tap on an off-page chip beside the hub: side 0 pages back, 1 forward.
+    static void on_offpage_chip(int side, void* user_data);
+    /// A tap on the system path's "+N units" chip: scrolls the card row toward
+    /// the units past that edge (side 0 left, 1 right).
+    static void on_parked_chip(int side, void* user_data);
 
     /// The page on screen, or -1 with no pages.
     [[nodiscard]] int page() const {
@@ -206,7 +232,8 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
         lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
         lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
-        int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
+        lv_obj_t* readout_room = nullptr;     // Art tile: hidden when the readout does not fit
+        bool tile = false;                    // A tile (art, or the lane bars) rather than a card
         bool has_art = false;                 // An art tile rather than a card
         lv_obj_t* env_line = nullptr;         // One-line environment readout
         int unit_index = -1;
@@ -242,7 +269,7 @@ class AmsOverviewPanel : public PanelBase {
     helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
     helix::ui::WidgetRef detail_slot_widgets_[kMaxDetailSlots];
     int detail_slot_count_ = 0;
-    static constexpr int kMaxRelayoutPasses = 2;
+    static constexpr int kMaxRelayoutPasses = helix::ui::kAmsDetailMaxRelayoutPasses;
     int relayout_passes_ = 0; ///< how deep create_detail_slots() is in laying a unit out again
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
 
@@ -277,8 +304,28 @@ class AmsOverviewPanel : public PanelBase {
     static bool unit_has_art(const helix::AmsSystemInfo& info, int unit_index);
     void apply_card_art(UnitCard& card, const helix::AmsUnit& unit,
                         const helix::AmsSystemInfo& info);
-    /// Size the cards to the row (see overview_peek_card_width) and each art stage to its tile.
+    /// Size the cards to the row (see overview_peek_card_width), or the tiles (layout_tiles).
     void layout_unit_row();
+    /// Every tile one width from overview_tile_fit(), its stage as tall as its art.
+    void layout_tiles(int32_t row_width, int32_t gap);
+    /// The height a tile's art may take: what the path does not need.
+    [[nodiscard]] int32_t tile_art_room() const;
+    /// Gives the path the height its tubes need to lean (overview_lean_shortfall)
+    /// by shortening the tiles, never below their finger-sized minimum width, and
+    /// takes it back when they no longer need it. True when the tiles changed.
+    bool fit_path_room();
+    /// Height taken from the tiles' art for the path, in pixels.
+    int32_t path_extra_ = 0;
+    /// The lean shortfall fit_path_room() last settled on, so a refresh that finds
+    /// the same one does not lay the tiles out again.
+    int32_t settled_need_ = INT32_MIN;
+    /// Back to full-height tiles and no settled shortfall: the state of a row not yet fitted.
+    void forget_path_room() {
+        path_extra_ = 0;
+        settled_need_ = INT32_MIN;
+    }
+    /// The share of the overview's column, in percent, the path below the tiles keeps.
+    static constexpr int32_t kOverviewPathSharePct = 45;
     static void on_cards_row_resized(lv_event_t* e);
     void update_unit_card(UnitCard& card, const helix::AmsUnit& unit, helix::ui::LaneNoun noun);
     void create_mini_bars(UnitCard& card, const helix::AmsUnit& unit);
@@ -289,6 +336,8 @@ class AmsOverviewPanel : public PanelBase {
     ///                 coordinates are already current and a relayout would re-enter
     ///                 LVGL's layout pass every scroll step.
     void push_unit_anchors(bool relayout);
+    /// A card standing partly past the row's edges hides its name rather than show it cut.
+    void hide_clipped_card_names();
     static void on_cards_row_scrolled(lv_event_t* e);
     static void on_system_path_size_changed(lv_event_t* e);
     void detach_widget_hooks();
@@ -373,6 +422,14 @@ void destroy_ams_overview_panel_ui();
  * If single-unit: push detail panel directly (unchanged behavior)
  */
 void navigate_to_ams_panel();
+
+namespace helix::ui {
+/**
+ * @brief Swap the single-unit AMS panel @p panel_root for the overview, once the backend
+ *        reports several units; deferred out of the observer that noticed it
+ */
+void hand_ams_panel_to_overview(lv_obj_t* panel_root);
+} // namespace helix::ui
 
 /**
  * @brief Open the single-unit AMS panel: drop a hidden overview, build under the

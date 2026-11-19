@@ -143,6 +143,56 @@ TEST_CASE_METHOD(LVGLTestFixture, "an assigned but empty lane still flattens to 
     ams.deinit_subjects();
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "an empty lane is a ghost by the drawing's rule: identity kept",
+                 "[ams][ams_state][available_slots][slot_picker]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>();
+    auto* mock_ptr = mock.get();
+    mock_ptr->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    mock_ptr->start();
+
+    {
+        // A Spoolman link alone is an identity, on a lane of the default color.
+        auto slot = mock_ptr->get_slot_info(0);
+        slot.material.clear();
+        slot.brand.clear();
+        slot.spool_name.clear();
+        slot.color_rgb = kAmsDefaultSlotColor;
+        slot.spoolman_id = 5;
+        helix::test::apply_edit(*mock_ptr, 0, slot);
+    }
+    {
+        // A color alone is not.
+        auto slot = mock_ptr->get_slot_info(1);
+        slot.material.clear();
+        slot.brand.clear();
+        slot.spool_name.clear();
+        slot.spoolman_id = 0;
+        slot.color_rgb = 0x123456;
+        helix::test::apply_edit(*mock_ptr, 1, slot);
+    }
+    mock_ptr->force_slot_status(0, SlotStatus::EMPTY);
+    mock_ptr->force_slot_status(1, SlotStatus::EMPTY);
+
+    const auto slots = ams.collect_available_slots();
+    const auto find = [&](int index) -> const AvailableSlot* {
+        for (const auto& s : slots)
+            if (s.backend_index == 0 && s.slot_index == index)
+                return &s;
+        return nullptr;
+    };
+    REQUIRE(find(0) != nullptr);
+    REQUIRE(find(1) != nullptr);
+    CHECK(find(0)->ghost);
+    CHECK_FALSE(find(1)->ghost);
+
+    mock_ptr->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots takes noun from each slot's own backend",
                  "[ams][ams_state][available_slots][numbering]") {
     auto& ams = AmsState::instance();

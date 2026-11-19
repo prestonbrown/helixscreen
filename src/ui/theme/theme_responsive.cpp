@@ -315,6 +315,12 @@ namespace {
 std::string content_max_width_value(int32_t ver_res) {
     return std::to_string(helix::content_max_width(ver_res));
 }
+
+// The ultrawide dialog width cap (include/content_width_cap.h); ui_dialog reads it
+// when a dialog is created.
+std::string dialog_max_width_value(int32_t ver_res) {
+    return std::to_string(helix::dialog_max_width(ver_res));
+}
 } // namespace
 
 void theme_manager_register_responsive_spacing(lv_display_t* display) {
@@ -376,6 +382,7 @@ void theme_manager_register_responsive_spacing(lv_display_t* display) {
     lv_xml_register_const(scope, "overlay_width_destination", destination_str);
 
     lv_xml_register_const(scope, "content_max_width", content_max_width_value(ver_res).c_str());
+    lv_xml_register_const(scope, "dialog_max_width", dialog_max_width_value(ver_res).c_str());
 
     spdlog::trace("[Theme] Layout: nav_width={}px, gap={}px, overlay transient={}px "
                   "destination={}px",
@@ -473,6 +480,7 @@ bool theme_manager_refresh_layout_constants(lv_display_t* display) {
     lv_xml_update_const(scope, "overlay_width_destination", destination_str);
 
     lv_xml_update_const(scope, "content_max_width", content_max_width_value(ver_res).c_str());
+    lv_xml_update_const(scope, "dialog_max_width", dialog_max_width_value(ver_res).c_str());
 
     // Update breakpoint subject — use shared helper so rotation never
     // downgrades XXLarge to XLarge (previous bug: missing XLARGE_MAX check).

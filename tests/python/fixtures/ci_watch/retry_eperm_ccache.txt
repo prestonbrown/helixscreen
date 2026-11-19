@@ -1,0 +1,31 @@
+2026-11-19T07:32:47.4745683Z /home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1931
+2026-11-19T07:32:47.4746509Z             throw err;
+2026-11-19T07:32:47.4746961Z             ^
+2026-11-19T07:32:47.4747348Z 
+2026-11-19T07:32:47.4747498Z Error: kill EPERM
+2026-11-19T07:32:47.4747877Z     at process.kill (node:internal/process/per_thread:277:13)
+2026-11-19T07:32:47.4748582Z     at killPid (/home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1941:17)
+2026-11-19T07:32:47.4749264Z     at /home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1918:21
+2026-11-19T07:32:47.4749787Z     at Array.forEach (<anonymous>)
+2026-11-19T07:32:47.4750281Z     at /home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1916:23
+2026-11-19T07:32:47.4750781Z     at Array.forEach (<anonymous>)
+2026-11-19T07:32:47.4751264Z     at killAll (/home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1915:27)
+2026-11-19T07:32:47.4751913Z     at /home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1906:13
+2026-11-19T07:32:47.4752637Z     at ChildProcess.onClose (/home/runner/work/_actions/nick-fields/retry/v4/dist/index.js:1962:17)
+2026-11-19T07:32:47.4753262Z     at ChildProcess.emit (node:events:514:28) {
+2026-11-19T07:32:47.4753677Z   errno: -1,
+2026-11-19T07:32:47.4753973Z   code: 'EPERM',
+2026-11-19T07:32:47.4754299Z   syscall: 'kill'
+2026-11-19T07:32:47.4754603Z }
+2026-11-19T07:32:47.4754912Z 
+2026-11-19T07:32:47.4755072Z Node.js v24.22.1
+2026-11-19T07:32:47.4866798Z ##[group]Run ccache --evict-older-than "$(( $(date +%s) - CCACHE_RUN_START + 60 ))s"
+2026-11-19T07:32:47.4867463Z [36;1mccache --evict-older-than "$(( $(date +%s) - CCACHE_RUN_START + 60 ))s"[0m
+2026-11-19T07:32:47.4867983Z [36;1mccache -s | grep -i 'cache size'[0m
+2026-11-19T07:32:47.4903542Z shell: /usr/bin/bash -e {0}
+2026-11-19T07:32:47.4903932Z env:
+2026-11-19T07:32:47.4904633Z   HELIX_PATCHES_FROM_CLEAN: 1
+2026-11-19T07:32:47.4905091Z   DBGLEVEL: 0
+2026-11-19T07:32:47.4905400Z ##[endgroup]
+2026-11-19T07:32:47.4973103Z /home/runner/work/_temp/0f4b9417-8f9c-4dec-9599-8d1e9927a4cb.sh: line 1: ccache: command not found
+2026-11-19T07:32:47.4985950Z ##[error]Process completed with exit code 127.

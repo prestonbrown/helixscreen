@@ -9,8 +9,11 @@
 #include "ui_event_safety.h"
 #include "ui_keyboard_manager.h"
 #include "ui_markdown.h"
+#include "ui_next_tick.h"
 #include "ui_utils.h"
+#include "ui_widget_ref.h"
 
+#include "content_width_cap.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
@@ -134,6 +137,76 @@ static bool handle_names(const helix::ui::WeakWidget& handle, const lv_obj_t* ob
     return obj && handle.get() == obj;
 }
 
+namespace {
+
+bool can_scroll_content(lv_obj_t* obj) {
+    // A text area scrolls its own text and is never the dialog's content area.
+    return !lv_obj_is_hidden(obj) && lv_obj_is_scrollable(obj) &&
+           !lv_obj_check_type(obj, &lv_textarea_class);
+}
+
+/// The dialog's content scroll area: the shallowest scrollable descendant with a
+/// height cap, else the tallest scrollable child of the dialog itself, which is
+/// its content when the dialog declares no cap.
+lv_obj_t* find_dialog_scroller(lv_obj_t* dialog) {
+    std::vector<lv_obj_t*> level{dialog};
+    while (!level.empty()) {
+        std::vector<lv_obj_t*> next;
+        for (lv_obj_t* obj : level) {
+            const uint32_t n = lv_obj_get_child_count(obj);
+            for (uint32_t i = 0; i < n; ++i) {
+                lv_obj_t* child = lv_obj_get_child(obj, static_cast<int32_t>(i));
+                if (lv_obj_is_hidden(child))
+                    continue;
+                if (can_scroll_content(child) &&
+                    lv_obj_get_style_max_height(child, LV_PART_MAIN) != LV_COORD_MAX)
+                    return child;
+                next.push_back(child);
+            }
+        }
+        level = std::move(next);
+    }
+    lv_obj_t* tallest = nullptr;
+    const uint32_t n = lv_obj_get_child_count(dialog);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_obj_t* child = lv_obj_get_child(dialog, static_cast<int32_t>(i));
+        if (can_scroll_content(child) &&
+            (!tallest || lv_obj_get_height(child) > lv_obj_get_height(tallest)))
+            tallest = child;
+    }
+    return tallest;
+}
+
+} // namespace
+
+void helix::ui::fit_dialog_to_screen(lv_obj_t* dialog) {
+    if (!dialog)
+        return;
+    lv_obj_t* screen = lv_obj_get_screen(dialog);
+    if (!screen)
+        return;
+    // DECLARATIVE_OK: measured layout; the room a dialog has depends on the
+    // screen and on what its content needs once it is built.
+    const int32_t avail = lv_obj_get_height(screen) - 2 * theme_manager_get_spacing("space_md");
+    lv_obj_set_style_max_height(dialog, avail, LV_PART_MAIN);
+    lv_obj_update_layout(dialog);
+    lv_obj_t* scroller = find_dialog_scroller(dialog);
+    if (!scroller)
+        return;
+    const int32_t hidden = std::max<int32_t>(0, lv_obj_get_scroll_top(scroller)) +
+                           std::max<int32_t>(0, lv_obj_get_scroll_bottom(scroller));
+    // The dialog's own cap clamps its height to the screen; what it would need
+    // beyond that shows as its own scroll distance.
+    const int32_t needed = lv_obj_get_height(dialog) +
+                           std::max<int32_t>(0, lv_obj_get_scroll_top(dialog)) +
+                           std::max<int32_t>(0, lv_obj_get_scroll_bottom(dialog));
+    const int32_t height = fit_dialog_scroller(lv_obj_get_height(scroller), hidden, needed, avail);
+    if (height != lv_obj_get_height(scroller)) {
+        lv_obj_set_style_max_height(scroller, height, LV_PART_MAIN);
+        lv_obj_update_layout(dialog);
+    }
+}
+
 void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& component_name,
                       Modal* owner) {
     stack_.push_back({helix::ui::WeakWidget(backdrop),
@@ -144,6 +217,10 @@ void ModalStack::push(lv_obj_t* backdrop, lv_obj_t* dialog, const std::string& c
                       true,
                       {}});
     sync_chrome_cover(*this);
+    // Fit now, then again once the owner's on_show() has filled the content.
+    helix::ui::fit_dialog_to_screen(dialog);
+    helix::ui::run_next_tick(
+        [weak = helix::ui::WeakWidget(dialog)]() { helix::ui::fit_dialog_to_screen(weak.get()); });
     if (backdrop) {
         lv_obj_move_to_index(backdrop, -1);
         // Added after the entry's handle hook, so the handle reads nullptr by now.

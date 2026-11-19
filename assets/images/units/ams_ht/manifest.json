@@ -11,9 +11,14 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -69,7 +74,8 @@
       "outlet": [
         0.39859,
         0.79753
-      ]
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

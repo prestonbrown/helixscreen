@@ -593,6 +593,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         return print_preferences_;
     }
 
+    [[nodiscard]] std::optional<helix::runout_other_head::RunoutFacts>
+    runout_other_head_facts(int runout_head) const override;
+
     /// The Print Behavior section shown on the AMS device-operations
     /// overlay, and the Toolhead section with each head's nozzle. Each is
     /// absent until the firmware has reported what it shows, so the overlay
@@ -1065,6 +1068,23 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// print_task_config.filament_sub_type per head, as the firmware spells it.
     /// Unset until the first frame carrying it.
     std::array<std::optional<std::string>, kNumTools> task_subtype_{};
+
+    /// print_task_config.filament_color_multi per head: the colour record
+    /// Auto-Replenish compares. Unset until the first frame carrying it.
+    std::array<std::optional<snapmaker::ColorRecord>, kNumTools> task_color_multi_{};
+
+    /// Each head's filament record as it read when the current pause began
+    /// (the first frame naming one, if the pause cleared it first). Auto-
+    /// Replenish compares against the firmware's own copy from before the
+    /// runout, so a spool swapped in during the pause must not change it.
+    /// Empty outside a pause. Under mutex_.
+    std::array<std::optional<helix::runout_other_head::FilamentRecord>, kNumTools> pause_records_{};
+    /// Head @p head's filament record from print_task_config; nullopt when it
+    /// names no vendor or type, or no colour record has arrived. Under mutex_.
+    [[nodiscard]] std::optional<helix::runout_other_head::FilamentRecord>
+    task_record_locked(int head) const;
+    /// Keep pause_records_ in step with the print state. Under mutex_.
+    void note_pause_records_locked();
 
     /// Per head: an official-flag repair has been sent this session. Under
     /// mutex_.

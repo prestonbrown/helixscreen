@@ -12,23 +12,32 @@
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
           "glow": "full_lane0_glow.png",
-          "silhouette": "full_lane0_silhouette.png"
+          "silhouette": "full_lane0_silhouette.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
           "glow": "full_lane1_glow.png",
-          "silhouette": "full_lane1_silhouette.png"
+          "silhouette": "full_lane1_silhouette.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
           "glow": "full_lane2_glow.png",
-          "silhouette": "full_lane2_silhouette.png"
+          "silhouette": "full_lane2_silhouette.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -55,7 +64,7 @@
   },
   "drawn": [
     0.1552,
-    0.08041,
+    0.08015,
     0.81035,
     0.81119
   ],
@@ -94,7 +103,8 @@
       "outlet": [
         0.2631,
         0.73465
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -124,7 +134,8 @@
       "outlet": [
         0.39706,
         0.758
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -154,7 +165,8 @@
       "outlet": [
         0.53102,
         0.78134
-      ]
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

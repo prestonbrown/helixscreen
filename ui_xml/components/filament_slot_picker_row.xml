@@ -15,6 +15,9 @@
     <!-- An empty bay stays selectable (mapping a tool to a bay about to be
          loaded is legitimate) but reads as clearly not ready. -->
     <style name="row_empty" opa="30%"/>
+    <!-- A ghost (filament_picker_row_<index>_empty is 2) shows the spool its bay
+         remembers, dimmed less than an empty bay. -->
+    <style name="row_ghost" opa="55%"/>
   </styles>
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="#space_md"
@@ -23,6 +26,7 @@
     <style name="styles.press_wash" selector="pressed"/>
     <bind_style_if_eq name="styles.picker_row_selected" subject="filament_picker_row_${index}_selected" ref_value="1"/>
     <bind_style_if_eq name="row_empty" subject="filament_picker_row_${index}_empty" ref_value="1"/>
+    <bind_style_if_eq name="row_ghost" subject="filament_picker_row_${index}_empty" ref_value="2"/>
     <color_dot name="swatch"
                size="#space_2xl" color_subject="filament_picker_row_${index}_color"
                colors_subject="filament_picker_row_${index}_colors" finish_subject="filament_picker_row_${index}_finish">
@@ -32,7 +36,7 @@
             width="#space_2xl" height="#space_2xl" style_radius="9999" style_bg_opa="0" style_border_width="2"
             style_border_color="#warning" style_border_opa="255" scrollable="false" clickable="false"
             event_bubble="true">
-      <bind_flag_if_eq subject="filament_picker_row_${index}_empty" flag="hidden" ref_value="0"/>
+      <bind_flag_if_not_eq subject="filament_picker_row_${index}_empty" flag="hidden" ref_value="1"/>
     </lv_obj>
     <!-- The position ("Lane 3", "Turtle 2 · Lane 1"). -->
     <text_body name="slot_label"

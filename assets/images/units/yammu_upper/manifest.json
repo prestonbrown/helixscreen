@@ -11,27 +11,38 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -100,9 +111,10 @@
         0.67364
       ],
       "outlet": [
-        0.23835,
-        1.22382
-      ]
+        0.34311,
+        0.66393
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -130,9 +142,10 @@
         0.69536
       ],
       "outlet": [
-        0.36296,
-        1.24553
-      ]
+        0.46773,
+        0.68565
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -160,9 +173,10 @@
         0.56815
       ],
       "outlet": [
-        0.23835,
-        1.22382
-      ]
+        0.50026,
+        0.55844
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -190,9 +204,10 @@
         0.58987
       ],
       "outlet": [
-        0.36296,
-        1.24553
-      ]
+        0.62488,
+        0.58016
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

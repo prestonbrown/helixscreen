@@ -1,0 +1,26 @@
+2026-11-19T05:25:23.4362220Z lib/lvgl/include/lvgl/core/../lv_types.h:486:43: note: expanded from macro 'LV_DEPRECATED'
+2026-11-19T05:25:23.4463550Z   486 | #define LV_DEPRECATED(msg) __attribute__((deprecated(msg)))
+2026-11-19T05:25:23.4564490Z       |                                           ^
+2026-11-19T05:25:23.4665790Z tests/unit/test_subject_deinit_refuses_observers.cpp:211:15: warning: 'lv_obj_bind_state_if_eq' is deprecated: Use `lv_obj_bind_bool()` or `lv_subject_add_observer_obj()` instead. [-Wdeprecated-declarations]
+2026-11-19T05:25:23.4766030Z   211 |         CHECK(lv_obj_bind_state_if_eq(obj, &subject, LV_STATE_DISABLED, 1) == nullptr);
+2026-11-19T05:25:23.4866640Z       |               ^
+2026-11-19T05:25:23.4967800Z lib/lvgl/include/lvgl/core/lv_observer.h:733:1: note: 'lv_obj_bind_state_if_eq' has been explicitly marked deprecated here
+2026-11-19T05:25:23.5068520Z   733 | LV_DEPRECATED("Use `lv_obj_bind_bool()` or `lv_subject_add_observer_obj()` instead.")
+2026-11-19T05:25:23.5171310Z       | ^
+2026-11-19T05:25:23.5273220Z lib/lvgl/include/lvgl/core/../lv_types.h:486:43: note: expanded from macro 'LV_DEPRECATED'
+2026-11-19T05:25:23.5373590Z   486 | #define LV_DEPRECATED(msg) __attribute__((deprecated(msg)))
+2026-11-19T05:25:23.5474520Z       |                                           ^
+2026-11-19T05:25:23.5575480Z 6 warnings generated.
+2026-11-19T05:25:24.8214590Z [TEST] tests/unit/test_subject_member_default_init.cpp
+2026-11-19T05:25:25.7470550Z tests/unit/test_subject_owner.cpp:74:21: error: use of undeclared identifier 'environ'
+2026-11-19T05:25:25.7471480Z [TEST] tests/unit/test_subject_owner.cpp
+2026-11-19T05:25:25.7569850Z    74 |     for (char** e = environ; *e != nullptr; ++e) {
+2026-11-19T05:25:25.7671770Z       |                     ^
+2026-11-19T05:25:25.7895830Z 1 error generated.
+2026-11-19T05:25:25.7976430Z make[1]: *** [mk/tests.mk:1098: build/obj/tests/test_subject_owner.o] Error 1
+2026-11-19T05:25:25.8076550Z make[1]: *** Waiting for unfinished jobs....
+2026-11-19T05:25:26.4208310Z [TEST] tests/unit/test_subject_name_withdrawal.cpp
+2026-11-19T05:25:32.2760520Z [TEST] tests/unit/test_subject_self_registration.cpp
+2026-11-19T05:25:32.2821710Z make: *** [mk/tests.mk:936: build/bin/helix-tests] Error 2
+2026-11-19T05:25:32.3085290Z ##[error]Process completed with exit code 2.
+2026-11-19T05:25:32.3385080Z Post job cleanup.

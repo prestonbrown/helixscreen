@@ -11,15 +11,22 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -80,6 +87,20 @@
       "outlet": [
         0.33,
         0.76748
+      ],
+      "prep": [
+        0.32253,
+        0.53746,
+        0.36104,
+        0.5116,
+        0.40303,
+        0.51892,
+        0.40303,
+        0.60763,
+        0.36452,
+        0.63349,
+        0.32253,
+        0.62617
       ]
     },
     {
@@ -110,6 +131,20 @@
       "outlet": [
         0.49254,
         0.7958
+      ],
+      "prep": [
+        0.48507,
+        0.56578,
+        0.52359,
+        0.53993,
+        0.56558,
+        0.54725,
+        0.56558,
+        0.63596,
+        0.52706,
+        0.66181,
+        0.48507,
+        0.65449
       ]
     }
   ],

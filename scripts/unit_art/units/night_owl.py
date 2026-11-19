@@ -111,8 +111,13 @@ def draw_art(scene, colors, tier):
     sc.poly(kit.rrect_front(0.09, 0.91, 0.1, TOP - 0.05, 0.02, -0.002), kit.shade(cam, PANEL, (0, -1, 0), amb=0.8, dif=0.4, spec=0))
     sc.poly([(W + 0.002, 0.12, 0.1), (W + 0.002, D - 0.12, 0.1), (W + 0.002, D - 0.12, TOP - 0.05), (W + 0.002, 0.12, TOP - 0.05)], kit.shade(cam, PANEL, (1, 0, 0), amb=0.8, dif=0.4, spec=0))
     sc.line([(0.0, 0.0, TOP), (W, 0.0, TOP), (W, D, TOP)], kit.shift(DECK, 16), 0.008 * thick)
-    for xc in CENTERS:
+    for lane, xc in enumerate(CENTERS):
         _drive(sc, xc, detail)
+        # The pod between the drums holds the lane's entry (prep) sensor.
+        reach = ROLLER_R * 0.72
+        kit.sensor_region(sc, lane, "prep", [(a, b, z) for a in (xc - POD_HALF, xc + POD_HALF)
+                                             for b in (ROLLER_Y - reach, ROLLER_Y + reach)
+                                             for z in (TOP, ROLLER_Z + 0.03)])
         if detail:
             tube = feeder.bend((xc, ROLLER_Y - ROLLER_R * 0.72 - 0.004, ROLLER_Z - 0.03), (xc, -0.06, ROLLER_Z - 0.04), (xc, -0.004, TOP - 0.16))
             sc.line(tube, "#f2f3f4", 0.011)

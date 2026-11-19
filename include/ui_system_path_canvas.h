@@ -21,10 +21,10 @@ extern "C" {
  * Visual layout (vertical, top to bottom):
  *   - Entry points at top (one per unit, under its unit card)
  *   - Lines from each unit toward the nozzle it feeds
- *   - A hub box ("Hub", or "Hub+BUF" when the hub carries the buffer) where
- *     two or more lines meet
- *   - The output line down to the nozzle, with an inline buffer box on a
- *     lone line that has one
+ *   - A hub box ("HUB", with the buffer's mini meter when the hub carries the
+ *     buffer) where two or more lines meet
+ *   - The output line down to the nozzle, with a box holding the buffer's meter
+ *     on a lone line that has one
  *   - Simplified nozzle icon at bottom
  *
  * The tubes and sensor bands are planned into the same route plan as the
@@ -184,18 +184,17 @@ void ui_system_path_canvas_set_unit_lane(lv_obj_t* obj, int unit_index, int segm
 /**
  * @brief Set the buffer on the output line (single-toolhead layout)
  *
- * Drawn with the label and tint the unit view's buffer box has:
- * BufferBoxState::label and ::fault of ams_detail_buffer_box(info, -1). With
- * two or more units it is part of the combiner's box ("Hub+BUF"); with one,
- * a box on the output line.
+ * Drawn as the meter the unit view's hub carries, from ams_detail_buffer_box(info, -1).
+ * With two or more units it sits in the combiner's box; with one, in a box of its own on
+ * the output line.
  *
  * @param obj The system_path_canvas widget
  * @param present Whether the system reading has a buffer
  * @param fault Severity: -1 untinted, 0 neutral, 1 warning, 2 danger
- * @param label Box label ("FPS", "BUF")
+ * @param position Where it sits on its travel, buffer_meter_position()
  */
 namespace helix::ui {
-void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, const char* label);
+void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, float position);
 
 /**
  * @brief Set a unit's hub and the buffer under it (several-toolhead layout)
@@ -208,10 +207,10 @@ void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, co
  *
  * @param present Whether the hub has a buffer
  * @param fault Severity as in ui_system_path_canvas_set_buffer()
- * @param label Box label
+ * @param position As in ui_system_path_canvas_set_buffer()
  */
 void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_group, bool present,
-                                        int fault, const char* label);
+                                        int fault, float position);
 } // namespace helix::ui
 
 /**
@@ -299,6 +298,18 @@ void ui_system_path_canvas_set_tool_virtual_numbers(lv_obj_t* obj, const int* nu
  * @param prefix Badge letter; ignored when '\0'
  */
 void ui_system_path_canvas_set_tool_label_prefix(lv_obj_t* obj, char prefix);
+
+/**
+ * @brief Who pages the card row when a "+N units" chip is tapped
+ *
+ * The chip stands over the tubes of the units scrolled off one edge of the card
+ * row; @p cb gets side 0 for the left edge, 1 for the right.
+ */
+namespace helix::ui {
+void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
+                                                    void (*cb)(int side, void* user_data),
+                                                    void* user_data);
+} // namespace helix::ui
 
 /**
  * @brief Force redraw of the path visualization

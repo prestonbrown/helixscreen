@@ -14,6 +14,8 @@
     <prop name="glyph" type="string" default=""/>
     <!-- The heater's name: static text, or a subject where it changes. -->
     <prop name="label" type="string" default=""/>
+    <!-- The static label's translation key, so a language switch retranslates it. -->
+    <prop name="label_tag" type="string" default=""/>
     <prop name="label_subject" type="string" default=""/>
     <!-- A short name for where the full one does not fit (the nozzle's tool
          number); empty for none. -->
@@ -57,7 +59,8 @@
         <bind_style_if_ge name="heater_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
         <heater_icon src="$icon" glyph_name="$glyph" size="xs"/>
         <text_small name="heater_row_label"
-                    text="$label" bind_text="$label_subject" clickable="false" event_bubble="true">
+                    text="$label" translation_tag="$label_tag" bind_text="$label_subject" clickable="false"
+                    event_bubble="true">
           <bind_flag_if cond="ui_breakpoint le 1 or ui_is_portrait eq 1" flag="hidden"/>
         </text_small>
         <!-- The short name stands in where the full one is hidden. The wrapper

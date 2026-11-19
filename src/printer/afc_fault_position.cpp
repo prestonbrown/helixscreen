@@ -125,6 +125,15 @@ std::optional<PathSegment> afc_fault_position(std::string_view message) {
     return std::nullopt;
 }
 
+LaneSensor afc_fault_lane_sensor(std::string_view message) {
+    // Both fire with the lane's prep switch made and its load switch never reached
+    // (AFC_BoxTurtle.py's load loop, AFC.py's load_state check): faults at the load sensor.
+    if (contains_word(message, "check filament at trigger") ||
+        contains_word(message, "load trigger not triggered"))
+        return LaneSensor::LOAD;
+    return LaneSensor::NONE;
+}
+
 std::string afc_strip_position_diagram(std::string_view message) {
     // Recognition gates the edit: anything we did not understand comes back byte-for-byte.
     if (!afc_fault_position(message))

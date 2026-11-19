@@ -73,10 +73,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: setters past the ceiling store 
         ui_filament_path_canvas_set_anim_progress(path, 250);
         CHECK(data->anim.progress == 100);
     }
-    SECTION("fixed hub lanes") {
-        ui_filament_path_canvas_set_fixed_hub(path, kAmsMaxSlots + 5, 20);
-        CHECK(data->fixed_hub_lanes == FilamentPathData::kMaxSlots);
-    }
     SECTION("an animated segment's target") {
         ui_filament_path_canvas_animate_segment(path, 0, kPathSegmentCount + 3);
         CHECK(data->filament_segment == kLastSegment);

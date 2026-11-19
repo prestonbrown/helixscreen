@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 #include "ui_icon_codepoints.h"
+#include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
@@ -234,6 +235,9 @@ void present_notice(const helix::Notice& notice) {
                                 notice.action, notice.action_user_data, notice.duration_ms);
     } else {
         toasts.show(severity, notice.message.c_str(), notice.duration_ms);
+    }
+    if (notice.keep_in_history) {
+        helix::ui::notification_history_only(severity, notice.message.c_str());
     }
 }
 

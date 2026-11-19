@@ -67,6 +67,9 @@ namespace helix {
  * @brief Filename for the HelixScreen macros config file
  */
 constexpr const char* kHelixMacrosFilename = "helix_macros.cfg";
+/// The save_variables file HelixScreen points a [save_variables] section at
+/// when the printer had none (HELIX_MATERIAL_OFFSET keeps its offsets there).
+constexpr const char* kHelixVariablesFilename = "helix_variables.cfg";
 
 /**
  * @brief Status of HelixScreen macro installation
@@ -254,6 +257,20 @@ class MacroManager {
     /// Whether helix_macros.cfg @p content has a timelapse include as a live line.
     [[nodiscard]] static bool has_timelapse_include(const std::string& content);
 
+    /// The [save_variables] section helix_macros.cfg carries on a printer
+    /// without one: kHelixVariablesFilename beside @p config_file (printer.info's
+    /// absolute printer.cfg path). Empty when the path has no directory.
+    [[nodiscard]] static std::string save_variables_block(const std::string& config_file);
+
+    /// The [save_variables] section an installed helix_macros.cfg carries,
+    /// normalized to save_variables_block()'s form; empty when it has none.
+    [[nodiscard]] static std::string find_save_variables(const std::string& content);
+
+    /// @p content with @p block appended under its comment; unchanged when
+    /// @p block is empty.
+    [[nodiscard]] static std::string with_save_variables(const std::string& content,
+                                                         const std::string& block);
+
     /// @p content with @p line appended, unless it has a timelapse include already.
     [[nodiscard]] static std::string with_timelapse_include(const std::string& content,
                                                             const std::string& line);
@@ -366,8 +383,21 @@ class MacroManager {
 
     /// update_files() once it knows whether to keep the timelapse include.
     /// @p timelapse_include is the installed file's include line to keep, or empty.
-    void stage_update(const std::string& timelapse_include, SuccessCallback on_success,
+    /// @p installed_save_variables is the installed file's [save_variables]
+    /// section to keep, or empty.
+    void stage_update(const std::string& timelapse_include,
+                      const std::string& installed_save_variables, SuccessCallback on_success,
                       ErrorCallback on_error);
+
+    /// stage_update() once the content is built.
+    void upload_update(const std::string& content, SuccessCallback on_success,
+                       ErrorCallback on_error);
+
+    /// The [save_variables] section the staged file carries: @p installed when
+    /// the current file has one, nothing when the printer has its own, else a
+    /// new one beside printer.cfg. @p then runs on the main thread.
+    void resolve_save_variables(const std::string& installed,
+                                std::function<void(const std::string&)> then);
 
     /// Upload helix_skips.cfg when stages_skips(); succeed at once otherwise.
     void upload_skips_file(SuccessCallback on_success, ErrorCallback on_error);

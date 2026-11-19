@@ -1,0 +1,116 @@
+name: CI Watch
+
+# Watches main's CI so a red main is handled without someone noticing it.
+# scripts/ci/ci_watch.py holds the logic and the infrastructure signatures; its
+# header says what each outcome does:
+#
+#   infrastructure failure on attempt 1   -> rerun the failed jobs once
+#   real failure, or infrastructure again -> open or comment on the ci-red issue
+#   success                               -> close that issue once every watched
+#                                            workflow's latest main run is green
+#
+# Only main pushes and the nightly schedule count: a PR or topic branch going red
+# is its author's to see. docs/devel/CI_CD_GUIDE.md § "CI Watch" covers adding a
+# signature.
+
+on:
+  workflow_run:
+    # Their `name:` values, not file names. tests/python/test_ci_watch.py checks this
+    # list against ci_watch.WATCHED and against the workflow files. This workflow is
+    # not in it, so it never reacts to its own runs.
+    workflows:
+      - Build
+      - esp32-build
+      - Code Quality
+      - XML Lint
+      - Nightly Full Test Suite
+    types: [completed]
+  # A rerun started with GITHUB_TOKEN may not raise its own workflow_run event, and
+  # the concurrency group below drops all but the newest queued event, so a sweep
+  # over the latest main run of each watched workflow catches what an event missed.
+  # Every action is idempotent, so a sweep over a handled run does nothing.
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run id to judge (empty: sweep the latest main runs)"
+        default: ""
+      dry_run:
+        description: "Print what it would do; rerun nothing, write no issue"
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  issues: write
+  contents: read
+
+# One at a time, so two failures landing together cannot both find no open issue
+# and open two. Queued runs collapse to the newest; the hourly sweep covers the
+# ones that drops.
+concurrency:
+  group: ci-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Watch main CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.head_branch == 'main' &&
+       (github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'schedule'))
+
+    steps:
+    # The default branch's copy of the script, never the watched run's head: a
+    # workflow_run job holds a write token.
+    - name: Checkout the watcher
+      uses: actions/checkout@v6
+      with:
+        sparse-checkout: scripts/ci
+        submodules: false
+
+    - name: Ensure the ci-red label exists
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        if ! gh api "repos/$REPO/labels/ci-red" --silent 2>/dev/null; then
+          gh api -X POST "repos/$REPO/labels" \
+            -f name=ci-red -f color=b60205 \
+            -f description="main CI is red; opened and closed by ci-watch.yml" --silent
+          echo "Created label ci-red."
+        fi
+
+    - name: Judge the run
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
+        EVENT: ${{ github.event_name }}
+        EVENT_RUN_ID: ${{ github.event.workflow_run.id }}
+        INPUT_RUN_ID: ${{ inputs.run_id }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        set -euo pipefail
+        args=()
+        if [ "$EVENT" = workflow_dispatch ] && [ "$INPUT_DRY_RUN" = true ]; then
+          args+=(--dry-run)
+        fi
+        case "$EVENT" in
+          workflow_run)
+            python3 scripts/ci/ci_watch.py run --repo "$GH_REPO" --run-id "$EVENT_RUN_ID" ;;
+          workflow_dispatch)
+            if [ -n "$INPUT_RUN_ID" ]; then
+              # A hand-picked run may be off main: judge it anyway, which is the point
+              # of testing against a known failure.
+              python3 scripts/ci/ci_watch.py run --repo "$GH_REPO" --run-id "$INPUT_RUN_ID" \
+                --any-branch "${args[@]}"
+            else
+              python3 scripts/ci/ci_watch.py sweep --repo "$GH_REPO" "${args[@]}"
+            fi ;;
+          schedule)
+            python3 scripts/ci/ci_watch.py sweep --repo "$GH_REPO" ;;
+        esac

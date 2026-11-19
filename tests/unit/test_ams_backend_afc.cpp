@@ -3251,6 +3251,27 @@ TEST_CASE("AFC still marks a lane that failed outside an error state",
     REQUIRE(helper.has_clearable_fault(1));
 }
 
+TEST_CASE("AFC places a lane's fault at the sensor its later sentence names",
+          "[ams][afc][fault][sensor]") {
+    // The lane's Error status can land a frame before handle_lane_failure's sentence.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.feed_afc_stepper("lane2", {{"status", "Error"}});
+    helper.feed_afc_stepper("lane3", {{"status", "Error"}});
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::NONE);
+
+    helper.feed_afc_state(
+        {{"message",
+          {{"message", "lane2 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+           {"type", "error"}}}});
+    REQUIRE(helper.get_slot_info(1).error.has_value());
+    CHECK(helper.get_slot_info(1).error->sensor == LaneSensor::LOAD);
+    // Another faulted lane takes no sensor from lane2's sentence.
+    REQUIRE(helper.get_slot_info(2).error.has_value());
+    CHECK(helper.get_slot_info(2).error->sensor == LaneSensor::NONE);
+}
+
 TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
           "[ams][afc][recovery][stale_fault]") {
     StaleFaultRig rig;
@@ -3284,6 +3305,7 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
                    {"type", "error"}}}});
             REQUIRE(h.get_slot_info(2).error.has_value());
             REQUIRE(h.has_clearable_fault(2));
+            CHECK(h.get_slot_info(2).error->sensor == LaneSensor::LOAD);
         }
         SECTION("a new error naming no lane brings every acknowledged lane back") {
             h.feed_afc_state(
@@ -7828,6 +7850,9 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
     AmsError execute_gcode(const std::string& gcode) override {
         sent_.push_back(gcode);
         pending_acks_.emplace_back(nullptr);
+        if (fail_g28 && gcode == "G28") {
+            return AmsErrorHelper::not_connected("homing failed");
+        }
         return AmsErrorHelper::success();
     }
 
@@ -7842,6 +7867,8 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
     }
 
     bool homed = true;
+    /// The G28 a dispatch sends ahead of its payload fails.
+    bool fail_g28 = false;
 
     /// Whether an optimistic dispatch is still armed and awaiting resolution
     /// -- mirrors ToolChangerTestAccess::has_pending_dispatch(). Reachable
@@ -7945,6 +7972,68 @@ TEST_CASE("AFC no-op load resolves on the macro ack", "[ams][afc][dispatch][1183
     // this started. The busy leg is the load-bearing half.
     REQUIRE(trace_contains(h.trace(), AmsAction::LOADING));
     REQUIRE(h.trace().back() == AmsAction::IDLE);
+}
+
+TEST_CASE("AFC names the lane a load is headed for until the load ends",
+          "[ams][afc][dispatch][spool_spin]") {
+    AfcDispatchAckHelper h;
+    REQUIRE(h.load_filament(3).success());
+    CHECK(h.get_system_info().pending_target_slot == 3);
+    // AFC takes the load over, then the macro acks while it is still loading: the incoming
+    // lane stays named, so its spool keeps turning for the whole load.
+    h.feed_state("Loading");
+    h.ack(0);
+    CHECK(h.get_system_info().pending_target_slot == 3);
+    h.feed_state("Idle");
+    CHECK(h.get_system_info().pending_target_slot == -1);
+}
+
+TEST_CASE("AFC lane change shows the incoming lane through the load half",
+          "[ams][afc][dispatch][spool_spin][toolchange]") {
+    AfcDispatchAckHelper h;
+    h.feed_afc({{"current_state", "Idle"}, {"current_lane", "lane1"}});
+    REQUIRE(h.get_system_info().current_slot == 0);
+
+    // CHANGE_TOOL unloads lane1, reports Idle between the halves, then loads lane3.
+    auto change_to_lane3 = [&h]() {
+        h.feed_afc({{"current_state", "Unloading"}, {"next_lane", "lane3"}});
+        h.feed_afc({{"current_state", "Idle"}, {"current_lane", nullptr}});
+        CHECK(h.get_system_info().action == AmsAction::UNLOADING);
+        CHECK(h.get_system_info().pending_target_slot == 2);
+        h.feed_afc({{"current_state", "Loading"}});
+        CHECK(h.get_system_info().path_active_slot() == 2);
+        h.feed_afc({{"current_state", "Idle"}, {"current_lane", "lane3"}, {"next_lane", nullptr}});
+        CHECK(h.get_system_info().pending_target_slot == -1);
+        CHECK(h.get_system_info().path_active_slot() == 2);
+    };
+
+    SECTION("a load the user started") {
+        REQUIRE(h.load_filament(2).success());
+        change_to_lane3();
+    }
+    SECTION("a tool change from the print's gcode") {
+        change_to_lane3();
+    }
+}
+
+TEST_CASE("AFC load that never starts names no incoming lane", "[ams][afc][dispatch]") {
+    AfcDispatchAckHelper h;
+
+    SECTION("its homing move fails") {
+        h.homed = false;
+        h.fail_g28 = true;
+        REQUIRE(h.load_filament(2).success());
+        REQUIRE(h.sent().size() == 1);
+        CHECK(h.action() == AmsAction::IDLE);
+    }
+    SECTION("Klipper restarts under it") {
+        REQUIRE(h.load_filament(2).success());
+        REQUIRE(h.get_system_info().pending_target_slot == 2);
+        h.on_klipper_restarted();
+        CHECK(h.action() == AmsAction::IDLE);
+    }
+    CHECK(h.get_system_info().pending_target_slot == -1);
+    CHECK(h.get_system_info().path_active_slot() == -1);
 }
 
 namespace helix {

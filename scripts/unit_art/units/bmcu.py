@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """BMCU: four narrow feeder modules side by side, neutral but for a dark blue lever on each.
 
-The real unit holds no spools. They stand on the floor behind it, spread wider than the
+The real unit holds no spools. They rest in a roller tray behind it, spread wider than the
 narrow body, so each lane still shows its filament. Body lengths below are in units of the
 body width; SCALE turns them into the shared scale where a 200 mm spool has radius 0.25.
 """
@@ -24,7 +24,7 @@ SCALE = 0.3
 SPOOL_PITCH = 0.2
 SPOOL_CENTERS = [SCALE / 2 + (i - 1.5) * SPOOL_PITCH for i in range(4)]
 SPOOL_Y = SCALE * D + SPOOL_R + 0.02
-SPOOL_Z = SPOOL_R
+SPOOL_Z = feeder.spool_lift(SPOOL_R)
 LEVER_HALF, LEVER_Z0, LEVER_Z1 = 0.075, 0.2, 0.56
 _REPO = Path(__file__).resolve().parents[3]
 
@@ -88,8 +88,10 @@ def _body(scene, detail):
                 sc.poly([(W + 0.001, y + 0.011 * math.cos(2 * math.pi * i / 10), z + 0.011 * math.sin(2 * math.pi * i / 10)) for i in range(10)], SHADOW)
     for xc in CENTERS:
         _lever(sc, xc, detail)
-    for xc in CENTERS:
+    for lane, xc in enumerate(CENTERS):
         _fitting(sc, xc)
+        # Each lane's filament leaves through its module's push-fit fitting on top.
+        kit.outlet(scene, lane, (xc * SCALE, TOP_D / 2 * SCALE, (H + 0.07) * SCALE))
 
 
 def draw_art(scene, colors, tier):
@@ -97,9 +99,11 @@ def draw_art(scene, colors, tier):
     c = spool.spool_constants(_REPO)
     x0, x1 = SPOOL_CENTERS[0] - 0.12, SPOOL_CENTERS[-1] + 0.12
     scene.poly([(x0, 0.0, 0), (x1, 0.0, 0), (x1, SPOOL_Y + 0.2, 0), (x0, SPOOL_Y + 0.2, 0)], "#000", 0.5, blur=True)
+    feeder.roller_tray(scene, x0, x1, SPOOL_Y, "back")
     for lane, (xc, col) in enumerate(zip(SPOOL_CENTERS, colors)):
         spool.draw_spool(scene, (xc, SPOOL_Y, SPOOL_Z), SPOOL_R, col, c, lane, detail=detail)
     scene.layer = "front"
+    feeder.roller_tray(scene, x0, x1, SPOOL_Y, "front")
     _body(scene, detail)
 
 

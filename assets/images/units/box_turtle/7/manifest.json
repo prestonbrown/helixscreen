@@ -11,45 +11,62 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         },
         {
           "color": "full_lane4.png",
           "shade": "full_lane4_shade.png",
           "body": "full_lane4_body.png",
-          "glow": "full_lane4_glow.png"
+          "glow": "full_lane4_glow.png",
+          "face": "full_lane4_face.png",
+          "far_face": "full_lane4_far_face.png"
         },
         {
           "color": "full_lane5.png",
           "shade": "full_lane5_shade.png",
           "body": "full_lane5_body.png",
-          "glow": "full_lane5_glow.png"
+          "glow": "full_lane5_glow.png",
+          "face": "full_lane5_face.png",
+          "far_face": "full_lane5_far_face.png"
         },
         {
           "color": "full_lane6.png",
           "shade": "full_lane6_shade.png",
           "body": "full_lane6_body.png",
-          "glow": "full_lane6_glow.png"
+          "glow": "full_lane6_glow.png",
+          "face": "full_lane6_face.png",
+          "far_face": "full_lane6_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -135,6 +152,20 @@
       "outlet": [
         0.09918,
         0.58476
+      ],
+      "prep": [
+        0.08318,
+        0.56896,
+        0.10181,
+        0.55645,
+        0.13382,
+        0.56202,
+        0.13382,
+        0.58854,
+        0.11518,
+        0.60105,
+        0.08318,
+        0.59547
       ]
     },
     {
@@ -165,6 +196,20 @@
       "outlet": [
         0.20798,
         0.60372
+      ],
+      "prep": [
+        0.19198,
+        0.58792,
+        0.21062,
+        0.57541,
+        0.24262,
+        0.58099,
+        0.24262,
+        0.6075,
+        0.22398,
+        0.62001,
+        0.19198,
+        0.61443
       ]
     },
     {
@@ -195,6 +240,20 @@
       "outlet": [
         0.31679,
         0.62268
+      ],
+      "prep": [
+        0.30079,
+        0.60688,
+        0.31942,
+        0.59437,
+        0.35142,
+        0.59995,
+        0.35142,
+        0.62646,
+        0.33279,
+        0.63897,
+        0.30079,
+        0.6334
       ]
     },
     {
@@ -225,6 +284,20 @@
       "outlet": [
         0.42559,
         0.64165
+      ],
+      "prep": [
+        0.40959,
+        0.62584,
+        0.42823,
+        0.61333,
+        0.46023,
+        0.61891,
+        0.46023,
+        0.64543,
+        0.44159,
+        0.65793,
+        0.40959,
+        0.65236
       ]
     },
     {
@@ -255,6 +328,20 @@
       "outlet": [
         0.5344,
         0.66061
+      ],
+      "prep": [
+        0.51839,
+        0.6448,
+        0.53703,
+        0.63229,
+        0.56903,
+        0.63787,
+        0.56903,
+        0.66439,
+        0.5504,
+        0.67689,
+        0.51839,
+        0.67132
       ]
     },
     {
@@ -285,6 +372,20 @@
       "outlet": [
         0.6432,
         0.67957
+      ],
+      "prep": [
+        0.6272,
+        0.66376,
+        0.64583,
+        0.65125,
+        0.67783,
+        0.65683,
+        0.67783,
+        0.68335,
+        0.6592,
+        0.69586,
+        0.6272,
+        0.69028
       ]
     },
     {
@@ -315,6 +416,20 @@
       "outlet": [
         0.752,
         0.69853
+      ],
+      "prep": [
+        0.736,
+        0.68272,
+        0.75464,
+        0.67021,
+        0.78664,
+        0.67579,
+        0.78664,
+        0.70231,
+        0.768,
+        0.71482,
+        0.736,
+        0.70924
       ]
     }
   ],

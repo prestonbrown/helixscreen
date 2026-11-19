@@ -11,27 +11,38 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -62,26 +73,26 @@
     }
   },
   "drawn": [
-    0.0384,
-    0.12537,
-    0.93159,
-    0.80387
+    0.06911,
+    0.0857,
+    0.90268,
+    0.80431
   ],
   "bottom_edge": [
-    0.03907,
-    0.68835,
-    0.70192,
-    0.80387
+    0.07006,
+    0.69572,
+    0.69314,
+    0.80431
   ],
   "geometry": [
     {
       "far": [
-        0.20894,
-        0.39349
+        0.21581,
+        0.40083
       ],
       "near": [
-        0.31798,
-        0.41249
+        0.32485,
+        0.41984
       ],
       "ey": [
         0.07937,
@@ -94,24 +105,25 @@
       "wound": 0.93,
       "core": 0.2381,
       "box": [
-        0.12957,
-        0.22078,
-        0.39735,
-        0.5852
+        0.13644,
+        0.22813,
+        0.40422,
+        0.59254
       ],
       "outlet": [
-        0.1385,
-        0.71407
-      ]
+        0.16975,
+        0.72098
+      ],
+      "prep": []
     },
     {
       "far": [
-        0.36803,
-        0.42121
+        0.356,
+        0.42526
       ],
       "near": [
-        0.47707,
-        0.44021
+        0.46504,
+        0.44427
       ],
       "ey": [
         0.07937,
@@ -124,24 +136,25 @@
       "wound": 0.93,
       "core": 0.2381,
       "box": [
-        0.28866,
-        0.24851,
-        0.55644,
-        0.61292
+        0.27663,
+        0.25256,
+        0.54441,
+        0.61697
       ],
       "outlet": [
-        0.29758,
-        0.74179
-      ]
+        0.30995,
+        0.74541
+      ],
+      "prep": []
     },
     {
       "far": [
-        0.52711,
-        0.44894
+        0.49931,
+        0.45024
       ],
       "near": [
-        0.63615,
-        0.46794
+        0.60835,
+        0.46924
       ],
       "ey": [
         0.07937,
@@ -154,24 +167,25 @@
       "wound": 0.93,
       "core": 0.2381,
       "box": [
-        0.44774,
-        0.27623,
-        0.71552,
-        0.64064
+        0.41994,
+        0.27753,
+        0.68772,
+        0.64195
       ],
       "outlet": [
-        0.45667,
-        0.76952
-      ]
+        0.45326,
+        0.77039
+      ],
+      "prep": []
     },
     {
       "far": [
-        0.68288,
-        0.47608
+        0.63951,
+        0.47467
       ],
       "near": [
-        0.79192,
-        0.49508
+        0.74854,
+        0.49367
       ],
       "ey": [
         0.07937,
@@ -184,15 +198,16 @@
       "wound": 0.93,
       "core": 0.2381,
       "box": [
-        0.60351,
-        0.30338,
-        0.87129,
-        0.66779
+        0.56014,
+        0.30196,
+        0.82791,
+        0.66638
       ],
       "outlet": [
-        0.61244,
-        0.79666
-      ]
+        0.59345,
+        0.79482
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

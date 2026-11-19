@@ -192,6 +192,19 @@ TEST_CASE("decide_idle truth table", "[display][idle_decision]") {
                   i.preview_elapsed_ms = 0;
               }),
          IdleAction::Wake},
+        // --- A print starting ---
+        {"sleeping, idle, print started",
+         with(make(S, 999999, 60, 120), [](auto& i) { i.print_started = true; }), IdleAction::Wake},
+        {"dimmed, idle, print started",
+         with(make(D, 90000, 60, 120), [](auto& i) { i.print_started = true; }), IdleAction::Wake},
+        {"preview inside its grace, print started",
+         with(make(D, 100, 60, 120),
+              [](auto& i) {
+                  i.is_preview = true;
+                  i.preview_elapsed_ms = 0;
+                  i.print_started = true;
+              }),
+         IdleAction::Wake},
     };
 
     REQUIRE(rows.size() >= 40);

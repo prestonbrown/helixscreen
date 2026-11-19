@@ -427,6 +427,40 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when not emp
     lv_obj_delete(slot);
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a hollow badge takes its status colors back",
+                 "[ui][ams_slot][status]") {
+    ui_ams_slot_register();
+    AmsState::instance().init_subjects(true);
+    auto mock = AmsBackend::create_mock(4);
+    static_cast<AmsBackendMock*>(mock.get())->force_slot_status(0, SlotStatus::AVAILABLE);
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+
+    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
+    REQUIRE(slot != nullptr);
+    process_lvgl(50);
+    lv_obj_t* badge = ui_ams_slot_get_status_badge(slot);
+    lv_obj_t* number = lv_obj_find_by_name(slot, "slot_badge_label");
+    REQUIRE(badge != nullptr);
+    REQUIRE(number != nullptr);
+    const auto fill = [&] {
+        return lv_color_to_u32(lv_obj_get_style_bg_color(badge, LV_PART_MAIN));
+    };
+    const auto ink = [&] {
+        return lv_color_to_u32(lv_obj_get_style_text_color(number, LV_PART_MAIN));
+    };
+    const uint32_t status_fill = fill(), status_ink = ink();
+
+    ui_ams_slot_set_badge_marks(slot, true, false, helix::SlotError::Severity::INFO, true);
+    REQUIRE(fill() != status_fill); // an available lane's fill is not the hollow one
+
+    ui_ams_slot_set_badge_marks(slot, false, false, helix::SlotError::Severity::INFO, false);
+    CHECK(fill() == status_fill);
+    CHECK(ink() == status_ink);
+    lv_obj_delete(slot);
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: status badge visible when empty",
                  "[ui][ams_slot][status]") {
     ui_ams_slot_register();

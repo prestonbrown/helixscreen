@@ -5,6 +5,7 @@
 #include "backlight_backend.h"
 #include "display_backend.h"
 #include "display_idle_decision.h"
+#include "print_lifecycle_state.h"
 
 #include <functional>
 #include <lvgl.h>
@@ -156,6 +157,9 @@ class DisplaySleepController {
     bool m_remote_viewer_seen = false; // the previous tick saw a remote viewer
     bool m_wake_from_input = false;    // wake() is running for the user's touch or activity
     bool m_wake_frame_owed = false;    // a wake inside a batch left the first frame to the loop
+    /// The print lifecycle the previous tick read. Idle at construction, before any
+    /// connection, so a job the screen first hears of mid-print counts as a start.
+    PrintState m_last_print_lifecycle = PrintState::Idle;
     int m_dim_timeout_sec = 600;
     int m_dim_brightness_percent = 30;
 

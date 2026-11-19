@@ -726,8 +726,16 @@ SystemToolLayout compute_system_tool_layout(const helix::AmsSystemInfo& info,
     }
     result.display_order.resize(result.units.size());
     std::iota(result.display_order.begin(), result.display_order.end(), 0);
+    // Among units whose lines start at one nozzle, one feeding fewer nozzles goes first: its
+    // line drops to the shared nozzle on the left instead of crossing the others' lines.
     helix::sort_small(result.display_order.begin(), result.display_order.end(),
-                      [&order_key](int a, int b) { return order_key[a] < order_key[b]; });
+                      [&order_key, &result](int a, int b) {
+                          if (order_key[a] != order_key[b])
+                              return order_key[a] < order_key[b];
+                          const int ta = result.units[static_cast<size_t>(a)].tool_count;
+                          const int tb = result.units[static_cast<size_t>(b)].tool_count;
+                          return ta > 0 && tb > 0 && ta < tb;
+                      });
 
     // Physical→extruder-name map. Positions no branch could identify stay empty.
     result.physical_to_extruder_name.assign(total_physical, std::string());

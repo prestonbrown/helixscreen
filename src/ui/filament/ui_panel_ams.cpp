@@ -36,6 +36,7 @@
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_accounting_controller.h"
 #include "i_moonraker_api.h"
@@ -191,6 +192,8 @@ void AmsPanel::init_subjects() {
             if (!self->open_ || !self->subjects_initialized_ || !self->panel_)
                 return;
             spdlog::trace("[AmsPanel] Gates version changed - refreshing slots");
+            if (const auto info = AmsState::instance().system_info())
+                self->hand_off_if_multi_unit(*info);
             self->refresh_slots();
         },
         AmsState::instance().get_subjects_lifetime());
@@ -479,6 +482,11 @@ void AmsPanel::on_activate() {
     spdlog::debug("[{}] Activated - syncing from backend", get_name());
     const bool opening = !open_;
     open_ = true;
+    if (opening) {
+        const auto info = AmsState::instance().system_info();
+        opened_single_unit_ = info && !info->is_multi_unit();
+        overview_handoff_queued_ = false;
+    }
     if (!sidebar_) {
         sidebar_ = helix::ui::AmsOperationSidebar::attach(printer_state_, panel_);
     }
@@ -571,6 +579,15 @@ void AmsPanel::run_close() {
     if (auto* p = get_existing_ams_panel()) {
         p->on_closed();
     }
+}
+
+void AmsPanel::hand_off_if_multi_unit(const helix::AmsSystemInfo& info) {
+    if (!opened_single_unit_ || overview_handoff_queued_ || !info.is_multi_unit())
+        return;
+    overview_handoff_queued_ = true;
+    spdlog::info("[{}] Backend now reports {} units - handing over to the overview", get_name(),
+                 info.unit_count());
+    helix::ui::hand_ams_panel_to_overview(panel_);
 }
 
 void AmsPanel::on_closed() {
@@ -814,16 +831,12 @@ void AmsPanel::create_slots(int count) {
     // path in real time (Task 1). Re-built here because the slot count is known.
     setup_slot_path_observers(result.slot_count);
 
-    // Update tray
-    ams_detail_update_tray(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits);
-    // A unit too tall for its path is laid out again at the size that fits; the drawing
-    // scales with its spools only roughly, so it may take a second pass.
-    if (helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_) &&
-        relayout_passes_ < kMaxRelayoutPasses) {
-        ++relayout_passes_;
-        create_slots(count);
-        --relayout_passes_;
-    }
+    helix::ui::ams_detail_lay_out_unit(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits,
+                                       path_canvas_, relayout_passes_,
+                                       [this, count] { create_slots(count); });
+    // The path may have moved under its unit without changing size: the bypass spool stands
+    // on its merge line wherever that now is.
+    update_bypass_spool_position();
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {

@@ -12,44 +12,59 @@
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
           "glow": "full_lane0_glow.png",
-          "silhouette": "full_lane0_silhouette.png"
+          "silhouette": "full_lane0_silhouette.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
           "glow": "full_lane1_glow.png",
-          "silhouette": "full_lane1_silhouette.png"
+          "silhouette": "full_lane1_silhouette.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
           "glow": "full_lane2_glow.png",
-          "silhouette": "full_lane2_silhouette.png"
+          "silhouette": "full_lane2_silhouette.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
           "glow": "full_lane3_glow.png",
-          "silhouette": "full_lane3_silhouette.png"
+          "silhouette": "full_lane3_silhouette.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         },
         {
           "color": "full_lane4.png",
           "shade": "full_lane4_shade.png",
           "body": "full_lane4_body.png",
           "glow": "full_lane4_glow.png",
-          "silhouette": "full_lane4_silhouette.png"
+          "silhouette": "full_lane4_silhouette.png",
+          "face": "full_lane4_face.png",
+          "far_face": "full_lane4_far_face.png"
         },
         {
           "color": "full_lane5.png",
           "shade": "full_lane5_shade.png",
           "body": "full_lane5_body.png",
           "glow": "full_lane5_glow.png",
-          "silhouette": "full_lane5_silhouette.png"
+          "silhouette": "full_lane5_silhouette.png",
+          "face": "full_lane5_face.png",
+          "far_face": "full_lane5_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -91,7 +106,7 @@
   },
   "drawn": [
     0.03011,
-    0.12653,
+    0.12631,
     0.94023,
     0.81605
   ],
@@ -130,7 +145,8 @@
       "outlet": [
         0.12301,
         0.68985
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -160,7 +176,8 @@
       "outlet": [
         0.23835,
         0.70995
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -190,7 +207,8 @@
       "outlet": [
         0.35369,
         0.73005
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -220,7 +238,8 @@
       "outlet": [
         0.46904,
         0.75015
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -250,7 +269,8 @@
       "outlet": [
         0.58438,
         0.77025
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -280,7 +300,8 @@
       "outlet": [
         0.69972,
         0.79035
-      ]
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

@@ -14,6 +14,7 @@
 #include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "fault_path_position.h"
 #include "filament_variants.h"
 #include "gcode_help.h"
 #include "gcode_response_lines.h"
@@ -1557,12 +1558,24 @@ void AmsBackendAfc::apply_toolchange_hold_locked(AmsAction action_at_frame_start
     }
 }
 
+void AmsBackendAfc::apply_load_target_locked() {
+    // AFC reports the lane in the toolhead, which during a lane change is the outgoing one;
+    // next_lane names the incoming one for the whole change, including a T-change from gcode.
+    if (toolchange_in_progress_ && system_info_.next_slot >= 0 &&
+        ams_action_is_busy(system_info_.action)) {
+        system_info_.pending_target_slot = system_info_.next_slot;
+    } else if (system_info_.action == AmsAction::IDLE || system_info_.action == AmsAction::ERROR) {
+        system_info_.pending_target_slot = -1;
+    }
+}
+
 void AmsBackendAfc::release_toolchange_hold_locked() {
     spdlog::debug("[AMS AFC] Toolchange hold on {} released",
                   ams_action_to_string(*toolchange_hold_));
     toolchange_hold_.reset();
     toolchange_hold_detail_.clear();
     system_info_.action = AmsAction::IDLE;
+    system_info_.pending_target_slot = -1;
     system_info_.operation_detail = afc_state_detail(last_raw_state_);
 }
 
@@ -1589,6 +1602,7 @@ void AmsBackendAfc::apply_action_timeout_latch_locked() {
     // change would restart the clock, and the whole thing would flap between
     // busy and ERROR for as long as AFC stays stuck.
     system_info_.action = AmsAction::ERROR;
+    system_info_.pending_target_slot = -1;
     system_info_.operation_detail = timed_out_detail_;
 }
 
@@ -1655,6 +1669,7 @@ void AmsBackendAfc::check_action_timeout() {
                             : timed_out_line(timed_out_what_);
     system_info_.operation_detail = timed_out_detail_;
     system_info_.action = AmsAction::ERROR;
+    system_info_.pending_target_slot = -1;
 
     // Only latch when AFC itself is driving the action. The latch keys on
     // last_raw_state_, and for an action this backend set optimistically at
@@ -1671,7 +1686,7 @@ void AmsBackendAfc::check_action_timeout() {
     timed_out_state_ = last_raw_state_;
 }
 
-uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
+uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action, int target_slot) {
     // A newer dispatch supersedes any older one whose ack is still in flight:
     // that ack presents a stale generation and finalize_dispatch_after_macro()
     // drops it, so it can never resolve the operation now running.
@@ -1692,6 +1707,7 @@ uint64_t AmsBackendAfc::begin_dispatch_locked(AmsAction action) {
     }
 
     system_info_.action = action;
+    system_info_.pending_target_slot = target_slot;
     // Otherwise the sidebar keeps showing the finished operation's detail until
     // AFC's first frame, which for a no-op never comes.
     switch (action) {
@@ -1725,6 +1741,7 @@ void AmsBackendAfc::abandon_dispatch(uint64_t generation) {
         }
         pending_dispatch_action_.reset();
         system_info_.action = AmsAction::IDLE;
+        system_info_.pending_target_slot = -1;
         system_info_.operation_detail.clear();
         action_start_time_ = std::chrono::steady_clock::now();
     }
@@ -1760,6 +1777,7 @@ void AmsBackendAfc::finalize_dispatch_after_macro(uint64_t generation) {
         spdlog::info("[AMS AFC] Macro complete (gcode ack) with no AFC state change -> IDLE");
         pending_dispatch_action_.reset();
         system_info_.action = AmsAction::IDLE;
+        system_info_.pending_target_slot = -1;
         system_info_.operation_detail.clear();
         action_start_time_ = std::chrono::steady_clock::now();
         changed = true;
@@ -1769,19 +1787,28 @@ void AmsBackendAfc::finalize_dispatch_after_macro(uint64_t generation) {
     }
 }
 
-AmsError AmsBackendAfc::dispatch_operation(std::string gcode, AmsAction action) {
+AmsError AmsBackendAfc::dispatch_operation(std::string gcode, AmsAction action, int target_slot) {
     uint64_t generation;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        generation = begin_dispatch_locked(action);
+        generation = begin_dispatch_locked(action, target_slot);
     }
     // Publish the optimistic action immediately: this is the transition the
     // filament panel's completion observer needs to see start before it can
     // ever see one end.
     emit_event(EVENT_STATE_CHANGED);
 
+    // A failed homing move means the payload never ships, so no ack or AFC state follows it.
+    // The error still reaches the gcode error router: this leg only unwinds.
     AmsError result = ensure_homed_then(
-        std::move(gcode), [this, generation]() { finalize_dispatch_after_macro(generation); });
+        std::move(gcode), [this, generation]() { finalize_dispatch_after_macro(generation); },
+        /*on_error=*/nullptr, IMoonrakerAPI::kAmsOperationTimeoutMs, /*skip_homing=*/false,
+        /*silent=*/true, /*caller_surfaces_errors=*/false,
+        [this, generation](const MoonrakerError& err) {
+            spdlog::error("[AMS AFC] Homing before dispatch #{} failed: {}", generation,
+                          err.message);
+            abandon_dispatch(generation);
+        });
 
     if (!result) {
         // The gcode never left: no IMoonrakerAPI, or the send was refused. No ack
@@ -1943,6 +1970,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
         } else if (msg_text != last_seen_message_) {
             // New or changed message - update dedup tracker
             last_seen_message_ = msg_text;
+            rederive_lane_sensors_locked();
 
             // The seed answers one question — is the text at the queue head
             // the one a previous session already surfaced — so it is spent
@@ -2201,8 +2229,11 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
             rearm_acknowledged_lanes_locked(std::string());
         }
         if (error_state_) {
-            // Use unlocked helper since we're already holding mutex_
-            error_segment_ = compute_filament_segment_unlocked();
+            // Where AFC's own sentence places the stop, when it names one: the toolhead
+            // sensors arrive in a later object of the same frame, so the sensors read here can
+            // lag the fault. Otherwise the furthest sensor reached (mutex_ already held).
+            const auto said = faultpath::fault_position(last_seen_message_);
+            error_segment_ = said ? *said : compute_filament_segment_unlocked();
         } else {
             error_segment_ = PathSegment::NONE;
         }
@@ -2230,6 +2261,7 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
     // Needs next_lane and error_state, both parsed above, and runs before the
     // latch so a latched ERROR still outranks a held action.
     apply_toolchange_hold_locked(action_at_frame_start, detail_at_frame_start);
+    apply_load_target_locked();
 
     // --- Stuck-action bookkeeping (see check_action_timeout) ----------------
     //
@@ -2482,7 +2514,7 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     if (data.status) {
         if (*data.status == "Error") {
             if (acknowledged_lane_errors_.count(lane_name) == 0) {
-                slot.error = lane_error_locked();
+                slot.error = lane_error_locked(lane_name);
                 spdlog::debug("[AMS AFC] Lane {} (slot {}): error state - {}", lane_name,
                               slot_index, slot.error->message);
             }
@@ -4613,7 +4645,8 @@ AmsError AmsBackendAfc::do_load_filament(int slot_index) {
     std::string cmd = "CHANGE_TOOL LANE=" + lane_name;
 
     spdlog::info("[AMS AFC] Loading from lane {} (slot {})", lane_name, slot_index);
-    return dispatch_operation(cmd, AmsAction::LOADING);
+    // The load names its incoming lane until AFC's own next_lane takes over.
+    return dispatch_operation(cmd, AmsAction::LOADING, slot_index);
 }
 
 AmsError AmsBackendAfc::do_unload_filament(int slot_index) {
@@ -5097,7 +5130,7 @@ void AmsBackendAfc::acknowledge_lane_errors(const std::vector<std::string>& lane
 void AmsBackendAfc::rearm_acknowledged_lanes_locked(const std::string& lane) {
     auto rearm = [this](const std::string& name) {
         if (auto* entry = slots_.get_mut(slots_.index_of(name))) {
-            entry->info.error = lane_error_locked();
+            entry->info.error = lane_error_locked(name);
         }
     };
     if (acknowledged_lane_errors_.count(lane) != 0) {
@@ -5118,11 +5151,27 @@ std::string AmsBackendAfc::lane_named_by_locked(const std::string& message) cons
     return slots_.index_of(first) >= 0 ? first : std::string();
 }
 
-SlotError AmsBackendAfc::lane_error_locked() const {
+SlotError AmsBackendAfc::lane_error_locked(const std::string& lane) const {
     SlotError err;
     err.message = last_seen_message_.empty() ? "Lane error" : last_seen_message_;
     err.severity = (last_message_type_ == "warning") ? SlotError::WARNING : SlotError::ERROR;
+    std::vector<std::string> lanes;
+    for (int i = 0; i < slots_.slot_count(); ++i)
+        lanes.push_back(slots_.name_of(i));
+    err.sensor =
+        faultpath::lane_sensor_at(last_seen_message_, lane, lane == current_lane_name_, lanes);
     return err;
+}
+
+void AmsBackendAfc::rederive_lane_sensors_locked() {
+    for (int i = 0; i < slots_.slot_count(); ++i) {
+        auto* entry = slots_.get_mut(i);
+        if (!entry || !entry->info.error || entry->info.error->sensor != LaneSensor::NONE)
+            continue;
+        const SlotError now = lane_error_locked(slots_.name_of(i));
+        if (now.sensor != LaneSensor::NONE)
+            entry->info.error = now;
+    }
 }
 
 void AmsBackendAfc::finish_lane_reset(const std::string& lane, bool reported_success) {
@@ -5284,12 +5333,18 @@ void AmsBackendAfc::on_lane_unload_done() {
 }
 
 void AmsBackendAfc::on_klipper_restarted() {
+    bool target_dropped = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         pending_dispatch_action_.reset();
         ++dispatch_generation_;
+        target_dropped = system_info_.pending_target_slot >= 0;
+        system_info_.pending_target_slot = -1;
     }
     AmsSubscriptionBackend::on_klipper_restarted();
+    if (target_dropped) {
+        emit_event(EVENT_STATE_CHANGED);
+    }
 }
 
 AmsError AmsBackendAfc::cancel() {

@@ -11,27 +11,38 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -102,6 +113,20 @@
       "outlet": [
         0.15748,
         0.72219
+      ],
+      "prep": [
+        0.14627,
+        0.44262,
+        0.16532,
+        0.42984,
+        0.22265,
+        0.43983,
+        0.22265,
+        0.5384,
+        0.2036,
+        0.55118,
+        0.14627,
+        0.54119
       ]
     },
     {
@@ -132,6 +157,20 @@
       "outlet": [
         0.30234,
         0.74744
+      ],
+      "prep": [
+        0.29114,
+        0.46787,
+        0.31019,
+        0.45508,
+        0.36751,
+        0.46507,
+        0.36751,
+        0.56364,
+        0.34846,
+        0.57643,
+        0.29114,
+        0.56644
       ]
     },
     {
@@ -162,6 +201,20 @@
       "outlet": [
         0.44721,
         0.77268
+      ],
+      "prep": [
+        0.43601,
+        0.49312,
+        0.45506,
+        0.48033,
+        0.51238,
+        0.49032,
+        0.51238,
+        0.58889,
+        0.49333,
+        0.60167,
+        0.43601,
+        0.59169
       ]
     },
     {
@@ -192,6 +245,20 @@
       "outlet": [
         0.59207,
         0.79793
+      ],
+      "prep": [
+        0.58087,
+        0.51836,
+        0.59992,
+        0.50558,
+        0.65725,
+        0.51556,
+        0.65725,
+        0.61413,
+        0.6382,
+        0.62692,
+        0.58087,
+        0.61693
       ]
     }
   ],

@@ -374,6 +374,7 @@ static void apply_status_badge(AmsSlotData* data, int status_int) {
     if (!data)
         return;
     auto status = static_cast<SlotStatus>(status_int);
+    data->last_status = status_int;
     if (!data->status_badge_bg)
         return;
 
@@ -1148,10 +1149,29 @@ void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size) {
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
-                                 helix::SlotError::Severity severity) {
+                                 helix::SlotError::Severity severity, bool hollow) {
     auto* data = get_slot_data(obj);
     if (!data || !data->status_badge_bg)
         return;
+    // DECLARATIVE_OK: per-lane state with no subject; an empty bay's badge is outlined: the
+    // badges' dark fill, a ring in the text color round it, the number at full contrast.
+    if (hollow)
+        lv_obj_set_style_bg_color(data->status_badge_bg, theme_manager_get_color("ams_badge_bg"),
+                                  LV_PART_MAIN);
+    lv_obj_set_style_border_color(
+        data->status_badge_bg, theme_manager_get_color(hollow ? "text" : "card_bg"), LV_PART_MAIN);
+    lv_obj_set_style_border_width(data->status_badge_bg,
+                                  hollow ? 2 : theme_manager_get_spacing("ams_slot_badge_border_w"),
+                                  LV_PART_MAIN);
+    if (!hollow && data->badge_hollow)
+        apply_status_badge(data, data->last_status); // the status's own fill and number color
+    data->badge_hollow = hollow;
+    if (hollow && data->slot_badge)
+        lv_obj_set_style_text_color(
+            data->slot_badge,
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                     theme_manager_get_color("ams_badge_bg")),
+            LV_PART_MAIN);
     if (lv_obj_t* icon = lv_obj_find_by_name(data->status_badge_bg, "badge_plus"))
         lv_obj_set_hidden(icon, !plus); // DECLARATIVE_OK: per-lane state with no subject
     if (lv_obj_t* dot = lv_obj_find_by_name(data->status_badge_bg, "badge_error_dot"))
@@ -1186,6 +1206,22 @@ void ui_ams_slot_hide_leader(lv_obj_t* obj) {
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->status_badge_bg : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_tool_badge(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->tool_badge_bg : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_move_tool_badge_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer) {
+    auto* data = get_slot_data(obj);
+    if (!data || !labels_layer || !data->tool_badge_bg ||
+        lv_obj_get_parent(data->tool_badge_bg) == labels_layer)
+        return;
+    lv_obj_set_parent(data->tool_badge_bg, labels_layer);
+    lv_obj_set_align(data->tool_badge_bg, LV_ALIGN_DEFAULT);
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
@@ -1434,7 +1470,19 @@ void ui_ams_slot_detach_layers(lv_obj_t* obj) {
     data->status_badge_bg = nullptr;
     data->slot_badge = nullptr;
     data->material_label = nullptr;
+    // A leader on the labels layer outlives this slot, but its points live in this slot's
+    // data: it must stop reading them before the slot is freed.
+    if (data->leader_line && lv_obj_get_parent(data->leader_line) != obj)
+        lv_line_set_points(data->leader_line, nullptr, 0);
     data->leader_line = nullptr;
+    // The tool tag too, once it stands on the labels layer, outside the slot.
+    bool tag_in_slot = false;
+    for (lv_obj_t* o = data->tool_badge_bg; o && !tag_in_slot; o = lv_obj_get_parent(o))
+        tag_in_slot = o == obj;
+    if (!tag_in_slot) {
+        data->tool_badge_bg = nullptr;
+        data->tool_badge = nullptr;
+    }
 }
 
 void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32_t slot_center_x) {

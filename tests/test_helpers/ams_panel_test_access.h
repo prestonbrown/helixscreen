@@ -91,6 +91,17 @@ class AmsPanelTestAccess {
     static bool in_unit_view(const AmsOverviewPanel& p) {
         return p.unit_view_active_;
     }
+    /// The height fit_path_room() took from the tiles, and the shortfall it settled on.
+    static int32_t path_extra(const AmsOverviewPanel& p) {
+        return p.path_extra_;
+    }
+    static int32_t settled_need(const AmsOverviewPanel& p) {
+        return p.settled_need_;
+    }
+    static void set_path_room(AmsOverviewPanel& p, int32_t extra, int32_t settled) {
+        p.path_extra_ = extra;
+        p.settled_need_ = settled;
+    }
 };
 
 } // namespace helix

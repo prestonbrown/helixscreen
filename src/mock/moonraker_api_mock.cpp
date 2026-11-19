@@ -80,6 +80,11 @@ MoonrakerAPIMock::MoonrakerAPIMock(MoonrakerClient& client, PrinterState& state)
     job_api_ = std::make_unique<helix::MoonrakerJobAPIMock>(client, &state);
     rest_api_ = std::make_unique<MoonrakerRestAPIMock>(client, get_http_base_url());
     timelapse_api_ = std::make_unique<MoonrakerTimelapseAPIMock>(client, get_http_base_url());
+
+    if (auto files = MoonrakerClientMock::material_zoffset_config_files(); !files.empty()) {
+        files_mock().set_config_files(files);
+        transfers_mock().set_config_files(files);
+    }
 }
 
 MoonrakerAdvancedAPIMock& MoonrakerAPIMock::advanced_mock() {

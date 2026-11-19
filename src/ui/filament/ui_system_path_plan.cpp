@@ -8,8 +8,14 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_toolhead_badge.h"
 
+#include "filament_tube_stroker.h"
+#include "helix/ui/text_metrics.h"
+#include "hub_buffer_meter.h"
+#include "tube_router.h"
+
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace helix::ui::syspath {
 
@@ -48,7 +54,32 @@ lv_color_t hub_fill(const SystemPathData& data, bool has_filament) {
 
 // One tube's pitch where tubes run side by side: a haloed tube and a gap.
 int32_t lane_pitch(const SystemPathData& data) {
-    return data.tube_gauge + kHaloWidthExtra + 2;
+    return haloed_tube_width(data.tube_gauge) + 2;
+}
+
+// The span a unit stem may stand in: the canvas less a small margin.
+struct StemSpan {
+    int32_t lo, hi;
+};
+StemSpan stem_span(const SysLayout& L) {
+    const int32_t margin = LV_MIN(8, L.width / 4);
+    return {L.x_off + margin, L.x_off + L.width - margin};
+}
+
+// Which edge unit @p i's card has scrolled past: -1 left, +1 right, 0 on the canvas.
+int parked_side(const SystemPathData& data, const SysLayout& L, int i) {
+    if (i < 0 || i >= SystemPathData::kMaxUnits)
+        return 0;
+    const StemSpan span = stem_span(L);
+    const int32_t x = L.x_off + data.unit_x_positions[i];
+    return x < span.lo ? -1 : (x > span.hi ? 1 : 0);
+}
+
+// The stem @p rank tube pitches in from the edge on @p side.
+int32_t parked_stem_x(const SystemPathData& data, const SysLayout& L, int side, int rank) {
+    const StemSpan span = stem_span(L);
+    const int32_t step = rank * lane_pitch(data);
+    return side > 0 ? LV_MAX(span.lo, span.hi - step) : LV_MIN(span.hi, span.lo + step);
 }
 
 // Horizontal position of unit `i`'s entry stem: the center of its unit card,
@@ -64,23 +95,20 @@ int32_t unit_stem_x(const SystemPathData& data, const SysLayout& L, int i) {
     if (i < 0 || i >= SystemPathData::kMaxUnits) {
         return L.x_off + L.width / 2;
     }
-    const int32_t margin = LV_MIN(8, L.width / 4);
-    const int32_t lo = L.x_off + margin;
-    const int32_t hi = L.x_off + L.width - margin;
+    const int side = parked_side(data, L, i);
+    if (side == 0)
+        return L.x_off + data.unit_x_positions[i];
     const int32_t x = L.x_off + data.unit_x_positions[i];
-    if (x >= lo && x <= hi)
-        return x;
-    const bool right = x > hi;
     int farther = 0;
     for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
         const int32_t ux = L.x_off + data.unit_x_positions[u];
-        if (u == i || (right ? ux <= hi : ux >= lo))
+        if (u == i || parked_side(data, L, u) != side)
             continue;
-        const bool beyond = right ? (ux > x || (ux == x && u > i)) : (ux < x || (ux == x && u > i));
+        const bool beyond =
+            side > 0 ? (ux > x || (ux == x && u > i)) : (ux < x || (ux == x && u > i));
         farther += beyond;
     }
-    const int32_t step = farther * lane_pitch(data);
-    return right ? LV_MAX(lo, hi - step) : LV_MIN(hi, lo + step);
+    return parked_stem_x(data, L, side, farther);
 }
 
 // The fan of one or more lanes into a hub top at (hub_cx, hub_top).
@@ -94,15 +122,6 @@ void append_fan(Route& r, const pg::MergeLaneOut& lane, fpath::SpanStyle s) {
     pg::FilamentPath fan;
     pg::route_polyline_filleted(fan, lane.pts, 4, kFanFillet);
     route_append(r, fan, s);
-}
-
-// The fan with its first leg reaching back up its stem to @p from_y, so its
-// first bend has a leg to round off even when the fan itself starts bending
-// at once.
-void append_fan_from(Route& r, const pg::MergeLaneOut& lane, float from_y, fpath::SpanStyle s) {
-    pg::MergeLaneOut longer = lane;
-    longer.pts[0].y = std::min(from_y, lane.pts[0].y);
-    append_fan(r, longer, s);
 }
 
 // X where the route currently ends.
@@ -139,6 +158,12 @@ struct GlobalRoute {
     bool hub_lane;     // carries its unit's hub: a HUB route, or a MIXED unit's hub lanes
     bool junction;     // enters its nozzle's hub box with the other routes there
     int32_t run_y = 0; // height of its run across to end_x
+    // Where its run leaves its first drop and meets its last: the run rises from run_y toward
+    // its start by the tilt it is given (tilt_runs); both run_y while level.
+    int32_t run_from_y = 0, run_to_y = 0;
+    // The router's trace from its start to its end, when the router laid the routes out.
+    tuberoute::Trace trace;
+    bool routed = false;
 };
 
 // A PARALLEL or MIXED unit: one route per tool.
@@ -227,12 +252,6 @@ int32_t hub_box_gap(const SystemPathData& data) {
     return LV_MAX(4, data.tube_gauge);
 }
 
-// The width a junction box's label is sized for: "Hub", or "Hub+BUF" when the
-// hub carries the buffer.
-int32_t junction_label_w(const SystemPathData& data, bool with_buffer) {
-    return with_buffer ? data.hub_width : data.hub_width * 2 / 3;
-}
-
 // The width that fits @p lanes tubes entering a box top side by side.
 int32_t junction_lanes_w(const SystemPathData& data, int lanes) {
     return 2 * (int32_t)kFanEntryMargin + lanes * lane_pitch(data);
@@ -261,8 +280,8 @@ void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const No
         h.buffer_unit = f.buffer ? f.buffer_unit : -1;
         if (f.junction) {
             h.buffer_in_hub = f.buffer;
-            h.mini_hub_w =
-                LV_MAX(junction_label_w(data, f.buffer), junction_lanes_w(data, f.routes));
+            h.mini_hub_w = LV_MAX(junction_label_w(data, ys.height, f.buffer),
+                                  junction_lanes_w(data, f.routes));
         } else if (f.buffer) {
             h.buffer_h = ys.height;
             h.buffer_w = LV_MAX(1, buffer_w);
@@ -401,7 +420,8 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const Nozzl
         row.pref[row.n] = boxes.hubs[t].hub_x;
         full_w[row.n] = boxes.hubs[t].mini_hub_w;
         min_w[row.n] = LV_MIN(full_w[row.n], junction_lanes_w(data, feeds[t].routes));
-        label_w[row.n] = junction_label_w(data, boxes.hubs[t].buffer_in_hub);
+        label_w[row.n] =
+            junction_label_w(data, boxes.hubs[t].mini_hub_h, boxes.hubs[t].buffer_in_hub);
         ++row.n;
     }
     if (row.n == 0)
@@ -412,14 +432,12 @@ void resolve_hub_row(const SystemPathData& data, const SysLayout& L, const Nozzl
     sp.right = L.x_off + L.width;
     sp.gap = hub_box_gap(data);
     // Rounded up: a box must clear the drawn edge, not the pixel before it.
-    const int32_t tube_half = (data.tube_gauge + kHaloWidthExtra + 1) / 2;
-    const int32_t band_half = LV_MAX(tube_half, (data.tube_gauge + fpath::kBandExtra + 1) / 2);
+    const int32_t tube_half = (haloed_tube_width(data.tube_gauge) + 1) / 2;
     for (int r = 0; r < n && sp.obstacle_count < SystemPathData::kMaxTools; ++r) {
         if (routes[r].junction)
             continue;
-        const bool band = routes[r].hub_lane && data.unit_has_hub_sensor[routes[r].unit_idx];
         sp.obstacles[sp.obstacle_count] = routes[r].end_x;
-        sp.obstacle_half[sp.obstacle_count++] = (band ? band_half : tube_half) + (sp.gap + 1) / 2;
+        sp.obstacle_half[sp.obstacle_count++] = tube_half + (sp.gap + 1) / 2;
     }
 
     // Width tiers: full, then narrower caps; a box keeps room for its lanes.
@@ -457,7 +475,7 @@ void sort_routes(GlobalRoute* routes, int n) {
 
 // Clear distance two tube centerlines keep: a haloed tube's width.
 int32_t route_gap(const SystemPathData& data) {
-    return data.tube_gauge + kHaloWidthExtra;
+    return haloed_tube_width(data.tube_gauge);
 }
 
 // Cable-harness route: down from (sx, sy), across at run_y, down into
@@ -485,6 +503,27 @@ void append_harness(Route& r, int32_t sx, int32_t sy, int32_t ex, int32_t ey, in
     path.add_line((float)sx + dir * rad, y, (float)ex - dir * rad, y);
     path.add_arc((float)ex - dir * rad, y + rad, rad, -kQuarter, dir > 0 ? kQuarter : -kQuarter);
     path.add_line((float)ex, y + rad, (float)ex, (float)ey);
+    route_append(r, path, s);
+}
+
+// A run tilted down toward its end: its first drop, the run as one diagonal, its last drop,
+// the bends rounded. A run with no rise left is append_harness's level run.
+void append_tilted(Route& r, const GlobalRoute& g, fpath::SpanStyle s) {
+    if (g.run_from_y == g.start_y && g.run_to_y == g.end_y) {
+        // A straight line from under its unit to its end: no drops, no bends.
+        append_line(r, (float)g.start_x, (float)g.start_y, (float)g.end_x, (float)g.end_y, s);
+        return;
+    }
+    if (g.run_to_y <= g.run_from_y) {
+        append_harness(r, g.start_x, g.start_y, g.end_x, g.end_y, g.run_y, s);
+        return;
+    }
+    const pg::PathPoint pts[4] = {{(float)g.start_x, (float)g.start_y},
+                                  {(float)g.start_x, (float)g.run_from_y},
+                                  {(float)g.end_x, (float)g.run_to_y},
+                                  {(float)g.end_x, (float)g.end_y}};
+    pg::FilamentPath path;
+    pg::route_polyline_filleted(path, pts, 4, kFanFillet);
     route_append(r, path, s);
 }
 
@@ -572,6 +611,121 @@ void assign_run_heights(const SystemPathData& data, const SysLayout& L, const Ov
             return;
 }
 
+// The jog slopes the router tries, steepest first, in steps fine enough that a
+// tight rig leans as far as its height allows. A level jog comes only after.
+constexpr float kRouterSlopes[] = {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f};
+// The leans tilt_runs tries, steepest first. It checks every pair of routes on
+// each step, so it takes fewer, coarser steps than the router; these are the
+// leans a rig the router cannot fit is drawn at.
+constexpr float kTiltSlopes[] = {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f};
+
+namespace tilt {
+struct Seg {
+    float x0, y0, x1, y1;
+};
+
+// The closest two segments come, squared.
+float seg_seg_d2(const Seg& a, const Seg& b) {
+    const float d =
+        tuberoute::segment_distance({a.x0, a.y0}, {a.x1, a.y1}, {b.x0, b.y0}, {b.x1, b.y1});
+    return d * d;
+}
+
+// A route's centerline as drop, run and drop.
+int route_segs(const GlobalRoute& g, Seg* out) {
+    const float sx = (float)g.start_x, ex = (float)g.end_x;
+    out[0] = {sx, (float)g.start_y, sx, (float)g.run_from_y};
+    out[1] = {sx, (float)g.run_from_y, ex, (float)g.run_to_y};
+    out[2] = {ex, (float)g.run_to_y, ex, (float)g.end_y};
+    return 3;
+}
+
+// The closest two routes' centerlines come, squared.
+float route_d2(const GlobalRoute& a, const GlobalRoute& b) {
+    Seg sa[3], sb[3];
+    route_segs(a, sa);
+    route_segs(b, sb);
+    float d2 = std::numeric_limits<float>::max();
+    for (const Seg& x : sa)
+        for (const Seg& y : sb)
+            d2 = std::min(d2, seg_seg_d2(x, y));
+    return d2;
+}
+
+// Whether every pair of routes keeps @p gap2 (squared) between its centerlines, or as much as
+// it kept level (@p level_d2) where the level layout already came closer.
+bool keeps_clear(const GlobalRoute* routes, int n, const float* level_d2, float gap2) {
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            if (route_d2(routes[i], routes[j]) <
+                std::min(gap2, level_d2[i * SystemPathData::kMaxTools + j]) - 0.5f)
+                return false;
+    return true;
+}
+
+void set_tilt(const SystemPathData& data, GlobalRoute* routes, int n, float slope) {
+    for (int i = 0; i < n; ++i) {
+        GlobalRoute& g = routes[i];
+        g.run_from_y = g.run_to_y = g.run_y;
+        if (!runs_across(data, g))
+            continue;
+        // The run keeps its end at run_y, the lowest its layout allows, and rises toward its
+        // start, kept clear of the first drop's bend.
+        const int32_t rise = (int32_t)(slope * (float)LV_ABS(g.end_x - g.start_x));
+        const int32_t room_up = g.run_y - g.start_y - 2 * (int32_t)kFanFillet;
+        g.run_from_y = g.run_y - LV_MAX(0, LV_MIN(rise, room_up));
+    }
+}
+
+// Whether @p g can run as one straight line from under its unit: its end takes no painted
+// line of its own after it (a junction box, or the nozzle itself). A lone hub route keeps its
+// drop to its band and nozzle, so it keeps the leaning run.
+bool can_run_straight(const SystemPathData& data, const GlobalRoute& g) {
+    return runs_across(data, g) && (g.junction || !g.hub_lane);
+}
+} // namespace tilt
+
+// Each run across leans down toward its end at the steepest common slope that keeps every
+// pair of routes as far apart as their level runs were (or a haloed tube's width); then each
+// route that can becomes one straight line from under its unit to its end wherever that still
+// holds. A rig with no room keeps its level runs.
+void tilt_runs(const SystemPathData& data, GlobalRoute* routes, int n) {
+    constexpr int kN = SystemPathData::kMaxTools;
+    tilt::set_tilt(data, routes, n, 0.0f);
+    float level_d2[kN * kN];
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            level_d2[i * kN + j] = tilt::route_d2(routes[i], routes[j]);
+    const float gap = (float)route_gap(data);
+    bool leaned = false;
+    for (float slope : kTiltSlopes) {
+        tilt::set_tilt(data, routes, n, slope);
+        if (tilt::keeps_clear(routes, n, level_d2, gap * gap)) {
+            leaned = true;
+            break;
+        }
+    }
+    if (!leaned)
+        tilt::set_tilt(data, routes, n, 0.0f);
+    // Then each route that can runs as one straight line, wherever that keeps every pair a
+    // full haloed tube's width apart: a straight line takes no slack from the level layout.
+    float strict_d2[kN * kN];
+    for (float& v : strict_d2)
+        v = std::numeric_limits<float>::max();
+    for (int i = 0; i < n; ++i) {
+        GlobalRoute& g = routes[i];
+        if (!tilt::can_run_straight(data, g))
+            continue;
+        const int32_t from = g.run_from_y, to = g.run_to_y;
+        g.run_from_y = g.start_y;
+        g.run_to_y = g.end_y;
+        if (!tilt::keeps_clear(routes, n, strict_d2, gap * gap)) {
+            g.run_from_y = from;
+            g.run_to_y = to;
+        }
+    }
+}
+
 // One route's state. A HUB route is its unit's; a tool route carries filament
 // only when it is the active tool's, and a MIXED unit's hub lanes also when its
 // hub sensor reads filament.
@@ -592,6 +746,80 @@ Lane route_lane(const SystemPathData& data, const GlobalRoute& route) {
     }
     lane.on = tool_on;
     return lane;
+}
+
+// The chip over the @p tubes parked tubes at the edge on @p side: how many
+// units are past that edge and where their tubes stand.
+void mark_parked(const SystemPathData& data, const SysLayout& L, int side, int tubes,
+                 OverviewBoxes& boxes) {
+    if (tubes <= 0)
+        return;
+    ParkedChip& chip = boxes.parked[side > 0];
+    chip.present = true;
+    chip.units = 0;
+    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u)
+        chip.units += !data.unit_absent[u] && parked_side(data, L, u) == side;
+    const int32_t a = parked_stem_x(data, L, side, 0);
+    const int32_t b = parked_stem_x(data, L, side, tubes - 1);
+    chip.stem_lo = LV_MIN(a, b);
+    chip.stem_hi = LV_MAX(a, b);
+    // The chip keeps a haloed tube's width clear of every stem under a card on
+    // the canvas, so no visible unit's tube looks like it leaves the chip.
+    chip.room_lo = L.x_off;
+    chip.room_hi = L.x_off + L.width - 1;
+    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
+        if (data.unit_absent[u] || parked_side(data, L, u) != 0)
+            continue;
+        const int tools = per_tool_unit(data, u) ? data.unit_tool_count[u] : 1;
+        const int32_t half = tools > 1 ? (tools - 1) * lane_pitch(data) / 2 : 0;
+        const int32_t x = unit_stem_x(data, L, u);
+        if (side > 0)
+            chip.room_lo = LV_MAX(chip.room_lo, x + half + route_gap(data));
+        else
+            chip.room_hi = LV_MIN(chip.room_hi, x - half - route_gap(data));
+    }
+}
+
+// Units scrolled off one edge send one tube per destination between them, from
+// that edge: the active one's when it is among them. A unit's lanes are one tube
+// on the overview; the units past an edge are one tube more. Kept tubes stand a
+// pitch apart from the edge in, the one bound for the farthest nozzle outermost,
+// so their runs never cross.
+int merge_parked_routes(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes, int n,
+                        OverviewBoxes& boxes) {
+    int side[SystemPathData::kMaxTools];
+    int kept = 0;
+    for (int r = 0; r < n; ++r) {
+        const int s = parked_side(data, L, routes[r].unit_idx);
+        int same = -1;
+        for (int k = 0; k < kept && s != 0; ++k)
+            if (side[k] == s && routes[k].tool_idx == routes[r].tool_idx &&
+                routes[k].hub_lane == routes[r].hub_lane)
+                same = k;
+        if (same < 0) {
+            side[kept] = s;
+            routes[kept++] = routes[r];
+        } else if (route_lane(data, routes[r]).on) {
+            routes[same] = routes[r];
+        }
+    }
+    for (int s : {-1, 1}) {
+        int members[SystemPathData::kMaxTools];
+        int count = 0;
+        for (int k = 0; k < kept; ++k)
+            if (side[k] == s)
+                members[count++] = k;
+        std::sort(members, members + count, [&](int a, int b) {
+            return s > 0 ? routes[a].end_x > routes[b].end_x : routes[a].end_x < routes[b].end_x;
+        });
+        for (int m = 0; m < count; ++m) {
+            GlobalRoute& g = routes[members[m]];
+            g.start_x = parked_stem_x(data, L, s, m);
+            g.dist = LV_ABS(g.start_x - g.end_x);
+        }
+        mark_parked(data, L, s, count, boxes);
+    }
+    return kept;
 }
 
 // Each junction's routes enter its box top left to right, in the order of
@@ -653,19 +881,16 @@ void junction_owners(const SystemPathData& data, const GlobalRoute* routes, int 
     }
 }
 
-// Junction outlet: through the box (unpainted) to its center and straight down,
-// so the hub sensor's band sits level on its bottom edge; then on to the
-// nozzle, angling in when the row moved the box.
-void append_junction_outlet(PathPlan& plan, Route& r, const Lane& lane, const HubInfo& hub,
-                            bool hub_sensor, float from_x, float nozzle_top) {
+// Junction outlet: through the box (unpainted) to its center and straight down
+// out of its bottom edge; then on to the nozzle, angling in when the row moved
+// the box.
+void append_junction_outlet(Route& r, const Lane& lane, const HubInfo& hub, float from_x,
+                            float nozzle_top) {
     const float top = (float)(hub.mini_hub_y - hub.mini_hub_h / 2);
     const float out_y = (float)(hub.mini_hub_y + hub.mini_hub_h / 2);
     const fpath::SpanStyle inside = unpainted(lane.style(PathSegment::HUB));
     append_line(r, from_x, top, (float)hub.hub_x, (float)hub.mini_hub_y, inside);
     append_line(r, (float)hub.hub_x, (float)hub.mini_hub_y, (float)hub.hub_x, out_y, inside);
-    if (hub_sensor)
-        add_band_at_end(plan, BandKind::Lane, r, lane.band(PathSegment::OUTPUT), lane.color,
-                        /*on_box_edge=*/true);
     if (hub.hub_x == hub.tool_x) {
         append_line(r, (float)hub.hub_x, out_y, (float)hub.tool_x, nozzle_top,
                     lane.style(PathSegment::OUTPUT));
@@ -677,19 +902,81 @@ void append_junction_outlet(PathPlan& plan, Route& r, const Lane& lane, const Hu
     append_fan(r, outlet, lane.style(PathSegment::OUTPUT));
 }
 
-// A lone route's last stretch from its merge height (@p from_y) to the nozzle:
-// the hub sensor's band on the line when its unit has one there, then the
-// output tube, past any buffer box drawn over it.
-void append_lone_outlet(PathPlan& plan, Route& r, const Lane& lane, float x, float from_y,
-                        bool hub_sensor, float nozzle_top) {
-    if (hub_sensor)
-        add_band_at_end(plan, BandKind::Lane, r, lane.band(PathSegment::OUTPUT), lane.color);
+// A lone route's last stretch from above its buffer box (@p from_y) to the
+// nozzle: the output tube, past the box drawn over it.
+void append_lone_outlet(Route& r, const Lane& lane, float x, float from_y, float nozzle_top) {
     append_line(r, x, from_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
 }
 
-void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
-                     OverviewBoxes& boxes) {
-    GlobalRoute routes[SystemPathData::kMaxTools];
+// The routes as the router takes them: sorted by start, one bus per PARALLEL or
+// MIXED unit's run of routes and one per other unit's tube.
+struct RouterInput {
+    pg::PathPoint sources[SystemPathData::kMaxTools];
+    pg::PathPoint sinks[SystemPathData::kMaxTools];
+    tuberoute::Bus buses[SystemPathData::kMaxTools];
+    int bus_count = 0;
+    tuberoute::RouterConfig cfg;
+};
+
+void router_input(const SystemPathData& data, GlobalRoute* routes, int n, RouterInput& in) {
+    std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
+        return a.start_x < b.start_x;
+    });
+    in.bus_count = 0;
+    for (int r = 0; r < n; ++r) {
+        in.sources[r] = {(float)routes[r].start_x, (float)routes[r].start_y};
+        in.sinks[r] = {(float)routes[r].end_x, (float)routes[r].end_y};
+        const bool joins = r > 0 && !routes[r].is_hub && !routes[r - 1].is_hub &&
+                           routes[r].unit_idx == routes[r - 1].unit_idx;
+        if (joins) {
+            in.buses[in.bus_count - 1].count++;
+            continue;
+        }
+        in.buses[in.bus_count++] = {&in.sources[r], &in.sinks[r], 1};
+    }
+    in.cfg.clearance = (float)route_gap(data);
+    in.cfg.bus_pitch = (float)lane_pitch(data);
+    in.cfg.group_gap = (float)(2 * lane_pitch(data));
+    in.cfg.fillet_r = kFanFillet;
+    in.cfg.allow_horizontal = false;
+}
+
+// Lays every route out with the tube router: each one a drop, one jog and a drop,
+// in source order, never crossing and a haloed tube apart. A PARALLEL or MIXED
+// unit's routes are one bus, so they jog as a ribbon; every other unit's tube is
+// a bus of its own. Returns false, leaving the routes untouched, when the router
+// cannot fit them (ends out of order, too little height or clearance): the
+// caller lays them out with run heights instead. Sorts @p routes by start.
+// The slope ladder runs once per distinct router input; route_memo keeps its answer.
+bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
+    if (n <= 0)
+        return false;
+    RouterInput in;
+    router_input(data, routes, n, in);
+    SystemPathData::RouteMemo& memo = data.route_memo;
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.routes_kept || !tuberoute::same_input(memo.routes_key, key)) {
+        memo.routes_key = key;
+        memo.routes_kept = true;
+        ++memo.searches;
+        memo.routes_fit = tuberoute::plan_routes_ladder(
+                              in.buses, in.bus_count, in.cfg, kRouterSlopes,
+                              (int)std::size(kRouterSlopes), /*level_last=*/true, memo.traces,
+                              SystemPathData::kMaxTools) == tuberoute::RouteStatus::Ok;
+    }
+    if (!memo.routes_fit)
+        return false;
+    for (int r = 0; r < n; ++r) {
+        routes[r].trace = memo.traces[r];
+        routes[r].routed = true;
+    }
+    return true;
+}
+
+// The several-toolhead routes, parked tubes merged, ends set and the hub row
+// solved: everything the router or the run heights lay out. Returns their count.
+int prepare_multi_routes(const SystemPathData& data, const SysLayout& L, GlobalRoute* routes,
+                         NozzleFeed* feeds, OverviewBoxes& boxes) {
     int n = 0;
     for (int i = 0; i < data.unit_count && i < SystemPathData::kMaxUnits; i++) {
         if (data.unit_absent[i])
@@ -699,31 +986,53 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
         else
             n = collect_hub_route(data, L, i, routes, n);
     }
+    n = merge_parked_routes(data, L, routes, n, boxes);
 
     const int tools = LV_MIN(data.total_tools, SystemPathData::kMaxTools);
-    NozzleFeed feeds[SystemPathData::kMaxTools];
-    for (int t = 0; t < tools; ++t)
+    for (int t = 0; t < tools; ++t) {
+        // A box stands only where two or more tubes visibly meet, as wide as the
+        // tubes that enter it once parked units share theirs. Units that all
+        // share one parked tube merge off-screen.
         feeds[t] = nozzle_feed(data, t);
+        int tubes = 0;
+        for (int r = 0; r < n; ++r)
+            tubes += routes[r].tool_idx == t;
+        if (feeds[t].routes > 0)
+            feeds[t].routes = LV_MAX(1, tubes);
+        feeds[t].junction = feeds[t].junction && tubes >= 2;
+    }
     const HubRowYs ys = hub_row_ys(data, L);
     const int32_t nozzle_top = tool_row_inlet_y(data, L);
     for (int r = 0; r < n; ++r) {
         GlobalRoute& route = routes[r];
         const NozzleFeed& feed = feeds[route.tool_idx];
         route.junction = feed.junction;
-        // A lone route with a hub stops its run where its sensor band sits:
-        // in the hub row, or just above the buffer box there. Every other lone
-        // route runs on to its nozzle.
+        // A lone route with a buffer stops its run just above the buffer box,
+        // which its outlet then passes through; every other lone route runs on
+        // to its nozzle.
         if (route.junction)
             continue;
-        if (!route.hub_lane)
-            route.end_y = nozzle_top;
-        else
-            route.end_y = feed.buffer ? ys.top - hub_box_gap(data) : ys.center;
+        route.end_y = route.hub_lane && feed.buffer ? ys.top - hub_box_gap(data) : nozzle_top;
     }
     place_nozzle_boxes(data, L, feeds, tools, boxes);
     resolve_hub_row(data, L, feeds, routes, n, boxes);
     slot_into_junctions(data, boxes, routes, n);
-    assign_run_heights(data, L, boxes, routes, n);
+    return n;
+}
+
+void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
+                     OverviewBoxes& boxes) {
+    GlobalRoute routes[SystemPathData::kMaxTools];
+    NozzleFeed feeds[SystemPathData::kMaxTools];
+    const int n = prepare_multi_routes(data, L, routes, feeds, boxes);
+    const int32_t nozzle_top = tool_row_inlet_y(data, L);
+    // The router declines ends that would have to cross, and a rig where no slope, level
+    // included, keeps every pair a haloed tube apart in the height there is. Those rigs
+    // lay each run at its own height instead and lean what they can.
+    if (!route_with_router(data, routes, n)) {
+        assign_run_heights(data, L, boxes, routes, n);
+        tilt_runs(data, routes, n);
+    }
     sort_routes(routes, n);
     int owner[SystemPathData::kMaxTools];
     junction_owners(data, routes, n, owner);
@@ -731,19 +1040,21 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     for (int k = 0; k < n; ++k) {
         const GlobalRoute& route = routes[k];
         const Lane lane = route_lane(data, route);
-        const bool hub_sensor = route.hub_lane && data.unit_has_hub_sensor[route.unit_idx];
         Route* r = try_new_route(plan);
         if (!r)
             break;
 
-        // Down from the unit, across at its run height, down to its end.
+        // Down from the unit, across (leaning down) at its run height, down to its end.
         const fpath::SpanStyle s = lane.style(PathSegment::LANE);
-        if (!runs_across(data, route)) {
+        if (route.routed) {
+            pg::FilamentPath path;
+            tuberoute::trace_to_path(route.trace, kFanFillet, path);
+            route_append(*r, path, s);
+        } else if (!runs_across(data, route)) {
             append_line(*r, (float)route.start_x, (float)route.start_y, (float)route.start_x,
                         (float)route.end_y, s);
         } else {
-            append_harness(*r, route.start_x, route.start_y, route.end_x, route.end_y, route.run_y,
-                           s);
+            append_tilted(*r, route, s);
         }
         const float end_x = seg_end_x(*r);
 
@@ -754,11 +1065,9 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
                 hub.hub_bg_color = hub_fill(data, true);
             if (owner[route.tool_idx] != k)
                 continue;
-            append_junction_outlet(plan, *r, lane, hub, feeds[route.tool_idx].hub_sensor, end_x,
-                                   (float)nozzle_top);
-        } else if (route.hub_lane) {
-            append_lone_outlet(plan, *r, lane, end_x, (float)route.end_y, hub_sensor,
-                               (float)nozzle_top);
+            append_junction_outlet(*r, lane, hub, end_x, (float)nozzle_top);
+        } else if (route.end_y < nozzle_top) {
+            append_lone_outlet(*r, lane, end_x, (float)route.end_y, (float)nozzle_top);
         }
         if (lane.on)
             plan.active_route = plan.route_count - 1;
@@ -807,7 +1116,6 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     y.bypass_merge = y.hub_bottom + (L.nozzle_y - y.hub_bottom) / 3;
     y.toolhead = y.hub_bottom + (y.nozzle_top - y.hub_bottom) * 2 / 3;
     const float cx = (float)L.center_x;
-    const int32_t sensor_y = L.entry_y + (L.merge_y - L.entry_y) * 3 / 5;
 
     const bool bypass_owns = data.has_bypass && data.bypass_active;
     const Lane bypass_lane{data.bypass_active ? PathSegment::NOZZLE : PathSegment::NONE,
@@ -819,9 +1127,26 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
     int units[SystemPathData::kMaxUnits];
     pg::MergeLaneIn in[SystemPathData::kMaxUnits];
     int count = 0;
+    // Units scrolled off one edge share one line from that edge: the active one's
+    // when it is among them.
+    int parked_at[2] = {-1, -1};
     for (int i = 0; i < data.unit_count && i < SystemPathData::kMaxUnits; i++) {
         if (data.unit_absent[i])
             continue;
+        const int side = parked_side(data, L, i);
+        if (side != 0) {
+            int& slot = parked_at[side > 0];
+            if (slot >= 0) {
+                if (i == data.active_unit)
+                    units[slot] = i;
+                continue;
+            }
+            slot = count;
+            units[count] = i;
+            in[count++] = {(float)parked_stem_x(data, L, side, 0), (float)L.merge_y};
+            mark_parked(data, L, side, 1, boxes);
+            continue;
+        }
         units[count] = i;
         in[count++] = {(float)unit_stem_x(data, L, i), (float)L.merge_y};
     }
@@ -843,17 +1168,13 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
         Route* r = try_new_route(plan);
         if (!r)
             break;
-        // The stem down to the sensor's band, or to two fillets above the merge
-        // line; the fan's first leg starts there.
-        float fan_from = (float)LV_MAX(L.entry_y, L.merge_y - 2 * (int32_t)kFanFillet);
-        if (data.unit_has_hub_sensor[u]) {
-            append_line(*r, x, (float)L.entry_y, x, (float)sensor_y, lane.style(PathSegment::LANE));
-            add_band_at_end(plan, BandKind::Lane, *r, lane.band(PathSegment::OUTPUT), lane.color);
-            fan_from = (float)sensor_y;
-        } else {
-            append_line(*r, x, (float)L.entry_y, x, fan_from, lane.style(PathSegment::LANE));
-        }
-        append_fan_from(*r, fan[k], fan_from, lane.style(PathSegment::OUTPUT));
+        // One straight line from under the unit to its entry on the hub's top, with no bend:
+        // the lines converge on the hub as diagonals. A unit's lanes and hub are its card, so
+        // the line carries the unit's hub output state from end to end.
+        const float sx = (float)L.entry_y;
+        const float ex = fan[k].pts[3].x;
+        const float ey = (float)hub_top;
+        append_line(*r, x, sx, ex, ey, lane.style(PathSegment::OUTPUT));
         if (!feed.junction) {
             append_line(*r, fan[k].pts[3].x, (float)hub_top, cx, (float)y.hub_bottom,
                         lane.style(PathSegment::HUB));
@@ -904,6 +1225,54 @@ void plan_single_tool(const SystemPathData& data, const SysLayout& L, PathPlan& 
 
 } // namespace
 
+int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coords) {
+    const SysLayout L = compute_sys_layout(data, coords);
+    if (!L.multi_tool)
+        return 0;
+    GlobalRoute routes[SystemPathData::kMaxTools];
+    NozzleFeed feeds[SystemPathData::kMaxTools];
+    OverviewBoxes boxes;
+    const int n = prepare_multi_routes(data, L, routes, feeds, boxes);
+    if (n <= 0)
+        return 0;
+    RouterInput in;
+    router_input(data, routes, n, in);
+    float top = in.sources[0].y, sink = in.sinks[0].y;
+    for (int r = 1; r < n; ++r) {
+        top = std::min(top, in.sources[r].y);
+        sink = std::min(sink, in.sinks[r].y);
+    }
+    // The least height any lean needs: a shallow jog is shorter, but its ribbon
+    // stacks deeper, so the easiest slope is not always the shallowest.
+    SystemPathData::RouteMemo& memo = data.route_memo;
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.lean_kept || !tuberoute::same_input(memo.lean_key, key)) {
+        tuberoute::Trace traces[SystemPathData::kMaxTools];
+        float least = std::numeric_limits<float>::max();
+        for (float slope : kRouterSlopes) {
+            in.cfg.slope = slope;
+            tuberoute::RouteReport report;
+            const tuberoute::RouteStatus status =
+                tuberoute::plan_routes(in.buses, in.bus_count, in.cfg, traces, n, &report);
+            if (status == tuberoute::RouteStatus::Ok || status == tuberoute::RouteStatus::NoRoom)
+                least = std::min(least, report.required_bottom - sink);
+        }
+        memo.lean_key = key;
+        memo.lean_kept = true;
+        memo.lean_short_px = least;
+        ++memo.searches;
+    }
+    const float short_px = memo.lean_short_px;
+    if (short_px == std::numeric_limits<float>::max())
+        return 0;
+    // The run from the stems to the sinks is a fixed share of the canvas, so the
+    // canvas grows by the shortfall over that share.
+    const float run = sink - top;
+    if (run <= 0.0f)
+        return 0;
+    return (int32_t)std::ceil(short_px * (float)L.height / run);
+}
+
 NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
     NozzleFeed f;
     const int units = LV_MIN(data.unit_count, SystemPathData::kMaxUnits);
@@ -914,7 +1283,6 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
             if (data.unit_absent[u])
                 continue;
             f.routes++;
-            f.hub_sensor = f.hub_sensor || data.unit_has_hub_sensor[u];
         }
         f.buffer = data.has_buffer;
     } else {
@@ -929,15 +1297,11 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
                 if (tool < first || tool >= first + count)
                     continue;
                 f.routes++;
-                const bool mixed_hub =
-                    data.unit_topology[u] == kTopoMixed && count > 1 && tool == first + count - 1;
-                f.hub_sensor = f.hub_sensor || (mixed_hub && data.unit_has_hub_sensor[u]);
                 continue;
             }
             if (count <= 0 || first != tool)
                 continue;
             f.routes++;
-            f.hub_sensor = f.hub_sensor || data.unit_has_hub_sensor[u];
             if (!f.buffer && data.unit_has_buffer[u]) {
                 f.buffer = true;
                 f.buffer_unit = u;
@@ -946,6 +1310,14 @@ NozzleFeed nozzle_feed(const SystemPathData& data, int tool) {
     }
     f.junction = f.routes >= 2;
     return f;
+}
+
+int32_t junction_label_w(const SystemPathData& data, int32_t box_h, bool with_buffer) {
+    const int32_t meter = with_buffer ? helix::ui::buffer_meter_slot_width(box_h) : 0;
+    if (!data.label_font)
+        return LV_MAX(data.hub_width * 2 / 3, meter);
+    return LV_MAX(data.hub_width * 2 / 3,
+                  helix::ui::text_width(kHubLabel, data.label_font, 0) + 2 * data.space_xs + meter);
 }
 
 int32_t labeled_box_h(const SystemPathData& data, int32_t base_h, int32_t room, bool* labeled) {
@@ -979,9 +1351,11 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
     const int32_t toolhead_y = L.y_off + (int32_t)(L.height * bottom_ratio) -
                                helix::ui::toolhead_bounds(data.toolhead_style, 0, 0, scale).bottom;
     const int32_t run = toolhead_y - L.entry_y;
-    const float merge = L.multi_tool ? 0.35f : 0.30f;
-    const float hub = L.multi_tool ? 0.61f : 0.52f;
-    const float hub_h = L.multi_tool ? 0.175f : 0.15f;
+    // One toolhead: the lines start their diagonals just under the cards and meet in a hub
+    // nearer the units than the toolhead, so the long straight run is the hub's to the head.
+    const float merge = L.multi_tool ? 0.35f : 0.04f;
+    const float hub = L.multi_tool ? 0.61f : 0.44f;
+    const float hub_h = L.multi_tool ? 0.175f : 0.13f;
     L.merge_y = L.entry_y + (int32_t)(run * merge);
     L.hub_y = L.entry_y + (int32_t)(run * hub);
     L.hub_h = (int32_t)(run * hub_h);

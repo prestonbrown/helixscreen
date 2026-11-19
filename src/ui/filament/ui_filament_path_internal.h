@@ -49,6 +49,7 @@
 #include "filament_motion.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
+#include "hub_buffer_meter.h"
 #include "lvgl/lvgl.h"
 
 #include <array>
@@ -166,6 +167,7 @@ struct ThemeCache {
     int32_t hub_width = 60;
     int32_t border_radius = 6;
     int32_t extruder_scale = 10; // Scale unit for extruder (based on space_md)
+    int32_t tool_tag_h = 0;      // a head's tool tag, which hangs half below the head
 
     const lv_font_t* label_font = nullptr;
 
@@ -233,6 +235,9 @@ struct LayerState {
     // canvas dirty; the next draw of the widget schedules that refresh.
     bool refresh_deferred = false;
     int render_count = 0; // full topology repaints, for tests and logs
+    // Where the widget stood at the last repaint: the canvas holds absolute screen coordinates,
+    // so a widget that moves is painted again.
+    int32_t painted_x = INT32_MIN, painted_y = INT32_MIN;
 };
 
 // Hit rectangles recorded by the renderer (absolute display coords, with the
@@ -246,10 +251,16 @@ struct LayerState {
 struct HitRects {
     lv_area_t hub = {0, 0, 0, 0};
     bool hub_valid = false;
+    /// Where the hub stands, drawn as a box or not (a lone lane's bare tube): the off-page chips
+    /// stand beside it.
+    lv_area_t hub_anchor = {0, 0, 0, 0};
+    bool hub_anchor_valid = false;
     lv_area_t buffer = {0, 0, 0, 0};
     bool buffer_valid = false;
     lv_area_t bypass = {0, 0, 0, 0};
     bool bypass_valid = false;
+    lv_area_t offpage[2] = {}; ///< the off-page chips: [0] earlier pages, [1] later
+    bool offpage_valid[2] = {};
     lv_point_t origin = {0, 0}; ///< Widget's top-left when the rects were recorded
 };
 
@@ -308,6 +319,14 @@ struct FilamentPathData {
     int32_t lane_band_drop[kMaxSlots] = {};
     // Per-slot load sensor between prep and hub (AFC), read as LANE
     bool slot_has_load_sensor[kMaxSlots] = {};
+    // Lanes leaving a unit's drawing (ui_filament_path_canvas_set_art_sensors): its prep
+    // sensors drawn in the art, so no prep band on the tube; each load sensor a short marker
+    // where the tube leaves the unit, along its bottom edge (art_edge_slope, dy over dx), red
+    // on a fault.
+    bool art_sensors = false;
+    bool art_draws_prep = false;
+    float art_edge_slope = 0.0f;
+    bool lane_load_fault[kMaxSlots] = {};
     // Per-slot error the slot reports (SlotInfo::error at ERROR severity)
     bool slot_has_error[kMaxSlots] = {};
     // How much of the bowden (OUTPUT) tube a load or unload has filled, in
@@ -347,11 +366,13 @@ struct FilamentPathData {
     int32_t edge_reserve = 0;
     int32_t keepout_y0 = 0;
     int32_t keepout_y1 = 0;
-    // A hub that stays put: when > 0 the hub, buffer and toolhead stand on the widget's
-    // center line and the hub box is sized for this many lanes, whatever the unit shown.
-    int fixed_hub_lanes = 0;
-    // The lane pitch of that widest unit, 0 to take the shown unit's own.
-    int32_t fixed_hub_pitch = 0;
+    // A view scale (ui_filament_path_canvas_set_view_scale): the hub and capsule heights it
+    // sets, and whether the buffer rides in the hub box. 0 = the hub is a share of the height.
+    int32_t view_hub_h = 0;
+    int32_t view_cap_h = 0;
+    float view_unit = 0.0f; // its pixels per unit (path_view_scale.h); the hub's height is
+                            // floored by its label's, so lengths that shrink with the view use this
+    bool buffer_in_hub = false;
 
     // The unit's hub (or selector) output sensor.
     bool has_hub_sensor = false;
@@ -396,6 +417,10 @@ struct FilamentPathData {
     filament_path_buffer_cb_t buffer_callback = nullptr;
     void* buffer_user_data = nullptr;
     hub_callback_t hub_callback = nullptr;
+    offpage_callback_t offpage_callback = nullptr;
+    void* offpage_user_data = nullptr;
+    // The hub opens a menu of actions (a selector's), so it carries a gear; else a plain box.
+    bool hub_has_actions = true;
     void* hub_user_data = nullptr;
 
     // --- Subsystem state ---
@@ -501,16 +526,31 @@ struct RenderCtx {
 // Glyphs (ui_filament_path_glyphs.cpp)
 // ============================================================================
 
+/// What a hub box carries beyond its label and gear, and where it put them.
+struct HubBoxExtras {
+    bool gear_outside = false; ///< the gear stands just outside the box's right edge
+    int32_t slot_w = 0;        ///< a slot this wide at the box's right end, inside it
+    lv_area_t slot{};          ///< out: the slot's area
+    int32_t gear_right = 0;    ///< out: the right edge of what was drawn, the gear included
+};
+
 /// Labeled rounded box (HUB / SELECTOR / BUF). Text color, font and corner
 /// radius come from the theme cache in ctx. An interactive box carries a gear
-/// inside its right edge and grows about @p cx until the label and gear fit.
-/// Returns the width drawn, for the caller's click hit-rect.
+/// inside its right edge and grows about @p cx until the label and gear fit;
+/// @p extras can stand the gear outside the edge and keep a slot inside it.
+/// Returns the box's width.
 int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width, int32_t height,
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
-                     lv_opa_t bg_opa = LV_OPA_COVER, bool interactive = false);
+                     lv_opa_t bg_opa = LV_OPA_COVER, bool interactive = false,
+                     HubBoxExtras* extras = nullptr);
+
+/// The buffer's state in a hub box's slot: a small meter on its side, as the slot card's.
+void draw_hub_buffer_glyph(const RenderCtx& ctx, const lv_area_t& slot);
+/// The width draw_hub_buffer_glyph() takes in a hub box @p hub_h tall.
+int32_t hub_buffer_glyph_width(int32_t hub_h);
 
 /// Thumb positions further than this from center are drawn in the off-center tint.
-inline constexpr float kBufferOffCenter = 0.4f;
+inline constexpr float kBufferOffCenter = helix::ui::kBufferMeterOffCenter;
 
 /// Where the buffer sits on its travel, +1 fully compressed .. -1 fully expanded: the
 /// proportional bias when there is one, else the switched state snapped like the card's.
@@ -523,9 +563,10 @@ lv_color_t buffer_thumb_color(const FilamentPathData& data);
 /// The buffer's tension control across the tube at (@p cx, @p cy): a capsule @p cap_h tall
 /// the tube passes through, a thumb at buffer_tension_position(), chevrons marking the
 /// compressed (left) and expanded (right) ends, and the detail button in the capsule's
-/// right end. Writes the area a tap opens the detail from into @p hit.
+/// right end, no wider than @p max_w when it is > 0. Writes the area a tap opens the detail
+/// from into @p hit.
 void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
-                         lv_area_t* hit);
+                         lv_area_t* hit, int32_t max_w = 0);
 
 /// Animated filament tip: a glowing dot that moves along the path.
 void draw_filament_tip(lv_layer_t* layer, int32_t x, int32_t y, lv_color_t color, int32_t radius);

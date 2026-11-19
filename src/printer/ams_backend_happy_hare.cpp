@@ -1640,9 +1640,12 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
                                      : std::string("MMU");
     };
 
+    // A unit Happy Hare runs as "Other" reports the hardware its config shows it to be.
     auto unit_model = [this](int u) {
-        return u < static_cast<int>(machine_units_.size()) ? machine_units_[u].vendor
-                                                           : std::string{};
+        if (u >= static_cast<int>(machine_units_.size()))
+            return std::string{};
+        const happy_hare::MachineUnit& unit = machine_units_[u];
+        return unit.family.empty() ? unit.vendor : unit.family;
     };
 
     // The split mmu_machine names usually matches the one already built; only

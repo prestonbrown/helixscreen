@@ -20,6 +20,7 @@
          deeper in portrait, where every pixel of height goes to the sidebar. -->
     <style name="path_landscape" flex_grow="1" margin_top="-8"/>
     <style name="path_portrait" height="#ams_portrait_path_h" flex_grow="0" margin_top="-12"/>
+    <style name="waiting_landscape" flex_grow="1"/>
     <!-- The header names the system: the logo and the name centred on one axis in
          the header's height. -->
     <style name="name_centered" height="#ams_header_name_line_h"/>
@@ -100,6 +101,9 @@
               style_flex_main_place="start" style_flex_cross_place="center" scrollable="false">
         <bind_style_if_eq name="left_landscape" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="left_portrait" subject="ui_is_portrait" ref_value="1"/>
+        <!-- No slots means the backend has not reported its units yet: the waiting
+             state below stands in for a diagram with nothing to draw. -->
+        <bind_flag_if_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
         <!-- Backend selector (shown when multiple backends present) -->
@@ -160,6 +164,18 @@
              there is nothing to act on - while Off/Unknown/NeedsPlugin still
              surface. Self-hiding when the backend has no such mechanism. -->
         <ams_endless_status name="endless_status" hide_when_healthy="1"/>
+      </lv_obj>
+      <!-- Portrait takes the diagram's height; landscape grows into the column. -->
+      <lv_obj name="units_waiting"
+              width="100%" height="#ams_portrait_path_h" style_pad_all="0" scrollable="false" hidden="true">
+        <bind_style_if_eq name="waiting_landscape" subject="ui_is_portrait" ref_value="0"/>
+        <bind_flag_if_not_eq subject="ams_slot_count" flag="hidden" ref_value="0"/>
+        <centered_column style_pad_hor="#space_md">
+          <spinner size="lg"/>
+          <text_muted width="100%"
+                      text="Waiting for the filament system to report its state" long_mode="wrap"
+                      style_text_align="center"/>
+        </centered_column>
       </lv_obj>
     </lv_obj>
     <!-- Right column (status + action buttons): full panel height beside the diagram

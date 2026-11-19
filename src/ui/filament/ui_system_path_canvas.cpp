@@ -3,6 +3,7 @@
 
 #include "ui_system_path_canvas.h"
 
+#include "ui_filament_path_canvas.h"
 #include "ui_filament_path_plan.h"
 #include "ui_fonts.h"
 #include "ui_system_path_plan.h"
@@ -15,6 +16,8 @@
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "helix/ui/text_metrics.h"
+#include "hub_buffer_meter.h"
 #include "lvgl/lvgl.h"
 #include "nozzle_renderer_dispatch.h"
 #include "theme_manager.h"
@@ -26,6 +29,7 @@
 #include <cmath>
 #include <cstring>
 #include <memory>
+#include <string>
 
 using namespace helix::ui::syspath;
 namespace fpath = helix::ui::fpath;
@@ -75,6 +79,8 @@ static void load_theme_colors(SystemPathData* data) {
     data->color_error = theme_manager_get_color("filament_error");
     data->color_bg = theme_manager_get_color("card_bg");
     data->color_accent = helix::ui::tube_accent();
+    data->color_success = theme_manager_get_color("success");
+    data->color_warning = theme_manager_get_color("warning");
     data->toolhead_style = helix::SettingsManager::instance().get_effective_toolhead_style();
 }
 
@@ -101,85 +107,87 @@ static void load_theme_sizes(SystemPathData* data) {
 // Drawing Helpers
 // ============================================================================
 
-static void draw_hub_box(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t width, int32_t height,
-                         lv_color_t bg_color, lv_color_t border_color, lv_color_t text_color,
-                         const lv_font_t* font, int32_t radius, const char* label) {
-    // Background
+namespace {
+// A buffer shown in a box: where it sits on its travel and whether it is faulted.
+struct BoxMeter {
+    float position = 0.0f;
+    int fault = 0; // severity: -1 untinted, 0 neutral, 1 warning, 2 danger
+};
+} // namespace
+
+// A box on the path: a hub with its label, and the buffer's meter at its right end when the box
+// carries one. A box too narrow for both keeps the meter; one too short for a line of text
+// (@p labeled false) draws no label.
+static void draw_path_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
+                          int32_t width, int32_t height, lv_color_t bg, const char* label,
+                          bool labeled, const BoxMeter* meter) {
+    const lv_area_t box = {cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2};
     lv_draw_fill_dsc_t fill_dsc;
     lv_draw_fill_dsc_init(&fill_dsc);
-    fill_dsc.color = bg_color;
-    fill_dsc.radius = radius;
+    fill_dsc.color = bg;
+    fill_dsc.radius = data->border_radius;
+    lv_draw_fill(layer, &fill_dsc, &box);
 
-    lv_area_t box_area = {cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2};
-    lv_draw_fill(layer, &fill_dsc, &box_area);
-
-    // Border
     lv_draw_border_dsc_t border_dsc;
     lv_draw_border_dsc_init(&border_dsc);
-    border_dsc.color = border_color;
+    border_dsc.color = data->color_hub_border;
     border_dsc.width = 2;
-    border_dsc.radius = radius;
-    lv_draw_border(layer, &border_dsc, &box_area);
+    border_dsc.radius = data->border_radius;
+    lv_draw_border(layer, &border_dsc, &box);
 
-    // Label
-    if (label && label[0] && font) {
-        lv_draw_label_dsc_t label_dsc;
-        lv_draw_label_dsc_init(&label_dsc);
-        label_dsc.color = text_color;
-        label_dsc.font = font;
-        label_dsc.align = LV_TEXT_ALIGN_CENTER;
-        label_dsc.text = label;
-        // Drawing is deferred past this call, and a label may be a stack buffer.
-        label_dsc.text_local = 1;
-
-        int32_t font_h = lv_font_get_line_height(font);
-        lv_area_t label_area = {cx - width / 2, cy - font_h / 2, cx + width / 2, cy + font_h / 2};
-        lv_draw_label(layer, &label_dsc, &label_area);
+    const lv_font_t* font = data->label_font;
+    const bool has_label = labeled && label && label[0] && font;
+    const int32_t label_w =
+        has_label ? helix::ui::text_width(label, font, 0) + 2 * data->space_xs : 0;
+    lv_area_t label_area = box;
+    if (meter) {
+        const int32_t slot_w = helix::ui::buffer_meter_slot_width(height);
+        const bool side_by_side = has_label && label_w + slot_w <= width;
+        lv_area_t slot = box;
+        if (side_by_side) {
+            slot.x1 = box.x2 - slot_w;
+            label_area.x2 = slot.x1;
+        }
+        helix::ui::draw_buffer_meter(layer, slot, meter->position, meter->fault,
+                                     {data->color_bg, data->color_hub_border, data->color_text,
+                                      data->color_error, data->color_accent, data->color_warning,
+                                      data->color_success});
+        if (!side_by_side)
+            return;
     }
+    if (!has_label)
+        return;
+    lv_draw_label_dsc_t label_dsc;
+    lv_draw_label_dsc_init(&label_dsc);
+    label_dsc.color = data->color_text;
+    label_dsc.font = font;
+    label_dsc.align = LV_TEXT_ALIGN_CENTER;
+    label_dsc.text = label;
+    label_dsc.text_local = 1;
+    const int32_t font_h = lv_font_get_line_height(font);
+    const lv_area_t text_area = {label_area.x1, cy - font_h / 2, label_area.x2, cy + font_h / 2};
+    lv_draw_label(layer, &label_dsc, &text_area);
 }
 
-// A box carrying a buffer takes the buffer's severity tint over @p base.
-static lv_color_t buffer_tint(int fault, lv_color_t base) {
-    if (fault <= 0)
-        return base;
-    const auto status = static_cast<helix::ui::ClogMeterStatus>(std::min(fault, 2));
-    return lv_color_mix(theme_manager_get_color(helix::ui::buffer_status_token(status)), base, 85);
-}
-
-// A buffer: a labeled box on the output line, tinted by the buffer severity.
-static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
-                            int32_t box_w, int32_t box_h, int fault, const char* label) {
-    draw_hub_box(layer, cx, cy, box_w, box_h, buffer_tint(fault, data->color_hub_bg),
-                 data->color_hub_border, data->color_text, data->label_font, data->border_radius,
-                 label);
-}
-
-// A junction's hub box: "Hub", or "Hub+BUF" in the buffer's tint when the hub
-// carries the buffer; "H" / "H+B" when the box is too narrow, and no text when
-// it is too short for a line of it.
+// A junction's hub box: kHubLabel ("H" when the box is narrow), with the buffer's meter when the
+// hub carries the buffer.
 static void draw_junction_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
                               int32_t w, int32_t h, lv_color_t bg, bool short_label, bool labeled,
-                              bool with_buffer, int fault, const char* buffer_label) {
-    char label[24];
-    const char* hub = short_label ? "H" : "Hub";
-    if (with_buffer && buffer_label && buffer_label[0]) {
-        if (short_label)
-            snprintf(label, sizeof(label), "%s+%c", hub, buffer_label[0]);
-        else
-            snprintf(label, sizeof(label), "%s+%s", hub, buffer_label);
-        bg = buffer_tint(fault, bg);
-    } else {
-        snprintf(label, sizeof(label), "%s", hub);
-    }
-    draw_hub_box(layer, cx, cy, w, h, bg, data->color_hub_border, data->color_text,
-                 data->label_font, data->border_radius, labeled ? label : "");
+                              const BoxMeter* meter) {
+    draw_path_box(layer, data, cx, cy, w, h, bg, short_label ? "H" : kHubLabel, labeled, meter);
+}
+
+// A buffer on a route with no hub to carry it: a box holding only its meter.
+static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
+                            int32_t w, int32_t h, const BoxMeter& meter) {
+    draw_path_box(layer, data, cx, cy, w, h, data->color_hub_bg, nullptr, false, &meter);
 }
 
 // The single-toolhead layout's buffer, halfway down the trunk.
 static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
     const TrunkBuffer b = trunk_buffer(*data, L);
-    draw_buffer_box(layer, data, L.center_x, b.y, data->hub_width * 2 / 3, b.h, data->buffer_fault,
-                    b.labeled ? data->buffer_label : "");
+    draw_buffer_box(layer, data, L.center_x, b.y, data->hub_width * 2 / 3, b.h,
+                    {data->buffer_position, data->buffer_fault});
 }
 
 // ============================================================================
@@ -230,16 +238,16 @@ static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
                            const OverviewBoxes& boxes) {
     for (const HubInfo& hi : boxes.hubs) {
         const bool has_buffer = hi.buffer_unit >= 0 && hi.buffer_unit < SystemPathData::kMaxUnits;
-        const int fault = has_buffer ? data->unit_buffer_fault[hi.buffer_unit] : 0;
-        const char* label = has_buffer ? data->unit_buffer_label[hi.buffer_unit] : "";
+        const BoxMeter meter = has_buffer ? BoxMeter{data->unit_buffer_position[hi.buffer_unit],
+                                                     data->unit_buffer_fault[hi.buffer_unit]}
+                                          : BoxMeter{};
         if (hi.valid) {
             draw_junction_box(layer, data, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h,
-                              hi.hub_bg_color, hi.short_label, hi.labeled, hi.buffer_in_hub, fault,
-                              label);
+                              hi.hub_bg_color, hi.short_label, hi.labeled,
+                              hi.buffer_in_hub && has_buffer ? &meter : nullptr);
         }
         if (hi.buffer_h > 0 && has_buffer)
-            draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h, fault,
-                            hi.labeled ? label : "");
+            draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h, meter);
     }
 }
 
@@ -291,6 +299,69 @@ static void draw_single_nozzle(lv_layer_t* layer, SystemPathData* data, const Sy
     }
 }
 
+// The "+N units" chip over the tubes of the units scrolled off one edge: a pill
+// in the off-page chip's style on the detail page, laid over where their tubes
+// enter so they read as coming from off-screen.
+static void draw_parked_chips(lv_layer_t* layer, SystemPathData* data, const SysLayout& L,
+                              const OverviewBoxes& boxes, const lv_area_t& obj_coords) {
+    for (int side = 0; side < 2; ++side) {
+        data->parked_chip_drawn[side] = false;
+        const ParkedChip& p = boxes.parked[side];
+        const lv_font_t* font = data->label_font;
+        if (!p.present || p.units <= 0 || !font)
+            continue;
+        // "+9 units" where it fits clear of the visible cards' stems, "+9" where it
+        // does not; flush to the edge it stands for.
+        const int32_t pad = data->space_xs * 2;
+        const int32_t h = data->label_line_h + 2 * data->space_xs;
+        const int32_t lo = LV_MAX(L.x_off, p.room_lo);
+        const int32_t hi = LV_MIN(L.x_off + L.width - 1, p.room_hi);
+        const int32_t room = hi - lo + 1;
+        const int32_t span = p.stem_hi - p.stem_lo + 2 * pad;
+        const auto width_of = [&](const std::string& t) {
+            return LV_MAX(helix::ui::text_width(t.c_str(), font, 0) + 2 * pad, span);
+        };
+        const std::string text = fpath::offpage_chip_text(
+            p.units, [&](const std::string& t) { return width_of(t) <= room; });
+        const int32_t w = width_of(text);
+        const int32_t x1 = side > 0 ? LV_MAX(lo, hi - w + 1) : lo;
+        const int32_t y1 = LV_MAX(obj_coords.y1, L.entry_y - data->space_xs);
+        const lv_area_t chip = {x1, y1, x1 + w - 1, y1 + h - 1};
+        fpath::draw_count_pill(layer, chip,
+                               {data->color_hub_bg, data->color_hub_border, data->color_text, font,
+                                data->label_line_h},
+                               text.c_str(), LV_TEXT_ALIGN_CENTER, chip.x1, chip.x2);
+
+        data->parked_chip_area[side] = {chip.x1 - obj_coords.x1, chip.y1 - obj_coords.y1,
+                                        chip.x2 - obj_coords.x1, chip.y2 - obj_coords.y1};
+        data->parked_chip_drawn[side] = true;
+    }
+}
+
+// A tap on a "+N units" chip, or within a finger's reach of it, pages the card
+// row toward the units it stands for.
+static void system_path_click_cb(lv_event_t* e) {
+    lv_obj_t* obj = lv_event_get_target_obj(e);
+    SystemPathData* data = get_data(obj);
+    lv_indev_t* indev = lv_indev_active();
+    if (!data || !data->parked_chip_cb || !indev)
+        return;
+    lv_point_t p;
+    lv_indev_get_point(indev, &p);
+    lv_area_t coords;
+    lv_obj_get_coords(obj, &coords);
+    for (int side = 0; side < 2; ++side) {
+        // The chip's area is kept relative to the widget, so it moves with it.
+        if (data->parked_chip_drawn[side] &&
+            helix::ui::recorded_box_hit(p, data->parked_chip_area[side], {0, 0},
+                                        {coords.x1, coords.y1}, data->space_md,
+                                        helix::ui::kPathFingerPx)) {
+            data->parked_chip_cb(side, data->parked_chip_user_data);
+            return;
+        }
+    }
+}
+
 static void system_path_draw_cb(lv_event_t* e) {
     lv_obj_t* obj = lv_event_get_target_obj(e);
     lv_layer_t* layer = lv_event_get_layer(e);
@@ -319,15 +390,19 @@ static void system_path_draw_cb(lv_event_t* e) {
         draw_single_nozzle(layer, data, L);
     fpath::paint_tubes(layer, plan, pal);
 
+    draw_parked_chips(layer, data, L, boxes, obj_coords);
     if (L.multi_tool) {
         draw_mini_hubs(layer, data, boxes);
         fpath::paint_box_bands(layer, plan, pal);
         draw_status_centered(layer, data, L);
     } else {
         if (boxes.combiner) {
-            draw_junction_box(layer, data, L.center_x, L.hub_y, data->hub_width, L.hub_h,
-                              boxes.combiner_bg, false, boxes.combiner_labeled,
-                              boxes.combiner_buffer, data->buffer_fault, data->buffer_label);
+            const BoxMeter meter{data->buffer_position, data->buffer_fault};
+            const int32_t w =
+                LV_MAX(data->hub_width, junction_label_w(*data, L.hub_h, boxes.combiner_buffer));
+            draw_junction_box(layer, data, L.center_x, L.hub_y, w, L.hub_h, boxes.combiner_bg,
+                              false, boxes.combiner_labeled,
+                              boxes.combiner_buffer ? &meter : nullptr);
         }
         if (data->has_buffer && !boxes.combiner_buffer)
             draw_trunk_buffer(layer, data, L);
@@ -387,8 +462,9 @@ static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** a
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
-    // Click handling on the canvas is no longer needed — bypass clicks are
-    // captured by the BypassSpoolWidgets overlay the panel places on top.
+    // The canvas takes taps only for its "+N units" chips; bypass taps land on the
+    // BypassSpoolWidgets overlay the panel places on top.
+    lv_obj_add_event_cb(obj, system_path_click_cb, LV_EVENT_CLICKED, nullptr);
 
     spdlog::debug("[SystemPath] Created widget via XML");
     return obj;
@@ -471,8 +547,9 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent) {
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
-    // Click handling on the canvas is no longer needed — bypass clicks are
-    // captured by the BypassSpoolWidgets overlay the panel places on top.
+    // The canvas takes taps only for its "+N units" chips; bypass taps land on the
+    // BypassSpoolWidgets overlay the panel places on top.
+    lv_obj_add_event_cb(obj, system_path_click_cb, LV_EVENT_CLICKED, nullptr);
 
     spdlog::debug("[SystemPath] Created widget programmatically");
     return obj;
@@ -562,41 +639,33 @@ void ui_system_path_canvas_set_unit_hub_sensor(lv_obj_t* obj, int unit_index, bo
 }
 
 namespace helix::ui {
-static void copy_label(char* dst, size_t cap, const char* label) {
-    snprintf(dst, cap, "%s", label ? label : "");
-}
-
-void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, const char* label) {
+void ui_system_path_canvas_set_buffer(lv_obj_t* obj, bool present, int fault, float position) {
     auto* data = get_data(obj);
     if (!data)
         return;
-    char text[sizeof(data->buffer_label)];
-    copy_label(text, sizeof(text), label);
     if (data->has_buffer == present && data->buffer_fault == fault &&
-        strcmp(data->buffer_label, text) == 0)
+        data->buffer_position == position)
         return;
     data->has_buffer = present;
     data->buffer_fault = fault;
-    memcpy(data->buffer_label, text, sizeof(text));
+    data->buffer_position = position;
     lv_obj_invalidate(obj);
 }
 
 void ui_system_path_canvas_set_unit_hub(lv_obj_t* obj, int unit_index, int hub_group, bool present,
-                                        int fault, const char* label) {
+                                        int fault, float position) {
     auto* data = get_data(obj);
     if (!data || unit_index < 0 || unit_index >= SystemPathData::kMaxUnits)
         return;
-    char text[sizeof(data->unit_buffer_label[0])];
-    copy_label(text, sizeof(text), label);
     if (data->unit_hub_group[unit_index] == hub_group &&
         data->unit_has_buffer[unit_index] == present &&
         data->unit_buffer_fault[unit_index] == fault &&
-        strcmp(data->unit_buffer_label[unit_index], text) == 0)
+        data->unit_buffer_position[unit_index] == position)
         return;
     data->unit_hub_group[unit_index] = hub_group;
     data->unit_has_buffer[unit_index] = present;
     data->unit_buffer_fault[unit_index] = fault;
-    memcpy(data->unit_buffer_label[unit_index], text, sizeof(text));
+    data->unit_buffer_position[unit_index] = position;
     lv_obj_invalidate(obj);
 }
 } // namespace helix::ui
@@ -798,6 +867,17 @@ bool ui_system_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, 
     }
     return true;
 }
+
+namespace helix::ui {
+void ui_system_path_canvas_set_parked_chip_callback(lv_obj_t* obj,
+                                                    void (*cb)(int side, void* user_data),
+                                                    void* user_data) {
+    if (auto* data = get_data(obj)) {
+        data->parked_chip_cb = cb;
+        data->parked_chip_user_data = user_data;
+    }
+}
+} // namespace helix::ui
 
 void ui_system_path_canvas_refresh(lv_obj_t* obj) {
     lv_obj_invalidate(obj);

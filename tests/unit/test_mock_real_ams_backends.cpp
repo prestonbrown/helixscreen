@@ -313,6 +313,17 @@ TEST_CASE_METHOD(AfcMock, "AFC mock: discovery claims AFC on one Box Turtle, lan
     CHECK(lane(2)["status"] == "Loaded");
 }
 
+TEST_CASE("AFC mock: a first lane with no spool is not the loaded one", "[ams][mock][afc]") {
+    const char* fill = GENERATE("empty", "ghost");
+    CAPTURE(fill);
+    helix::ScopedEnv fill_env{"HELIX_MOCK_AMS_FILL", fill};
+    AfcMock afc;
+    const json status = afc.mock->afc_boxturtle_status_json();
+    CHECK(status["AFC"]["current_load"].is_null());
+    CHECK(afc.lane(1)["status"] != "Tooled");
+    CHECK(status["AFC_extruder extruder"]["lane_loaded"].is_null());
+}
+
 TEST_CASE_METHOD(AfcMock, "AFC mock: load, T<n> and unload move the toolhead lane",
                  "[ams][mock][afc]") {
     REQUIRE(mock->gcode_script("CHANGE_TOOL LANE=lane3") == 0);
@@ -402,4 +413,44 @@ TEST_CASE("SnapSwap mock: a stock U1's four heads, swap, unload and re-tag",
     CHECK(ptc["filament_type"][1] == "PETG");
     CHECK(ptc["filament_vendor"][1] == "Generic");
     CHECK(ptc["filament_color_rgba"][1] == "112233FF");
+}
+
+TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labelled after",
+          "[ams][mock][snapmaker][runout_other_head]") {
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    helix::ScopedEnv u1{"HELIX_MOCK_PRINTER", "snapmaker_u1"};
+    MoonrakerClientMock u1_mock(MoonrakerClientMock::PrinterType::SNAPMAKER_U1, 100.0);
+    // The plan's script for head 0 running out and head 3 chosen, Auto-Replenish off.
+    const std::string script =
+        "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1\n"
+        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"Snapmaker\" FILAMENT_TYPE=PLA "
+        "FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 COLORS=F08000 MULTI_MODE=0 ALPHA=255 FORCE=1\n"
+        "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0\n"
+        "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0";
+    REQUIRE(u1_mock.gcode_script("SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0") == 0);
+
+    REQUIRE(u1_mock.start_print_internal("3DBenchy.gcode"));
+    REQUIRE(u1_mock.gcode_script("PAUSE") == 0);
+    REQUIRE(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PAUSED);
+    const bool spool_empty = GENERATE(true, false);
+    if (spool_empty) {
+        REQUIRE(u1_mock.gcode_script("AUTO_FEEDING EXTRUDER=0 UNLOAD=1") == 0);
+    }
+    REQUIRE(u1_mock.gcode_script(script) == 0);
+
+    const json status = u1_mock.u1_snapswap_status_json();
+    CHECK(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PRINTING);
+    if (!spool_empty) {
+        // Filament still at the runout head's port: the firmware resumes on
+        // that head and never looks at the others.
+        CHECK(status["print_task_config"]["extruder_map_table"][0] == 0);
+        CHECK(status["extruder"]["active_pin"] == true);
+        return;
+    }
+    const json& ptc = status["print_task_config"];
+    CHECK(ptc["extruder_map_table"][0] == 3);
+    CHECK(ptc["filament_vendor"][0] == "Snapmaker");
+    CHECK(ptc["filament_color_multi"][0]["colors"][0] == "F08000");
+    CHECK(ptc["auto_replenish_filament"] == false);
+    CHECK(status["extruder3"]["active_pin"] == true);
 }

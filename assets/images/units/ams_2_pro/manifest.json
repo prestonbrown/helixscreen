@@ -11,27 +11,38 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -102,7 +113,8 @@
       "outlet": [
         0.17316,
         0.69055
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -132,7 +144,8 @@
       "outlet": [
         0.31162,
         0.71468
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -162,7 +175,8 @@
       "outlet": [
         0.45009,
         0.73881
-      ]
+      ],
+      "prep": []
     },
     {
       "far": [
@@ -192,7 +206,8 @@
       "outlet": [
         0.58566,
         0.76243
-      ]
+      ],
+      "prep": []
     }
   ],
   "lane_order": [

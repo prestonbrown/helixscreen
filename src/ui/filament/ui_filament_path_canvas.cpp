@@ -23,6 +23,8 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/core/lv_refr_private.h" // lv_obj_refr
+#include "path_view_scale.h"
 #include "theme_manager.h"
 #include "widget_data_registry.h"
 
@@ -108,6 +110,7 @@ static void load_theme_sizes(FilamentPathData* data) {
     theme.hub_width = LV_MAX(50, space_md * 5);
     theme.border_radius = LV_MAX(4, space_xs);
     theme.extruder_scale = LV_MAX(8, space_md); // Extruder scales with space_md
+    theme.tool_tag_h = helix::ui::tool_badge_look().height;
 
     // Get responsive font from globals.xml (font_small → responsive variant)
     const char* font_name = lv_xml_get_const(nullptr, "font_small");
@@ -163,20 +166,22 @@ bool helix::ui::hub_box_hit(lv_point_t p, int32_t cx, int32_t cy, int32_t w, int
 }
 
 bool helix::ui::recorded_box_hit(lv_point_t p, const lv_area_t& box, lv_point_t rendered_origin,
-                                 lv_point_t current_origin, int32_t margin) {
+                                 lv_point_t current_origin, int32_t margin, int32_t min_size) {
     lv_point_t q{p.x + rendered_origin.x - current_origin.x,
                  p.y + rendered_origin.y - current_origin.y};
-    return hub_box_hit(q, (box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2, box.x2 - box.x1,
-                       box.y2 - box.y1, margin);
+    // A box drawn smaller than a finger still takes a finger's tap, centered on it.
+    return hub_box_hit(q, (box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2,
+                       std::max(box.x2 - box.x1, min_size - 2 * margin),
+                       std::max(box.y2 - box.y1, min_size - 2 * margin), margin);
 }
 
 helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTapLayout& layout) {
     // The nearest column whose reach, [lo, hi] about its x, holds p.x.
-    auto nearest = [&](int32_t lo, int32_t hi) {
+    auto nearest = [&](int32_t lo, int32_t hi, const int32_t* columns) {
         int best = -1;
         int32_t best_d = INT32_MAX;
         for (int i = 0; i < layout.slot_count; i++) {
-            const int32_t dx = p.x - layout.slot_x[i];
+            const int32_t dx = p.x - columns[i];
             if (dx >= lo && dx <= hi && abs(dx) < best_d) {
                 best = i;
                 best_d = abs(dx);
@@ -188,13 +193,15 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
     // sensor row cedes the stretch above that row.
     if (p.y < LV_MAX(layout.sensor_y, layout.head.y1)) {
         const int32_t r = layout.lane_half_width;
-        if (const int i = nearest(-r, r); i >= 0) {
+        if (const int i = nearest(-r, r, layout.slot_x); i >= 0) {
             return {ParallelTapTarget::Lane, i};
         }
         return {};
     }
     if (p.y >= layout.head.y1 && p.y <= layout.head.y2) {
-        if (const int i = nearest(layout.head.x1, layout.head.x2); i >= 0) {
+        if (const int i = nearest(layout.head.x1, layout.head.x2,
+                                  layout.head_x ? layout.head_x : layout.slot_x);
+            i >= 0) {
             return {ParallelTapTarget::Toolhead, i};
         }
     }
@@ -216,7 +223,7 @@ static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) 
     for (int i = 0; i < n; i++) {
         lv_obj_t* parent = lv_obj_get_parent(badges[i]);
         if (!lv_obj_is_hidden(badges[i]) && (!parent || !lv_obj_is_hidden(parent)))
-            lv_obj_redraw(layer, badges[i]);
+            lv_obj_refr(layer, badges[i]); // with its transform: a number shrunk to its pitch
     }
 }
 
@@ -264,8 +271,12 @@ static void filament_path_click_cb(lv_event_t* e) {
         const helix::ui::GlyphBounds glyph =
             toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
                                   rows.toolhead_y, rows.tool_scale);
+        int32_t head_x[FilamentPathData::kMaxSlots] = {};
+        for (int i = 0; i < g.slot_count && i < FilamentPathData::kMaxSlots; ++i)
+            head_x[i] = parallel_head_x(*data, g, rows, i);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
+        layout.head_x = head_x;
         layout.slot_count = g.slot_count;
         layout.sensor_y = rows.sensor_y;
         layout.lane_half_width = LV_MAX(20, rows.tool_scale * 3);
@@ -291,9 +302,19 @@ static void filament_path_click_cb(lv_event_t* e) {
     // records the drawn area in data->hits.buffer, valid only when drawn this pass.
     if (data->buffer_present && data->buffer_callback && data->hits.buffer_valid) {
         if (helix::ui::recorded_box_hit(point, data->hits.buffer, data->hits.origin, {x_off, y_off},
-                                        4)) {
+                                        4, helix::ui::kPathFingerPx)) {
             spdlog::debug("[FilamentPath] Buffer control clicked");
             data->buffer_callback(data->buffer_user_data);
+            return;
+        }
+    }
+
+    // An off-page chip pages to the units it stands for.
+    for (int side = 0; side < 2 && data->offpage_callback; ++side) {
+        if (data->hits.offpage_valid[side] &&
+            helix::ui::recorded_box_hit(point, data->hits.offpage[side], data->hits.origin,
+                                        {x_off, y_off}, 4, helix::ui::kPathFingerPx)) {
+            data->offpage_callback(side, data->offpage_user_data);
             return;
         }
     }
@@ -304,8 +325,8 @@ static void filament_path_click_cb(lv_event_t* e) {
     // screen. hub_valid is set only when a box was actually drawn this pass
     // (LINEAR selector / HUB), so PARALLEL is naturally excluded.
     if (data->hub_callback && data->hits.hub_valid) {
-        if (helix::ui::recorded_box_hit(point, data->hits.hub, data->hits.origin, {x_off, y_off},
-                                        4)) {
+        if (helix::ui::recorded_box_hit(point, data->hits.hub, data->hits.origin, {x_off, y_off}, 4,
+                                        helix::ui::kPathFingerPx)) {
             spdlog::debug("[FilamentPath] Selector/hub box clicked");
             data->hub_callback(point, data->hub_user_data);
             return;
@@ -608,6 +629,12 @@ void ui_filament_path_canvas_set_slot_width(lv_obj_t* obj, int32_t width) {
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+lv_obj_t* ui_filament_path_canvas_get_slot_grid(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    return data ? data->slot_grid : nullptr;
+}
+
 void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid) {
     auto* data = get_data(obj);
     if (!data)
@@ -768,6 +795,25 @@ void helix::ui::filament_path_canvas_set_toolhead_callback(lv_obj_t* obj,
     if (data) {
         data->toolhead_callback = cb;
         data->toolhead_user_data = user_data;
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_hub_actions(lv_obj_t* obj, bool has_actions) {
+    auto* data = get_data(obj);
+    if (data && data->hub_has_actions != has_actions) {
+        data->hub_has_actions = has_actions;
+        layered_mark_dirty(obj);
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_offpage_callback(lv_obj_t* obj, offpage_callback_t cb,
+                                                  void* user_data) {
+    auto* data = get_data(obj);
+    if (data) {
+        data->offpage_callback = cb;
+        data->offpage_user_data = user_data;
     }
 }
 
@@ -1236,15 +1282,35 @@ void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool b
 }
 
 // NAMESPACE_OK: the widget's C setter API, beside its siblings
-void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch) {
+void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::PathViewScale& scale) {
     auto* data = get_data(obj);
-    lanes = LV_CLAMP(0, lanes, FilamentPathData::kMaxSlots);
-    lane_pitch = LV_MAX(0, lane_pitch);
-    if (!data || (data->fixed_hub_lanes == lanes && data->fixed_hub_pitch == lane_pitch))
+    if (!data)
         return;
-    data->fixed_hub_lanes = lanes;
-    data->fixed_hub_pitch = lane_pitch;
-    layered_mark_dirty(obj);
+    const ThemeCache before = data->theme;
+    const int32_t hub_h = data->view_hub_h, cap_h = data->view_cap_h;
+    const bool in_hub = data->buffer_in_hub;
+    load_theme_sizes(data);
+    data->view_hub_h = 0;
+    data->view_cap_h = 0;
+    data->view_unit = 0.0f;
+    data->buffer_in_hub = false;
+    if (scale.unit > 0.0f) {
+        ThemeCache& theme = data->theme;
+        theme.tube_gauge = scale.tube_gauge;
+        theme.sensor_radius = scale.sensor_r;
+        theme.extruder_scale = head_scale_within_height(scale.head_scale, kHeadUnits * scale.unit);
+        theme.hub_width = scale.hub_min_w;
+        data->view_hub_h = scale.hub_h;
+        data->view_cap_h = scale.cap_h;
+        data->view_unit = scale.unit;
+        data->buffer_in_hub = scale.buffer_in_hub;
+    }
+    // The same scale again changes nothing, so it paints nothing.
+    const ThemeCache& t = data->theme;
+    if (t.tube_gauge != before.tube_gauge || t.sensor_radius != before.sensor_radius ||
+        t.extruder_scale != before.extruder_scale || t.hub_width != before.hub_width ||
+        data->view_hub_h != hub_h || data->view_cap_h != cap_h || data->buffer_in_hub != in_hub)
+        layered_mark_dirty(obj);
 }
 
 // NAMESPACE_OK: the widget's C setter API, beside its siblings
@@ -1273,18 +1339,64 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
     return true;
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_art_sensors(lv_obj_t* obj, bool on, bool draws_prep,
+                                             float edge_slope, const bool* load_fault, int n) {
+    auto* data = get_data(obj);
+    if (!data)
+        return;
+    bool changed = data->art_sensors != on || data->art_draws_prep != draws_prep ||
+                   data->art_edge_slope != edge_slope;
+    data->art_sensors = on;
+    data->art_draws_prep = draws_prep;
+    data->art_edge_slope = edge_slope;
+    for (int i = 0; i < FilamentPathData::kMaxSlots; ++i) {
+        const bool fault = on && load_fault && i < n && load_fault[i];
+        changed |= data->lane_load_fault[i] != fault;
+        data->lane_load_fault[i] = fault;
+    }
+    if (changed)
+        layered_mark_dirty(obj);
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead || data->view_hub_h <= 0)
+        return 0.0f;
+    BaseGeometry g = compute_base_geometry(obj, data);
+    g.height = linear_hub_required_height(*data, g);
+    if (g.height <= 0)
+        return 0.0f;
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
+    // A lane's outlet moves out from the hub with the unit, its entry stays: a lane that runs
+    // sideways grows its run by its distance from the hub times e, and its drop by that times
+    // the flattest slope.
+    float growth = 0.0f;
+    for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
+        const float from_hub = std::fabs(f.hub_fan[i].pts[0].x - (float)f.center_x);
+        const float run = std::fabs(f.hub_fan[i].pts[3].x - f.hub_fan[i].pts[0].x);
+        if (run > kStraightLaneSlack)
+            growth = std::max(growth, from_hub * kFanMinSlope);
+    }
+    return growth;
+}
+
 // NAMESPACE_OK: the widget's C getter API, beside its siblings
 int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj) {
     auto* data = get_data(obj);
-    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead)
+    if (!data)
+        return 0;
+    if (data->topology == static_cast<int>(helix::PathTopology::PARALLEL) ||
+        data->topology == static_cast<int>(helix::PathTopology::MIXED))
+        return per_lane_required_height(*data, compute_base_geometry(obj, data));
+    if (!is_linear_hub(*data) || !data->feeds_toolhead)
         return 0;
     // Sizes are read at creation; the colors do not enter into it.
     return linear_hub_required_height(*data, compute_base_geometry(obj, data));
@@ -1301,9 +1413,7 @@ bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* sta
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     if (start_out)
         *start_out = lane_start_y(*data, f, slot);
     if (band_out)
@@ -1323,14 +1433,10 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
-    const LinearHubFrame f =
-        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    const LinearHubFrame f = compute_linear_hub_frame(*data, g);
     const int32_t w = hub_box_width(*data, g, f);
-    const int32_t y = data->topology == static_cast<int>(helix::PathTopology::LINEAR)
-                          ? f.prep_y + f.sensor_r + f.hub_h / 2
-                          : f.hub_y;
-    *area_out = {f.center_x - w / 2, y - f.hub_h / 2, f.center_x + w / 2, y + f.hub_h / 2};
+    *area_out = {f.center_x - w / 2, f.hub_y - f.hub_h / 2, f.center_x + w / 2,
+                 f.hub_y + f.hub_h / 2};
     return true;
 }
 

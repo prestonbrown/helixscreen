@@ -34,6 +34,9 @@ struct Notice {
     std::string action_text{}; ///< Label of the optional action; needs @ref action too
     NoticeActionCallback action = nullptr;
     void* action_user_data = nullptr;
+    /// Also files the notice in notification history, for one the user may need to
+    /// read after its toast has gone.
+    bool keep_in_history = false;
 };
 
 using NoticeSubscriber = void (*)(const Notice&);

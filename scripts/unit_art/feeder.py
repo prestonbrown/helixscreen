@@ -80,15 +80,47 @@ def tube(scene, pts, color, lane, width=0.02):
         scene.line(pts, color, width * 0.6, lane=lane)
 
 
+# The plain tray a feeder's loose spools rest in: a low base with two rollers along the row,
+# one ahead of the spools' axles and one behind.
+TRAY_Z = 0.022
+TRAY_RGB = "#2b2d31"
+ROLLER_R = 0.026
+ROLLER_RGB = "#7a7d83"
+ROLLER_SPREAD = 0.15
+
+
+def spool_lift(r=SPOOL_R):
+    """The height of a spool's axle as it rests on the tray's two rollers."""
+    return TRAY_Z + ROLLER_R + math.sqrt((r + ROLLER_R) ** 2 - ROLLER_SPREAD**2)
+
+
+def roller_tray(scene, x0, x1, y, part):
+    """The tray under a row of spools whose axles stand at depth y, from x0 to x1.
+
+    part "back" draws the base and the rear roller, behind the spools; part "front" the
+    roller ahead of them, which overlaps their lower rims.
+    """
+    rz = TRAY_Z + ROLLER_R
+    if part == "back":
+        box(scene, x0, x1, y - ROLLER_SPREAD - 0.05, y + ROLLER_SPREAD + 0.05, 0.0, TRAY_Z, TRAY_RGB)
+        kit.roller(scene, x0 + 0.01, x1 - 0.01, y + ROLLER_SPREAD, rz, ROLLER_R, ROLLER_RGB, ROLLER_RGB, left_flange=False, right_flange=False, solid=True)
+    else:
+        kit.roller(scene, x0 + 0.01, x1 - 0.01, y - ROLLER_SPREAD, rz, ROLLER_R, ROLLER_RGB, ROLLER_RGB, left_flange=False, right_flange=False, solid=True)
+
+
 def spool_row(scene, colors, cx, depth, detail):
-    """Spools on the floor behind a body of the given depth, centred on cx."""
+    """Spools resting in a roller tray behind a body of the given depth, centred on cx."""
     c = spool.spool_constants(_REPO)
     n = len(colors)
     y = depth + SPOOL_R + 0.02
     x0, x1 = cx - SPOOL_PITCH * n / 2 - 0.02, cx + SPOOL_PITCH * n / 2 + 0.02
     scene.poly([(x0, 0.0, 0), (x1, 0.0, 0), (x1, y + 0.2, 0), (x0, y + 0.2, 0)], "#000", 0.5, blur=True)
+    roller_tray(scene, x0, x1, y, "back")
+    z = spool_lift()
     for lane, col in enumerate(colors):
-        spool.draw_spool(scene, (cx + (lane - (n - 1) / 2) * SPOOL_PITCH, y, SPOOL_R), SPOOL_R, col, c, lane, detail=detail)
+        spool.draw_spool(scene, (cx + (lane - (n - 1) / 2) * SPOOL_PITCH, y, z), SPOOL_R, col, c, lane, detail=detail)
+    scene.layer = "front"
+    roller_tray(scene, x0, x1, y, "front")
 
 
 def looks(body, cx, depth, tubes):

@@ -11,51 +11,70 @@
           "color": "full_lane0.png",
           "shade": "full_lane0_shade.png",
           "body": "full_lane0_body.png",
-          "glow": "full_lane0_glow.png"
+          "glow": "full_lane0_glow.png",
+          "face": "full_lane0_face.png",
+          "far_face": "full_lane0_far_face.png"
         },
         {
           "color": "full_lane1.png",
           "shade": "full_lane1_shade.png",
           "body": "full_lane1_body.png",
-          "glow": "full_lane1_glow.png"
+          "glow": "full_lane1_glow.png",
+          "face": "full_lane1_face.png",
+          "far_face": "full_lane1_far_face.png"
         },
         {
           "color": "full_lane2.png",
           "shade": "full_lane2_shade.png",
           "body": "full_lane2_body.png",
-          "glow": "full_lane2_glow.png"
+          "glow": "full_lane2_glow.png",
+          "face": "full_lane2_face.png",
+          "far_face": "full_lane2_far_face.png"
         },
         {
           "color": "full_lane3.png",
           "shade": "full_lane3_shade.png",
           "body": "full_lane3_body.png",
-          "glow": "full_lane3_glow.png"
+          "glow": "full_lane3_glow.png",
+          "face": "full_lane3_face.png",
+          "far_face": "full_lane3_far_face.png"
         },
         {
           "color": "full_lane4.png",
           "shade": "full_lane4_shade.png",
           "body": "full_lane4_body.png",
-          "glow": "full_lane4_glow.png"
+          "glow": "full_lane4_glow.png",
+          "face": "full_lane4_face.png",
+          "far_face": "full_lane4_far_face.png"
         },
         {
           "color": "full_lane5.png",
           "shade": "full_lane5_shade.png",
           "body": "full_lane5_body.png",
-          "glow": "full_lane5_glow.png"
+          "glow": "full_lane5_glow.png",
+          "face": "full_lane5_face.png",
+          "far_face": "full_lane5_far_face.png"
         },
         {
           "color": "full_lane6.png",
           "shade": "full_lane6_shade.png",
           "body": "full_lane6_body.png",
-          "glow": "full_lane6_glow.png"
+          "glow": "full_lane6_glow.png",
+          "face": "full_lane6_face.png",
+          "far_face": "full_lane6_far_face.png"
         },
         {
           "color": "full_lane7.png",
           "shade": "full_lane7_shade.png",
           "body": "full_lane7_body.png",
-          "glow": "full_lane7_glow.png"
+          "glow": "full_lane7_glow.png",
+          "face": "full_lane7_face.png",
+          "far_face": "full_lane7_far_face.png"
         }
-      ]
+      ],
+      "vents": "full_vents.png",
+      "vents_lit": "full_vents_lit.png",
+      "far_vents": "full_far_vents.png"
     },
     "thumb": {
       "width": 40,
@@ -146,6 +165,20 @@
       "outlet": [
         0.08964,
         0.59336
+      ],
+      "prep": [
+        0.07521,
+        0.57911,
+        0.09201,
+        0.56783,
+        0.12087,
+        0.57286,
+        0.12087,
+        0.59677,
+        0.10407,
+        0.60805,
+        0.07521,
+        0.60302
       ]
     },
     {
@@ -176,6 +209,20 @@
       "outlet": [
         0.18775,
         0.61046
+      ],
+      "prep": [
+        0.17332,
+        0.59621,
+        0.19012,
+        0.58493,
+        0.21898,
+        0.58996,
+        0.21898,
+        0.61387,
+        0.20217,
+        0.62515,
+        0.17332,
+        0.62012
       ]
     },
     {
@@ -206,6 +253,20 @@
       "outlet": [
         0.28585,
         0.62756
+      ],
+      "prep": [
+        0.27143,
+        0.61331,
+        0.28823,
+        0.60203,
+        0.31708,
+        0.60706,
+        0.31708,
+        0.63097,
+        0.30028,
+        0.64225,
+        0.27143,
+        0.63722
       ]
     },
     {
@@ -236,6 +297,20 @@
       "outlet": [
         0.38396,
         0.64466
+      ],
+      "prep": [
+        0.36953,
+        0.6304,
+        0.38633,
+        0.61912,
+        0.41519,
+        0.62415,
+        0.41519,
+        0.64806,
+        0.39839,
+        0.65934,
+        0.36953,
+        0.65431
       ]
     },
     {
@@ -266,6 +341,20 @@
       "outlet": [
         0.48207,
         0.66175
+      ],
+      "prep": [
+        0.46764,
+        0.6475,
+        0.48444,
+        0.63622,
+        0.5133,
+        0.64125,
+        0.5133,
+        0.66516,
+        0.49649,
+        0.67644,
+        0.46764,
+        0.67141
       ]
     },
     {
@@ -296,6 +385,20 @@
       "outlet": [
         0.58017,
         0.67885
+      ],
+      "prep": [
+        0.56574,
+        0.6646,
+        0.58255,
+        0.65332,
+        0.6114,
+        0.65835,
+        0.6114,
+        0.68226,
+        0.5946,
+        0.69354,
+        0.56574,
+        0.68851
       ]
     },
     {
@@ -326,6 +429,20 @@
       "outlet": [
         0.67828,
         0.69595
+      ],
+      "prep": [
+        0.66385,
+        0.68169,
+        0.68065,
+        0.67041,
+        0.70951,
+        0.67544,
+        0.70951,
+        0.69935,
+        0.69271,
+        0.71063,
+        0.66385,
+        0.7056
       ]
     },
     {
@@ -356,6 +473,20 @@
       "outlet": [
         0.77639,
         0.71304
+      ],
+      "prep": [
+        0.76196,
+        0.69879,
+        0.77876,
+        0.68751,
+        0.80762,
+        0.69254,
+        0.80762,
+        0.71645,
+        0.79081,
+        0.72773,
+        0.76196,
+        0.7227
       ]
     }
   ],

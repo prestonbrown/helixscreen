@@ -12,6 +12,8 @@
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
 
+#include <functional>
+
 /**
  * @file ui_ams_detail.h
  * @brief Shared helper functions for AMS spool grid rendering
@@ -24,6 +26,11 @@
 
 /// Maximum slots supported in a single detail view
 static constexpr int kAmsDetailMaxSlots = helix::kAmsMaxSlots;
+/// How many times a unit view lays a unit out again to fit its path: the fit can step the unit
+/// down through several sizes. The AMS panel and the overview's unit pages share it.
+namespace helix::ui {
+inline constexpr int kAmsDetailMaxRelayoutPasses = 4;
+} // namespace helix::ui
 
 /// Widget pointers resolved from an ams_unit_detail component
 struct AmsDetailWidgets {
@@ -85,6 +92,22 @@ void ams_detail_destroy_slots(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
 void ams_detail_update_tray(AmsDetailWidgets& w,
                             const helix::ui::WidgetRef slot_widgets[] = nullptr, int slot_count = 0,
                             int unit_index = -1);
+
+/**
+ * @brief Lays the tray over a unit's slots and the path @p canvas under it; a unit too tall
+ * for its path is laid out again at the size that fits.
+ *
+ * Runs ams_detail_update_tray(), then ams_detail_sync_lane_entry(); when that resized the unit
+ * (the drawing scales with its spools only roughly, so it may take a few passes) it calls
+ * @p relayout, which lays the slots out again and so comes back here, while @p passes, the
+ * depth of that recursion, stays under kAmsDetailMaxRelayoutPasses.
+ * @return true when @p relayout ran: the caller's own pass is superseded.
+ */
+namespace helix::ui {
+bool ams_detail_lay_out_unit(AmsDetailWidgets& w, const WidgetRef slot_widgets[], int slot_count,
+                             int unit_index, lv_obj_t* canvas, int& passes,
+                             const std::function<void()>& relayout);
+} // namespace helix::ui
 
 /**
  * @brief Move material labels to overlay layer for 5+ overlapping slots

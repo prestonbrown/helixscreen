@@ -301,6 +301,41 @@ constexpr const char* kGuardAttribute = "moves_machine=\"true\"";
 /// carries no guard while reading like a deliberate one.
 constexpr const char* kGuardAttributeName = "moves_machine=\"";
 constexpr const char* kSocketGuard = "moves_machine=\"$";
+/// A guard published from C++ for a control whose toolhead risk depends on what
+/// a tap would do now: its subject reads 1 only while machine_motion_blocked
+/// does AND the tap would command the machine, so the binding is the same guard
+/// as moves_machine for exactly those taps, and is counted like it.
+///
+/// An explicit allowlist, never a pattern: each entry is one exact binding of
+/// one named subject, the TEST_CASE that proves the subject follows
+/// machine_motion_blocked, and the exact controls (file and widget name) that
+/// may carry it. The census fails an entry whose proof is missing and a binding
+/// anywhere else, so neither a new subject nor a new control (a jog or home
+/// button) can take the derived form without being written down here.
+struct DerivedGuardUse {
+    const char* file;
+    const char* widget;
+};
+struct DerivedGuard {
+    const char* binding;
+    const char* proof; ///< The proving TEST_CASE name, as written under tests/unit/
+    const DerivedGuardUse* uses;
+    size_t use_count;
+};
+/// Save Z-Offset: the machine-wide save restarts Klipper and waits for the
+/// print; a per-material save moves nothing and goes through.
+constexpr DerivedGuardUse kZOffsetSaveUses[] = {
+    {"ui_xml/header_bar.xml", "header_save_z_offset"},
+    {"ui_xml/controls_panel.xml", "btn_save_z_offset"},
+    {"ui_xml/components/panel_widget_z_offset.xml", "z_offset_save_wide"},
+    {"ui_xml/components/panel_widget_z_offset.xml", "z_offset_save_full"},
+};
+constexpr DerivedGuard kDerivedGuards[] = {
+    {"<bind_state_if_eq subject=\"z_offset_save_motion_blocked\" state=\"disabled\" "
+     "ref_value=\"1\"/>",
+     "material zoffset state: a Save while a print holds the machine", kZOffsetSaveUses,
+     std::size(kZOffsetSaveUses)},
+};
 
 struct GuardedFile {
     const char* path;
@@ -533,7 +568,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/display_sleep_row.xml",
     "ui_xml/estop_confirmation_dialog.xml",
     "ui_xml/exclude_object_modal.xml",
-    "ui_xml/factory_reset_modal.xml",
     // Chamber air modes only set fan speeds; fan_arc_core carries the dial's arc and icon.
     "ui_xml/fan_arc_core.xml",
     "ui_xml/fan_control_overlay.xml",
@@ -578,6 +612,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/macro_param_modal.xml",
     "ui_xml/maintenance_overlay.xml",
     "ui_xml/material_temps_overlay.xml",
+    "ui_xml/material_z_offset_overlay.xml",
+    "ui_xml/material_z_offset_row.xml",
     "ui_xml/modal_button_row.xml",
     "ui_xml/modal_dialog.xml",
     "ui_xml/modal_header.xml",
@@ -622,6 +658,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/restart_prompt_dialog.xml",
     "ui_xml/retraction_settings_overlay.xml",
     "ui_xml/runout_guidance_modal.xml",
+    "ui_xml/runout_other_head_modal.xml",
     "ui_xml/screws_tilt_panel.xml",
     "ui_xml/screws_tilt_share_modal.xml",
     "ui_xml/security_settings_overlay.xml",
@@ -776,13 +813,18 @@ size_t count_occurrences(const std::string& haystack, const std::string& needle)
 }
 
 struct GuardScan {
-    size_t recognized = 0; ///< moves_machine="true" attributes
-    size_t attributes = 0; ///< moves_machine attributes at any value
+    size_t recognized = 0;   ///< moves_machine="true" attributes plus derived guards
+    size_t spelled_true = 0; ///< moves_machine="true" attributes
+    size_t attributes = 0;   ///< moves_machine attributes at any value
 };
 
 GuardScan scan_guards(const std::string& xml) {
     GuardScan scan;
-    scan.recognized = count_occurrences(xml, kGuardAttribute);
+    scan.spelled_true = count_occurrences(xml, kGuardAttribute);
+    scan.recognized = scan.spelled_true;
+    for (const DerivedGuard& derived : kDerivedGuards) {
+        scan.recognized += count_occurrences(xml, derived.binding);
+    }
     // A `moves_machine="$prop"` socket is the component plumbing that carries
     // a caller's decision, not a guard decision itself: the caller's literal
     // is what the census row at the call site counts, so subtract the socket
@@ -866,12 +908,12 @@ TEST_CASE("each guarded file carries exactly the toolhead guards its census row 
         const GuardScan scan = scan_guards(xml);
         {
             INFO(row.path << " carries " << scan.attributes << " moves_machine attributes but "
-                          << scan.recognized
+                          << scan.spelled_true
                           << " spelled \"true\". Every other value installs no guard, or "
                              "installs one while reading as a refusal - the engine treats "
                              "everything but the literal \"false\" as true. Spell it "
                              "\"true\" or drop the attribute.");
-            REQUIRE(scan.attributes == scan.recognized);
+            REQUIRE(scan.attributes == scan.spelled_true);
         }
         INFO(row.path << " pins " << row.guards << " toolhead guards and carries "
                       << scan.recognized
@@ -888,10 +930,61 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
         INFO("reading " << path);
         REQUIRE_FALSE(xml.empty());
         const GuardScan scan = scan_guards(xml);
-        INFO(path << " carries " << scan.attributes
-                  << " moves_machine attributes, so a control in it does command the printer. "
+        INFO(path << " carries " << scan.attributes << " moves_machine attributes and "
+                  << scan.recognized - scan.spelled_true
+                  << " derived guards, so a control in it does command the printer. "
                      "Move its row to kGuardedFiles with that count.");
         REQUIRE(scan.attributes == 0);
+        REQUIRE(scan.recognized == 0);
+    }
+}
+
+TEST_CASE("every derived toolhead guard names the test that proves its subject",
+          "[ui][xml][job_holds_machine]") {
+    namespace fs = std::filesystem;
+    std::string tests;
+    for (const auto& entry : fs::directory_iterator("tests/unit")) {
+        // This file names every proof in the allowlist itself.
+        if (entry.path().extension() == ".cpp" &&
+            entry.path().filename() != "test_job_holds_machine.cpp") {
+            tests += read_xml(entry.path().generic_string());
+        }
+    }
+    REQUIRE_FALSE(tests.empty());
+    for (const DerivedGuard& derived : kDerivedGuards) {
+        INFO(derived.binding << " is allowlisted as a toolhead guard, but no test under "
+                                "tests/unit/ is named \""
+                             << derived.proof << "\"");
+        CHECK(tests.find(std::string("\"") + derived.proof + "\"") != std::string::npos);
+    }
+}
+
+TEST_CASE("a derived toolhead guard sits only on the controls its entry names",
+          "[ui][xml][job_holds_machine]") {
+    for (const std::string& path : walk_ui_xml()) {
+        const std::string xml = read_xml(path);
+        for (const DerivedGuard& derived : kDerivedGuards) {
+            const std::string binding = derived.binding;
+            for (size_t at = 0; (at = xml.find(binding, at)) != std::string::npos;
+                 at += binding.size()) {
+                // The control is the nearest name= before the binding.
+                const size_t name_at = xml.rfind("name=\"", at);
+                std::string widget;
+                if (name_at != std::string::npos) {
+                    const size_t start = name_at + 6;
+                    widget = xml.substr(start, xml.find('"', start) - start);
+                }
+                bool listed = false;
+                for (size_t i = 0; i < derived.use_count; ++i) {
+                    listed |= path == derived.uses[i].file && widget == derived.uses[i].widget;
+                }
+                INFO(path << ": " << widget << " carries " << binding
+                          << ", which is allowlisted only for the controls its kDerivedGuards "
+                             "entry names. A control that moves the machine carries "
+                             "moves_machine=\"true\".");
+                CHECK(listed);
+            }
+        }
     }
 }
 

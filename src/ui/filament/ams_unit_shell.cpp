@@ -71,6 +71,8 @@ constexpr ShellRow kShellRows[] = {
     {"afc", "\ncfs ", "cfs", nullptr, 0},
     // "htlf " is the type token: Claymore instances are often named HTLF_claymore_N.
     {"afc", "htlf ", "htlf", nullptr, 0},
+    // AFC types the HTLF Claymore "Claymore".
+    {"afc", "\nclaymore ", "htlf", nullptr, 0},
     // Ahead of the Box Turtle row: AFC names read "<type> <instance>", and an instance may
     // be called anything.
     unreported_openams("afc", "openams", true),
@@ -102,6 +104,8 @@ constexpr ShellRow kShellRows[] = {
     {"happy_hare", "ercf", "ercf_rail", nullptr, 0, true},
     {"happy_hare", "tradrack", "tradrack_rail", nullptr, 0, true},
     {"cfs", nullptr, "cfs", nullptr, 0},
+    // multiACE reports each ACE beside the SnapSwap as "ACE <n>".
+    {"snapmaker", "\nace ", "ace_pro", nullptr, 0},
     {"qidi_box", nullptr, "qidi_box", nullptr, 0},
     // openams publishes each unit's family as its model; a family with no drawing keeps the logo.
     {"openams", "\nams1", "ams", nullptr, 0},

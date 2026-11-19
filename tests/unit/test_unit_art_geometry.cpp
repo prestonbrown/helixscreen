@@ -49,10 +49,9 @@ TEST_CASE("unit art geometry: the bake records every spool unit's lanes", "[unit
 
 TEST_CASE("unit art geometry: the unit view needs an outlet and a tap band per lane",
           "[unit-art][geometry]") {
-    // YAMMU's staggered rows and the AMS Lite's two-high hubs share outlets between lanes.
+    // The AMS Lite's two-high hubs share outlets between lanes, and the whole YAMMU cabinet
+    // stacks one drawer's lanes over the other's.
     CHECK_FALSE(unit_view_fits(*unit_art_geometry("ams_lite", 4)));
-    CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu_upper", 4)));
-    CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu_lower", 4)));
     CHECK_FALSE(unit_view_fits(*unit_art_geometry("yammu", 8)));
     // Hand-moved lanes of a drawing that fits.
     UnitArtGeom moved = *unit_art_geometry("box_turtle", 2);
@@ -74,9 +73,13 @@ TEST_CASE("unit art geometry: the unit view needs an outlet and a tap band per l
     lanes[1] = *unit_art_geometry("box_turtle", 2)->lane;
     CHECK_FALSE(unit_view_fits(moved));
     // Every row of spools fits.
-    for (const char* id : {"ace_pro", "box_turtle", "box_turtle_enclosed", "ams_2_pro", "ams",
-                           "cfs", "qidi_box", "btt_vivid", "kms", "ams_ht", "bmcu", "night_owl",
-                           "quattro_box", "mmx", "3ms", "ad5x_ifs", "elegoo_canvas", "emu"}) {
+    for (const char* id : {"ace_pro",     "box_turtle",    "box_turtle_enclosed",
+                           "ams_2_pro",   "ams",           "cfs",
+                           "qidi_box",    "btt_vivid",     "kms",
+                           "ams_ht",      "bmcu",          "night_owl",
+                           "quattro_box", "mmx",           "3ms",
+                           "ad5x_ifs",    "elegoo_canvas", "emu",
+                           "yammu_upper", "yammu_lower"}) {
         for (int n = 1; n <= kMaxArtLanes; ++n) {
             if (const UnitArtGeom* geom = unit_art_geometry(id, n)) {
                 CAPTURE(id, n);
@@ -124,4 +127,16 @@ TEST_CASE("unit art geometry: a spool is every flange disc between its two flang
     CHECK(art_lane_coverage(g, x, y, 0.5f, k) == Approx(0.0f));
     off_end(g, true, 0.5f, x, y);
     CHECK(art_lane_coverage(g, x, y, 0.5f, k) == Approx(0.5f).margin(1e-3));
+}
+
+TEST_CASE("unit art geometry: a face turned positively carries its front edge down",
+          "[unit-art][spool_spin]") {
+    // A quarter turn from the back toward up: the front edge (u = -1) now shows what stood at
+    // the top, so the top has come down to the front.
+    float u = 0, v = 0;
+    flange_unturn(flange_turn(90.0f), -1.0f, 0.0f, u, v);
+    CHECK(u == Approx(0.0f).margin(1e-5));
+    CHECK(v == Approx(1.0f).margin(1e-5));
+    flange_unturn(flange_turn(-90.0f), -1.0f, 0.0f, u, v);
+    CHECK(v == Approx(-1.0f).margin(1e-5));
 }

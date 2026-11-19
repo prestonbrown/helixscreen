@@ -278,6 +278,17 @@ TEST_CASE("tray projection: a lid's end comes down to the body's contour", "[ams
     CHECK(back.y == Approx(50.0f - shell->back_extra_px - b.rise));
 }
 
+TEST_CASE("tray projection: a box lid's flat top runs from its front glass to its back",
+          "[ams][tray]") {
+    // The YAMMU drawer's lid is a box: its front glass's top edge is where the top starts.
+    const UnitShell* shell = unit_shell_by_id("yammu_upper");
+    REQUIRE(shell != nullptr);
+    int first = -1, last = -1;
+    REQUIRE(shell_lid_top_run(*shell, 17, first, last));
+    CHECK(shell_cap_sample(*shell, first, 17).depth_frac == Approx(0.0f));
+    CHECK(shell_cap_sample(*shell, last, 17).depth_frac == Approx(1.0f));
+}
+
 TEST_CASE("tray projection: a unit's lid takes its real profile", "[ams][tray]") {
     const UnitShell* shell = unit_shell_by_id("ace_pro");
     REQUIRE(shell != nullptr);
@@ -444,6 +455,8 @@ TEST_CASE("labels over a drawn unit: the fewest rows that give every label its r
     CHECK(ams_over_lane_label_rows(x, wide, wide, 4, 4, -40, 160) == 2);
     const int32_t wider[4] = {100, 100, 100, 100};
     CHECK(ams_over_lane_label_rows(x, wider, wider, 4, 4, -40, 160) == 3);
+    // Held to two rows (a compact screen): the labels shorten to them instead of a third.
+    CHECK(ams_over_lane_label_rows(x, wider, wider, 4, 4, -40, 160, 2) == 2);
     // Whole text first: two rows show it all though one row would keep a few characters.
     CHECK(ams_over_lane_label_rows(x, wide, fit, 4, 4, -40, 160) == 2);
     // Too long for any rows whole: the fewest rows that keep a few characters.

@@ -655,3 +655,45 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_lane_spool: a current lane in error glows 
     lv_obj_delete(spool);
     clear_slot_error();
 }
+
+namespace {
+
+helix::ui::SpoolSpin g_sunk{};
+int g_sunk_calls = 0;
+
+void record_spin(void* user, const helix::ui::SpoolSpin& spin) {
+    CHECK(reinterpret_cast<intptr_t>(user) == 7);
+    g_sunk = spin;
+    ++g_sunk_calls;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "ams_lane_spool: a view drawing the lane itself takes its spin instead",
+                 "[ams][lane_spool][spool_spin]") {
+    ui_ams_lane_spool_register();
+    AmsState::instance().init_subjects(true);
+    lv_subject_set_int(AmsState::instance().get_slot_lane_state_subject(0),
+                       static_cast<int>(helix::ui::LaneState::Present));
+    lv_obj_t* spool = make_spool(test_screen(), 0);
+    REQUIRE(spool != nullptr);
+    helix::ui::ams_lane_spool_set_size(spool, 120); // big enough to draw turning vents
+    lv_obj_update_layout(spool);
+    process_lvgl(20);
+    g_sunk = {};
+    g_sunk_calls = 0;
+    const auto idle = lv_anim_count_running();
+
+    const helix::ui::SpoolSpin spin{1, 40};
+    helix::ui::ams_lane_spool_set_spin_sink(spool, record_spin,
+                                            reinterpret_cast<void*>(static_cast<intptr_t>(7)));
+    CHECK(g_sunk_calls == 1); // hears the current spin at once
+    helix::ui::ams_lane_spool_set_spin(spool, spin);
+    CHECK(g_sunk == spin);
+    CHECK(lv_anim_count_running() == idle); // its own spool stands still under the view
+
+    helix::ui::ams_lane_spool_set_spin_sink(spool, nullptr, nullptr);
+    CHECK(lv_anim_count_running() == idle + 1); // and turns again once the view lets go
+    lv_obj_delete(spool);
+}

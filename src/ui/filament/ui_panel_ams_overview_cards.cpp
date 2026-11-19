@@ -10,6 +10,7 @@
 #include "ui_panel_ams_overview.h"
 #include "ui_row_text.h"
 #include "ui_system_path_canvas.h"
+#include "ui_system_path_plan.h"
 #include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -23,6 +24,7 @@
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "hub_buffer_meter.h"
 #include "lane_count_label.h"
 #include "lvgl.h"
 #include "printer_detector.h"
@@ -44,6 +46,13 @@ static constexpr int32_t kMiniBarMinWidthPx = 6;
 
 /// Maximum bar width for mini slot bars
 static constexpr int32_t kMiniBarMaxWidthPx = 14;
+
+/// A tile's art stands this tall against its width: the drawings run close to 4:3.
+static constexpr int32_t kTileArtHeightPct = 75;
+
+/// A tile in a row too long for the screen is at least this share of the largest the
+/// height allows.
+static constexpr int32_t kTileMinSharePct = 45;
 
 /// Height of each mini slot bar (decorative, no need for responsive scaling)
 static constexpr int32_t kMiniBarHeightPx = 40;
@@ -72,6 +81,23 @@ int32_t helix::ui::overview_peek_card_width(int32_t row_width, int32_t gap,
     return floor_width;
 }
 
+helix::ui::OverviewTileFit helix::ui::overview_tile_fit(int count, int32_t row_w, int32_t gap,
+                                                        int32_t art_room_h, int32_t min_w) {
+    OverviewTileFit fit;
+    if (count <= 0 || row_w <= 0)
+        return fit;
+    // The art stands 3:4, so the height left for it caps the width. A row of many units
+    // scrolls rather than shrink its tiles below a little under half that size: a tile is a
+    // tap target first.
+    const int32_t tallest = LV_MAX(LV_MAX(1, min_w), art_room_h * 100 / kTileArtHeightPct);
+    min_w = LV_MAX(LV_MAX(1, min_w), tallest * kTileMinSharePct / 100);
+    const int whole_at_min = static_cast<int>(LV_MAX(1, (row_w + gap) / (min_w + gap)));
+    fit.across = LV_MIN(count, whole_at_min);
+    const int32_t share = (row_w - (fit.across - 1) * gap) / fit.across;
+    fit.width = LV_MAX(1, fit.across < count ? share : LV_MIN(share, tallest));
+    return fit;
+}
+
 // overflow_visible only widens the clip by the extended draw size, and the readout hangs past
 // the tile's corner by this much.
 static void tile_readout_ext_draw_cb(lv_event_t* e) {
@@ -85,9 +111,6 @@ static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int 
     }
     lv_label_set_text(label, helix::ui::lane_count_label(noun, slot_count).c_str());
 }
-
-/// A tile's art stands this tall against its width: the drawings run close to 4:3.
-static constexpr int32_t kTileArtHeightPct = 75;
 
 /// The measured width one mini bar gets for this container and lane count.
 /// Both create_mini_bars() and the update-path rebuild check recompute it, so
@@ -219,15 +242,15 @@ void AmsOverviewPanel::refresh_units() {
         }
     }
 
-    // Art flattens at its widget's size, so the row is sized first.
+    // Art flattens at its widget's size, so the row is sized first, then given
+    // back the height the path's tubes need, and only then drawn.
     layout_unit_row();
+    refresh_system_path(info, current_slot);
+    fit_path_room();
     for (auto& uc : unit_cards_) {
         if (uc.unit_index >= 0 && uc.unit_index < new_unit_count)
             apply_card_art(uc, info.units[uc.unit_index], info);
     }
-
-    // Update system path visualization
-    refresh_system_path(info, current_slot);
 }
 
 bool AmsOverviewPanel::unit_has_art(const AmsSystemInfo& info, int unit_index) {
@@ -256,39 +279,156 @@ void AmsOverviewPanel::layout_unit_row() {
         return;
     laid_out_row_width_ = row_width;
 
-    // A bars tile holds its compact width, so that width is its floor: counting it as zero
-    // lets a row that overflows look as if it fits, and flex then crushes the art beside it.
-    std::vector<int32_t> min_widths;
-    for (const auto& uc : unit_cards_) {
-        if (uc.card)
-            min_widths.push_back(uc.compact_width > 0
-                                     ? uc.compact_width
-                                     : lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
+    const bool tiles = std::any_of(unit_cards_.begin(), unit_cards_.end(),
+                                   [](const UnitCard& uc) { return uc.tile; });
+    const int32_t gap = lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN);
+    if (tiles) {
+        layout_tiles(row_width, gap);
+    } else {
+        std::vector<int32_t> min_widths;
+        for (const auto& uc : unit_cards_) {
+            if (uc.card)
+                min_widths.push_back(lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
+        }
+        const int32_t peek_width = helix::ui::overview_peek_card_width(row_width, gap, min_widths);
+        for (const auto& uc : unit_cards_) {
+            if (!uc.card)
+                continue;
+            if (peek_width > 0) {
+                lv_obj_set_flex_grow(uc.card, 0);
+                lv_obj_set_width(uc.card, peek_width);
+            } else {
+                lv_obj_remove_local_style_prop(uc.card, LV_STYLE_WIDTH, LV_PART_MAIN);
+                lv_obj_set_flex_grow(uc.card, 1);
+            }
+        }
+        lv_obj_update_layout(cards_row_);
     }
-    const int32_t peek_width = helix::ui::overview_peek_card_width(
-        row_width, lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN), min_widths);
 
+    for (const auto& uc : unit_cards_) {
+        if (uc.readout_room)
+            lv_obj_set_hidden(uc.readout_room, false); // DECLARATIVE_OK: measured below
+    }
+    lv_obj_update_layout(cards_row_);
+
+    for (const auto& uc : unit_cards_) {
+        if (!uc.readout_room)
+            continue;
+        const bool holds = helix::ui::overview_tile_holds_readout(
+            lv_obj_get_width(uc.card), lv_obj_get_width(uc.readout_room));
+        lv_obj_set_hidden(uc.readout_room, !holds); // DECLARATIVE_OK: measured layout
+    }
+}
+
+int32_t AmsOverviewPanel::tile_art_room() const {
+    // The tiles take the height the path does not need: in landscape the column's height less
+    // the path's share and the name line; in portrait, where the panel scrolls, a tile is at
+    // most half the row wide.
+    lv_obj_t* column = lv_obj_get_parent(cards_row_);
+    const int32_t name_h = theme_manager_get_spacing("ams_unit_name_h");
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    if (!column || (portrait && lv_subject_get_int(portrait) == 1))
+        return lv_obj_get_content_width(cards_row_) * kTileArtHeightPct / 200;
+    lv_obj_update_layout(column);
+    const int32_t column_h = lv_obj_get_content_height(column);
+    const int32_t path_h = column_h * kOverviewPathSharePct / 100;
+    const int32_t row_pad = lv_obj_get_style_pad_bottom(cards_row_, LV_PART_MAIN) +
+                            lv_obj_get_style_pad_row(column, LV_PART_MAIN);
+    return LV_MAX(0, column_h - path_h - name_h - row_pad - path_extra_);
+}
+
+bool AmsOverviewPanel::fit_path_room() {
+    const bool tiles = std::any_of(unit_cards_.begin(), unit_cards_.end(),
+                                   [](const UnitCard& uc) { return uc.tile; });
+    const helix::ui::syspath::SystemPathData* data =
+        system_path_ ? helix::ui::syspath::system_path_data(system_path_) : nullptr;
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    const auto relayout = [this](int32_t extra) {
+        path_extra_ = extra;
+        layout_unit_row();
+        push_unit_anchors(/*relayout=*/true);
+    };
+    const auto shortfall = [this, data]() {
+        lv_area_t coords;
+        lv_obj_get_coords(system_path_, &coords);
+        return helix::ui::syspath::overview_lean_shortfall(*data, coords);
+    };
+    if (!tiles || !data || !cards_row_ || (portrait && lv_subject_get_int(portrait) == 1)) {
+        if (path_extra_ == 0)
+            return false;
+        relayout(0);
+        return true;
+    }
+    // A shortfall this small is slack worth keeping, not height to hand back.
+    constexpr int32_t kSlackPx = 8;
+    const int32_t start = path_extra_;
+    int32_t need = shortfall();
+    if ((need <= 0 && need > -kSlackPx) || need == settled_need_)
+        return false;
+    const int32_t floor_art =
+        theme_manager_get_spacing("ams_tile_min_width") * kTileArtHeightPct / 100;
+    const int32_t cap = LV_MAX(0, tile_art_room() + path_extra_ - floor_art);
+    if (need > 0) {
+        // Take height from the tiles until the tubes lean; tiles that still leave
+        // them level would cost the tiles for nothing, so they keep their size.
+        for (int pass = 0; pass < kMaxRelayoutPasses && need > 0 && path_extra_ < cap; ++pass) {
+            relayout(LV_MIN(cap, path_extra_ + need));
+            need = shortfall();
+        }
+        if (need > 0 && path_extra_ != 0)
+            relayout(0);
+    } else if (path_extra_ > 0) {
+        // Hand back what the tubes no longer need, unless that leaves them level.
+        const int32_t before = path_extra_;
+        relayout(LV_MAX(0, path_extra_ + need));
+        if (shortfall() > 0)
+            relayout(before);
+    }
+    // The layout this settles on, by the shortfall it leaves: the next refresh
+    // with the same shortfall has nothing new to try.
+    settled_need_ = shortfall();
+    if (path_extra_ != start)
+        spdlog::debug("[{}] Path room: {} px taken from the tiles", get_name(), path_extra_);
+    return path_extra_ != start;
+}
+
+void AmsOverviewPanel::layout_tiles(int32_t row_width, int32_t gap) {
+    const int count = static_cast<int>(unit_cards_.size());
+    const helix::ui::OverviewTileFit fit = helix::ui::overview_tile_fit(
+        count, row_width, gap, tile_art_room(), theme_manager_get_spacing("ams_tile_min_width"));
+    const bool overflow = fit.across < count;
+    // DECLARATIVE_OK: measured layout; a row that fits stands centered, one that scrolls
+    // starts at its left edge and snaps a tile at a time, so no tile rests cut off.
+    lv_obj_set_style_flex_main_place(
+        cards_row_, overflow ? LV_FLEX_ALIGN_START : LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_scroll_snap_x(cards_row_, overflow ? LV_SCROLL_SNAP_START : LV_SCROLL_SNAP_NONE);
     for (const auto& uc : unit_cards_) {
         if (!uc.card)
             continue;
-        if (uc.compact_width > 0) {
-            lv_obj_set_flex_grow(uc.card, 0);
-            lv_obj_set_width(uc.card, uc.compact_width);
-        } else if (peek_width > 0) {
-            lv_obj_set_flex_grow(uc.card, 0);
-            lv_obj_set_width(uc.card, peek_width);
-        } else {
-            lv_obj_remove_local_style_prop(uc.card, LV_STYLE_WIDTH, LV_PART_MAIN);
-            lv_obj_set_flex_grow(uc.card, 1);
-        }
+        lv_obj_set_flex_grow(uc.card, 0);
+        lv_obj_set_width(uc.card, fit.width);
+        if (uc.art_stage)
+            lv_obj_set_height(uc.art_stage, fit.width * kTileArtHeightPct / 100);
     }
     lv_obj_update_layout(cards_row_);
+    spdlog::debug("[{}] Tiles: {} at {}x{} px, {} across in a {} px row", get_name(), count,
+                  fit.width, fit.width * kTileArtHeightPct / 100, fit.across, row_width);
+}
 
+void AmsOverviewPanel::hide_clipped_card_names() {
+    if (!cards_row_)
+        return;
+    lv_area_t row;
+    lv_obj_get_coords(cards_row_, &row);
     for (const auto& uc : unit_cards_) {
-        if (uc.has_art && uc.art_stage)
-            lv_obj_set_height(uc.art_stage, lv_obj_get_width(uc.card) * kTileArtHeightPct / 100);
+        if (!uc.card || !uc.name_label)
+            continue;
+        lv_area_t card;
+        lv_obj_get_coords(uc.card, &card);
+        const bool whole = card.x1 >= row.x1 && card.x2 <= row.x2;
+        // DECLARATIVE_OK: measured against the row's scroll position
+        lv_obj_set_style_opa(uc.name_label, whole ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_MAIN);
     }
-    lv_obj_update_layout(cards_row_);
 }
 
 void AmsOverviewPanel::on_cards_row_resized(lv_event_t* e) {
@@ -315,6 +455,8 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
     lv_obj_update_layout(cards_row_);
     helix::ui::safe_clean_children(cards_row_);
     unit_cards_.clear();
+    // New tiles start at their full height: fit_path_room() decides their path room afresh.
+    forget_path_room();
 
     const int unit_count = static_cast<int>(info.units.size());
     if (unit_count > AmsState::kMaxUnits) {
@@ -384,14 +526,9 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             continue;
         }
 
-        // Flex grow so cards share available width equally; a bars tile stays compact.
-        if (uc.has_art || !as_tile)
-            lv_obj_set_flex_grow(uc.card, 1);
-        else {
-            lv_obj_set_style_min_width(uc.card, 0, LV_PART_MAIN);
-            uc.compact_width = theme_manager_get_spacing("ams_tile_art_max_h") * 3 / 2;
-            lv_obj_set_width(uc.card, uc.compact_width);
-        }
+        // Cards share the row's width; tiles are sized by layout_tiles().
+        uc.tile = as_tile;
+        lv_obj_set_flex_grow(uc.card, as_tile ? 0 : 1);
 
         // Store unit index for click handler
         // NOTE: lv_obj_add_event_cb used here (not XML event_cb) because each dynamically
@@ -405,7 +542,9 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         if (as_tile) {
             // required-names: ams_unit_tile
             lv_obj_t* stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
-            uc.art_stage = uc.has_art ? stage : nullptr;
+            uc.art_stage = stage;
+            // required-names: ams_unit_tile
+            uc.readout_room = helix::ui::find_required(uc.card, "tile_readout_room", get_name());
             for (lv_obj_t* clip : {uc.card, stage}) {
                 // DECLARATIVE_OK: extended draw size has no XML form
                 lv_obj_add_event_cb(clip, tile_readout_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
@@ -418,6 +557,15 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             } else {
                 // required-names: ams_unit_tile
                 uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+                // A unit of toolheads draws the configured head over a strip of its bars.
+                if (unit.topology == PathTopology::PARALLEL && uc.bars_container) {
+                    // required-names: ams_unit_tile
+                    if (lv_obj_t* head = helix::ui::find_required(uc.card, "tile_head", get_name()))
+                        lv_obj_set_hidden(head, false); // DECLARATIVE_OK: per-unit topology
+                    // DECLARATIVE_OK: per-unit topology; the bars take the strip under the head
+                    lv_obj_set_height(uc.bars_container, lv_pct(35));
+                    lv_obj_set_align(uc.bars_container, LV_ALIGN_BOTTOM_MID);
+                }
             }
         } else {
             // required-names: ams_unit_card
@@ -575,6 +723,7 @@ void AmsOverviewPanel::push_unit_anchors(bool relayout) {
         publish_cards_compact(narrowest);
     }
     publish_cards_env_line();
+    hide_clipped_card_names();
 }
 
 // Decide whether every unit card has room for its environment line under a full
@@ -790,7 +939,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
             }
             helix::ui::ui_system_path_canvas_set_unit_hub(
                 system_path_, i, helix::ui::overview_hub_group(tool_layout, i), buffer.present,
-                buffer.fault, buffer.label);
+                buffer.fault, helix::ui::buffer_meter_position(buffer.bias, buffer.state));
         }
     }
 
@@ -827,8 +976,9 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
     // system reading.
     {
         const helix::ui::BufferBoxState box = helix::ui::ams_detail_buffer_box(info, -1);
-        helix::ui::ui_system_path_canvas_set_buffer(system_path_, box.present, box.fault,
-                                                    box.label);
+        helix::ui::ui_system_path_canvas_set_buffer(
+            system_path_, box.present, box.fault,
+            helix::ui::buffer_meter_position(box.bias, box.state));
     }
 
     // Filament reach, error and the toolhead sensor
