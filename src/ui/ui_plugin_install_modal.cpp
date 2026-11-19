@@ -37,8 +37,16 @@ void PluginInstallModal::set_job_gate(JobGate gate) {
     job_gate_ = std::move(gate);
 }
 
+void PluginInstallModal::set_job_check(JobCheck check) {
+    job_check_ = std::move(check);
+}
+
+bool helix::ui::job_blocks_plugin_change(helix::PrinterState& printer_state) {
+    return job_holds_machine(printer_state.print_state().get_print_lifecycle());
+}
+
 bool helix::ui::refuse_plugin_change_during_job(helix::PrinterState& printer_state) {
-    if (!job_holds_machine(printer_state.print_state().get_print_lifecycle())) {
+    if (!job_blocks_plugin_change(printer_state)) {
         return false;
     }
     NOTIFY_WARNING(lv_tr("Cannot change the HelixPrint plugin while printing"));
@@ -325,15 +333,28 @@ void PluginInstallModal::on_install_finished(
                  install_result.success ? "succeeded" : "failed", install_result.message);
 
     std::string message = install_result.message;
+    ToastSeverity severity = install_result.success ? ToastSeverity::SUCCESS : ToastSeverity::ERROR;
     if (install_result.success) {
-        const bool restarting = moonraker_restarter_ && moonraker_restarter_();
+        // The dialog may have closed and a print started while install.sh ran.
+        const bool job_holds = job_check_ && job_check_();
+        if (job_holds) {
+            spdlog::info("[Plugin Install] A job holds the machine; Moonraker is not restarted");
+        }
+        const bool restarting = !job_holds && moonraker_restarter_ && moonraker_restarter_();
         message = restarting ? lv_tr("Plugin installed successfully. Moonraker is restarting...")
                              : lv_tr("Restart Moonraker to finish the plugin change");
+        if (!restarting) {
+            severity = ToastSeverity::WARNING;
+        }
     }
 
-    // Closed meanwhile: the widget references are null and both calls skip them.
-    show_result_state(install_result.success, message);
-    check_dont_ask_preference();
+    if (is_visible()) {
+        show_result_state(install_result.success, message);
+        check_dont_ask_preference();
+    } else {
+        // Closed while install.sh ran: the dialog is gone, so the result is a toast.
+        ToastManager::instance().show(severity, message.c_str(), 5000);
+    }
 }
 
 void PluginInstallModal::on_copy_clicked() {
