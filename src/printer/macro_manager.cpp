@@ -6,6 +6,7 @@
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
 #include "helix_regex.h"
+#include "json_utils.h"
 #include "preprint_skip_wrappers.h"
 #include "signal_macro_names.h"
 #include "sliced_signal_names.h"
@@ -136,6 +137,10 @@ std::string with_alias_block(std::string content, const std::string& block) {
  */
 std::optional<std::string> parse_installed_version(const PrinterDiscovery& hardware) {
     // has_helix_macro() only sees names starting HELIX_.
+    if (hardware.has_helix_macro("HELIX_MATERIAL_OFFSET")) {
+        return "2.3.0";
+    }
+
     if (hardware.has_macro("_HELIX_PLAN")) {
         return "2.2.0";
     }
@@ -364,17 +369,20 @@ void MacroManager::install_files(SuccessCallback on_success, ErrorCallback on_er
     // continuation runs there. Every chain that follows hops its own terminal
     // callbacks to main too (see the queue pin test), because the caller's
     // continuation touches LVGL-adjacent state.
-    upload_macro_file(
-        kHelixMacrosFilename, macro_content_for(hardware_),
-        [this, on_success, on_error]() {
-            upload_skips_file(
-                [this, on_success, on_error]() {
-                    spdlog::info("[HelixMacroManager] Macro files uploaded, adding includes...");
-                    add_include_to_config(stages_skips(), on_success, on_error);
-                },
-                on_error);
-        },
-        on_error);
+    resolve_save_variables({}, [this, on_success, on_error](const std::string& save_vars) {
+        upload_macro_file(
+            kHelixMacrosFilename, with_save_variables(macro_content_for(hardware_), save_vars),
+            [this, on_success, on_error]() {
+                upload_skips_file(
+                    [this, on_success, on_error]() {
+                        spdlog::info(
+                            "[HelixMacroManager] Macro files uploaded, adding includes...");
+                        add_include_to_config(stages_skips(), on_success, on_error);
+                    },
+                    on_error);
+            },
+            on_error);
+    });
 }
 
 void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_error) {
@@ -388,14 +396,14 @@ void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_err
         "config", kHelixMacrosFilename,
         [this, token, on_success, on_error](const std::string& installed) {
             token.defer("MacroManager::update_stage",
-                        [this, keep = find_timelapse_include(installed), on_success, on_error]() {
-                            stage_update(keep, on_success, on_error);
-                        });
+                        [this, keep = find_timelapse_include(installed),
+                         save_vars = find_save_variables(installed), on_success,
+                         on_error]() { stage_update(keep, save_vars, on_success, on_error); });
         },
         lifetime_.bg_cb("MacroManager::update_read_failed",
                         [this, on_success, on_error](const MoonrakerError& err) {
                             if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
-                                stage_update({}, on_success, on_error);
+                                stage_update({}, {}, on_success, on_error);
                                 return;
                             }
                             spdlog::error("[HelixMacroManager] Failed to read the installed {}: {}",
@@ -406,12 +414,21 @@ void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_err
                         }));
 }
 
-void MacroManager::stage_update(const std::string& timelapse_include, SuccessCallback on_success,
-                                ErrorCallback on_error) {
-    std::string content = macro_content_for(hardware_);
-    if (!timelapse_include.empty()) {
-        content = with_timelapse_include(content, timelapse_include);
-    }
+void MacroManager::stage_update(const std::string& timelapse_include,
+                                const std::string& installed_save_variables,
+                                SuccessCallback on_success, ErrorCallback on_error) {
+    resolve_save_variables(installed_save_variables, [this, timelapse_include, on_success,
+                                                      on_error](const std::string& save_vars) {
+        std::string content = with_save_variables(macro_content_for(hardware_), save_vars);
+        if (!timelapse_include.empty()) {
+            content = with_timelapse_include(content, timelapse_include);
+        }
+        upload_update(content, on_success, on_error);
+    });
+}
+
+void MacroManager::upload_update(const std::string& content, SuccessCallback on_success,
+                                 ErrorCallback on_error) {
     upload_macro_file(
         kHelixMacrosFilename, content,
         [this, on_success, on_error]() {
@@ -506,6 +523,87 @@ std::string MacroManager::with_timelapse_include(const std::string& content,
     out += line;
     out += '\n';
     return out;
+}
+
+std::string MacroManager::save_variables_block(const std::string& config_file) {
+    const size_t slash = config_file.rfind('/');
+    if (slash == std::string::npos || slash == 0) {
+        return {};
+    }
+    return "[save_variables]\nfilename: " + config_file.substr(0, slash + 1) +
+           kHelixVariablesFilename + "\n";
+}
+
+std::string MacroManager::find_save_variables(const std::string& content) {
+    std::istringstream input(content);
+    std::string line;
+    bool in_section = false;
+    while (std::getline(input, line)) {
+        const std::string_view t = helix::text_io::trim(line);
+        if (!line.empty() && line[0] == '[') {
+            in_section = helix::text_io::to_lower(t) == "[save_variables]";
+            continue;
+        }
+        if (in_section && helix::text_io::to_lower(t).rfind("filename", 0) == 0) {
+            const size_t sep = t.find_first_of(":=");
+            if (sep != std::string_view::npos) {
+                const std::string_view path = helix::text_io::trim(t.substr(sep + 1));
+                if (!path.empty()) {
+                    return "[save_variables]\nfilename: " + std::string(path) + "\n";
+                }
+            }
+        }
+    }
+    return {};
+}
+
+std::string MacroManager::with_save_variables(const std::string& content,
+                                              const std::string& block) {
+    if (block.empty() || content.empty()) {
+        return content;
+    }
+    std::string out = content;
+    if (out.back() != '\n') {
+        out += '\n';
+    }
+    out += "\n# Per-material Z offsets (HELIX_MATERIAL_OFFSET) are kept here. HelixScreen\n"
+           "# adds this section only to a printer that had no [save_variables] of its own.\n";
+    out += block;
+    return out;
+}
+
+void MacroManager::resolve_save_variables(const std::string& installed,
+                                          std::function<void(const std::string&)> then) {
+    // The section this file already carries is ours, and dropping it would
+    // strand the offsets stored through it.
+    if (!installed.empty() || hardware_.has_save_variables()) {
+        then(installed);
+        return;
+    }
+    // Klipper's save_variables takes an absolute path and the config directory
+    // is wherever this printer keeps printer.cfg.
+    api_.get_client().send_jsonrpc(
+        "printer.info", json::object(),
+        lifetime_.bg_cb("MacroManager::save_variables_path",
+                        [then](const json& response) {
+                            const json* result = helix::json_util::find_member(response, "result");
+                            const std::string config_file =
+                                result ? helix::json_util::safe_string(*result, "config_file", "")
+                                       : std::string();
+                            const std::string block = save_variables_block(config_file);
+                            if (block.empty()) {
+                                spdlog::warn("[HelixMacroManager] printer.info names no config "
+                                             "file; [save_variables] not added");
+                            }
+                            then(block);
+                        }),
+        lifetime_.bg_cb("MacroManager::save_variables_path_failed",
+                        [then](const MoonrakerError& err) {
+                            spdlog::warn("[HelixMacroManager] printer.info failed ({}); "
+                                         "[save_variables] not added",
+                                         err.message);
+                            then({});
+                        }));
 }
 
 bool MacroManager::stages_skips() const {
