@@ -68,11 +68,11 @@ bool same_key(const SpoolHeightCap& a, const SpoolHeightCap& b) {
  * scale the unit also grows back into room the path leaves.
  *
  * The loop: the panel lays the unit out at spool_for(); ams_detail_sync_lane_entry() measures
- * the path and asks fit_*(); a true answer makes the panel lay the unit out again
- * (ams_detail_relayout_unit()). It ends because each answer moves toward a size that stays:
- * without a view scale the cap only ever falls for one row; with one, a size once seen too tall
- * is never grown back to, a size the row draws a pixel off counts as settled, and a settled
- * row stays until its path no longer fits. The panel's pass limit
+ * the path and asks fit_*(); a true answer makes the panel lay the unit's slots out again
+ * (AmsPanel::create_slots(), AmsOverviewPanel::create_detail_slots()). It ends because each answer
+ * moves toward a size that stays: without a view scale the cap only ever falls for one row; with
+ * one, a size once seen too tall is never grown back to, a size the row draws a pixel off counts as
+ * settled, and a settled row stays until its path no longer fits. The panel's pass limit
  * (kAmsDetailMaxRelayoutPasses) bounds it whatever the drawing does.
  *
  * Every size is kept for one key (unit, slot count, row width, screen): a new key starts over.
@@ -594,6 +594,20 @@ void refresh_unit_view_marks() {
     helix::ui::unit_art_set_lane_marks(art, marks);
 }
 
+namespace {
+/// The width @p label's text takes, not the whole width the label was given.
+int32_t shown_text_width(lv_obj_t* label) {
+    return helix::ui::text_width(lv_label_get_text(label),
+                                 lv_obj_get_style_text_font(label, LV_PART_MAIN),
+                                 lv_obj_get_style_text_letter_space(label, LV_PART_MAIN));
+}
+
+/// Whether @p a and @p b share a pixel.
+bool areas_touch(const lv_area_t& a, const lv_area_t& b) {
+    return a.x1 <= b.x2 && b.x1 <= a.x2 && a.y1 <= b.y2 && b.y1 <= a.y2;
+}
+} // namespace
+
 /// Lays the labels over the unit out from s_tray: which lanes show one (an empty lane's "+"
 /// badge says it), each over its own spool, centered where the room allows, in the fewest rows
 /// (cycling label by label) that give every label its text or at least a few readable
@@ -687,6 +701,18 @@ int32_t place_unit_labels() {
     }
     int32_t highest = INT32_MAX;
     lv_obj_update_layout(layer);
+    // The bottom of the label row nearest the unit.
+    int32_t nearest_row = INT32_MIN;
+    for (int j = 0; j < n; ++j) {
+        lv_obj_t* other = s_tray.slot[j];
+        lv_obj_t* other_label = other ? ui_ams_slot_get_material_label(other) : nullptr;
+        if (other_label && !lv_obj_is_hidden(other_label) &&
+            lv_obj_get_parent(other_label) == layer) {
+            lv_area_t oa;
+            lv_obj_get_coords(other_label, &oa);
+            nearest_row = std::max(nearest_row, oa.y2);
+        }
+    }
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
         lv_obj_t* label = slot ? ui_ams_slot_get_material_label(slot) : nullptr;
@@ -714,9 +740,7 @@ int32_t place_unit_labels() {
             highest = std::min<int32_t>(highest, la.y1 - 1 - (ra.y2 - ra.y1));
             continue;
         }
-        const int32_t text_w = helix::ui::text_width(
-            lv_label_get_text(label), lv_obj_get_style_text_font(label, LV_PART_MAIN),
-            lv_obj_get_style_text_letter_space(label, LV_PART_MAIN));
+        const int32_t text_w = shown_text_width(label);
         const int32_t text_left = std::max(la.x1, (la.x1 + la.x2) / 2 - text_w / 2);
         // A clear gap, so the reading never reads as part of the name.
         const int32_t gap = theme_manager_get_spacing("space_sm");
@@ -734,35 +758,21 @@ int32_t place_unit_labels() {
             lv_obj_get_coords(other_label, &oa);
             if (j != i) {
                 // Its text, not the whole width the label was given.
-                const int32_t ow = helix::ui::text_width(
-                    lv_label_get_text(other_label),
-                    lv_obj_get_style_text_font(other_label, LV_PART_MAIN),
-                    lv_obj_get_style_text_letter_space(other_label, LV_PART_MAIN));
+                const int32_t ow = shown_text_width(other_label);
                 const int32_t ocx = (oa.x1 + oa.x2) / 2;
                 oa.x1 = std::max(oa.x1, ocx - ow / 2);
                 oa.x2 = std::min(oa.x2, ocx + ow / 2);
-                touches = oa.x1 <= ra.x2 && ra.x1 <= oa.x2 && oa.y1 <= ra.y2 && ra.y1 <= oa.y2;
+                touches = areas_touch(oa, ra);
             }
             lv_obj_t* other_row = j < i && other ? ui_ams_slot_get_lane_humidity(other) : nullptr;
             if (!touches && other_row && !lv_obj_is_hidden(other_row) &&
                 lv_obj_get_style_opa(other_row, LV_PART_MAIN) > 0) {
                 lv_obj_get_coords(other_row, &oa);
-                touches = oa.x1 <= ra.x2 && ra.x1 <= oa.x2 && oa.y1 <= ra.y2 && ra.y1 <= oa.y2;
+                touches = areas_touch(oa, ra);
             }
         }
         // Only beside a label in the row nearest the unit: an upper row stands past the slots'
         // own box, which clips its readings.
-        int32_t nearest_row = INT32_MIN;
-        for (int j = 0; j < n; ++j) {
-            lv_obj_t* other = s_tray.slot[j];
-            lv_obj_t* other_label = other ? ui_ams_slot_get_material_label(other) : nullptr;
-            if (other_label && !lv_obj_is_hidden(other_label) &&
-                lv_obj_get_parent(other_label) == layer) {
-                lv_area_t oa;
-                lv_obj_get_coords(other_label, &oa);
-                nearest_row = std::max(nearest_row, oa.y2);
-            }
-        }
         const bool upper = la.y2 < nearest_row - 2;
         if (touches || upper || ra.x1 < origin.x) {
             // DECLARATIVE_OK: as above
@@ -828,12 +838,7 @@ void place_tool_badges() {
         lv_area_t la, layer_area;
         lv_obj_get_coords(label, &la);
         lv_obj_get_coords(layer, &layer_area);
-        const int32_t text_right =
-            (la.x1 + la.x2) / 2 +
-            helix::ui::text_width(lv_label_get_text(label),
-                                  lv_obj_get_style_text_font(label, LV_PART_MAIN),
-                                  lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)) /
-                2;
+        const int32_t text_right = (la.x1 + la.x2) / 2 + shown_text_width(label) / 2;
         const int32_t x = std::min(text_right, la.x2) + 3;
         const int32_t y = (la.y1 + la.y2) / 2 - lv_obj_get_height(tool) / 2;
         // DECLARATIVE_OK: measured layout; the tag follows its label

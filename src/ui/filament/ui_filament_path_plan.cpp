@@ -1089,6 +1089,20 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
 // MIXED layout: the toolhead glyphs stand on a line near the bottom; the lane
 // sensors and the hub sit fixed fractions of the way down to the toolheads.
 namespace {
+/// Whether a MIXED path's lanes leave a pass-through unit drawn at @p through from its own
+/// outlets: only under a view scale. (A HUB's lanes leave the outlets at every scale.)
+bool mixed_lanes_leave_outlets(const FilamentPathData& data, const RailArtRect& through) {
+    return through.w > 0 && data.view_hub_h > 0;
+}
+
+/// The column lane @p i of a MIXED path leaves from: its outlet in @p through where
+/// mixed_lanes_leave_outlets(), else its slot's column.
+int32_t mixed_lane_column(const FilamentPathData& data, const BaseGeometry& g,
+                          const RailArtRect& through, int i) {
+    return mixed_lanes_leave_outlets(data, through) ? rail_outlet_x(*data.rail_art, through, i)
+                                                    : g.slot_x[i];
+}
+
 /// compute_mixed_frame() with a pass-through unit's drawing ending @p art_cut higher under a
 /// view scale.
 MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g, int32_t art_cut) {
@@ -1191,10 +1205,9 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
         };
         Head heads[FilamentPathData::kMaxSlots + 1];
         int k = 0;
-        const bool from_outlets = f.through.w > 0 && data.view_hub_h > 0;
+        const bool from_outlets = mixed_lanes_leave_outlets(data, f.through);
         for (int i = 0; i < n; i++) {
-            // Under a view scale a lane through a pass-through unit leaves from its outlet.
-            f.head_x[i] = from_outlets ? rail_outlet_x(*data.rail_art, f.through, i) : g.slot_x[i];
+            f.head_x[i] = mixed_lane_column(data, g, f.through, i);
             if (!data.slot_is_hub_routed[i])
                 heads[k++] = {f.head_x[i], i};
         }
@@ -1272,10 +1285,7 @@ MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g,
     for (int i = 0; i < n; i++) {
         if (!data.slot_is_hub_routed[i])
             continue;
-        // Under a view scale a lane through a pass-through unit fans in from its own outlet.
-        const float col = f.through.w > 0 && data.view_hub_h > 0
-                              ? (float)rail_outlet_x(*data.rail_art, f.through, i)
-                              : (float)g.slot_x[i];
+        const float col = (float)mixed_lane_column(data, g, f.through, i);
         fan_in[fan_n] = {col, (float)f.sensor_y};
         f.slot_to_fan[i] = fan_n++;
     }
@@ -1763,7 +1773,6 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
     // Under a view scale the tube router lays the direct lanes out to their heads as one
     // ribbon; where it finds no room each takes its own down-diagonal-down.
-    const bool outlets = f.through.w > 0 && data.view_hub_h > 0;
     pg::MergeLaneOut routed[FilamentPathData::kMaxSlots];
     int route_of[FilamentPathData::kMaxSlots];
     bool use_router = false;
@@ -1774,8 +1783,7 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
             route_of[i] = -1;
             if (f.slot_to_fan[i] >= 0)
                 continue;
-            const float x =
-                outlets ? (float)rail_outlet_x(*data.rail_art, f.through, i) : (float)g.slot_x[i];
+            const float x = (float)mixed_lane_column(data, g, f.through, i);
             src[m] = {x, (float)f.sensor_y};
             routed[m].pts[3] = {(float)f.head_x[i], nozzle_top};
             route_of[i] = m++;
@@ -1785,9 +1793,8 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(f.states[i], error, bg);
         float x = (float)g.slot_x[i];
-        const bool from_outlet = f.through.w > 0 && data.view_hub_h > 0;
         Route* rp;
-        if (from_outlet) {
+        if (mixed_lanes_leave_outlets(data, f.through)) {
             // Under a view scale the tube leaves the unit's drawing straight down from its own
             // outlet, with no jog back to its lane's column.
             rp = &new_route(out);

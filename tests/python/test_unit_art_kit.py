@@ -778,8 +778,8 @@ def test_a_near_flange_is_cut_by_every_lane_in_front_of_it_and_none_behind_nor_t
     scene = _ace_scene()
     order = scene.lane_order()
     first, last = order[0], order[-1]
-    over_first = {id(i) for i in scene._over_near_face(first)}
-    over_last = {id(i) for i in scene._over_near_face(last)}
+    over_first = {id(i) for i in scene._over_face(first)}
+    over_last = {id(i) for i in scene._over_face(last)}
     assert all(id(i) in over_first for i in scene.lane_items(order[1]))
     assert not any(id(i) in over_last for m in order[:-1] for i in scene.lane_items(m))
     # The front layer, glass included, goes over the turning vents at runtime, not into the cut.

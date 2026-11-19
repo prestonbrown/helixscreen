@@ -572,9 +572,6 @@ class Scene:
         later = [i for m in order[order.index(lane) + 1 :] for i in self.lane_items(m)]
         return own + later
 
-    def _over_near_face(self, lane):
-        return self._over_face(lane)
-
     def lane_face_svg(self, lane, width, far=False):
         """Lane's near flange and hub (or its far flange) without their vents, only where nothing
         but its own filament stands over them."""
