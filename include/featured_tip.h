@@ -2,10 +2,13 @@
 #pragma once
 
 #include "json_fwd.h"
+#include "lvgl.h"
 #include "tips_manager.h"
 
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace helix::featured_tip {
 
@@ -64,5 +67,13 @@ PrintingTip to_printing_tip(const FeaturedTip& tip);
 
 /// Whether @p tip came from to_printing_tip().
 bool is_featured(const PrintingTip& tip);
+
+/// The face a featured line shows in: the first of @p faces (largest first) in
+/// which all of @p text, wrapped at @p max_w with the label's @p letter_space
+/// and @p line_space, is at most @p max_h tall, since a joke cut off before its
+/// punchline is no joke. The last face when none is, which then ends in the
+/// ellipsis; nullptr only for an empty list.
+const lv_font_t* fit_font(const std::string& text, const std::vector<const lv_font_t*>& faces,
+                          int32_t max_w, int32_t max_h, int32_t letter_space, int32_t line_space);
 
 } // namespace helix::featured_tip

@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <vector>
 
 #include "hv/json.hpp"
 
@@ -307,30 +308,23 @@ void TipsWidget::fit_title_font() {
     if (!font)
         return;
     if (featured_tip::is_featured(current_tip_)) {
-        // A joke cut off before its punchline is no joke: step down a face at a
-        // time until all of it fits the tile, and only the smallest may end in
-        // the ellipsis. Measured on the laid-out label, which the hidden "Tip:"
-        // has just widened: the row decides its width to the pixel, and a pixel
-        // short wraps the last word into the ellipsis.
+        // Only the smallest face may end in the ellipsis. Measured on the
+        // laid-out label, which the hidden "Tip:" has just widened: the row
+        // decides its width to the pixel, and a pixel short wraps the last word
+        // into the ellipsis.
         lv_obj_update_layout(widget_obj_);
-        const int32_t max_w = lv_obj_get_content_width(tip_label_);
-        const int32_t letter_space = lv_obj_get_style_text_letter_space(tip_label_, LV_PART_MAIN);
-        const int32_t line_space = lv_obj_get_style_text_line_space(tip_label_, LV_PART_MAIN);
-        const char* faces[] = {"font_heading", "font_body", "font_small"};
-        for (const char* face : faces) {
+        std::vector<const lv_font_t*> faces;
+        for (const char* face : {"font_heading", "font_body", "font_small"}) {
             if (compact && std::strcmp(face, "font_heading") == 0)
                 continue;
-            const lv_font_t* candidate = theme_manager_get_font(face);
-            if (!candidate)
-                continue;
-            font = candidate;
-            lv_point_t size;
-            lv_text_get_size(&size, current_tip_.title.c_str(), font, letter_space, line_space,
-                             max_w, LV_TEXT_FLAG_NONE);
-            spdlog::debug("[TipsWidget] Featured line in {}: {}x{} in {}x{}", face, size.x, size.y,
-                          max_w, max_h);
-            if (size.y <= max_h)
-                break;
+            if (const lv_font_t* candidate = theme_manager_get_font(face))
+                faces.push_back(candidate);
+        }
+        if (const lv_font_t* fitted = featured_tip::fit_font(
+                current_tip_.title, faces, lv_obj_get_content_width(tip_label_), max_h,
+                lv_obj_get_style_text_letter_space(tip_label_, LV_PART_MAIN),
+                lv_obj_get_style_text_line_space(tip_label_, LV_PART_MAIN))) {
+            font = fitted;
         }
     }
     lv_obj_set_style_text_font(tip_label_, font, 0);

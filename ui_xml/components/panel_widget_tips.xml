@@ -21,9 +21,9 @@
     <lv_obj name="tip_container"
             width="100%" height="content" flex_flow="row" style_bg_opa="0%" style_radius="0"
             style_border_width="#accent_bar_width" style_border_side="left" style_border_color="#primary"
-            style_pad_left="#accent_bar_gap" style_pad_right="0"
-            style_pad_gap="#space_sm" style_flex_track_place="center" style_flex_main_place="center"
-            style_flex_cross_place="center" clickable="true">
+            style_pad_left="#accent_bar_gap" style_pad_right="0" style_pad_gap="#space_sm"
+            style_flex_track_place="center" style_flex_main_place="center" style_flex_cross_place="center"
+            clickable="true">
       <style name="styles.press_dim" selector="pressed"/>
       <bind_style_if_eq name="tip_pad_v" subject="tip_is_featured" ref_value="0"/>
       <bind_style_if_eq name="featured_pad_v" subject="tip_is_featured" ref_value="1"/>

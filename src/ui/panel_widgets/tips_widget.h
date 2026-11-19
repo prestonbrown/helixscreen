@@ -38,8 +38,6 @@ class TipsWidget : public PanelWidget {
     static void tip_text_clicked_cb(lv_event_t* e);
 
   private:
-    friend class TipsWidgetTestAccess;
-
     helix::ui::WidgetRef widget_obj_;
     helix::ui::WidgetRef parent_screen_;
 
