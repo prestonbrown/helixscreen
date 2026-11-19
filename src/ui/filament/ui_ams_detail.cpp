@@ -595,8 +595,9 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     return true;
 }
 
-/// Lanes narrower than this, a finger's width, are not each a tap target: a tap on the unit
-/// asks which lane instead.
+/// Lanes narrower than this are not each a tap target: a tap on the unit asks which lane
+/// instead. It is a pitch between neighbouring lanes' columns, which share every pixel of the
+/// row between them, unlike helix::ui::kPathFingerPx, the hit box a lone small widget grows to.
 constexpr int32_t kMinLaneTapPx = 28;
 
 /// The drawn unit was tapped where its lanes are too narrow to tell apart: a picker lists the

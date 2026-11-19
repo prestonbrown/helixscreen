@@ -39,6 +39,26 @@ struct OffpageStub {
 /// The label an off-page stub carries: "N units", "1 unit" for one.
 std::string offpage_label_text(int count);
 
+/// The text a chip standing for @p count units on other pages carries: "+N units" where
+/// @p fits (called with that text) says it fits, else "+N".
+template <typename Fits> std::string offpage_chip_text(int count, Fits&& fits) {
+    std::string text = "+" + offpage_label_text(count);
+    return fits(text) ? text : "+" + std::to_string(count);
+}
+
+/// What a count chip draws in: its fill and 1 px ring, and its text's color, font and line.
+struct CountPillStyle {
+    lv_color_t bg, border, text;
+    const lv_font_t* font;
+    int32_t line_h;
+};
+
+/// A count chip ("+2 units"), the detail page's off-page chip and the overview's parked one:
+/// a pill filling @p chip, @p text on one line vertically centered in it between @p text_x1 and
+/// @p text_x2, aligned @p align.
+void draw_count_pill(lv_layer_t* layer, const lv_area_t& chip, const CountPillStyle& style,
+                     const char* text, lv_text_align_t align, int32_t text_x1, int32_t text_x2);
+
 /// Where an off-page chip stands beside the hub box @p hub: left of it for @p side 0, right
 /// for 1, @p gap away, vertically centered on it, @p w by @p h, kept within [min_x, max_x].
 lv_area_t offpage_chip_rect(int side, const lv_area_t& hub, int32_t w, int32_t h, int32_t gap,

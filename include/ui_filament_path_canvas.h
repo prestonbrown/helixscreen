@@ -733,8 +733,10 @@ bool hub_box_hit(lv_point_t p, int32_t cx, int32_t cy, int32_t w, int32_t h, int
 bool recorded_box_hit(lv_point_t p, const lv_area_t& box, lv_point_t rendered_origin,
                       lv_point_t current_origin, int32_t margin, int32_t min_size = 0);
 
-/// The least width and height a tap target on the path takes, however small its glyph draws.
-inline constexpr int32_t kPathFingerPx = 32;
+/// The least width and height a small widget drawn on a path (a hub, the buffer's meter, a
+/// "+N units" chip) takes as a tap target, however small it draws: a finger's width. The unit
+/// view's and the overview's paths both use it.
+inline constexpr int32_t kPathFingerPx = 44;
 
 /// What a tap on a PARALLEL path landed on.
 enum class ParallelTapTarget : uint8_t {
