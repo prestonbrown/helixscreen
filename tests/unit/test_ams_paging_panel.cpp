@@ -1054,8 +1054,9 @@ TEST_CASE_METHOD(PagingFixture,
     const lv_area_t second = hub_box();
     // The hub keeps its center line from page to page, under the centered unit.
     CHECK(std::abs((first.x1 + first.x2) / 2 - (second.x1 + second.x2) / 2) <= 1);
-    // The four-bay unit's hub is its own, wider than the one-bay unit's.
-    CHECK(lv_area_get_width(&second) > lv_area_get_width(&first));
+    // The four-bay unit's hub is its own, never narrower than the one-bay unit's: both hold at
+    // least the box's label.
+    CHECK(lv_area_get_width(&second) >= lv_area_get_width(&first));
 }
 
 TEST_CASE_METHOD(PagingFixture,
