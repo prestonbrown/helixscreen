@@ -1205,6 +1205,22 @@ lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj) {
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_tool_badge(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->tool_badge_bg : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_move_tool_badge_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer) {
+    auto* data = get_slot_data(obj);
+    if (!data || !labels_layer || !data->tool_badge_bg ||
+        lv_obj_get_parent(data->tool_badge_bg) == labels_layer)
+        return;
+    lv_obj_set_parent(data->tool_badge_bg, labels_layer);
+    lv_obj_set_align(data->tool_badge_bg, LV_ALIGN_DEFAULT);
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_spool_container(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->spool_container : nullptr;
@@ -1451,6 +1467,14 @@ void ui_ams_slot_detach_layers(lv_obj_t* obj) {
     data->slot_badge = nullptr;
     data->material_label = nullptr;
     data->leader_line = nullptr;
+    // The tool tag too, once it stands on the labels layer, outside the slot.
+    bool tag_in_slot = false;
+    for (lv_obj_t* o = data->tool_badge_bg; o && !tag_in_slot; o = lv_obj_get_parent(o))
+        tag_in_slot = o == obj;
+    if (!tag_in_slot) {
+        data->tool_badge_bg = nullptr;
+        data->tool_badge = nullptr;
+    }
 }
 
 void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32_t slot_center_x) {

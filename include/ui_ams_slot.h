@@ -152,6 +152,14 @@ lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj);
 // NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj);
 
+/// The slot's tool tag ("T0"), wherever it stands: in the slot, or on the labels layer beside
+/// its label (ui_ams_slot_move_tool_badge_to_layer()).
+lv_obj_t* ui_ams_slot_get_tool_badge(lv_obj_t* obj);
+
+/// Move the slot's tool tag onto @p labels_layer, which clips nothing a label stands on, so it
+/// can stand beside its label. The slot drops it at ui_ams_slot_detach_layers().
+void ui_ams_slot_move_tool_badge_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer);
+
 /// Draw the slot's spool at @p spool_size px, its container sized to hold it.
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size);
