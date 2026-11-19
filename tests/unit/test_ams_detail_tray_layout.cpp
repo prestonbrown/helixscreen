@@ -1839,6 +1839,28 @@ TEST_CASE_METHOD(
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: on a compact screen, the unit reserves the label rows its short "
+                 "labels take",
+                 "[ams][tray][ui_integration][over-lane][short-label]") {
+    // Four "Silk PLA" lanes at 480x272 stand in one row of "PLA": the row laid out for them
+    // reserves that one row, not the two the whole names would take.
+    helix::test::ScopedGeometry geometry(480, 272);
+    build("passive", 4);
+    for (int i = 0; i < 4; ++i)
+        set_lane_live(i, "Silk PLA");
+    AmsDetailWidgets w = ams_detail_find_widgets(lv_obj_find_by_name(panel_obj_, "unit_detail"));
+    helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+    int count = (int)lv_obj_get_child_count(slot_grid_);
+    for (int i = 0; i < count; ++i)
+        slots[i].reset(slot(i));
+    ams_detail_destroy_slots(w, slots, count);
+    const AmsDetailSlotResult made =
+        ams_detail_create_slots(w, slots, kAmsDetailMaxSlots, -1, nullptr, nullptr);
+    REQUIRE(made.slot_count == 4);
+    CHECK(made.layout.label_rows == 1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit: on a compact screen, labels too crowded for whole names read the "
                  "base material",
                  "[ams][tray][ui_integration][over-lane][short-label]") {
