@@ -128,7 +128,7 @@ translation agents (the relevant column is injected into their prompts).
 | Filament Buffer | Filamentpuffer | Búfer de filamento | Tampon de filament | Buffer filamento | フィラメントバッファー | Buffer de filamento | Буфер филамента | 耗材缓冲器 |
 | Compressed | Komprimiert | Comprimido | Comprimé | Compresso | 圧縮 | Comprimido | Сжат | 压缩 |
 | Expanded | Gedehnt | Estirado | Étiré | Esteso | 伸長 | Esticado | Растянут | 拉伸 |
-| buffer\|Neutral | Mittelstellung | Centrado | Centré | Centrato | 中立 | Centrado | Нейтрален | 中位 |
+| buffer\|Neutral | Mittelstellung | Centrado | Centré | Centrato | 中央 | Centrado | Нейтрален | 中位 |
 
 ### Actions
 
