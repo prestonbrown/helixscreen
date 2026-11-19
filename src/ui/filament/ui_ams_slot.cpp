@@ -270,6 +270,13 @@ static void apply_slot_label(AmsSlotData* data) {
     }
 }
 
+/// A label spread over a drawn unit stands in room laid out for its text: a new name tells the
+/// lane's listener (the unit view), which lays the labels out again where the width changed.
+static void notify_label_spread(AmsSlotData* data) {
+    if (data && data->label_spread && data->lane_spool)
+        helix::ui::ams_lane_spool_notify(data->lane_spool);
+}
+
 /// The measured remaining length ("212m"), hidden while the lane has none.
 static void apply_lane_remaining(AmsSlotData* data, const char* text) {
     if (!data || !data->lane_remaining)
@@ -694,6 +701,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (!d)
                     return;
                 apply_slot_label(d);
+                notify_label_spread(d);
                 // No spool re-derive on an identity-only change: AmsState
                 // recomputes the lane classification on the same update, so the
                 // lane_state subject fires and the embedded ams_lane_spool
@@ -708,7 +716,11 @@ static void setup_slot_observers(AmsSlotData* data) {
     if (name_subject) {
         data->name_observer = helix::ui::observe<const char*>(
             name_subject, obj,
-            [](lv_obj_t* o, const char* /*name*/) { apply_slot_label(get_slot_data(o)); },
+            [](lv_obj_t* o, const char* /*name*/) {
+                auto* d = get_slot_data(o);
+                apply_slot_label(d);
+                notify_label_spread(d);
+            },
             data->name_lifetime);
     }
 
