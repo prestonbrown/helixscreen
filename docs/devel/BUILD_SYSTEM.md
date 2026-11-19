@@ -1063,8 +1063,45 @@ consequence is that the helix-xml submodule-test gate finds no configured build
 tree on the isolated path and skips - its designed behaviour, since its first
 configure clones LVGL over the network.
 
+- **The pushed commit passed `make land-gate`** (its stamp, `.githooks/lib/land-gate-stamp.sh`)
+  - only patch drift runs, in seconds and with no throwaway worktree. The gate ran the quality
+  sweep, its clang/GCC divergence gate and `esp32_syntax_check.py --require` over the branch
+  since its merge-base with origin/main, which covers every firmware unit the pushed range
+  reaches. Patch drift is the one question it did not answer: it describes this tree's
+  `lib/`, not the commit. `HELIX_PREPUSH_FULL=1` runs everything anyway.
+
 Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
 `git push --no-verify` skips the hook. Expect CI to find whatever you skipped.
+
+### Bookkeeping ratchets warn
+
+The test-line budget, the TestAccess and friend counts (`check_test_budget.py`), the
+file-size cap (`check_growth_ratchets.py`), hardcoded pixels (`check_hardcoded_pixels.py`)
+and unreferenced callbacks (`check_orphan_callbacks.py`) never fail a commit, a push,
+`make land-gate` or CI (#2004). Their checkers exit 3 (`ratchet.WARN_EXIT`) when a warning
+is all they found, and `qc_ratchet_verdict` (`scripts/qc/_lib.sh`) prints it and passes. A
+count under its baseline warns at every stage too (`scripts/ratchet.py`;
+`HELIX_RATCHET_STRICT=1` makes it fail, for a run that lowers baselines in bulk).
+`scripts/ratchet_report.py` prints each one's count against a week ago and its baseline,
+weekly in `.github/workflows/ratchet-report.yml`.
+
+The test budget and the file-size cap run at commit, from the fork point to the index
+(`--staged`, well under a second), and `qc_orphan_callbacks` reads an index snapshot, so
+their findings show on the commit that causes them. Global access, active instance and
+the bans in `check_growth_ratchets.py`, an unregistered or duplicate callback, and every
+other ratchet still fail.
+
+### Generated files on a merge
+
+`ui_xml/translations/*.xml` and `assets/fonts/cjk/**` are generated from
+`translations/*.yml`, so `.gitattributes` merges them with the `helix-generated` driver,
+which keeps this side's copy instead of conflicting (`make` and `make setup` configure it
+in the clone). `.githooks/lib/regen-generated.sh` then regenerates the packs: into the
+merge commit when the merge stopped on a conflict (`pre-commit`), or into one follow-up
+commit after a clean merge (`post-merge`, since git writes a clean merge commit from the
+tree it merged). A CJK bake that lacks a glyph the merged strings use is named with its
+fix, `make regen-text-fonts`; the merge commit passes it with a warning, and `qc_cjk_fonts`
+fails it everywhere else, `make land-gate` included.
 
 ### Quality Checks
 

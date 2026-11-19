@@ -205,8 +205,9 @@ specific here:
 
 ### A test earns its place
 
-A branch does not grow the suite: `scripts/check_test_budget.py` (pre-push and
-`land-gate`) measures the branch from its fork point and fails when
+A branch should not grow the suite: `scripts/check_test_budget.py` measures the branch
+from its fork point (to the index at commit, to HEAD at push and in `land-gate`) and warns
+when
 
 - **C++ test lines grow.** Pay for a new test by cutting or folding a weaker one. A branch
   that adds a genuinely new subsystem grants itself lines with a commit message line
@@ -214,9 +215,13 @@ A branch does not grow the suite: `scripts/check_test_budget.py` (pre-push and
 - **`TestAccess` references grow.** Seed and observe through the public API instead.
 - **`friend` declarations grow** in `src/` or `include/`.
 
-The same branch-relative shape caps file size: `scripts/check_growth_ratchets.py` fails a
+The same branch-relative shape caps file size: `scripts/check_growth_ratchets.py` warns on a
 C++ file under `tests/` (or `src/`, `include/`) that ends the branch over 1500 lines and
 larger than it started, so a test file that size is split rather than grown.
+
+Both are bookkeeping ratchets: a warning blocks no commit, push or landing (#2004), and
+`scripts/ratchet_report.py` shows the weekly trend, so the totals are watched rather than
+gated.
 
 A case that buys nothing (`writing-tests` § "Before writing one") is the one to cut
 (prestonbrown/helixscreen#1965).
