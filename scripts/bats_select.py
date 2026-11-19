@@ -18,6 +18,14 @@ The table is checked on every run: a listed file that does not exist, a row
 listed twice, or a trigger path that matches no tracked path is an error, since
 a renamed script would otherwise stop triggering its test without a word.
 
+--gate (land-gate's mode, BATS_GATE=1) narrows the product files too. A
+change confined to PRODUCT_QUIET (the app's C++ and XML, the C++ and pytest
+suites, docs) runs a product file only when the file names a changed path, or
+when it drives the built app and the app's sources changed. Any other change
+(scripts/, config/, assets/, the build, the plugin) runs every product file, as
+without --gate: the installer and launcher tests read those through sourced
+modules no path list can follow. Per-push CI and the nightly run without it.
+
 --app needs|without splits the selection in two for a gate that starts bats
 before its app build ends: "needs" keeps the files that drive the binary the
 build links (a file calling require_app, or naming build/bin/), "without" keeps
@@ -26,7 +34,7 @@ there with no binary on disk.
 
 Prints the selected files, one per line, and a one-line summary on stderr.
 
-Usage: bats_select.py [--base REF] [--all] [--app needs|without] [--check] [--root DIR]
+Usage: bats_select.py [--base REF] [--all] [--gate] [--app needs|without] [--check] [--root DIR]
 """
 
 import argparse
@@ -57,6 +65,15 @@ RUN_ALL = (
 # matched only by a comment or a fixture string waits too, which costs a few
 # seconds of overlap and never a run against a half-linked binary.
 NEEDS_APP = re.compile(r'\brequire_app\b|build/bin/')
+
+# Under --gate, a change confined to these runs a product file only when the
+# file names a changed path or drives the app (APP_SOURCES changed). A top-level
+# tests/*.cpp or *.h and any *.md count as quiet too (product_quiet).
+PRODUCT_QUIET = (
+    'src/', 'include/', 'ui_xml/', 'translations/', 'docs/', '.claude/',
+    'tests/unit/', 'tests/mocks/', 'tests/test_helpers/', 'tests/python/', 'tests/ui/',
+)
+APP_SOURCES = ('src/', 'include/', 'ui_xml/', 'translations/')
 
 
 class TableError(Exception):
@@ -138,8 +155,33 @@ def changed_paths(root, base):
     return paths
 
 
-def select(all_files, rows, changed, run_all=False):
-    """(files to run, why) for a change. Pure, for the tests."""
+def product_quiet(path):
+    """Is path one a product file never reads unless it names it?"""
+    if path.startswith(PRODUCT_QUIET) or path.endswith('.md'):
+        return True
+    return re.fullmatch(r'tests/[^/]+\.(cpp|h)', path) is not None
+
+
+def gate_wants_product(name, text, changed):
+    """Under --gate: (does product file `name` run, why)."""
+    loud = sorted(c for c in changed if not product_quiet(c))
+    if loud:
+        return True, loud[0]
+    if name in changed:
+        return True, 'changed'
+    named = next((c for c in sorted(changed) if c in text), None)
+    if named:
+        return True, f'names {named}'
+    if needs_app(text) and any(c.startswith(APP_SOURCES) for c in changed):
+        return True, 'drives the built app'
+    return False, ''
+
+
+def select(all_files, rows, changed, run_all=False, gate_text=None):
+    """(files to run, why) for a change. Pure, for the tests.
+
+    gate_text, a callable from a file to its text, turns on --gate's narrowing
+    of the product files."""
     triggers = {name: [glob_re(p) for p in pats] for name, pats in rows.items()}
     if run_all:
         return sorted(all_files), 'everything was asked for'
@@ -148,13 +190,18 @@ def select(all_files, rows, changed, run_all=False):
     if shared:
         return sorted(all_files), f'{shared[0]} changed, which every file shares'
     chosen = []
+    products = 0
     for f in sorted(all_files):
         if f not in triggers:
-            chosen.append(f)
+            products += 1
+            if gate_text is None or gate_wants_product(f, gate_text(f), changed)[0]:
+                chosen.append(f)
         elif f in changed or any(rx.fullmatch(c) for rx in triggers[f] for c in changed):
             chosen.append(f)
     tooling = sum(1 for f in chosen if f in triggers)
-    return chosen, (f'{len(chosen) - tooling} product file(s) and {tooling} of '
+    product_note = (f'{len(chosen) - tooling} product file(s)' if gate_text is None else
+                    f'{len(chosen) - tooling} of {products} product file(s) the change reaches')
+    return chosen, (f'{product_note} and {tooling} of '
                     f'{len(triggers)} tooling file(s) whose paths changed')
 
 
@@ -174,6 +221,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--base', help='diff against this ref (default: the fork point)')
     ap.add_argument('--all', action='store_true', help='select every file')
+    ap.add_argument('--gate', action='store_true',
+                    help="land-gate's mode: product files only when the change reaches them")
     ap.add_argument('--app', choices=('needs', 'without'),
                     help='keep only the files that drive the built app, or only the rest')
     ap.add_argument('--check', action='store_true', help='validate the table and exit')
@@ -206,7 +255,9 @@ def main(argv=None):
             print(f'bats_select: {e}; running everything', file=sys.stderr)
             run_all = True
         base_note = diff_base.base_line(root, base, why)
-    chosen, why = select(all_files, rows, changed, run_all)
+    gate = args.gate or os.environ.get('BATS_GATE') == '1'
+    gate_text = (lambda f: (root / f).read_text(errors='replace')) if gate else None
+    chosen, why = select(all_files, rows, changed, run_all, gate_text)
     if args.app:
         chosen = split_by_app(root, chosen, args.app)
         why += ('; only those that drive the built app' if args.app == 'needs'

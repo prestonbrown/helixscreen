@@ -214,3 +214,53 @@ def test_the_real_ctl_tests_wait_for_the_app_build():
     assert "tests/shell/test_headless_display.bats" in files
     rc, files, _ = _run(REPO_ROOT, "--all", "--app", "without")
     assert "tests/shell/test_helixctl_json.bats" not in files
+
+
+# --gate: land-gate's narrowing of the product files.
+
+def test_gate_a_cxx_only_change_runs_no_product_file(tmp_path):
+    root = _repo(tmp_path)
+    _write(root, "src/app.cpp", "changed\n")
+    rc, files, err = _run(root, "--base", "HEAD", "--gate")
+    assert rc == 0
+    assert files == []
+    assert "0 of 1 product file(s) the change reaches" in err
+
+
+def test_gate_a_product_file_naming_the_changed_path_runs(tmp_path):
+    root = _repo(tmp_path)
+    _write(root, PRODUCT, 'run "$REPO_ROOT/src/app.cpp"\n')
+    _git(root, "commit", "-q", "-am", "name it")
+    _write(root, "src/app.cpp", "changed\n")
+    rc, files, _ = _run(root, "--base", "HEAD", "--gate")
+    assert files == [PRODUCT]
+
+
+def test_gate_a_product_file_driving_the_app_runs_for_app_sources(tmp_path):
+    root = _repo(tmp_path)
+    _write(root, PRODUCT, "require_app\n")
+    _git(root, "commit", "-q", "-am", "drive the app")
+    _write(root, "ui_xml/home.xml", "changed\n")
+    rc, files, _ = _run(root, "--base", "HEAD", "--gate")
+    assert files == [PRODUCT]
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "x")
+    _write(root, "tests/unit/test_x.cpp", "changed\n")
+    rc, files, _ = _run(root, "--base", "HEAD", "--gate")
+    assert files == []
+
+
+def test_gate_a_change_outside_the_quiet_paths_runs_every_product_file(tmp_path):
+    root = _repo(tmp_path)
+    _write(root, "scripts/lib/installer/main.sh", "changed\n")
+    rc, files, _ = _run(root, "--base", "HEAD", "--gate")
+    assert files == [PRODUCT]
+
+
+def test_gate_off_keeps_every_product_file(tmp_path):
+    root = _repo(tmp_path)
+    _write(root, "src/app.cpp", "changed\n")
+    rc, files, _ = _run(root, "--base", "HEAD")
+    assert files == [PRODUCT]
+    rc, files, _ = _run(root, "--base", "HEAD", env={"BATS_GATE": "1"})
+    assert files == []

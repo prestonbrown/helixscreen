@@ -178,6 +178,33 @@ define run_tests_parallel
 	fi
 endef
 
+# Test selection for a gate. TEST_SELECT_CHANGED is the change as a
+# comma-separated list of paths (land-gate passes it); scripts/gate_select.py
+# reads the test build's dependency files and writes the Catch2 input file of
+# the cases matching $(1) that the change reaches. Sets, in the recipe's
+# shell: sel_verdict (FULL, SELECT or NONE), sel_file (the input file, exported
+# for the shards' subshells) and sel_shards (at most NPROCS, at most one shard
+# per case). Without TEST_SELECT_CHANGED the verdict is FULL, the whole filter.
+# The rule and its safety valves: scripts/gate_select.py's header.
+TEST_SELECT_CHANGED ?=
+TEST_SELECT_DIR = $(BUILD_DIR)/test-select
+
+# Args: $(1) = Catch2 test spec, $(2) = name of the input file under TEST_SELECT_DIR.
+define select_cases
+	sel_verdict=FULL; sel_file=; sel_shards=$(NPROCS); \
+	if [ -n "$(TEST_SELECT_CHANGED)" ]; then \
+		sel_file="$(TEST_SELECT_DIR)/$(2).txt"; \
+		sel_out=$$(python3 scripts/gate_select.py cxx --changed "$(TEST_SELECT_CHANGED)" \
+			--obj-dir "$(OBJ_DIR)" --bin "$(TEST_BIN)" --filter "$(1)" --out "$$sel_file") || exit 1; \
+		printf '%s\n' "$$sel_out" | sed 's/^/[test-select $(2)] /'; \
+		sel_verdict=$${sel_out%% *}; \
+		if [ "$$sel_verdict" = SELECT ]; then \
+			n=$$(wc -l <"$$sel_file"); sel_shards=$$(( n < $(NPROCS) ? n : $(NPROCS) )); \
+		fi; \
+	fi; \
+	export sel_file
+endef
+
 # Post-mortem for shards that failed, crashed, or timed out.
 #
 # The scratch dir survives any failure, so the evidence is there to read. For
@@ -448,7 +475,12 @@ endif
 unit-sweep: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running unit tests in parallel (excluding slow)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(call run_tests_parallel,"~[.] ~[slow]"); \
+	$(call select_cases,~[.] ~[slow],fast); \
+	case $$sel_verdict in \
+		NONE) exit 0 ;; \
+		SELECT) $(call run_tests_parallel,-f $$sel_file,$$sel_shards) ;; \
+		*) $(call run_tests_parallel,"~[.] ~[slow]") ;; \
+	esac; \
 	END_TIME=$$(date +%s); \
 	DURATION=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)$(BOLD)✓ Unit tests passed in $${DURATION}s$(RESET)"
@@ -635,12 +667,13 @@ BATS_ALLOW_SERIAL ?=
 BATS_BASE ?=
 BATS_ALL ?=
 BATS_APP ?=
+BATS_GATE ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v "$(BATS_BIN)" >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
-		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
+		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(filter 1,$(BATS_GATE)),--gate) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
 		if [ -z "$$BATS_FILES" ]; then echo "✓ no shell test file selected$(if $(BATS_APP), (BATS_APP=$(BATS_APP)))"; exit 0; fi; \
 		if command -v parallel >/dev/null 2>&1; then \
 			jobs_dir=$$(mktemp -d); \
@@ -805,7 +838,9 @@ test-plugin:
 	$(call report_test_result,Moonraker plugin tests)
 
 # The script-side tooling's pytest suite, as quality.yml's "Run Python script
-# tests" step runs it.
+# tests" step runs it. PYTHON_TESTS narrows it to some files (land-gate does,
+# for a change to C++ source alone).
+PYTHON_TESTS ?= tests/python/
 test-python:
 	$(ECHO) "$(CYAN)$(BOLD)Running Python script tests (pytest, tests/python/)...$(RESET)"
 	@if [ ! -x "$(VENV_PYTHON)" ]; then \
@@ -813,7 +848,7 @@ test-python:
 		exit 1; \
 	fi
 	@START_TIME=$$(date +%s); \
-	$(VENV_PYTHON) -m pytest tests/python/ -v --tb=short; \
+	$(VENV_PYTHON) -m pytest $(PYTHON_TESTS) -v --tb=short; \
 	$(call report_test_result,Python script tests)
 
 # ============================================================================
@@ -866,11 +901,25 @@ define run_slow_tiers
 	$(TEST_BIN) "[slow][serial]" --allow-running-no-tests --durations yes
 endef
 
-# Run only slow tests - for thorough validation before commit
+# Run only slow tests - for thorough validation before commit. Under
+# TEST_SELECT_CHANGED, only the [slow] cases the change reaches.
 test-slow: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running slow tests only...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(call run_slow_tiers); \
+	$(call select_cases,[slow] ~[serial],slow); \
+	case $$sel_verdict in \
+		FULL) $(call run_slow_tiers) ;; \
+		*) slow_file=$$sel_file; slow_verdict=$$sel_verdict; \
+		   $(call select_cases,[slow][serial],slow-serial); \
+		   if [ "$$slow_verdict" = SELECT ]; then \
+		       sel_file=$$slow_file; export sel_file; \
+		       n=$$(wc -l <"$$sel_file"); sel_shards=$$(( n < $(SLOW_SHARDS) ? n : $(SLOW_SHARDS) )); \
+		       $(call run_tests_parallel,-f $$sel_file,$$sel_shards,$(SLOW_ORDER)); \
+		   fi; \
+		   if [ "$$sel_verdict" = SELECT ]; then \
+		       $(TEST_BIN) -f "$$sel_file" --durations yes; \
+		   else true; fi ;; \
+	esac; \
 	$(call report_test_result,Slow tests)
 
 # Run only eventloop tests - hv::EventLoop network tests (very slow, 5-10 min)
