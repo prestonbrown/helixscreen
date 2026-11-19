@@ -9,7 +9,6 @@
  */
 
 #include "../lvgl_test_fixture.h"
-#include "../test_helpers/printer_state_test_access.h"
 #include "active_print_media_manager.h"
 #include "core/update_queue.h"
 #include "moonraker_types.h"
@@ -30,7 +29,6 @@ namespace {
 class ActivePrintCostFixture : public LVGLTestFixture {
   public:
     ActivePrintCostFixture() {
-        PrinterStateTestAccess::reset(state_);
         state_.init_subjects(false);
         manager_ = std::make_unique<helix::ActivePrintMediaManager>(state_);
         ActivePrintCost::instance().init_subjects();
@@ -40,7 +38,6 @@ class ActivePrintCostFixture : public LVGLTestFixture {
         helix::SettingsManager::instance().set_cost_price_per_kg("", 0.0);
         manager_.reset();
         helix::ui::UpdateQueue::instance().drain();
-        PrinterStateTestAccess::reset(state_);
     }
 
   protected:
