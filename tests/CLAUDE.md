@@ -163,10 +163,14 @@ every way of naming what you want. With no `F` it refuses rather than running ev
 `make test-run` runs nothing: it prints this choice and exits non-zero, because the
 shortest target name is the one people type, so it must not start a full run.
 
-`make land-gate` is the gate a batch landing runs on the combined result. Over `full-test-run`
-it adds CI's 8-shard C++ layout (a use-after-free can crash only next to CI's neighbours),
-`tests/ui`, the plugin and python suites, the generated-artefact checks and the quality sweep,
-which is how a branch goes green here and red on CI otherwise. It ends with a PASS/FAIL/TIMEOUT
+`make land-gate` is the gate a batch landing runs on the combined result. It runs what the
+change can reach: the C++ cases whose dependency files reach a changed file, in CI's 8-shard
+layout, the bats, python, plugin and `tests/ui` steps whose inputs changed, and the quality
+sweep; a docs-only change runs the doc gates alone. It prints the plan before it starts,
+each skipped step's row says why, and `HELIX_GATE_FULL=1` runs everything (the release gate
+does). The whole suites run nightly and on every push to main, which catch what a selection
+misses. The rule and its safety valves: `scripts/gate_select.py`'s header, and
+`docs/devel/BUILD_SYSTEM.md` § "What a landing gate runs". It ends with a PASS/FAIL/TIMEOUT
 table naming the commit it judged; `make land-gate STAGES=<step>[,<step>]` reruns failed steps on
 the same clean HEAD. Stages, logs and stamps: `scripts/land-gate.sh`, `build/land-gate/`.
 
@@ -414,7 +418,8 @@ the fork point (`scripts/diff_base.py`), uncommitted and untracked files include
 
 | Who | What runs |
 |---|---|
-| `make test-shell`, `full-test-run`, `land-gate` | the selection, from the fork point (`BATS_BASE=<ref>` overrides) |
+| `make test-shell`, `full-test-run` | the selection, from the fork point (`BATS_BASE=<ref>` overrides) |
+| `land-gate` (`BATS_GATE=1`) | the selection, with product files only when the change reaches them: a change confined to the app's C++ and XML, the C++ and pytest suites and docs runs a product file that names a changed path or drives the built app |
 | build.yml (push, PR) | the selection, from the PR's base or the commit before the push |
 | release.yml | product files only (`BATS_BASE=HEAD`) |
 | nightly.yml, `BATS_ALL=1` | every file, so a trigger the table is missing is caught within a day |

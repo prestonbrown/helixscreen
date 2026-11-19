@@ -927,6 +927,37 @@ make libs-clean     # Clean all library artifacts at once
 
 The link also compiles in `helix_build_tree_stamp`, the output of `scripts/tree_stamp.sh` taken when the test build's make starts, before anything compiles: the HEAD commit and a hash of every file the binary is built from whose content differs from it, tracked or untracked. "Built from" is the list `scripts/test_link_sources.py` derives from the link's objects and their `.d` files (`$(OBJ_DIR)/<binary>.stamp-paths`), so an app-only source such as `src/main.cpp` never marks the binary stale. At startup the binary runs `scripts/tree_stamp.sh --paths <that list> <that commit>` from its working directory and prints `WARNING: helix-tests is stale` when the answer differs, so running `./build/bin/helix-tests` after an edit without `make test` says so instead of quietly reporting the previous build's results. Measuring against the recorded commit keeps a commit of already-built edits from reading as stale. A source saved while the build ran leaves the binary stamped with the tree as the build started, and the link dates the binary back so the next `make test` relinks it. The stamp never forces a relink by itself, and `tree_stamp.sh` never writes the index (a refresh there would take `index.lock` in a shared tree). `HELIX_TESTS_NO_STALE_CHECK=1` skips the check, and `mk/tests.mk` exports it for every run make starts. `helix-screen` carries no stamp: its link rule is shared by every cross and packaging target, and `scripts/check_link_parity.py` requires the fbdev and EGL variant links to carry every object the main link has.
 
+### What a landing gate runs
+
+`make land-gate` runs what a change can reach (#2004). The full C++ suite and every bats
+file run nightly, on every push to main and at a release, so a landing does not repeat
+them. `scripts/gate_select.py plan` reads the paths that differ from the merge-base and
+prints one verdict per step above the lanes: `run`, `select` (a narrower run), `full` (a
+safety valve fired) or `skip`. A skipped step's row reads `SKIP` with its reason and counts
+as a pass. `HELIX_GATE_FULL=1` and a `release/*` branch run everything; the release
+procedure sets it.
+
+The C++ selection comes from the build's dependency files. After the test build, the sweep
+(`make unit-sweep TEST_SELECT_CHANGED=<paths>`, and `make test-slow` the same way) asks
+`gate_select.py cxx` which test units list a changed header or source in their `.d`, which
+include a header a changed `.cpp` implements, and which name a changed data file
+(`ui_xml/`, `assets/`, `tests/fixtures/`); it writes their cases as a Catch2 `--input-file`
+under `build/test-select/` and shards them, one shard per case up to `NPROCS`. The rule,
+its blind spot (a test that reaches a `.cpp` only through another class) and its valves
+are in the script's header. The valves run the whole suite: a change to the build
+(`Makefile`, `mk/`, `lv_conf.h`, `patches/`, `lib/`, the build steps the test link
+compiles), the test harness (`tests/*.cpp`), more than 200 changed paths, a header in more
+than a quarter of the test units, or a selection over half of them.
+
+The other steps go by path: `ui` and `no-mocks` run when an app input changed, `plugin`
+when `moonraker-plugin/` did, `python` whole for `scripts/` and the data it reads and only
+its C++-reading files for a change to `src/` or `include/`, `esp32` for firmware inputs.
+bats runs with `BATS_GATE=1` (`scripts/bats_select.py --gate`): a change confined to the
+app's C++ and XML, the C++ and pytest suites and docs runs a product file only when the
+file names a changed path or drives the built app. A docs-only change builds nothing and
+runs the doc gates alone (`HELIX_QC_ONLY`); a tests-only change runs its tests and the
+quality sweep.
+
 ### Test Harness
 
 The dependency system includes a comprehensive test suite:
