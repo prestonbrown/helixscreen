@@ -602,10 +602,6 @@ draws a chip for each through `draw_offpage_chips()` just after the hub box.
   on it calls the callback `ui_filament_path_canvas_set_offpage_callback()` registered: the
   unit view pages to that side.
 - **No reserved entries.** The chips take no entries on the hub: its width is the lanes' alone.
-- **Fixed hub.** `ui_filament_path_canvas_set_fixed_hub(obj, lanes)` makes the hub, buffer
-  and toolhead stand on the widget's center line and sizes the hub box for `lanes` lanes
-  (`FilamentPathData::fixed_hub_lanes`), so a screen that pages through units of one hub
-  moves none of them.
 - **Where there is no chip.** LINEAR (selector), MIXED, PARALLEL and on-toolhead hubs.
 - **The hub box.** `ui_filament_path_canvas_get_hub_box()` computes the box from the same
   frame the renderer draws, so a caller can place something level with it before the first

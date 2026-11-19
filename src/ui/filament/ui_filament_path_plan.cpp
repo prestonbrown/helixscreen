@@ -410,7 +410,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // Under a view scale a hub under its own lanes stands centered on them, the trunk and head
     // with it, so each lane drops straight into its entry.
     int32_t trunk_x = g.center_x;
-    if (data.view_hub_h > 0 && hub_unit && data.fixed_hub_lanes <= 0 && data.slot_count > 1 &&
+    if (data.view_hub_h > 0 && hub_unit && data.slot_count > 1 &&
         data.slot_count <= FilamentPathData::kMaxSlots && data.offpage_before <= 0 &&
         data.offpage_after <= 0)
         trunk_x = (g.slot_x[0] + g.slot_x[data.slot_count - 1]) / 2;
@@ -589,28 +589,9 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t entry_spacing = scaled ? separation + 2 : 22;
     const int32_t entry_margin = scaled ? f.sensor_r + 2 : 8;
     const int reserve = 0;
-    // A fixed hub is fitted to the fan of the widest unit it will carry, laid out at the
-    // lane pitch of that unit, and drawn at that width whichever unit is shown: the box
-    // stands still while the unit above it changes.
-    const bool fixed = data.fixed_hub_lanes > 0 && !data.hub_on_toolhead;
-    const int hub_lanes = LV_MAX(fan_n, data.fixed_hub_lanes);
-    pg::MergeLaneIn widest[FilamentPathData::kMaxSlots];
-    if (fixed) {
-        int32_t pitch = data.fixed_hub_pitch;
-        if (pitch <= 0)
-            pitch = fan_n > 1 ? (g.slot_x[fan_n - 1] - g.slot_x[0]) / (fan_n - 1)
-                              : data.slot_width - data.slot_overlap;
-        // Under a view scale a fixed hub is sized for its widest unit's lanes at the entry
-        // spacing, not at the spools' pitch: the lanes converge into it.
-        if (scaled)
-            pitch = entry_spacing;
-        const float deepest = (float)(f.prep_y + f.sensor_r);
-        for (int i = 0; i < hub_lanes; i++)
-            widest[i] = {(float)f.center_x + ((float)i - (float)(hub_lanes - 1) / 2.0f) * pitch,
-                         deepest};
-    }
-    const pg::MergeLaneIn* fit_in = fixed ? widest : fan_in;
-    const int fit_n = fixed ? hub_lanes : fan_n;
+    const int hub_lanes = fan_n;
+    const pg::MergeLaneIn* fit_in = fan_in;
+    const int fit_n = fan_n;
     const int32_t want_w = hub_lanes > 1
                                ? (hub_lanes - 1 + 2 * reserve) * entry_spacing + 2 * entry_margin
                                : theme.hub_width;
@@ -618,8 +599,6 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
         fit_n > 1 ? (int32_t)(fit_in[fit_n - 1].slot_x - fit_in[0].slot_x) : theme.hub_width;
     int32_t max_width =
         LV_MAX(theme.hub_width, slot_span + 2 * entry_margin + 2 * reserve * entry_spacing);
-    if (fixed)
-        max_width = LV_MAX(max_width, want_w);
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
     // Under a view scale the hub is only as wide as its entries: the lanes converge into it,
     // and the path takes the height their diagonals need rather than a wider hub.
@@ -656,22 +635,14 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     if (!data.hub_on_toolhead && (hub_top > roomy_top || data.view_hub_h > 0)) {
         int32_t top = roomy_top;
         if (scaled && fit_n > 1 && fan_n > 0) {
-            // The entries at the hub's least width, and each lane's run to its own. A fixed hub
-            // stands where its widest unit's lanes, at their own pitch, need it, so it holds
-            // still whichever unit is shown.
+            // The entries at the hub's least width, and each lane's run to its own.
             const float usable = (float)(min_width - 2 * entry_margin);
             const float step = usable / (float)(fit_n - 1);
-            const float pitch =
-                fixed && data.fixed_hub_pitch > 0 ? (float)data.fixed_hub_pitch
-                : fan_n > 1 ? (fan_in[fan_n - 1].slot_x - fan_in[0].slot_x) / (float)(fan_n - 1)
-                            : step;
-            const int lanes = fixed ? fit_n : fan_n;
             float run = 0.0f, start = -1e9f;
-            for (int i = 0; i < lanes; ++i) {
-                const float offset = (float)i - (float)(lanes - 1) / 2.0f;
-                const float entry = (float)f.center_x + step * offset;
-                const float lane_x = fixed ? (float)f.center_x + pitch * offset : fan_in[i].slot_x;
-                run = std::max(run, std::fabs(entry - lane_x));
+            for (int i = 0; i < fan_n; ++i) {
+                const float offset = (float)i - (float)(fan_n - 1) / 2.0f;
+                run =
+                    std::max(run, std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x));
             }
             for (int i = 0; i < fan_n; ++i)
                 start = std::max(start, fan_in[i].start_y);
@@ -690,8 +661,6 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             f.prep_y = LV_MAX(f.prep_band_y, LV_MIN(f.prep_y, hub_top - 2 * r));
         for (int i = 0; i < fan_n; ++i)
             fan_in[i].start_y = std::min(fan_in[i].start_y, fan_start);
-        for (int i = 0; fixed && i < hub_lanes; ++i)
-            widest[i].start_y = std::min(widest[i].start_y, fan_start);
     }
     // The width is fitted to a fan ending one sensor radius above the hub, so
     // the final legs keep their clearance across the hub-entry bands.

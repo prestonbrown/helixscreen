@@ -1278,18 +1278,6 @@ void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool b
 }
 
 // NAMESPACE_OK: the widget's C setter API, beside its siblings
-void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch) {
-    auto* data = get_data(obj);
-    lanes = LV_CLAMP(0, lanes, FilamentPathData::kMaxSlots);
-    lane_pitch = LV_MAX(0, lane_pitch);
-    if (!data || (data->fixed_hub_lanes == lanes && data->fixed_hub_pitch == lane_pitch))
-        return;
-    data->fixed_hub_lanes = lanes;
-    data->fixed_hub_pitch = lane_pitch;
-    layered_mark_dirty(obj);
-}
-
-// NAMESPACE_OK: the widget's C setter API, beside its siblings
 void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::PathViewScale& scale) {
     auto* data = get_data(obj);
     if (!data)

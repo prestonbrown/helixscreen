@@ -361,11 +361,6 @@ struct FilamentPathData {
     int32_t edge_reserve = 0;
     int32_t keepout_y0 = 0;
     int32_t keepout_y1 = 0;
-    // A hub that stays put: when > 0 the hub, buffer and toolhead stand on the widget's
-    // center line and the hub box is sized for this many lanes, whatever the unit shown.
-    int fixed_hub_lanes = 0;
-    // The lane pitch of that widest unit, 0 to take the shown unit's own.
-    int32_t fixed_hub_pitch = 0;
     // A view scale (ui_filament_path_canvas_set_view_scale): the hub and capsule heights it
     // sets, and whether the buffer rides in the hub box. 0 = the hub is a share of the height.
     int32_t view_hub_h = 0;

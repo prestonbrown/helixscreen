@@ -68,11 +68,8 @@ BaseGeometry compute_base_geometry(lv_obj_t* obj, const FilamentPathData* data) 
 
     // Center X: prefer midpoint of slot bounds so hub/selector/nozzle stay
     // aligned with the spool grid even when the grid is narrower than the
-    // canvas (e.g. environment indicator present). A fixed hub stands on the
-    // widget's own center line instead, which no unit's box or chip can move.
-    if (data->fixed_hub_lanes > 0) {
-        g.center_x = g.x_off + g.width / 2;
-    } else if (g.slot_count >= 2) {
+    // canvas (e.g. environment indicator present).
+    if (g.slot_count >= 2) {
         g.center_x = (g.slot_x[0] + g.slot_x[g.slot_count - 1]) / 2;
     } else if (g.slot_count == 1) {
         g.center_x = g.slot_x[0];

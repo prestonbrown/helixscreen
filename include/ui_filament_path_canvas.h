@@ -405,18 +405,6 @@ void ui_filament_path_canvas_set_buffer_callback(lv_obj_t* obj, filament_path_bu
 void ui_filament_path_canvas_set_offpage_units(lv_obj_t* obj, int before, bool before_drying,
                                                int after, bool after_drying);
 
-/**
- * @brief Keep the hub where it is from one unit to the next
- *
- * For a screen that pages through the units of one hub. With @p lanes > 0 the hub, buffer
- * and toolhead stand on the widget's center line (not the center of the shown unit's
- * spools) and the hub box is sized for @p lanes lanes at @p lane_pitch px apart (0 takes
- * the shown unit's own pitch), so the box is the same whichever unit is shown and swapping
- * the unit swaps its lanes and nothing downstream. 0 lanes centers the hub on the spools
- * and sizes it for the unit.
- */
-void ui_filament_path_canvas_set_fixed_hub(lv_obj_t* obj, int lanes, int32_t lane_pitch = 0);
-
 namespace helix::ui {
 struct PathViewScale;
 }
