@@ -127,7 +127,7 @@ void PrinterState::unregister_registry_callbacks() {
     // Both registered callbacks capture `this`; a per-test instance would leave them
     // dangling in the process-wide registries.
     if (!StaticSubjectRegistry::is_destroyed()) {
-        StaticSubjectRegistry::instance().unregister("PrinterState");
+        StaticSubjectRegistry::instance().unregister("PrinterState", this);
     }
     if (!helix::PrinterCacheRegistry::is_destroyed()) {
         helix::PrinterCacheRegistry::instance().unregister("PrinterState", this);
@@ -255,8 +255,10 @@ void PrinterState::init_subjects(bool register_xml) {
     subjects_initialized_ = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
-    StaticSubjectRegistry::instance().register_deinit("PrinterState",
-                                                      [this]() { deinit_subjects(); });
+    // Keyed by `this` as well as the name, like the cache invalidator below.
+    StaticSubjectRegistry::instance().register_deinit(
+        "PrinterState", [this]() { deinit_subjects(); }, StaticSubjectRegistry::Lifetime::Printer,
+        this);
 
     // Self-register per-printer cache invalidation. This object outlives every printer
     // switch, so anything cached from Config::df() or from the previous printer's status
