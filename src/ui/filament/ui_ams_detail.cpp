@@ -533,12 +533,22 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
     for (int i = 0; i < n; ++i)
         lane_cy += (geom->lane[i].box_y0 + geom->lane[i].box_y1) / 2;
     lane_cy /= (float)n;
-    const float width = n > 1 ? (cx[n - 1] - cx[0]) / (lane_mid_x(n - 1) - lane_mid_x(0))
-                              : 2 * tray::kSpoolFlangeRadius * (float)s_tray.spool_size /
-                                    (geom->lane[0].box_y1 - geom->lane[0].box_y0);
+    float width = n > 1 ? (cx[n - 1] - cx[0]) / (lane_mid_x(n - 1) - lane_mid_x(0))
+                        : 2 * tray::kSpoolFlangeRadius * (float)s_tray.spool_size /
+                              (geom->lane[0].box_y1 - geom->lane[0].box_y0);
+    // A drawing whose spools stand closer than the slots never grows past its container: it
+    // stands centered on the lanes instead, and the lane picker covers lanes that come out
+    // narrower than a finger.
+    const float drawn_share = geom->drawn[2] - geom->drawn[0];
+    const float room = (float)lv_obj_get_content_width(container);
+    const bool capped = drawn_share > 0.0f && room > 0.0f && width * drawn_share > room;
+    if (capped)
+        width = room / drawn_share;
     const int32_t w = (int32_t)std::lround(width);
     const int32_t h = (int32_t)std::lround(width / geom->aspect);
-    const int32_t x = (int32_t)std::lround(cx[0] - lane_mid_x(0) * width);
+    const float lanes_mid = (lane_mid_x(0) + lane_mid_x(n - 1)) / 2;
+    const int32_t x = capped ? (int32_t)std::lround((cx[0] + cx[n - 1]) / 2 - lanes_mid * width)
+                             : (int32_t)std::lround(cx[0] - lane_mid_x(0) * width);
     const int32_t y = (int32_t)std::lround(cy - lane_cy * width);
     lv_obj_set_size(art, w, h);
     lv_obj_set_pos(art, x, y);
