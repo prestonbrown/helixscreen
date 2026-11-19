@@ -69,12 +69,21 @@ option (after any continuation lines of that option). Every other byte is kept, 
 missing final newline included. It refuses when the section is not there exactly once,
 when the material's line appears twice, or when its value continues onto the next line.
 
-**Which file.** `locate_config_file()` walks `printer.cfg` and everything it includes
-(globs matched against the config root's file list, at most 64 files, none over 1 MB), so
-a backup copy nothing loads (`printer-20261118_101500.cfg`) never counts as a second
-definition. Exactly one holder is required. The path is cached for the session and the
-file is read fresh before every write. Absolute includes are outside the config root and
-are not followed.
+**Which file.** `locate_config_file()` walks `printer.cfg` and everything it includes, so a
+backup copy nothing loads (`printer-20261118_101500.cfg`) never counts as a second definition.
+Include patterns follow Klipper's glob (`*`, `?` and `[...]` classes, `[!...]` negated)
+against the config root's file list; absolute includes are outside the config root and are
+not followed. Exactly one holder is required. The search refuses rather than guess when it
+cannot be complete: a loaded file over 1 MB (`printer.cfg` and literal includes included,
+judged by the listing's size or by what was read), or the 64-file cap reached with files
+still unread. The path is cached for the session.
+
+**Writing.** Saves run one at a time, whichever surface asked (`save_offset()` queues them),
+so a print Save and a Settings edit of the same file cannot upload each other's line away.
+Each write reads the file, edits it, and reads it again just before uploading: Moonraker has
+no conditional upload, so a file another writer changed in between is edited again from the
+new content, once, and the save refuses with "kept changing while saving" if it changes a
+second time.
 
 ---
 
@@ -112,6 +121,10 @@ the machine.
 `current_save_availability()` asks the same target: with the feature on, the offset is
 dirty when the live offset differs from what the macro applies for that material, not when
 it is non-zero.
+
+**Tool offsets stay out of it.** The per-material Save writes only the material's entry. A
+dirty tool offset keeps its own Save (the tool-offset panel), because saving one may end in
+`SAVE_CONFIG`, which the per-material Save never sends.
 
 **During a print.** `helix::zoffset::save_route()` is the one decision: nothing to save,
 per-material, machine-wide, or refused (machine-wide while `machine_motion_blocked`). The
@@ -202,6 +215,10 @@ Each one is a decision or a gap a reader will otherwise rediscover:
   view's Print does (`PrintStartController::execute_print_start`).
 - **A rewritten copy loses the hint.** `modify_and_print` starts a copy under another name, so
   `next_file` does not match `print_stats.filename` and the slicer's material applies.
+- **A material name a G-code value cannot hold.** `HELIX_MATERIAL_OFFSET` drops `" ' \ # ;`
+  from the slicer's material before using it (free-text filament types in PrusaSlicer can
+  carry them) and says so on the console, so a name never aborts PRINT_START; `PLA "Silk"`
+  becomes `PLA SILK`.
 - **No row on firmware that owns the offset.** ZMOD, Forge-X and Helper-Script re-apply their
   own stored value at print start, and a per-head toolchanger sets each head's offset
   absolutely at pickup, so a second per-material value would be overwritten or doubled.

@@ -172,7 +172,8 @@ ConfigEdit edit_config_text(std::string_view content, std::string_view section,
 std::vector<std::string> include_targets(std::string_view content);
 
 /// Whether @p path matches an include pattern with Klipper's glob: `*` any
-/// run of characters but '/', `?` one character but '/'.
+/// run of characters but '/', `?` one character but '/', `[...]` one character
+/// of a class (ranges, `!` to negate).
 bool include_matches(std::string_view pattern, std::string_view path);
 
 // --- The primary material (pure) -------------------------------------------

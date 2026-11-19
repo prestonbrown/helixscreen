@@ -21,6 +21,7 @@
 #include <deque>
 #include <functional>
 #include <lvgl.h>
+#include <map>
 #include <memory>
 #include <set>
 #include <vector>
@@ -35,9 +36,13 @@ helix::Subject s_status;
 helix::Subject s_enabled;
 helix::Subject s_rev;
 
+/// A save whose file changes under it is edited again this many times in all.
+constexpr int kEditAttempts = 2;
+
 /// How many config files a search for the section reads at most.
 constexpr size_t kMaxScannedFiles = 64;
-/// A config file larger than this is not a hand-written macro file.
+/// A loaded config file larger than this is not read, and stops the search: it
+/// could hold a definition the search would then miss.
 constexpr uint64_t kMaxScannedBytes = 1024 * 1024;
 
 std::string enabled_key(const Config& config) {
@@ -62,7 +67,9 @@ std::string dir_of(const std::string& path) {
 /// read holds the Scan; next() holds only a raw pointer, so nothing cycles.
 struct Scan : std::enable_shared_from_this<Scan> {
     std::function<void()> next;
-    std::set<std::string> files; ///< Every .cfg under the config root, root-relative
+    std::map<std::string, uint64_t> files; ///< Every file under the config root, with its size
+    /// A loaded file too large to read: the search cannot be complete.
+    std::string oversized;
     std::deque<std::string> queue;
     std::set<std::string> visited;
     std::vector<std::string> holders; ///< Files holding the section, once per occurrence
@@ -271,6 +278,32 @@ MaterialZOffsetState::mesh_offer(const std::vector<std::string>& materials, int 
 
 void MaterialZOffsetState::save_offset(IMoonrakerAPI* api, const std::string& material, int microns,
                                        Done done) {
+    // One save at a time, whichever surface asked: two edits of the same file
+    // interleaved would each upload the other's line away.
+    pending_saves_.push_back([this, api, material, microns, done]() {
+        run_save(api, material, microns, [this, done](bool ok, const std::string& message) {
+            if (done) {
+                done(ok, message);
+            }
+            save_running_ = false;
+            run_next_save();
+        });
+    });
+    run_next_save();
+}
+
+void MaterialZOffsetState::run_next_save() {
+    if (save_running_ || pending_saves_.empty()) {
+        return;
+    }
+    save_running_ = true;
+    auto next = std::move(pending_saves_.front());
+    pending_saves_.pop_front();
+    next();
+}
+
+void MaterialZOffsetState::run_save(IMoonrakerAPI* api, const std::string& material, int microns,
+                                    Done done) {
     auto plan = write_plan(hw(), table_, material, microns);
     const std::string name = material.empty() ? display_name(kDefaultKey) : material;
     if (!api || !plan) {
@@ -329,37 +362,73 @@ void MaterialZOffsetState::write_config_file(IMoonrakerAPI* api, const std::stri
             fail(error);
             return;
         }
-        // Read fresh: the file may have changed since the search found it.
-        api->transfers().download_file(
-            "config", path,
-            lifetime_.bg_cb(
-                "MaterialZOffset::config_read",
-                [this, api, path, section, material, microns, message, done,
-                 fail](const std::string& content) {
-                    ConfigEdit edit = edit_config_text(content, section, material, microns);
-                    if (!edit.text) {
-                        config_file_.clear();
-                        fail(edit.error);
-                        return;
-                    }
-                    api->transfers().upload_file(
-                        "config", path, *edit.text,
-                        lifetime_.bg_cb("MaterialZOffset::config_written",
-                                        [path, message, done]() {
-                                            spdlog::info("[MaterialZOffset] Wrote {}", path);
-                                            if (done) {
-                                                done(true, message);
-                                            }
-                                        }),
-                        lifetime_.bg_cb("MaterialZOffset::config_write_failed",
-                                        [fail](const MoonrakerError& err) { fail(err.message); }));
-                }),
-            lifetime_.bg_cb("MaterialZOffset::config_read_failed",
-                            [this, fail](const MoonrakerError& err) {
-                                config_file_.clear();
-                                fail(err.message);
-                            }));
+        edit_and_upload(api, path, section, material, microns, message, done, fail, kEditAttempts);
     });
+}
+
+void MaterialZOffsetState::edit_and_upload(IMoonrakerAPI* api, const std::string& path,
+                                           const std::string& section, const std::string& material,
+                                           int microns, const std::string& message, Done done,
+                                           helix::SharedCallback<void(const std::string&)> fail,
+                                           int attempts) {
+    // Read fresh: the file may have changed since the search found it.
+    api->transfers().download_file(
+        "config", path,
+        lifetime_.bg_cb(
+            "MaterialZOffset::config_read",
+            [this, api, path, section, material, microns, message, done, fail,
+             attempts](const std::string& content) {
+                ConfigEdit edit = edit_config_text(content, section, material, microns);
+                if (!edit.text) {
+                    config_file_.clear();
+                    fail(edit.error);
+                    return;
+                }
+                // Moonraker has no conditional upload, so read once more right
+                // before writing: another writer's change since the first read
+                // is redone on top of, never uploaded away.
+                api->transfers().download_file(
+                    "config", path,
+                    lifetime_.bg_cb(
+                        "MaterialZOffset::config_reread",
+                        [this, api, path, section, material, microns, message, done, fail, attempts,
+                         content, text = *edit.text](const std::string& now) {
+                            if (now != content) {
+                                if (attempts > 1) {
+                                    spdlog::info("[MaterialZOffset] {} changed while saving; "
+                                                 "editing it again",
+                                                 path);
+                                    edit_and_upload(api, path, section, material, microns, message,
+                                                    done, fail, attempts - 1);
+                                } else {
+                                    fail(fmt::format(
+                                        fmt::runtime(lv_tr("{} kept changing while saving")),
+                                        path));
+                                }
+                                return;
+                            }
+                            api->transfers().upload_file(
+                                "config", path, text,
+                                lifetime_.bg_cb("MaterialZOffset::config_written",
+                                                [path, message, done]() {
+                                                    spdlog::info("[MaterialZOffset] Wrote {}",
+                                                                 path);
+                                                    if (done) {
+                                                        done(true, message);
+                                                    }
+                                                }),
+                                lifetime_.bg_cb(
+                                    "MaterialZOffset::config_write_failed",
+                                    [fail](const MoonrakerError& err) { fail(err.message); }));
+                        }),
+                    lifetime_.bg_cb("MaterialZOffset::config_reread_failed",
+                                    [fail](const MoonrakerError& err) { fail(err.message); }));
+            }),
+        lifetime_.bg_cb("MaterialZOffset::config_read_failed",
+                        [this, fail](const MoonrakerError& err) {
+                            config_file_.clear();
+                            fail(err.message);
+                        }));
 }
 
 void MaterialZOffsetState::locate_config_file(
@@ -380,6 +449,11 @@ void MaterialZOffsetState::locate_config_file(
         if (raw->queue.empty() || raw->visited.size() >= kMaxScannedFiles) {
             // A search stopped by the cap has not seen every loaded file, so
             // one holder so far proves nothing: refuse rather than guess.
+            if (!raw->oversized.empty()) {
+                raw->then({}, fmt::format(fmt::runtime(lv_tr("{} is too large to search for [{}]")),
+                                          raw->oversized, raw->section));
+                return;
+            }
             const bool unread =
                 std::any_of(raw->queue.begin(), raw->queue.end(),
                             [raw](const std::string& f) { return raw->visited.count(f) == 0; });
@@ -408,11 +482,24 @@ void MaterialZOffsetState::locate_config_file(
             raw->next();
             return;
         }
+        if (auto known = raw->files.find(path);
+            known != raw->files.end() && known->second > kMaxScannedBytes) {
+            raw->oversized = path;
+            raw->queue.clear();
+            raw->next();
+            return;
+        }
         auto held = raw->shared_from_this();
         api->transfers().download_file(
             "config", path,
             lifetime_.bg_cb("MaterialZOffset::scan_read",
                             [held, path](const std::string& content) {
+                                if (content.size() > kMaxScannedBytes) {
+                                    held->oversized = path;
+                                    held->queue.clear();
+                                    held->next();
+                                    return;
+                                }
                                 for (int i = count_sections(content, held->section); i > 0; --i) {
                                     held->holders.push_back(path);
                                 }
@@ -422,11 +509,11 @@ void MaterialZOffsetState::locate_config_file(
                                         continue; // outside the config root
                                     }
                                     const std::string pattern = dir + target;
-                                    if (pattern.find_first_of("*?") == std::string::npos) {
+                                    if (pattern.find_first_of("*?[") == std::string::npos) {
                                         held->queue.push_back(pattern);
                                         continue;
                                     }
-                                    for (const auto& f : held->files) {
+                                    for (const auto& [f, size] : held->files) {
                                         if (include_matches(pattern, f)) {
                                             held->queue.push_back(f);
                                         }
@@ -446,8 +533,8 @@ void MaterialZOffsetState::locate_config_file(
         lifetime_.bg_cb("MaterialZOffset::scan_list",
                         [scan](const std::vector<FileInfo>& files) {
                             for (const auto& f : files) {
-                                if (!f.is_dir && f.size <= kMaxScannedBytes) {
-                                    scan->files.insert(f.path.empty() ? f.filename : f.path);
+                                if (!f.is_dir) {
+                                    scan->files[f.path.empty() ? f.filename : f.path] = f.size;
                                 }
                             }
                             scan->queue.push_back("printer.cfg");

@@ -5012,7 +5012,9 @@
   <translation tag="{} is not set up on this printer" zh="{} 未在此打印机上设置"/>
   <translation tag="{} is still printing. The print keeps running after you switch." zh="{} 仍在打印。切换后打印会继续进行。"/>
   <translation tag="{} is tighter" zh="{} 更紧"/>
+  <translation tag="{} is too large to search for [{}]" zh="{} 太大，无法在其中查找 [{}]"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." zh="{}未装载。打印需要时将暂停。"/>
+  <translation tag="{} kept changing while saving" zh="{} 在保存过程中一直在变化"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" zh="{} 反复导致屏幕崩溃，请选择要连接的打印机"/>
   <translation tag="{} kept crashing the panel; switched back to {}" zh="{} 反复导致屏幕崩溃，已切换回 {}"/>
   <translation tag="{} left" zh="剩余 {}"/>

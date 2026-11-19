@@ -12,6 +12,8 @@
 #include "json_fwd.h"
 #include "material_z_offset.h"
 
+#include <deque>
+#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
@@ -90,6 +92,7 @@ class MaterialZOffsetState {
 
     /// Persist @p microns for @p material (empty = DEFAULT). @p done runs on the
     /// main thread with a user-facing message: success, or why it failed.
+    /// Saves run one at a time, in the order asked, whichever surface asked.
     using Done = helix::SharedCallback<void(bool ok, const std::string& message)>;
     void save_offset(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
 
@@ -114,8 +117,14 @@ class MaterialZOffsetState {
     [[nodiscard]] std::string print_material() const;
     [[nodiscard]] bool material_known() const;
     void send_enable(IMoonrakerAPI* api, bool on);
+    void run_next_save();
+    void run_save(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
     void write_config_file(IMoonrakerAPI* api, const std::string& material, int microns,
                            const std::string& message, Done done);
+    void edit_and_upload(IMoonrakerAPI* api, const std::string& path, const std::string& section,
+                         const std::string& material, int microns, const std::string& message,
+                         Done done, helix::SharedCallback<void(const std::string&)> fail,
+                         int attempts);
     void locate_config_file(
         IMoonrakerAPI* api,
         helix::SharedCallback<void(const std::string& path, const std::string& error)> then);
@@ -126,6 +135,9 @@ class MaterialZOffsetState {
     bool print_seen_ = false;
     /// The config file holding the section, once found this session.
     std::string config_file_;
+    /// Saves waiting for the one running to finish.
+    std::deque<std::function<void()>> pending_saves_;
+    bool save_running_ = false;
     AsyncLifetimeGuard lifetime_;
 };
 

@@ -654,6 +654,31 @@ bool include_matches(std::string_view pattern, std::string_view path) {
     if (path.empty()) {
         return false;
     }
+    if (pattern[0] == '[') {
+        // A class, as Python's fnmatch reads it: [abc], [a-z], [!...] negated.
+        size_t i = 1;
+        const bool negate = i < pattern.size() && pattern[i] == '!';
+        if (negate) {
+            ++i;
+        }
+        const size_t close = pattern.find(']', i + 1);
+        if (close == std::string_view::npos) {
+            return false;
+        }
+        bool in = false;
+        for (size_t j = i; j < close; ++j) {
+            if (j + 2 < close && pattern[j + 1] == '-') {
+                in |= path[0] >= pattern[j] && path[0] <= pattern[j + 2];
+                j += 2;
+            } else {
+                in |= path[0] == pattern[j];
+            }
+        }
+        if (in == negate || path[0] == '/') {
+            return false;
+        }
+        return include_matches(pattern.substr(close + 1), path.substr(1));
+    }
     if ((pattern[0] == '?' && path[0] != '/') || pattern[0] == path[0]) {
         return include_matches(pattern.substr(1), path.substr(1));
     }

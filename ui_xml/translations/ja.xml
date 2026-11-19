@@ -5012,7 +5012,9 @@
   <translation tag="{} is not set up on this printer" ja="{} はこのプリンターで設定されていません"/>
   <translation tag="{} is still printing. The print keeps running after you switch." ja="{}は印刷中です。切り替えても印刷は続行されます。"/>
   <translation tag="{} is tighter" ja="{}の方が張っている"/>
+  <translation tag="{} is too large to search for [{}]" ja="{} は大きすぎて [{}] を検索できません"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." ja="{}はロードされていません。必要になった時点で印刷が一時停止します。"/>
+  <translation tag="{} kept changing while saving" ja="{} が保存中に変更され続けました"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" ja="{} で画面のクラッシュが繰り返されました。接続するプリンターを選んでください"/>
   <translation tag="{} kept crashing the panel; switched back to {}" ja="{} で画面のクラッシュが繰り返されたため、{} に戻しました"/>
   <translation tag="{} left" ja="残り {}"/>

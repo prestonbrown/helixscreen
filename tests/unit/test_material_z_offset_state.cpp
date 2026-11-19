@@ -25,6 +25,7 @@
 #include "tool_state.h"
 #include "z_offset_utils.h"
 
+#include <functional>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -127,6 +128,35 @@ const json kPetgApplied = {
         {"helix_zoffset_default", 0},
         {"helix_material_offset_enabled", 1}}}}},
     {"gcode_macro _HELIX_MATERIAL", {{"applied", "PETG"}, {"apply_count", 1}}}};
+
+/// Config transfers where another writer edits a file right after this
+/// session's Nth read of it.
+class EditedBetweenReads : public MoonrakerFileTransferAPIMock {
+  public:
+    using MoonrakerFileTransferAPIMock::MoonrakerFileTransferAPIMock;
+    void download_file(const std::string& root, const std::string& path, StringCallback on_success,
+                       ErrorCallback on_error) override {
+        MoonrakerFileTransferAPIMock::download_file(root, path, on_success, on_error);
+        if (path == watched && ++reads == edit_after && edit) {
+            edit();
+        }
+    }
+    std::string watched;
+    int reads = 0;
+    int edit_after = 0;
+    std::function<void()> edit;
+};
+
+class EditedBetweenReadsApi : public helix::test::GcodeRecordingApi {
+  public:
+    EditedBetweenReadsApi(MoonrakerClientMock& client, helix::PrinterState& state)
+        : GcodeRecordingApi(client, state) {
+        auto transfers = std::make_unique<EditedBetweenReads>(client, get_http_base_url());
+        edits = transfers.get();
+        file_transfer_api_ = std::move(transfers);
+    }
+    EditedBetweenReads* edits = nullptr;
+};
 
 } // namespace
 
@@ -445,4 +475,118 @@ TEST_CASE_METHOD(MaterialStateFixture,
     CHECK_FALSE(ok);
     CHECK(message.find("more than") != std::string::npos);
     CHECK(api.get_uploaded_config("inc0.cfg") == files["inc0.cfg"]);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: a per-material Save leaves dirty tool offsets alone",
+                 "[material_zoffset][zoffset]") {
+    // Saving a tool offset on klipper-toolchanger ends in SAVE_CONFIG, which the
+    // per-material Save promises never to send; tools keep their own Save.
+    helix::zoffset::reset_shared_save();
+    helix::IMoonrakerAPI* previous = get_moonraker_api();
+    set_moonraker_api(&api);
+    json objects =
+        json::array({"gcode_move", "toolhead", "bed_mesh", "save_variables", "toolchanger",
+                     "tool T0", "tool T1", "extruder", "extruder1",
+                     "gcode_macro HELIX_MATERIAL_OFFSET", "gcode_macro _HELIX_MATERIAL"});
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    get_printer_state().set_hardware(hw);
+    state().on_discovery(get_printer_state().get_discovery());
+    helix::ToolState::instance().init_tools(get_printer_state().get_discovery());
+    helix::SettingsManager::instance().set_z_offset_save_mode(1);
+    status(kPetgApplied);
+    enable();
+    live_offset_mm(0.08);
+    helix::ToolState::instance().set_tool_offset_local(1, helix::Axis::Z, 60);
+    REQUIRE(lv_subject_get_int(helix::ToolState::instance().get_any_tool_offset_dirty_subject()) ==
+            1);
+    REQUIRE(state().save_target().has_value());
+
+    helix::zoffset::save_dirty_offsets_shared();
+    process_lvgl(50);
+    helix::test::answer_top_modal("btn_primary");
+    REQUIRE(wait_until([&] { return !api.sent.empty(); }, 5000));
+    process_lvgl(200);
+    CHECK(api.sent.front() == "SAVE_VARIABLE VARIABLE=helix_zoffset_petg VALUE=0.080");
+    CHECK_FALSE(sent_anything_that_folds_or_restarts());
+    CHECK(api.sent.size() == 1);
+    CHECK(lv_subject_get_int(helix::ToolState::instance().get_any_tool_offset_dirty_subject()) ==
+          1);
+
+    helix::SettingsManager::instance().set_z_offset_save_mode(0);
+    helix::zoffset::reset_shared_save();
+    set_moonraker_api(previous);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: an oversized loaded file stops the search",
+                 "[material_zoffset]") {
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    enable();
+    status(json{{"gcode_macro _START_PRINT_VARS", {{"offset_petg", 0.02}}}});
+    state().note_print_file("PETG");
+    const std::string vars = "[gcode_macro _START_PRINT_VARS]\nvariable_offset_PETG: 0.02\n";
+    // A literal include too large to read could hold a second definition.
+    api.set_config_files({{"printer.cfg", "[include vars.cfg]\n[include huge.cfg]\n"},
+                          {"vars.cfg", vars},
+                          {"huge.cfg", std::string(1100 * 1024, '#')}});
+    auto [ok, message] = save("PETG", 80);
+    CHECK_FALSE(ok);
+    CHECK(api.get_uploaded_config("vars.cfg") == vars);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "material zoffset state: saves to one file never lose each other's line",
+                 "[material_zoffset]") {
+    discover({"START_PRINT", "_START_PRINT_VARS"}, false);
+    enable();
+    status(json{{"gcode_macro _START_PRINT_VARS",
+                 {{"offset_petg", 0.02}, {"offset_default", 0}, {"offset_pla", 0}}}});
+    const std::string vars = "[gcode_macro _START_PRINT_VARS]\n"
+                             "variable_offset_PLA: 0\n"
+                             "variable_offset_PETG: 0.02\n"
+                             "variable_offset_DEFAULT: 0\n";
+
+    SECTION("a print Save and a Settings edit at once are written one after the other") {
+        api.set_config_files(
+            {{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", vars}});
+        api.hold_acks = true; // both reach the file before either live write answers
+        int finished = 0;
+        state().save_offset(&api, "PETG", 80, [&](bool, const std::string&) { ++finished; });
+        state().save_offset(&api, "", -30, [&](bool, const std::string&) { ++finished; });
+        for (int i = 0; i < 50 && finished < 2; ++i) {
+            api.ack_held();
+            process_lvgl(20);
+        }
+        REQUIRE(finished == 2);
+        const std::string after = api.get_uploaded_config("overrides.cfg").value_or("");
+        CHECK(after.find("variable_offset_PETG: 0.080") != std::string::npos);
+        CHECK(after.find("variable_offset_DEFAULT: -0.030") != std::string::npos);
+    }
+    SECTION("another writer's edit between the read and the upload is kept") {
+        EditedBetweenReadsApi editing{client, get_printer_state()};
+        editing.set_config_files(
+            {{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", vars}});
+        editing.edits->watched = "overrides.cfg";
+        editing.edits->edit_after = 2; // the search reads it once, the edit reads it next
+        editing.edits->edit = [&editing, vars]() {
+            std::string changed = vars;
+            changed.replace(changed.find("variable_offset_PLA: 0"), 22,
+                            "variable_offset_PLA: 0.050");
+            editing.set_config_files(
+                {{"printer.cfg", "[include overrides.cfg]\n"}, {"overrides.cfg", changed}});
+        };
+        bool finished = false;
+        bool ok = false;
+        state().save_offset(&editing, "PETG", 80, [&](bool good, const std::string&) {
+            finished = true;
+            ok = good;
+        });
+        REQUIRE(wait_until([&] { return finished; }, 5000));
+        CHECK(ok);
+        const std::string after = editing.get_uploaded_config("overrides.cfg").value_or("");
+        CHECK(after.find("variable_offset_PLA: 0.050") != std::string::npos);
+        CHECK(after.find("variable_offset_PETG: 0.080") != std::string::npos);
+    }
 }

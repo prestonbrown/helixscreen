@@ -5087,7 +5087,9 @@
   <translation tag="{} is not set up on this printer" ru="{} не настроен на этом принтере"/>
   <translation tag="{} is still printing. The print keeps running after you switch." ru="{} ещё печатает. Печать продолжится после переключения."/>
   <translation tag="{} is tighter" ru="{} туже"/>
+  <translation tag="{} is too large to search for [{}]" ru="{} слишком велик для поиска [{}]"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." ru="{}: филамент не загружен. Печать приостановится, когда он понадобится."/>
+  <translation tag="{} kept changing while saving" ru="{} продолжал меняться во время сохранения"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" ru="{} постоянно вызывал сбой экрана; выберите принтер для подключения"/>
   <translation tag="{} kept crashing the panel; switched back to {}" ru="{} постоянно вызывал сбой экрана; возврат к {}"/>
   <translation tag="{} left" ru="осталось {}"/>

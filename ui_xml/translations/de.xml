@@ -5012,7 +5012,9 @@
   <translation tag="{} is not set up on this printer" de="{} ist auf diesem Drucker nicht eingerichtet"/>
   <translation tag="{} is still printing. The print keeps running after you switch." de="{} druckt noch. Der Druck läuft nach dem Wechsel weiter."/>
   <translation tag="{} is tighter" de="{} ist straffer"/>
+  <translation tag="{} is too large to search for [{}]" de="{} ist zu groß, um darin nach [{}] zu suchen"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." de="{} ist nicht geladen. Der Druck pausiert, wenn er ihn braucht."/>
+  <translation tag="{} kept changing while saving" de="{} hat sich beim Speichern immer wieder geändert"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" de="{} hat den Bildschirm wiederholt abstürzen lassen; Drucker zum Verbinden auswählen"/>
   <translation tag="{} kept crashing the panel; switched back to {}" de="{} hat den Bildschirm wiederholt abstürzen lassen; zurück zu {} gewechselt"/>
   <translation tag="{} left" de="noch {}"/>

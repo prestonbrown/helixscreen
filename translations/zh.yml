@@ -5156,7 +5156,9 @@ translations:
   '{} lines in helixscreen.env were ignored': 'helixscreen.env 中有 {} 行被忽略'
   '{} kept crashing the panel; switched back to {}': '{} 反复导致屏幕崩溃，已切换回 {}'
   '{} is tighter': "{} 更紧"
+  '{} is too large to search for [{}]': "{} 太大，无法在其中查找 [{}]"
   "{} isn't loaded. The print will pause when it needs it.": '{}未装载。打印需要时将暂停。'
+  '{} kept changing while saving': "{} 在保存过程中一直在变化"
   '{} kept crashing the panel; pick a printer to connect': '{} 反复导致屏幕崩溃，请选择要连接的打印机'
   '{} linked to Spoolman spool #{} from its tag': '已通过标签将 {} 关联到 Spoolman 料盘 #{}'
   '{} m': '{} 米'

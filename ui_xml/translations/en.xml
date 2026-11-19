@@ -5012,7 +5012,9 @@
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
   <translation tag="{} is still printing. The print keeps running after you switch." en="{} is still printing. The print keeps running after you switch."/>
   <translation tag="{} is tighter" en="{} is tighter"/>
+  <translation tag="{} is too large to search for [{}]" en="{} is too large to search for [{}]"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." en="{} isn&apos;t loaded. The print will pause when it needs it."/>
+  <translation tag="{} kept changing while saving" en="{} kept changing while saving"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" en="{} kept crashing the panel; pick a printer to connect"/>
   <translation tag="{} kept crashing the panel; switched back to {}" en="{} kept crashing the panel; switched back to {}"/>
   <translation tag="{} left" en="{} left"/>

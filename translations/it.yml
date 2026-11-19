@@ -5156,7 +5156,9 @@ translations:
   '{} lines in helixscreen.env were ignored': '{} righe di helixscreen.env sono state ignorate'
   '{} kept crashing the panel; switched back to {}': '{} ha bloccato ripetutamente lo schermo; tornato a {}'
   '{} is tighter': "{} è più tesa"
+  '{} is too large to search for [{}]': "{} è troppo grande per cercarvi [{}]"
   "{} isn't loaded. The print will pause when it needs it.": '{} non è caricato. La stampa andrà in pausa quando ne avrà bisogno.'
+  '{} kept changing while saving': "{} ha continuato a cambiare durante il salvataggio"
   '{} kept crashing the panel; pick a printer to connect': '{} ha bloccato ripetutamente lo schermo; scegli una stampante a cui connetterti'
   '{} linked to Spoolman spool #{} from its tag': 'Collegamento di {} alla bobina Spoolman #{} dal suo tag'
   '{} m': '{} m'

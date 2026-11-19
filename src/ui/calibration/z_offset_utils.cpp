@@ -742,6 +742,8 @@ void run_shared_save() {
 
 /// Write the live offset into one material's entry, once confirmed. No
 /// Z_OFFSET_APPLY_*, no SAVE_CONFIG: the start macro applies the value itself.
+/// Dirty tool offsets are left for their own Save: theirs may end in
+/// SAVE_CONFIG, and this one never restarts Klipper.
 void run_material_save(const std::string& material, int microns) {
     if (shared_save_in_flight()) {
         spdlog::warn("[ZOffsetUtils] Z-offset save already in progress, ignoring");
@@ -762,20 +764,6 @@ void run_material_save(const std::string& material, int microns) {
                 NOTIFY_SUCCESS("{}", message);
             } else {
                 NOTIFY_ERROR("{}", message);
-            }
-            // A dirty tool still saves the way it always does; the machine-wide
-            // offset is the material's and stays out of it. That save may
-            // restart Klipper, so never while a job holds the machine.
-            PrinterState& ps = get_printer_state();
-            if (helix::ToolState::instance().dirty_tool_indices().empty() ||
-                lv_subject_get_int(ps.print_state().get_machine_motion_blocked_subject()) != 0) {
-                return;
-            }
-            if (IMoonrakerAPI* again = get_moonraker_api()) {
-                save_dirty_offsets(
-                    again, shared_save_watch(), ps.profile_state().z_offset_calibration_strategy(),
-                    ps.get_discovery(), false, nullptr,
-                    [](const std::string& error) { NOTIFY_ERROR("{}", error); }, &ps);
             }
         });
 }
