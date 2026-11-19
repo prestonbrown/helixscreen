@@ -17,6 +17,7 @@
 
 #include "ams_types.h"
 #include "settings_manager.h"
+#include "tube_router.h"
 
 namespace helix::ui::syspath {
 
@@ -126,6 +127,26 @@ struct SystemPathData {
     bool parked_chip_drawn[2] = {};
     void (*parked_chip_cb)(int side, void* user_data) = nullptr;
     void* parked_chip_user_data = nullptr;
+
+    // The several-toolhead routing, kept against the router's whole input: the
+    // routes' ends, their buses and the router config. A draw or a room check
+    // whose routes start and end where the last one's did takes the kept answer
+    // instead of routing again; anything that moves an end misses. Written only
+    // by the plan code (ui_system_path_plan.cpp).
+    struct RouteMemo {
+        // The routes the plan draws: whether the slope ladder fit them, and how.
+        tuberoute::InputKey routes_key;
+        bool routes_kept = false;
+        bool routes_fit = false;
+        tuberoute::Trace traces[kMaxTools] = {};
+        // overview_lean_shortfall's least extra height, in pixels below the sinks.
+        tuberoute::InputKey lean_key;
+        bool lean_kept = false;
+        float lean_short_px = 0.0f;
+        // Router searches run rather than reused (a slope ladder or a lean search).
+        int searches = 0;
+    };
+    mutable RouteMemo route_memo;
 };
 
 // Vertical layout. The unit stems start at kEntryYRatio of the height, and the

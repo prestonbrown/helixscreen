@@ -352,6 +352,51 @@ TEST_CASE("tube router: a short canvas falls back to the second slope, then hori
     CHECK(t[0].pts[1].y == t[0].pts[2].y);
 }
 
+TEST_CASE("tube router: a slope ladder takes its first slope that fits, then level",
+          "[tube_router]") {
+    // One lane jogging 100 px with 70 px of height: 45 degrees needs 100 + leads.
+    PathPoint src[] = {{100, 0}};
+    PathPoint dst[] = {{200, 70}};
+    Bus bus{src, dst, 1};
+    RouterConfig c;
+    c.clearance = 10.0f;
+    c.fillet_r = 0.0f;
+    c.lead_in = 5.0f;
+    c.lead_out = 5.0f;
+    Trace t[1];
+    RouteReport rep;
+
+    const float fits_third[] = {1.0f, 0.75f, 0.5f, 0.4f};
+    REQUIRE(plan_routes_ladder(&bus, 1, c, fits_third, 4, false, t, 1, &rep) == RouteStatus::Ok);
+    CHECK(rep.slope == 0.5f);
+    // The same plan plan_routes makes at that slope alone.
+    Trace alone[1];
+    c.slope = 0.5f;
+    c.allow_horizontal = false;
+    REQUIRE(plan_routes(&bus, 1, c, alone, 1) == RouteStatus::Ok);
+    for (int k = 0; k < t[0].count; ++k) {
+        CHECK(t[0].pts[k].x == alone[0].pts[k].x);
+        CHECK(t[0].pts[k].y == alone[0].pts[k].y);
+    }
+
+    const float too_steep[] = {1.0f, 0.75f};
+    CHECK(plan_routes_ladder(&bus, 1, c, too_steep, 2, false, t, 1, &rep) == RouteStatus::NoRoom);
+    CHECK(rep.slope == 1.0f); // a failure reports the first slope's attempt
+    REQUIRE(plan_routes_ladder(&bus, 1, c, too_steep, 2, true, t, 1, &rep) == RouteStatus::Ok);
+    CHECK(rep.slope == 0.0f);
+    CHECK(t[0].pts[1].y == t[0].pts[2].y);
+
+    const float flat[] = {0.0f};
+    CHECK(plan_routes_ladder(&bus, 1, c, flat, 1, true, t, 1) == RouteStatus::BadInput);
+    CHECK(plan_routes_ladder(&bus, 1, c, nullptr, 0, true, t, 1) == RouteStatus::BadInput);
+}
+
+TEST_CASE("tube router: segment distance is 0 where segments cross", "[tube_router]") {
+    CHECK(segment_distance({0, 0}, {10, 10}, {0, 10}, {10, 0}) == 0.0f);
+    CHECK(segment_distance({0, 0}, {10, 0}, {0, 4}, {10, 4}) == Catch::Approx(4.0f));
+    CHECK(segment_distance({0, 0}, {10, 0}, {13, 4}, {20, 4}) == Catch::Approx(5.0f));
+}
+
 TEST_CASE("tube router: horizontal jogs in one bus stack a pitch apart", "[tube_router]") {
     Scenario s = bt4_hub();
     for (auto& p : s.dst[0])

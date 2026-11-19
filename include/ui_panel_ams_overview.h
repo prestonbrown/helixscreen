@@ -319,6 +319,11 @@ class AmsOverviewPanel : public PanelBase {
     /// The lean shortfall fit_path_room() last settled on, so a refresh that finds
     /// the same one does not lay the tiles out again.
     int32_t settled_need_ = INT32_MIN;
+    /// Back to full-height tiles and no settled shortfall: the state of a row not yet fitted.
+    void forget_path_room() {
+        path_extra_ = 0;
+        settled_need_ = INT32_MIN;
+    }
     /// The share of the overview's column, in percent, the path below the tiles keeps.
     static constexpr int32_t kOverviewPathSharePct = 45;
     static void on_cards_row_resized(lv_event_t* e);

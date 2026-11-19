@@ -10,7 +10,9 @@
  * @brief Circuit-board style routing for filament tubes: ordered buses of traces
  *        from unit outlets down to hub entries or toolhead inlets.
  *
- * Pure geometry, no LVGL, no allocation: the caller owns every buffer.
+ * Pure geometry, no LVGL. The caller owns every buffer it passes; the router
+ * itself allocates one scratch buffer, once, on its first plan, and plans run
+ * on one thread at a time.
  *
  * Coordinates are screen coordinates (+y down) in pixels. Every trace runs DOWN
  * from its source to its sink as at most three octilinear legs:
@@ -42,6 +44,8 @@ using pathgeo::PathPoint;
 constexpr int kMaxTraces = 32;
 /// The most vertices one trace has: source, two bends, sink.
 constexpr int kMaxTracePts = 4;
+/// The most slopes one plan_routes_ladder() call tries, the level jog aside.
+constexpr int kMaxLadderSlopes = 16;
 
 struct RouterConfig {
     /// Least distance between the centerlines of any two traces anywhere: the
@@ -127,6 +131,41 @@ struct RouteReport {
  */
 RouteStatus plan_routes(const Bus* buses, int bus_count, const RouterConfig& cfg, Trace* out,
                         int out_cap, RouteReport* report = nullptr);
+
+/**
+ * @brief Route like plan_routes() at each of @p slopes in turn, and then with
+ *        horizontal jogs when @p level_last; the first that fits is the plan.
+ *
+ * @p cfg's slope, alt_slope and allow_horizontal are not read: the ladder
+ * replaces them. A failure reports the attempt at slopes[0]. Every slope must
+ * be positive, and there are at most kMaxLadderSlopes of them.
+ */
+RouteStatus plan_routes_ladder(const Bus* buses, int bus_count, const RouterConfig& cfg,
+                               const float* slopes, int slope_count, bool level_last, Trace* out,
+                               int out_cap, RouteReport* report = nullptr);
+
+/// Whether @p a and @p b set every field alike.
+bool same_config(const RouterConfig& a, const RouterConfig& b);
+
+/// A plan's whole input held by value: buses, ends and config. Two plans with
+/// equal keys route to the same traces, so a caller can keep a plan's answer
+/// against its key and route again only when the key changes.
+struct InputKey {
+    int traces = 0;
+    int bus_count = 0;
+    int bus_sizes[kMaxTraces] = {};
+    PathPoint sources[kMaxTraces] = {};
+    PathPoint sinks[kMaxTraces] = {};
+    RouterConfig cfg;
+};
+
+/// The key of @p buses under @p cfg; buses past kMaxTraces traces in all are left out.
+InputKey input_key(const Bus* buses, int bus_count, const RouterConfig& cfg);
+
+bool same_input(const InputKey& a, const InputKey& b);
+
+/// Least distance between the segments @p a0-@p a1 and @p b0-@p b1: 0 where they cross.
+float segment_distance(PathPoint a0, PathPoint a1, PathPoint b0, PathPoint b1);
 
 /**
  * @brief Least vertical span, from the highest source down to a sink row, that

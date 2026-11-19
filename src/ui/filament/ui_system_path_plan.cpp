@@ -610,35 +610,24 @@ void assign_run_heights(const SystemPathData& data, const SysLayout& L, const Ov
             return;
 }
 
+// The jog slopes the router tries, steepest first, in steps fine enough that a
+// tight rig leans as far as its height allows. A level jog comes only after.
+constexpr float kRouterSlopes[] = {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f};
+// The leans tilt_runs tries, steepest first. It checks every pair of routes on
+// each step, so it takes fewer, coarser steps than the router; these are the
+// leans a rig the router cannot fit is drawn at.
+constexpr float kTiltSlopes[] = {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f};
+
 namespace tilt {
 struct Seg {
     float x0, y0, x1, y1;
 };
 
-float seg_point_d2(const Seg& s, float px, float py) {
-    const float dx = s.x1 - s.x0, dy = s.y1 - s.y0;
-    const float len2 = dx * dx + dy * dy;
-    float t = len2 > 0 ? ((px - s.x0) * dx + (py - s.y0) * dy) / len2 : 0.0f;
-    t = std::clamp(t, 0.0f, 1.0f);
-    const float ex = s.x0 + t * dx - px, ey = s.y0 + t * dy - py;
-    return ex * ex + ey * ey;
-}
-
-bool segs_cross(const Seg& a, const Seg& b) {
-    auto side = [](const Seg& s, float x, float y) {
-        return (s.x1 - s.x0) * (y - s.y0) - (s.y1 - s.y0) * (x - s.x0);
-    };
-    const float d1 = side(a, b.x0, b.y0), d2 = side(a, b.x1, b.y1);
-    const float d3 = side(b, a.x0, a.y0), d4 = side(b, a.x1, a.y1);
-    return ((d1 > 0) != (d2 > 0)) && ((d3 > 0) != (d4 > 0));
-}
-
 // The closest two segments come, squared.
 float seg_seg_d2(const Seg& a, const Seg& b) {
-    if (segs_cross(a, b))
-        return 0.0f;
-    return std::min({seg_point_d2(a, b.x0, b.y0), seg_point_d2(a, b.x1, b.y1),
-                     seg_point_d2(b, a.x0, a.y0), seg_point_d2(b, a.x1, a.y1)});
+    const float d =
+        tuberoute::segment_distance({a.x0, a.y0}, {a.x1, a.y1}, {b.x0, b.y0}, {b.x1, b.y1});
+    return d * d;
 }
 
 // A route's centerline as drop, run and drop.
@@ -650,23 +639,26 @@ int route_segs(const GlobalRoute& g, Seg* out) {
     return 3;
 }
 
+// The closest two routes' centerlines come, squared.
+float route_d2(const GlobalRoute& a, const GlobalRoute& b) {
+    Seg sa[3], sb[3];
+    route_segs(a, sa);
+    route_segs(b, sb);
+    float d2 = std::numeric_limits<float>::max();
+    for (const Seg& x : sa)
+        for (const Seg& y : sb)
+            d2 = std::min(d2, seg_seg_d2(x, y));
+    return d2;
+}
+
 // Whether every pair of routes keeps @p gap2 (squared) between its centerlines, or as much as
 // it kept level (@p level_d2) where the level layout already came closer.
 bool keeps_clear(const GlobalRoute* routes, int n, const float* level_d2, float gap2) {
-    for (int i = 0; i < n; ++i) {
-        Seg a[3];
-        route_segs(routes[i], a);
-        for (int j = i + 1; j < n; ++j) {
-            Seg b[3];
-            route_segs(routes[j], b);
-            float d2 = std::numeric_limits<float>::max();
-            for (const Seg& sa : a)
-                for (const Seg& sb : b)
-                    d2 = std::min(d2, seg_seg_d2(sa, sb));
-            if (d2 < std::min(gap2, level_d2[i * SystemPathData::kMaxTools + j]) - 0.5f)
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            if (route_d2(routes[i], routes[j]) <
+                std::min(gap2, level_d2[i * SystemPathData::kMaxTools + j]) - 0.5f)
                 return false;
-        }
-    }
     return true;
 }
 
@@ -700,22 +692,12 @@ void tilt_runs(const SystemPathData& data, GlobalRoute* routes, int n) {
     constexpr int kN = SystemPathData::kMaxTools;
     tilt::set_tilt(data, routes, n, 0.0f);
     float level_d2[kN * kN];
-    for (int i = 0; i < n; ++i) {
-        tilt::Seg a[3];
-        tilt::route_segs(routes[i], a);
-        for (int j = i + 1; j < n; ++j) {
-            tilt::Seg b[3];
-            tilt::route_segs(routes[j], b);
-            float d2 = std::numeric_limits<float>::max();
-            for (const tilt::Seg& sa : a)
-                for (const tilt::Seg& sb : b)
-                    d2 = std::min(d2, tilt::seg_seg_d2(sa, sb));
-            level_d2[i * kN + j] = d2;
-        }
-    }
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            level_d2[i * kN + j] = tilt::route_d2(routes[i], routes[j]);
     const float gap = (float)route_gap(data);
     bool leaned = false;
-    for (float slope : {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f}) {
+    for (float slope : kTiltSlopes) {
         tilt::set_tilt(data, routes, n, slope);
         if (tilt::keeps_clear(routes, n, level_d2, gap * gap)) {
             leaned = true;
@@ -925,12 +907,6 @@ void append_lone_outlet(Route& r, const Lane& lane, float x, float from_y, float
     append_line(r, x, from_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
 }
 
-// Lays every route out with the tube router: each one a drop, one jog and a drop,
-// in source order, never crossing and a haloed tube apart. A PARALLEL or MIXED
-// unit's routes are one bus, so they jog as a ribbon; every other unit's tube is
-// a bus of its own. Returns false, leaving the routes untouched, when the router
-// cannot fit them (ends out of order, too little height or clearance): the
-// caller lays them out with run heights instead. Sorts @p routes by start.
 // The routes as the router takes them: sorted by start, one bus per PARALLEL or
 // MIXED unit's run of routes and one per other unit's tube.
 struct RouterInput {
@@ -964,29 +940,33 @@ void router_input(const SystemPathData& data, GlobalRoute* routes, int n, Router
     in.cfg.allow_horizontal = false;
 }
 
-// The jog slopes the router tries, steepest first, in steps fine enough that a
-// tight rig leans as far as its height allows. A level jog comes only after.
-constexpr float kRouterSlopes[] = {1.0f, 0.75f, 0.6f, 0.5f, 0.4f, 0.35f, 0.3f, 0.26f, 0.22f, 0.18f};
-
+// Lays every route out with the tube router: each one a drop, one jog and a drop,
+// in source order, never crossing and a haloed tube apart. A PARALLEL or MIXED
+// unit's routes are one bus, so they jog as a ribbon; every other unit's tube is
+// a bus of its own. Returns false, leaving the routes untouched, when the router
+// cannot fit them (ends out of order, too little height or clearance): the
+// caller lays them out with run heights instead. Sorts @p routes by start.
+// The slope ladder runs once per distinct router input; route_memo keeps its answer.
 bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
     if (n <= 0)
         return false;
     RouterInput in;
     router_input(data, routes, n, in);
-    tuberoute::RouterConfig& cfg = in.cfg;
-    tuberoute::Trace traces[SystemPathData::kMaxTools];
-    bool fits = false;
-    for (int k = 0; k <= (int)std::size(kRouterSlopes) && !fits; ++k) {
-        const bool level = k == (int)std::size(kRouterSlopes);
-        cfg.slope = level ? 1.0f : kRouterSlopes[k];
-        cfg.allow_horizontal = level;
-        fits = tuberoute::plan_routes(in.buses, in.bus_count, cfg, traces, n) ==
-               tuberoute::RouteStatus::Ok;
+    SystemPathData::RouteMemo& memo = data.route_memo;
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.routes_kept || !tuberoute::same_input(memo.routes_key, key)) {
+        memo.routes_key = key;
+        memo.routes_kept = true;
+        ++memo.searches;
+        memo.routes_fit = tuberoute::plan_routes_ladder(
+                              in.buses, in.bus_count, in.cfg, kRouterSlopes,
+                              (int)std::size(kRouterSlopes), /*level_last=*/true, memo.traces,
+                              SystemPathData::kMaxTools) == tuberoute::RouteStatus::Ok;
     }
-    if (!fits)
+    if (!memo.routes_fit)
         return false;
     for (int r = 0; r < n; ++r) {
-        routes[r].trace = traces[r];
+        routes[r].trace = memo.traces[r];
         routes[r].routed = true;
     }
     return true;
@@ -1045,6 +1025,9 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     NozzleFeed feeds[SystemPathData::kMaxTools];
     const int n = prepare_multi_routes(data, L, routes, feeds, boxes);
     const int32_t nozzle_top = tool_row_inlet_y(data, L);
+    // The router declines ends that would have to cross, and a rig where no slope, level
+    // included, keeps every pair a haloed tube apart in the height there is. Those rigs
+    // lay each run at its own height instead and lean what they can.
     if (!route_with_router(data, routes, n)) {
         assign_run_heights(data, L, boxes, routes, n);
         tilt_runs(data, routes, n);
@@ -1260,16 +1243,25 @@ int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coo
     }
     // The least height any lean needs: a shallow jog is shorter, but its ribbon
     // stacks deeper, so the easiest slope is not always the shallowest.
-    tuberoute::Trace traces[SystemPathData::kMaxTools];
-    float short_px = std::numeric_limits<float>::max();
-    for (float slope : kRouterSlopes) {
-        in.cfg.slope = slope;
-        tuberoute::RouteReport report;
-        const tuberoute::RouteStatus status =
-            tuberoute::plan_routes(in.buses, in.bus_count, in.cfg, traces, n, &report);
-        if (status == tuberoute::RouteStatus::Ok || status == tuberoute::RouteStatus::NoRoom)
-            short_px = std::min(short_px, report.required_bottom - sink);
+    SystemPathData::RouteMemo& memo = data.route_memo;
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.lean_kept || !tuberoute::same_input(memo.lean_key, key)) {
+        tuberoute::Trace traces[SystemPathData::kMaxTools];
+        float least = std::numeric_limits<float>::max();
+        for (float slope : kRouterSlopes) {
+            in.cfg.slope = slope;
+            tuberoute::RouteReport report;
+            const tuberoute::RouteStatus status =
+                tuberoute::plan_routes(in.buses, in.bus_count, in.cfg, traces, n, &report);
+            if (status == tuberoute::RouteStatus::Ok || status == tuberoute::RouteStatus::NoRoom)
+                least = std::min(least, report.required_bottom - sink);
+        }
+        memo.lean_key = key;
+        memo.lean_kept = true;
+        memo.lean_short_px = least;
+        ++memo.searches;
     }
+    const float short_px = memo.lean_short_px;
     if (short_px == std::numeric_limits<float>::max())
         return 0;
     // The run from the stems to the sinks is a fixed share of the canvas, so the

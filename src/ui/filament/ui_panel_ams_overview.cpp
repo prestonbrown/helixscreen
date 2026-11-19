@@ -937,6 +937,7 @@ void AmsOverviewPanel::clear_panel_reference() {
     cards_row_ = nullptr;
     laid_out_row_width_ = 0;
     unit_cards_.clear();
+    forget_path_room();
 
     // Clear unit view state
     detail_container_ = nullptr;
@@ -1273,6 +1274,13 @@ void AmsOverviewPanel::detach_widget_hooks() {
     helix::ui::remove_event_cb_if_alive(detail_path_canvas_,
                                         &AmsOverviewPanel::on_path_layout_changed, this);
     helix::ui::remove_event_cb_if_alive(page_dots_, &AmsOverviewPanel::on_page_dots_resized, this);
+    if (lv_is_initialized()) {
+        if (system_path_)
+            helix::ui::ui_system_path_canvas_set_parked_chip_callback(system_path_, nullptr,
+                                                                      nullptr);
+        if (detail_path_canvas_)
+            ui_filament_path_canvas_set_offpage_callback(detail_path_canvas_, nullptr, nullptr);
+    }
     for (const auto& uc : unit_cards_) {
         helix::ui::remove_event_cb_if_alive(uc.env_line,
                                             &AmsOverviewPanel::on_env_line_size_changed, this);
