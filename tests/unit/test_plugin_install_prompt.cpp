@@ -365,13 +365,17 @@ TEST_CASE_METHOD(PromptFixture,
 TEST_CASE_METHOD(PromptFixture,
                  "an install that ends while a job holds the machine restarts nothing",
                  "[plugin_installer][print_select]") {
-    scripts.write_script("exit 0");
+    // install.sh waits for the go file, so it cannot end before the print starts.
+    const std::string go = scripts.root + "/go";
+    scripts.write_script("while [ ! -f '" + go + "' ]; do sleep 0.01; done\nexit 0");
     set_plugin_installed(false);
     REQUIRE(prompt() != nullptr);
     const int restarts_before = moonraker_restarts();
 
     press("btn_install");
     test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    drain();
+    std::ofstream(go).flush();
     test::settle_slow_lane([&] { drain(); });
     REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
 
