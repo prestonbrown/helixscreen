@@ -48,6 +48,7 @@ ALLOWED = {
     "obj/lvgl/src/drivers/libinput/lv_libinput.o": "reached only behind Lib::Input in DisplayBackendDRM",
     "obj/application/probe_egl_cmd.o": "run_probe_egl() checks every library before touching one",
     "obj/rendering/gcode_gles_renderer.o": "init_gl() checks Lib::Egl/Gles2, the GBM path Lib::Gbm/Drm",
+    "obj/rendering/gcode_gles_renderer_worker.o": "the worker steps only after init_gl() succeeded, which checked Lib::Egl/Gles2",
     "obj/ui/effects/backdrop_blur.o": "gpu_blur() checks all four before the first EGL call",
 }
 

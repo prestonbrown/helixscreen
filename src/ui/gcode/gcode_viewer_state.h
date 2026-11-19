@@ -495,6 +495,23 @@ void apply_view_options(gcode_viewer_state_t* st);
 /// Forget what the stall watchdog has observed.
 void gcode_viewer_watchdog_restart(gcode_viewer_state_t* st);
 
+/// Registry of live viewer widgets, drained by gcode_viewer_clear_all_active() and the
+/// preview reset handler. Main-thread-only access.
+std::vector<lv_obj_t*>& active_viewers();
+
+/// The one sequence that creates a 2D renderer for a fully parsed file.
+void create_2d_renderer_for_file(gcode_viewer_state_t* st, int width, int height);
+
+/// Drop every tool color override the viewer holds and restore the file's own palette.
+void ui_gcode_viewer_clear_tool_colors(lv_obj_t* obj);
+
+/// Re-derive the renderers' content offset from the bottom occluder's overlap.
+void gcode_viewer_refresh_content_offset(gcode_viewer_state_t* st, lv_obj_t* obj, int canvas_width,
+                                         int canvas_height);
+
+/// Registered on the occluder, keyed to the viewer; detaches the reference when the strip dies.
+void gcode_viewer_occluder_delete_cb(lv_event_t* e);
+
 /// Register the touch handlers (press, drag, release, two-finger gesture) on a viewer.
 void install_input_handlers(lv_obj_t* obj);
 
