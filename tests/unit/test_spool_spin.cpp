@@ -59,8 +59,7 @@ TEST_CASE("spool spin: a feeding spool turns at least once per floor period", "[
         CHECK(turn_s(SpoolSpin{1, spool_spin_step_ms(feed)}) <=
               Catch::Approx(kSpoolSpinFloorTurnS).margin(0.03f));
     }
-    CHECK(kSpoolSpinFloorTurnS >= 3.0f);
-    CHECK(kSpoolSpinFloorTurnS <= 4.0f);
+    CHECK(spool_spin_step_ms(0.0f) == 73); // 3.5 s a turn over 48 phases
 }
 
 TEST_CASE("spool spin: a fast feed is capped so the vents never strobe", "[spool_spin]") {
@@ -78,7 +77,8 @@ TEST_CASE("spool spin: between floor and cap a spool turns the multiplier faster
     REQUIRE(drawn < kSpoolSpinFloorTurnS);
     REQUIRE(drawn > kSpoolSpinCapTurnS);
     CHECK(drawn == Catch::Approx(real_turn_s / kSpoolSpinVisualMultiplier).margin(0.03f));
-    CHECK(kSpoolSpinVisualMultiplier == 2.0f);
+    // 200 mm/s off an 80 mm radius is 2.51 s a real turn; drawn twice as fast, 26 ms a phase.
+    CHECK(spool_spin_step_ms(kMidFeedMmS) == 26);
 }
 
 TEST_CASE("spool spin: a printing lane turns at the shared rule's pace for its flow",
