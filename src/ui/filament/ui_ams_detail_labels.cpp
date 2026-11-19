@@ -630,7 +630,9 @@ int32_t place_unit_labels() {
             lv_label_get_text(label), lv_obj_get_style_text_font(label, LV_PART_MAIN),
             lv_obj_get_style_text_letter_space(label, LV_PART_MAIN));
         const int32_t text_left = std::max(la.x1, (la.x1 + la.x2) / 2 - text_w / 2);
-        lv_obj_set_style_translate_x(row, text_left - 3 - ra.x2, LV_PART_MAIN);
+        // A clear gap, so the reading never reads as part of the name.
+        const int32_t gap = theme_manager_get_spacing("space_sm");
+        lv_obj_set_style_translate_x(row, text_left - gap - ra.x2, LV_PART_MAIN);
         lv_obj_set_style_translate_y(row, (la.y1 + la.y2) / 2 - (ra.y1 + ra.y2) / 2, LV_PART_MAIN);
         lv_obj_update_layout(row);
         lv_obj_get_coords(row, &ra);
