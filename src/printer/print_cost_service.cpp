@@ -273,6 +273,13 @@ void ActivePrintCost::set_file(const std::string& filename, const FileMetadata& 
     });
 }
 
+void ActivePrintCost::clear() {
+    filename_.clear();
+    filament_total_mm_ = 0.0;
+    estimate_.reset();
+    publish();
+}
+
 void ActivePrintCost::update(double filament_used_mm, double progress, double elapsed_seconds) {
     filament_used_mm_ = filament_used_mm;
     progress_ = progress;

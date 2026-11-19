@@ -479,6 +479,12 @@ void ActivePrintMediaManager::process_filename(const char* raw_filename) {
     }
     last_effective_filename_ = effective_filename;
 
+    // The last print's cost is not this one's, whether or not this file's
+    // metadata ever arrives to price it. Queued like the display name below,
+    // so it lands before any metadata reply this load starts.
+    helix::ui::queue_update("ActivePrintMediaManager::clear_print_cost",
+                            []() { helix::print_cost::ActivePrintCost::instance().clear(); });
+
     // Update display filename subject
     std::string display_name = get_display_filename(effective_filename);
     spdlog::debug("[ActivePrintMediaManager] Display filename: {}", display_name);
@@ -1243,6 +1249,7 @@ void ActivePrintMediaManager::clear_print_info() {
         printer_state_.print_state().set_print_psram_thumbnail(nullptr);
 #endif
         printer_state_.print_state().set_print_display_filename("");
+        helix::print_cost::ActivePrintCost::instance().clear();
         spdlog::debug("[ActivePrintMediaManager] Cleared print info subjects");
     });
 }

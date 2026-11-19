@@ -81,6 +81,10 @@ class ActivePrintCost {
     /// Register the subjects; before any XML binding them. Idempotent.
     void init_subjects();
 
+    /// Forget the last print's file and estimate: the running file changed and
+    /// its own metadata has not arrived (and may never).
+    void clear();
+
     /// Price the file the printer is running (gcodes-relative name).
     void set_file(const std::string& filename, const FileMetadata& metadata);
 
