@@ -1,11 +1,12 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_test_budget.py: a branch may not grow the C++
-# test suite, TestAccess use or friend declarations past its fork point, and
-# only test lines take a Test-budget grant. Each measure is proven to fail on
-# growth, to pass when the branch pays for what it adds, and to ignore what it
-# does not measure.
+# Meta-tests for scripts/check_test_budget.py: a branch that grows the C++
+# test suite, TestAccess use or friend declarations past its fork point is
+# warned, and only test lines take a Test-budget grant. Each measure is proven
+# to warn on growth (exit 3, ratchet.WARN_EXIT), to pass when the branch pays
+# for what it adds, and to ignore what it does not measure. The qc wrapper
+# never fails on a warning.
 
 load helpers
 
@@ -35,11 +36,11 @@ budget() {
     run python3 "$GATE" --root "$REPO" --base "$BASE"
 }
 
-@test "a branch that adds test lines fails" {
+@test "a branch that adds test lines warns" {
     printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
     commit_all "add a test"
     budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "test lines grew by 3" "$output"
 }
 
@@ -61,32 +62,32 @@ budget() {
     contains "budget 3" "$output"
 }
 
-@test "a grant smaller than the growth still fails, and a grant without a reason grants nothing" {
+@test "a grant smaller than the growth still warns, and a grant without a reason grants nothing" {
     printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
     git -C "$REPO" add -A
     git -C "$REPO" commit -qm "add a test" -m "Test-budget: +2 almost enough"
     budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "2 granted by Test-budget" "$output"
     git -C "$REPO" commit -q --amend -m "add a test" -m "Test-budget: +3"
     budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
 }
 
-@test "a new TestAccess reference fails even with a Test-budget grant" {
+@test "a new TestAccess reference warns even with a Test-budget grant" {
     printf 'void g() { WidgetTestAccess::poke(w); }\n' >> "$REPO/src/widget.cpp"
     git -C "$REPO" add -A
     git -C "$REPO" commit -qm "reach in" -m "Test-budget: +100 unrelated"
     budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "TestAccess references grew by 1" "$output"
 }
 
-@test "a new friend declaration fails" {
+@test "a new friend declaration warns" {
     printf 'class Gadget {\n    friend struct GadgetPeek;\n};\n' > "$REPO/include/gadget.h"
     commit_all "befriend"
     budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "friend declarations grew by 1" "$output"
 }
 
@@ -128,11 +129,25 @@ qc_budget() {
         qc_test_budget' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
 }
 
-@test "the qc wrapper measures the branch from its fork point and fails on growth" {
+@test "the qc wrapper measures the branch from its fork point and warns on growth without failing" {
     printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
     commit_all "add a test"
     qc_budget
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 0 ]
+    contains "⚠️  test lines grew by 3" "$output"
+    contains "blocks nothing" "$output"
+}
+
+@test "a commit measures the fork point to the index, so a staged test counts" {
+    printf 'TEST_CASE("b") {\n    CHECK(2 == 2);\n}\n' > "$REPO/tests/unit/test_b.cpp"
+    commit_all "add a test"
+    printf 'TEST_CASE("c") {\n    CHECK(3 == 3);\n}\n' > "$REPO/tests/unit/test_c.cpp"
+    git -C "$REPO" add tests/unit/test_c.cpp
+    run python3 "$GATE" --root "$REPO" --base "$BASE" --staged
+    [ "$status" -eq 3 ]
+    contains "test lines grew by 6" "$output"
+    contains "...index" "$output"
+    run python3 "$GATE" --root "$REPO" --base "$BASE"
     contains "test lines grew by 3" "$output"
 }
 

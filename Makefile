@@ -1329,6 +1329,7 @@ dev:
 setup:
 	@git config core.hooksPath .githooks
 	@git config commit.template .githooks/commit-template
+	@$(HELIX_GIT_MERGE_DRIVER)
 	@echo "✓ Git configured:"
 	@echo "  - Pre-commit hook enabled (.githooks/)"
 	@echo "  - Commit template enabled (.githooks/commit-template)"

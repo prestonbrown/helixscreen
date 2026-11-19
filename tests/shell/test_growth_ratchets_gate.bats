@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Meta-tests for scripts/check_growth_ratchets.py (prestonbrown/helixscreen#1945):
-# from its fork point a branch may not grow a C++ file past the size cap, add a
-# global accessor call inside a class that already receives that dependency, or
-# add a static active-instance pointer. Each ratchet is proven to fail on the
-# shape it guards and to stay quiet on the idioms beside it.
+# from its fork point a branch may not add a global accessor call inside a class
+# that already receives that dependency, or add a static active-instance pointer,
+# and a branch that grows a C++ file past the size cap is warned (exit 3,
+# ratchet.WARN_EXIT). Each ratchet is proven to report the shape it guards and to
+# stay quiet on the idioms beside it.
 
 load helpers
 
@@ -82,12 +83,12 @@ EOF
 
 # --- file size --------------------------------------------------------------
 
-@test "a new file over the cap fails, one at the cap passes" {
+@test "a new file over the cap warns, one at the cap passes" {
     lines $((CAP + 1)) > "$REPO/src/new_big.cpp"
     lines $CAP > "$REPO/src/new_ok.cpp"
     commit_all "two new files"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/new_big.cpp is over the $CAP-line cap and grew (new file, $((CAP + 1)) lines)" "$output"
     lacks "new_ok.cpp" "$output"
 }
@@ -96,7 +97,7 @@ EOF
     echo "int more;" >> "$REPO/src/big.cpp"
     commit_all "grow"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/big.cpp is over the $CAP-line cap and grew ($((CAP + 10)) -> $((CAP + 11)) lines)" "$output"
     lines $((CAP + 5)) > "$REPO/src/big.cpp"
     commit_all "shrink"
@@ -109,7 +110,7 @@ EOF
     lines $((CAP + 1)) > "$REPO/tests/unit/test_big.cpp"
     commit_all "cross"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/small.cpp is over the $CAP-line cap and grew (100 -> $((CAP + 1)) lines)" "$output"
     contains "tests/unit/test_big.cpp" "$output"
 }
@@ -122,7 +123,7 @@ EOF
     echo "int more;" >> "$REPO/src/moved.cpp"
     commit_all "grow it"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "renamed from src/big.cpp" "$output"
 }
 
@@ -131,7 +132,7 @@ EOF
     lines $((CAP + 1)) > "$REPO/src/other.cpp"
     commit_all "grow" "File-size: src/big.cpp the fix cannot wait for the split"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     lacks "src/big.cpp is over" "$output"
     contains "src/other.cpp is over" "$output"
     git -C "$REPO" commit -q --amend -m "grow" -m "File-size: src/big.cpp"
@@ -139,11 +140,11 @@ EOF
     git -C "$REPO" add -A
     git -C "$REPO" commit -qm "drop other"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/big.cpp is over" "$output"
 }
 
-@test "splitting an over-cap file into two over-cap halves passes; a split that also grows fails" {
+@test "splitting an over-cap file into two over-cap halves passes; a split that also grows warns" {
     lines $((2 * CAP + 200)) > "$REPO/src/huge.cpp"
     rebase_here "huge file"
     lines $((CAP + 100)) > "$REPO/src/huge.cpp"
@@ -154,7 +155,7 @@ EOF
     echo "int more;" >> "$REPO/src/huge_b.cpp"
     commit_all "and grow"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/huge_b.cpp is over the $CAP-line cap and grew (new file, $((CAP + 101)) lines; $((CAP + 100)) lines left over-cap files on this branch)" "$output"
 }
 
@@ -164,7 +165,7 @@ EOF
     echo "int more;" >> "$REPO/src/big.cpp"
     commit_all "grow" "File-size: src/big.cpp"
     ratchets
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/big.cpp is over" "$output"
 }
 
@@ -198,7 +199,7 @@ pr_checkout() { # <dir>
     contains "no fork point to measure from" "$output"
     git -C "$BATS_TEST_TMPDIR/pr" update-ref refs/remotes/origin/main HEAD^1
     run python3 "$GATE" --root "$BATS_TEST_TMPDIR/pr" --base auto
-    [ "$status" -eq 1 ]
+    [ "$status" -eq 3 ]
     contains "src/big.cpp is over the $CAP-line cap and grew" "$output"
 }
 
@@ -591,12 +592,42 @@ qc_ratchets() {
         qc_growth_ratchets' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
 }
 
-@test "the qc wrapper measures the branch from its fork point and fails on growth" {
+@test "the qc wrapper warns on file growth without failing" {
     echo "int more;" >> "$REPO/src/big.cpp"
     commit_all "grow"
     qc_ratchets
+    [ "$status" -eq 0 ]
+    contains "⚠️  src/big.cpp is over the $CAP-line cap" "$output"
+    contains "blocks nothing" "$output"
+}
+
+@test "a blocking ratchet still fails beside a file-size warning, in the checker and the wrapper" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    commit_all "grow and reach for the global"
+    ratchets
     [ "$status" -eq 1 ]
-    contains "src/big.cpp is over the $CAP-line cap" "$output"
+    contains "❌ src/ui/panel.cpp: get_printer_state()" "$output"
+    contains "⚠️  src/big.cpp is over" "$output"
+    qc_ratchets
+    [ "$status" -eq 1 ]
+}
+
+@test "--staged runs only the file-size ratchet, from the fork point to the index" {
+    echo "int more;" >> "$REPO/src/big.cpp"
+    git -C "$REPO" add src/big.cpp
+    inject "void Panel::refresh()" "get_printer_state().touch();"
+    git -C "$REPO" add src/ui/panel.cpp
+    run python3 "$GATE" --root "$REPO" --base "$BASE" --staged
+    [ "$status" -eq 3 ]
+    contains "src/big.cpp is over the $CAP-line cap and grew" "$output"
+    contains "...index" "$output"
+    lacks "get_printer_state" "$output"
+    lines $((CAP + 5)) > "$REPO/src/big.cpp"
+    git -C "$REPO" add src/big.cpp
+    run python3 "$GATE" --root "$REPO" --base "$BASE" --staged
+    [ "$status" -eq 0 ]
+    contains "File size" "$output"
 }
 
 @test "the qc wrapper passes a branch that adds none of the shapes" {

@@ -48,6 +48,8 @@ firmware. Before you commit:
 - **Push:** `.githooks/pre-push` runs `scripts/esp32_syntax_check.py`, which compiles the touched firmware units
   `-fsyntax-only` in the `espressif/idf` image and catches the host-green, Xtensa-red class (`int32_t` is `long`).
   It skips with a note when docker or the image is missing; `HELIX_ESP32_SYNTAX=0` skips it.
+  A commit `make land-gate` passed skips it when pushed alone to main inside the range the
+  gate's `esp32` row ran with `--require`; a push to `release/*` or a tag still runs it.
 
 ## The K-Touch feature profile
 

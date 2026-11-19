@@ -1,0 +1,47 @@
+name: Weekly ratchet report
+
+# The bookkeeping ratchets (test-line budget, TestAccess and friend counts, file
+# size, hardcoded pixels, unreferenced callbacks) warn instead of blocking a
+# landing (prestonbrown/helixscreen#2004), so nothing stops them drifting. This
+# prints each count against a week ago and against its baseline into the job
+# summary, so the trend is read weekly. It never fails on a trend; only a count
+# it cannot take fails the job. By hand: scripts/ratchet_report.py.
+
+on:
+  schedule:
+    # Off the hour, like nightly.yml: GitHub queues on-the-hour schedules longest.
+    - cron: '41 22 * * 0'
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Compare HEAD against this many days ago"
+        default: "7"
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+      with:
+        # The report reads the commit from a week ago, and no submodule: it
+        # counts src/, include/, tests/ and ui_xml/ only.
+        fetch-depth: 0
+        submodules: false
+
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    - name: Ratchet report
+      env:
+        DAYS: ${{ inputs.days || '7' }}
+      run: |
+        set -o pipefail
+        python3 scripts/ratchet_report.py --days "$DAYS" --markdown | tee -a "$GITHUB_STEP_SUMMARY"

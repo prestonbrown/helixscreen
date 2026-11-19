@@ -1063,8 +1063,57 @@ consequence is that the helix-xml submodule-test gate finds no configured build
 tree on the isolated path and skips - its designed behaviour, since its first
 configure clones LVGL over the network.
 
+- **The pushed commit passed `make land-gate`** (its stamp, `.githooks/lib/land-gate-stamp.sh`)
+  - the quality sweep and its clang/GCC divergence gate are skipped: the gate ran them on that
+  commit. When every pushed ref is main and the pushed range lies inside the range the gate's
+  `esp32` row measured (`merge-base(HEAD, origin/main)..HEAD`, run with `--require`), the
+  ESP32 syntax check is skipped too and only patch drift runs, in seconds, with no throwaway
+  worktree. A push to `release/*` or a tag, or beside another ref, still runs the ESP32
+  check. Patch drift always runs: it describes this tree's `lib/`, not the commit.
+  `HELIX_PREPUSH_FULL=1` runs everything anyway.
+
 Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
 `git push --no-verify` skips the hook. Expect CI to find whatever you skipped.
+
+### Bookkeeping ratchets warn
+
+The test-line budget, the TestAccess and friend counts (`check_test_budget.py`), the
+file-size cap (`check_growth_ratchets.py`), hardcoded pixels (`check_hardcoded_pixels.py`)
+and unreferenced callbacks (`check_orphan_callbacks.py`) never fail a commit, a push,
+`make land-gate` or CI (#2004). Their checkers exit 3 (`ratchet.WARN_EXIT`) when a warning
+is all they found, and `qc_ratchet_verdict` (`scripts/qc/_lib.sh`) prints it and passes. A
+count under their baseline passes at every stage too (`ratchet.under_baseline(...,
+bookkeeping=True)`). Every other ratchet keeps its strict under-baseline verdict: lenient at
+commit, failing at the push stages (`HELIX_RATCHET_STRICT=1`) until the baseline is lowered.
+`scripts/ratchet_report.py` prints each one's count against a week ago and its baseline,
+weekly in `.github/workflows/ratchet-report.yml`.
+
+The test budget and the file-size cap run at commit, from the fork point to the index
+(`--staged`, well under a second), and `qc_orphan_callbacks` reads an index snapshot, so
+their findings show on the commit that causes them. Global access, active instance and
+the bans in `check_growth_ratchets.py`, an unregistered or duplicate callback, and every
+other ratchet still fail.
+
+### Generated files on a merge
+
+`ui_xml/translations/*.xml` and `assets/fonts/cjk/**` are generated from
+`translations/*.yml`, so `.gitattributes` merges them with the `helix-generated` driver,
+which keeps this side's copy instead of conflicting (`make` and `make setup` configure it
+in the clone). No hook regenerates or commits anything. Two gates hold the result to the
+YAML instead:
+
+- `qc_translation_packs_fresh` (`scripts/check_translation_packs_fresh.py`, about 2 s)
+  regenerates the packs from the index's YAML and generator into a scratch directory, never
+  the working tree, and fails a pack that differs, is missing or no locale generates. It
+  runs at commit when a translation path is staged, at push, in `make land-gate` and in CI,
+  and `.githooks/pre-merge-commit` runs it on a clean merge, which then stops before its
+  commit with the fix: `make translations && git add ui_xml/translations && git commit`. A
+  rebase or cherry-pick that kept one side's packs fails it at the next commit or push the
+  same way.
+- `qc_cjk_fonts` fails a CJK bake that lacks a glyph the strings use: `make
+  regen-text-fonts`, then commit `assets/fonts/cjk/`. A merge commit passes it with a
+  warning, since the bake takes minutes; every other commit, the push and `make land-gate`
+  fail it.
 
 ### Quality Checks
 

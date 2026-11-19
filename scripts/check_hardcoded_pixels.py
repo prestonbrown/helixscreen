@@ -70,7 +70,8 @@ but it must never go up.
 
 Usage:
   check_hardcoded_pixels.py                    # fail on any violation
-  check_hardcoded_pixels.py --max-allowed 250  # ratcheting baseline
+  check_hardcoded_pixels.py --max-allowed 250  # ratcheting baseline: over it warns
+                                               # and exits ratchet.WARN_EXIT (3)
   check_hardcoded_pixels.py --summary          # per-rule counts
   check_hardcoded_pixels.py --list             # every site, file:line
   check_hardcoded_pixels.py --rule xml-pad     # one rule only
@@ -420,15 +421,16 @@ def main() -> int:
         return 0
 
     if total > limit:
-        print(f"❌ Hardcoded pixels: {total} violations exceeds baseline ({limit}).")
+        print(f"⚠️  Hardcoded pixels: {total} violations exceeds baseline ({limit}).")
         print("   Use a design token; annotate a reasoned exception SIZE_OK.")
         print("   Run: python3 scripts/check_hardcoded_pixels.py --list")
-        return 1
+        return ratchet.WARN_EXIT
     if total < limit:
         return ratchet.under_baseline(
             'Hardcoded pixels', 'scripts/qc/design_pixels.sh',
             [ratchet.lowered('--max-allowed', limit, total)],
-            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
+            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)",
+            bookkeeping=True)
     print(f"✅ Hardcoded pixels: {total} == baseline ({limit})")
     return 0
 

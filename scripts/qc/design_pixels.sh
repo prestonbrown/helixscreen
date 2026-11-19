@@ -19,9 +19,10 @@ qc_design_pixels() {
 #
 # Ratcheting baseline. The remaining sites are real debt — mostly 2px hairline
 # gaps and two negative overlap margins with no token to name them. The number
-# may go DOWN (convert a site, then lower this baseline) but must never go up.
-# A reasoned exception is annotated SIZE_OK, the way ui_xml/color_picker.xml
-# walks its swatch-grid content floor.
+# should go DOWN (convert a site, then lower this baseline), and going over it
+# is a bookkeeping warning that blocks nothing; scripts/ratchet_report.py shows
+# the weekly trend. A reasoned exception is annotated SIZE_OK, the way
+# ui_xml/color_picker.xml walks its swatch-grid content floor.
 echo "📏 Checking design-token usage (hardcoded pixels)..."
 
 # Pre-commit: scan the post-commit tree (index + HEAD), not the dirty working
@@ -32,12 +33,11 @@ if [ "$STAGED_ONLY" = true ]; then
 else
   PIXELS_ARGS=""
 fi
+local pixels_rc=0
 # shellcheck disable=SC2086
-if python3 scripts/check_hardcoded_pixels.py --max-allowed 120 --summary $PIXELS_ARGS \
-    >/tmp/hardcoded_pixels.out 2>&1; then
-  tail -1 /tmp/hardcoded_pixels.out
-else
-  cat /tmp/hardcoded_pixels.out
+python3 scripts/check_hardcoded_pixels.py --max-allowed 120 --summary $PIXELS_ARGS \
+    >"$QC_TMP/hardcoded_pixels.out" 2>&1 || pixels_rc=$?
+if ! qc_ratchet_verdict "$pixels_rc" "$QC_TMP/hardcoded_pixels.out"; then
   echo "   Run: python3 scripts/check_hardcoded_pixels.py --list"
   echo "   Use a token; see .claude/rules/declarative-ui.md § Design Tokens."
   EXIT_CODE=1

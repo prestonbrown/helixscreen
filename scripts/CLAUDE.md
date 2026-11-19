@@ -106,7 +106,8 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 |--------|---------|
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
-| `ratchet.py` | The shared under-baseline verdict for count ratchets: lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) |
+| `ratchet.py` | The shared ratchet verdicts: under the baseline lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) except for bookkeeping ratchets; `WARN_EXIT` for their warnings |
+| `ratchet_report.py` | Weekly trend of the bookkeeping ratchets against a week ago and their baselines; `.github/workflows/ratchet-report.yml` |
 | `bats_select.py` | Which `tests/shell/*.bats` files a run needs |
 | `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
 | `check_doc_refs.py` | Doc-reference gate: dead paths, links, `make` targets, docs/devel index, shipped counts |
@@ -114,6 +115,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `gen_gallery.py` | Regenerates `docs/devel/GALLERY.md` from the doc-image manifest; `--check` exits 1 when stale |
 | `doc_anchors.py` | Resolves `path#scope` doc citations to today's line; `--check` itself always exits 0. Gated as `qc_doc_anchors`: strict, over the docs a change touches (staged at commit, changed since the fork point otherwise); `make check-doc-anchors` sweeps the whole tree |
 | `check_translation_format_specifiers.py` | Fail on translated format strings whose placeholders differ from English |
+| `check_translation_packs_fresh.py` | Fail if the packs in the index are not what the index's `translations/*.yml` generates (`make translations`); also run by `pre-merge-commit` |
 | `check_translation_files.py` | Locale files in Weblate's shape (`--fix`), `locale:` matching the file name, no plural mapping collapsed. Also `tests/python/test_check_translation_files.py` |
 | `check_cjk_font_staleness.sh` + `check_cjk_font_coverage.py` | Fail if the runtime CJK fonts miss a codepoint translations or filenames need |
 | `check_update_queue_leaks.py` | Ratchet on cross-test UpdateQueue leaks vs a baseline |
@@ -121,7 +123,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `tsan_resplit_shard.sh` | `make test-tsan` retry that re-splits a shard killed by TSan's reporter abort |
 | `triage_shard.sh` | Unit sweep post-mortem for a failed shard: alone, pinned, repeated |
 | `check_required_names.py` | Fail if a `find_required()` name is missing from the XML its unit creates |
-| `check_orphan_callbacks.py` | Ratchet on XML callbacks nobody registers, registrations nobody uses, double registrations |
+| `check_orphan_callbacks.py` | Ratchet on XML callbacks nobody registers or registered twice (fail) and registrations nobody uses (warn) |
 | `check_esp32_xml_bindings.py` | XML subjects and callbacks the desktop registers but the ESP32 firmware does not |
 | `check_esp32_stub_coverage.py` | Fail on a virtual or constructor the firmware links that only an excluded file defines; `ESP32_STUB_OK` |
 | `check_overlay_boilerplate.py` | Shrink-only ratchet on overlay boilerplate `OverlayBase` replaces |
@@ -130,7 +132,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_shipped_spacing_tokens.py` | Fail on a spacing token declared only in a dev-only panel stripped from release |
 | `check_icon_names.py` | Fail on an XML icon name absent from `include/ui_icon_codepoints.h` |
 | `check_raw_this_queue_update.py` | Ratchet on `queue_update([this, ...])` in `src/` |
-| `check_hardcoded_pixels.py` | Ratchet on raw pixel literals where a design token belongs |
+| `check_hardcoded_pixels.py` | Ratchet on raw pixel literals where a design token belongs; over the baseline warns |
 | `check_thumbnail_cache_guard.py` | Fail on calls to `ThumbnailCache`'s legacy overloads without a load context |
 | `check_lfs_sites.py` | Fail if a site that needs 64-bit `off_t` on 32-bit targets loses it |
 | `check_link_parity.py` | Fail if the fbdev or EGL variant link lacks an object the main link has |
@@ -154,8 +156,8 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
 | `check_lvgl_subject_api.py` | Fail on a deprecated LVGL subject call or a by-value `lv_subject_t`; `helix::Subject` owns subjects |
-| `check_test_budget.py` | A branch does not grow the C++ test suite, TestAccess or friends |
-| `check_growth_ratchets.py` | A branch does not grow files, functions or duplication past the caps |
+| `check_test_budget.py` | Warns when a branch grows the C++ test suite, TestAccess or friends |
+| `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers; file size past the cap warns |
 | `check_layering.py` | A branch does not add an include that points up the layer stack |
 | `code_lint.sh` | The tree-wide code lints too small for a script of their own |
 | `check_comment_archaeology.py` | Ratchet on commit SHAs in comments, plus history phrases at commit |

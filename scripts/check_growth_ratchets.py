@@ -50,9 +50,16 @@ Also on the whole tree at HEAD: inside an LV_EVENT_DELETE callback, a WidgetRef 
 compared with the event's target. Its own hook can run first, so it already reads nullptr
 and the comparison is silently false; the callback asks names_dying() instead.
 
+The file-size ratchet is bookkeeping: its findings are warnings and the run exits
+ratchet.WARN_EXIT (3) when they are all it found. Global access, active instance and the
+bans exit 1. scripts/ratchet_report.py tracks the file-size trend weekly.
+
 Usage:
   check_growth_ratchets.py --base auto     # the fork point diff_base.py picks
   check_growth_ratchets.py --base REV      # REV...HEAD
+  check_growth_ratchets.py --base auto --staged
+                                           # file size only, fork point to the index:
+                                           # the commit hook's form, in well under a second
   check_growth_ratchets.py --report        # current counts on HEAD, per file
 """
 
@@ -65,6 +72,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+import ratchet
 from source_strip import blank_cxx
 
 # p97 of the tree's C++ files (median 180, p95 ~1080). Lower, and the frozen set
@@ -455,11 +463,13 @@ def global_access_counts(root: Path, rev: str, type_re: str, accessor: str,
     return counts
 
 
-def changed(root: Path, base: str):
-    """(old_path, new_path) for every C++ source the branch touched; '' for absent."""
+def changed(root: Path, base: str, staged: bool = False):
+    """(old_path, new_path) for every C++ source the branch touched; '' for absent.
+    `staged` measures the fork point `base` against the index instead of HEAD."""
     rows = []
+    span = ["--cached", base] if staged else [f"{base}...HEAD"]
     for row in git(root, "diff", "--name-status", "-M", "--no-ext-diff",
-                   f"{base}...HEAD", "--", *CXX_SOURCES).splitlines():
+                   *span, "--", *CXX_SOURCES).splitlines():
         parts = row.split("\t")
         status = parts[0][0]
         if status == "R" or status == "C":
@@ -483,6 +493,38 @@ def line_count(text: str | None) -> int:
     if not text:
         return 0
     return text.count("\n") + (0 if text.endswith("\n") else 1)
+
+
+def size_warnings(rows, old: dict, new: dict, granted: set[str]) -> list[str]:
+    """Files the branch took over FILE_CAP, or grew while over it, net of a split.
+
+    Over-cap growth is judged across the branch, so a split passes: the lines a new
+    over-cap file holds are paid for by the lines removed from files that were over the
+    cap at the fork point."""
+    grown_files, paid = [], 0
+    for o, n in rows:
+        before = line_count(old.get(o)) if o else 0
+        after = line_count(new.get(n)) if n else 0
+        if before > FILE_CAP and after < before:
+            paid += before - after
+        if n and after > FILE_CAP and after > before and n not in granted:
+            what = (f"new file, {after} lines" if not o else
+                    f"{before} -> {after} lines" + (f", renamed from {o}" if o != n else ""))
+            grown_files.append((n, after - before, what))
+    if sum(g for _, g, _ in grown_files) <= paid:
+        return []
+    credit = f"; {paid} lines left over-cap files on this branch" if paid else ""
+    return [f"{n} is over the {FILE_CAP}-line cap and grew ({what}{credit}): split it, pay "
+            f"for the growth with cuts in over-cap files, or grant it with a commit "
+            f"message line `File-size: {n} <reason>`" for n, _, what in grown_files]
+
+
+def report_warnings(warnings: list[str], scope: str) -> int:
+    for w in warnings:
+        print(f"⚠️  {w}")
+    print(f"   Measured {scope}. File size is a ratchet: it warns and blocks nothing "
+          f"(prestonbrown/helixscreen#2004).")
+    return ratchet.WARN_EXIT
 
 
 def report(root: Path) -> int:
@@ -513,11 +555,17 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--base", help="REV, or 'auto' for diff_base.py's fork point")
     ap.add_argument("--report", action="store_true", help="print HEAD's counts and exit")
+    ap.add_argument("--staged", action="store_true",
+                    help="the file-size ratchet only, from the fork point to the index")
     ap.add_argument("--root", default=".")
     args = ap.parse_args(argv)
     root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").strip())
     if args.report:
         return report(root)
+    if args.staged:
+        if not args.base:
+            ap.error("--staged needs --base")
+        return staged_sizes(root, args.base)
     banned = banned_validity_calls(root)
     if banned:
         for hit in banned:
@@ -561,27 +609,7 @@ def main(argv=None) -> int:
     old = read_blobs(root, fork, [o for o, _ in rows if o])
     new = read_blobs(root, "HEAD", [n for _, n in rows if n])
     failures = []
-    granted = size_grants(root, fork)
-
-    # Over-cap growth is judged across the branch, so a split passes: the lines a
-    # new over-cap file holds are paid for by the lines removed from files that
-    # were over the cap at the fork point.
-    grown_files, paid = [], 0
-    for o, n in rows:
-        before = line_count(old.get(o)) if o else 0
-        after = line_count(new.get(n)) if n else 0
-        if before > FILE_CAP and after < before:
-            paid += before - after
-        if n and after > FILE_CAP and after > before and n not in granted:
-            what = (f"new file, {after} lines" if not o else
-                    f"{before} -> {after} lines" + (f", renamed from {o}" if o != n else ""))
-            grown_files.append((n, after - before, what))
-    if sum(g for _, g, _ in grown_files) > paid:
-        credit = f"; {paid} lines left over-cap files on this branch" if paid else ""
-        for n, _, what in grown_files:
-            failures.append(f"{n} is over the {FILE_CAP}-line cap and grew ({what}{credit}): "
-                            f"split it, pay for the growth with cuts in over-cap files, or "
-                            f"grant it with a commit message line `File-size: {n} <reason>`")
+    warnings = size_warnings(rows, old, new, size_grants(root, fork))
 
     touched_old = {o for o, _ in rows if o}
     touched_new = {n for _, n in rows if n}
@@ -619,9 +647,36 @@ def main(argv=None) -> int:
         for f in failures:
             print(f"❌ {f}")
         print(f"   Measured {scope}. Ratchets: prestonbrown/helixscreen#1945.")
+        if warnings:
+            report_warnings(warnings, scope)
         return 1
+    if warnings:
+        return report_warnings(warnings, scope)
     print(f"✅ Growth ratchets ({scope}): {len(rows)} C++ files checked, active-instance "
           f"pointers {grown:+d}")
+    return 0
+
+
+def staged_sizes(root: Path, base: str) -> int:
+    """The file-size ratchet from the fork point to the index. A grant in the commit
+    being made is not visible yet; the push-time run reads it."""
+    if base == "auto":
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from diff_base import resolve_base  # noqa: E402
+        base, _ = resolve_base(root)
+    try:
+        fork = git(root, "merge-base", base, "HEAD").strip()
+    except subprocess.CalledProcessError:
+        print("✅ File size: no fork point to measure the index from")
+        return 0
+    rows = changed(root, fork, staged=True)
+    old = read_blobs(root, fork, [o for o, _ in rows if o])
+    new = read_blobs(root, "", [n for _, n in rows if n])
+    warnings = size_warnings(rows, old, new, size_grants(root, fork))
+    scope = f"{fork[:12]}...index"
+    if warnings:
+        return report_warnings(warnings, scope)
+    print(f"✅ File size ({scope}): {len(rows)} C++ files checked")
     return 0
 
 

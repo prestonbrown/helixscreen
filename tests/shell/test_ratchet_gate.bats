@@ -66,3 +66,33 @@ setup() {
     [ -n "$baseline" ] || fail "no HEX_BASELINE in scripts/qc/design_tokens.sh"
     [ "$count" -eq "$baseline" ] || fail "HEX_BASELINE $baseline, tree count $count"
 }
+
+@test "a bookkeeping ratchet is lenient under its baseline even when strict" {
+    run env HELIX_RATCHET_STRICT=1 python3 -c 'import sys; sys.path.insert(0, "scripts"); import ratchet
+sys.exit(ratchet.under_baseline("Gate", "where.sh", ["KEY: 5 -> 4"], "lenient", bookkeeping=True))'
+    [ "$status" -eq 0 ]
+    [ "$output" = lenient ]
+}
+
+@test "qc_ratchet_verdict passes a ratchet warning with its output and fails anything else" {
+    out="$BATS_TEST_TMPDIR/out"
+    printf 'first\n⚠️  grew\n' > "$out"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 3 "$1"' _ "$out"
+    [ "$status" -eq 0 ]
+    contains "⚠️  grew" "$output"
+    contains "blocks nothing" "$output"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 0 "$1"' _ "$out"
+    [ "$status" -eq 0 ]
+    [ "$output" = "⚠️  grew" ]
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 1 "$1"' _ "$out"
+    [ "$status" -eq 1 ]
+    contains "first" "$output"
+    run bash -c '. scripts/qc/_lib.sh; qc_ratchet_verdict 2 "$1"' _ "$out"
+    [ "$status" -eq 1 ]
+}
+
+@test "ratchet.WARN_EXIT and the shell's QC_RATCHET_WARN_EXIT agree" {
+    py=$(python3 -c 'import sys; sys.path.insert(0, "scripts"); import ratchet; print(ratchet.WARN_EXIT)')
+    sh=$(bash -c '. scripts/qc/_lib.sh; echo "$QC_RATCHET_WARN_EXIT"')
+    [ "$py" = "$sh" ]
+}

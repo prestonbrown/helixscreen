@@ -251,3 +251,49 @@ run_hook() { # push TIP to a remote that has BASE
     contains "ran: quality-checks" "$output"
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$TIP" ]
 }
+
+run_push() { # <stdin lines>: push whatever refs the lines name
+    run env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+        bash -c 'cd "$1" && printf "%s" "$2" | bash "$3"' _ "$ROOT" "$1" "$HOOK"
+}
+
+@test "a gated main push inside the gate's esp32 range runs only drift, with no throwaway checkout" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    echo in-flight >"$ROOT/f"
+    run_hook
+    [ "$status" -eq 0 ]
+    contains "skipping the quality sweep and the ESP32 check its esp32 row covered" "$output"
+    lacks "throwaway checkout" "$output"
+    lacks "ran: quality-checks" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: check_patch_drift" "$output"
+}
+
+@test "a gated push to release/* or a tag still runs the ESP32 check" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    for ref in refs/heads/release/1.1 refs/tags/v9.9.9; do
+        run_push "refs/heads/x $TIP $ref $BASE"$'\n'
+        [ "$status" -eq 0 ]
+        lacks "ran: quality-checks" "$output"
+        contains "ran: esp32_syntax_check" "$output"
+    done
+}
+
+@test "a gated main push pushed beside another branch still runs the ESP32 check" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    run_push "refs/heads/w $TIP refs/heads/w 0000000000000000000000000000000000000000"$'\n'"refs/heads/main $TIP refs/heads/main $BASE"$'\n'
+    [ "$status" -eq 0 ]
+    contains "ran: esp32_syntax_check" "$output"
+}
+
+@test "a gated main push whose range starts before the gate's fork point still runs the ESP32 check" {
+    # origin/main at TIP puts the gate's fork point at TIP, so BASE..TIP was never measured.
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$TIP"
+    stamp "$TIP"
+    run_hook
+    [ "$status" -eq 0 ]
+    contains "ran: esp32_syntax_check" "$output"
+}
