@@ -5103,6 +5103,7 @@ translations:
   '{} detected': '{} detectada'
   '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}.'
+  '{} did not switch to {}. The print is still paused.': '{} no cambió a {}. La impresión sigue en pausa.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar.'
   '{} disabled': '{} desactivado'
   '{} disconnected': '{} desconectada'

@@ -4962,6 +4962,7 @@
   <translation tag="{} detected" ja="{}を検出"/>
   <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。"/>
+  <translation tag="{} did not switch to {}. The print is still paused." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままです。"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ja="{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。"/>
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} disconnected" ja="{}が外れました"/>

@@ -836,7 +836,7 @@ reads the resolved value, so it shows which one is really in effect.
 state, constructed with representative sample data and the real lifecycle:
 `preflight-check`, `preflight-material`, `color-mismatch`, `runout-modal`,
 `runout-other-head` (the chooser for finishing a runout-paused print on another toolhead;
-U1 mock only), `lock-screen`,
+U1 mock with `HELIX_MOCK_U1_EMPTY_PORTS=0`, so the runout head cannot refeed), `lock-screen`,
 `print-status`, `print-tune`, `ams`, `camera`, `ams-error-toast`,
 `type-mismatch-toast`, `type-mismatch-toast-model`, `type-mismatch-review`,
 `action-prompt-worst`, `action-prompt-many`, `action-prompt-hex`, `action-prompt-zmod`,

@@ -161,8 +161,9 @@ struct ContinuePlan {
 
 /// Whether the switch happened, comparing the facts read just before sending
 /// with facts read since: the print left the pause, or the firmware rewrote
-/// its routing. A firmware that declines the switch says nothing, so false
-/// past a reasonable wait means it was declined.
+/// its routing. A routing never reported before sending proves nothing, so
+/// only the pause ending counts then. A firmware that declines the switch says
+/// nothing, so false past a reasonable wait means it was declined.
 [[nodiscard]] bool switch_happened(const RunoutFacts& before, const RunoutFacts& now);
 
 /// What came back for the sent plan.
@@ -173,7 +174,13 @@ enum class SendReply {
     Refused,       ///< the printer answered with an error
 };
 
-enum class SwitchVerdict { Pending, Switched, Failed };
+/// What to do next about a sent switch.
+enum class SwitchStep {
+    Wait,    ///< keep watching
+    Done,    ///< switched, and nothing is left to put back
+    Restore, ///< switched, but the script stopped before its restore line: send it
+    Fail,    ///< not switched: report it and send the restore
+};
 
 /// Frames reporting the switch may trail the reply this long.
 inline constexpr uint32_t kSwitchSettleMs = 5000;
@@ -181,10 +188,22 @@ inline constexpr uint32_t kSwitchSettleMs = 5000;
 /// than the send's own timeout, so a slow heat and purge is not called failed.
 inline constexpr uint32_t kSwitchGiveUpMs = 180000;
 
-/// Has the sent switch happened, failed, or is it still pending? A clean reply
-/// does not mean success: the firmware declines by doing nothing.
-[[nodiscard]] SwitchVerdict judge_switch(const RunoutFacts& before, const RunoutFacts& now,
-                                         SendReply reply, uint32_t ms_since_reply,
-                                         uint32_t ms_since_send);
+/// The next step for a sent switch. A clean reply does not mean success: the
+/// firmware declines by doing nothing. A switch can also show (the routing
+/// rewritten) and the script still stop after it, when the RESUME inside it
+/// fails, so a plan with something to restore waits for the reply.
+/// @param needs_restore the plan's restore_gcode is not empty
+[[nodiscard]] SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now,
+                                      bool needs_restore, SendReply reply, uint32_t ms_since_reply,
+                                      uint32_t ms_since_send);
+
+/// Whether the empty head now carries @p label: the record write went through,
+/// whatever became of the switch after it.
+[[nodiscard]] bool label_written(const RunoutFacts& now, const FilamentRecord& label);
+
+/// Whether to offer the switch at all: the runout head is known and its feeder
+/// cannot supply it (otherwise the firmware resumes on it, and Resume is the
+/// answer).
+[[nodiscard]] bool worth_offering(const RunoutFacts& facts);
 
 } // namespace helix::runout_other_head

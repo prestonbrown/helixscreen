@@ -5203,6 +5203,7 @@ translations:
   '{} detected': '{}: обнаружено'
   '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}.'
+  '{} did not switch to {}. The print is still paused.': '{} не переключилась на {}. Печать всё ещё на паузе.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
   '{} disabled': '{} выключено'
   '{} disconnected': '{}: отключено'

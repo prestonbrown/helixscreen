@@ -5103,6 +5103,7 @@ translations:
   '{} detected': '检测到{}'
   '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。'
+  '{} did not switch to {}. The print is still paused.': '{}未切换到{}。打印仍处于暂停状态。'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'

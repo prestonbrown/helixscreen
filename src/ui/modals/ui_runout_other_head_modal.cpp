@@ -93,11 +93,12 @@ class SwitchWatch {
         stop();
     }
 
-    void start(roh::RunoutFacts before, std::string restore_gcode, std::string runout_name,
-               std::string chosen_name) {
+    void start(roh::RunoutFacts before, roh::FilamentRecord label, std::string restore_gcode,
+               std::string runout_name, std::string chosen_name) {
         stop();
         ++generation_;
         before_ = std::move(before);
+        label_ = std::move(label);
         restore_gcode_ = std::move(restore_gcode);
         runout_name_ = std::move(runout_name);
         chosen_name_ = std::move(chosen_name);
@@ -130,25 +131,48 @@ class SwitchWatch {
             stop();
             return;
         }
-        switch (roh::judge_switch(before_, *now, reply_, lv_tick_elaps(reply_at_),
-                                  lv_tick_elaps(sent_at_))) {
-        case roh::SwitchVerdict::Pending:
+        switch (roh::judge_switch(before_, *now, !restore_gcode_.empty(), reply_,
+                                  lv_tick_elaps(reply_at_), lv_tick_elaps(sent_at_))) {
+        case roh::SwitchStep::Wait:
             return;
-        case roh::SwitchVerdict::Switched:
+        case roh::SwitchStep::Done:
             spdlog::info("[RunoutOtherHead] the printer switched off head {}", before_.runout_head);
             stop();
             return;
-        case roh::SwitchVerdict::Failed:
-            fail();
+        case roh::SwitchStep::Restore:
+            spdlog::warn("[RunoutOtherHead] the printer switched off head {} but the script "
+                         "stopped after it (reply {}); restoring",
+                         before_.runout_head, static_cast<int>(reply_));
+            send_restore();
+            stop();
+            return;
+        case roh::SwitchStep::Fail:
+            fail(*now);
             return;
         }
     }
 
-    void fail() {
+    void fail(const roh::RunoutFacts& now) {
         spdlog::warn("[RunoutOtherHead] the printer did not switch off head {} (reply {})",
                      before_.runout_head, static_cast<int>(reply_));
-        // The script stops at its first error, so a setting it changed for
-        // the switch goes back on its own.
+        send_restore();
+        // Say what is known: whether the record write landed before the stop.
+        const std::string text =
+            roh::label_written(now, label_)
+                ? fmt::format(fmt::runtime(lv_tr("{} did not switch to {}. The print is still "
+                                                 "paused, and {} now carries the filament label "
+                                                 "of {}.")),
+                              runout_name_, chosen_name_, runout_name_, chosen_name_)
+                : fmt::format(
+                      fmt::runtime(lv_tr("{} did not switch to {}. The print is still paused.")),
+                      runout_name_, chosen_name_);
+        ToastManager::instance().show(ToastSeverity::ERROR, text.c_str(), 10000);
+        stop();
+    }
+
+    /// The script stops at its first error, so a setting it changed for the
+    /// switch goes back on its own.
+    void send_restore() {
         if (!restore_gcode_.empty()) {
             if (IMoonrakerAPI* api = get_moonraker_api()) {
                 // The printer's own complaint is the report if this fails too.
@@ -161,12 +185,6 @@ class SwitchWatch {
                     0, false, nullptr, /*caller_surfaces_errors=*/false);
             }
         }
-        const std::string text = fmt::format(
-            fmt::runtime(lv_tr("{} did not switch to {}. The print is still paused, and {} now "
-                               "carries the filament label of {}.")),
-            runout_name_, chosen_name_, runout_name_, chosen_name_);
-        ToastManager::instance().show(ToastSeverity::ERROR, text.c_str(), 10000);
-        stop();
     }
 
     void stop() {
@@ -177,6 +195,7 @@ class SwitchWatch {
     lv_timer_t* timer_ = nullptr;
     uint64_t generation_ = 0;
     roh::RunoutFacts before_;
+    roh::FilamentRecord label_;
     std::string restore_gcode_;
     std::string runout_name_;
     std::string chosen_name_;
@@ -244,7 +263,8 @@ void RunoutOtherHeadModal::init_subjects() {
 }
 
 bool RunoutOtherHeadModal::available(int runout_head) {
-    return facts_for(runout_head).has_value();
+    const auto facts = facts_for(runout_head);
+    return facts && roh::worth_offering(*facts);
 }
 
 bool RunoutOtherHeadModal::show_owned(int runout_head) {
@@ -387,7 +407,7 @@ void RunoutOtherHeadModal::start(int head) {
     spdlog::info("[RunoutOtherHead] continuing the print: runout head {} -> head {}", runout_head_,
                  plan.continues_on);
     SwitchWatch& watch = SwitchWatch::watch();
-    watch.start(*facts, plan.restore_gcode,
+    watch.start(*facts, *head_facts(*facts, head)->record, plan.restore_gcode,
                 active_tool_name_label(tool_label(runout_head_), runout_head_),
                 active_tool_name_label(tool_label(plan.continues_on), plan.continues_on));
     const uint64_t generation = watch.generation();

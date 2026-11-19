@@ -4962,6 +4962,7 @@
   <translation tag="{} detected" zh="检测到{}"/>
   <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." zh="{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。"/>
+  <translation tag="{} did not switch to {}. The print is still paused." zh="{}未切换到{}。打印仍处于暂停状态。"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." zh="{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。"/>
   <translation tag="{} disabled" zh="已停用{}"/>
   <translation tag="{} disconnected" zh="{}已断开"/>

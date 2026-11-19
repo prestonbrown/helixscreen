@@ -5072,6 +5072,7 @@ translations:
   '{} detected': '{} detected'
   '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
+  '{} did not switch to {}. The print is still paused.': '{} did not switch to {}. The print is still paused.'
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'

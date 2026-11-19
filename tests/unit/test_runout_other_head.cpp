@@ -250,6 +250,11 @@ TEST_CASE("runout other head: the switch is seen by the pause ending or the rout
     now = before;
     now.paused = false;
     CHECK(switch_happened(before, now));
+    // No routing seen before sending: the first routing frame is no evidence.
+    before.routing.clear();
+    now = before;
+    now.routing = {3, 1, 2, 3};
+    CHECK_FALSE(switch_happened(before, now));
 }
 
 TEST_CASE("runout other head: a silent decline fails once the reply has settled",
@@ -258,18 +263,53 @@ TEST_CASE("runout other head: a silent decline fails once the reply has settled"
     before.routing = {0, 1, 2, 3};
     auto switched = before;
     switched.paused = false;
-    CHECK(judge_switch(before, before, SendReply::Ok, 100, 100) == SwitchVerdict::Pending);
-    CHECK(judge_switch(before, before, SendReply::Ok, kSwitchSettleMs, 9000) ==
-          SwitchVerdict::Failed);
-    CHECK(judge_switch(before, before, SendReply::Refused, kSwitchSettleMs, 9000) ==
-          SwitchVerdict::Failed);
+    CHECK(judge_switch(before, before, false, SendReply::Ok, 100, 100) == SwitchStep::Wait);
+    CHECK(judge_switch(before, before, false, SendReply::Ok, kSwitchSettleMs, 9000) ==
+          SwitchStep::Fail);
+    CHECK(judge_switch(before, before, false, SendReply::Refused, kSwitchSettleMs, 9000) ==
+          SwitchStep::Fail);
     // A timed-out send may still be heating and purging: wait for the outcome.
-    CHECK(judge_switch(before, before, SendReply::TransportLost, 60000, 150000) ==
-          SwitchVerdict::Pending);
-    CHECK(judge_switch(before, switched, SendReply::TransportLost, 60000, 170000) ==
-          SwitchVerdict::Switched);
-    CHECK(judge_switch(before, before, SendReply::None, 0, kSwitchGiveUpMs) ==
-          SwitchVerdict::Failed);
+    CHECK(judge_switch(before, before, false, SendReply::TransportLost, 60000, 150000) ==
+          SwitchStep::Wait);
+    CHECK(judge_switch(before, switched, false, SendReply::TransportLost, 60000, 170000) ==
+          SwitchStep::Done);
+    CHECK(judge_switch(before, before, false, SendReply::None, 0, kSwitchGiveUpMs) ==
+          SwitchStep::Fail);
+}
+
+TEST_CASE("runout other head: a switch whose script stopped after it still restores",
+          "[runout_other_head]") {
+    // Auto-Replenish rewrites the routing before its RESUME; a RESUME that
+    // fails stops the script ahead of its restore line.
+    auto before = paused_runout_on_head0();
+    before.routing = {0, 1, 2, 3};
+    auto rerouted = before;
+    rerouted.routing = {3, 1, 2, 3};
+    CHECK(judge_switch(before, rerouted, true, SendReply::None, 0, 1000) == SwitchStep::Wait);
+    CHECK(judge_switch(before, rerouted, true, SendReply::Ok, 0, 1000) == SwitchStep::Done);
+    CHECK(judge_switch(before, rerouted, true, SendReply::Refused, 0, 1000) == SwitchStep::Restore);
+    CHECK(judge_switch(before, rerouted, true, SendReply::TransportLost, 0, 1000) ==
+          SwitchStep::Restore);
+    CHECK(judge_switch(before, rerouted, true, SendReply::None, 0, kSwitchGiveUpMs) ==
+          SwitchStep::Restore);
+    CHECK(judge_switch(before, rerouted, false, SendReply::None, 0, 1000) == SwitchStep::Done);
+}
+
+TEST_CASE("runout other head: what a failed switch left behind and when to offer one",
+          "[runout_other_head]") {
+    auto f = paused_runout_on_head0();
+    const FilamentRecord blue = *f.heads[3].record;
+    CHECK_FALSE(label_written(f, blue)); // the record write was refused
+    f.heads[0].record = blue;
+    CHECK(label_written(f, blue));
+
+    f = paused_runout_on_head0();
+    CHECK(worth_offering(f));
+    f.heads[0].feeder_can_supply = true; // Resume refeeds the runout head
+    CHECK_FALSE(worth_offering(f));
+    f = paused_runout_on_head0();
+    f.runout_head = 9;
+    CHECK_FALSE(worth_offering(f));
 }
 
 TEST_CASE("runout other head: U1 names the lower head holding the identical filament",

@@ -4962,6 +4962,7 @@
   <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
+  <translation tag="{} did not switch to {}. The print is still paused." en="{} did not switch to {}. The print is still paused."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." en="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming."/>
   <translation tag="{} disabled" en="{} disabled"/>
   <translation tag="{} disconnected" en="{} disconnected"/>

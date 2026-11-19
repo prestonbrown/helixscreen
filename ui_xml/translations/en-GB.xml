@@ -124,6 +124,7 @@
   <translation tag="color differs" en-GB="colour differs"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" en-GB="exact: same material and colour. material: same material. next: any ready slot, even a different material"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en-GB="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
+  <translation tag="{} did not switch to {}. The print is still paused." en-GB="{} did not switch to {}. The print is still paused."/>
   <translation tag="{} holds the same filament, and the printer uses that one." en-GB="{} holds the same filament, and the printer uses that one."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." en-GB="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament."/>
   <translation tag="{} ran out, and the printer has not said what it was printing." en-GB="{} ran out, and the printer has not said what it was printing."/>

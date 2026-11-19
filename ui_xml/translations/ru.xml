@@ -5037,6 +5037,7 @@
   <translation tag="{} detected" ru="{}: обнаружено"/>
   <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ru="{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}."/>
+  <translation tag="{} did not switch to {}. The print is still paused." ru="{} не переключилась на {}. Печать всё ещё на паузе."/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} disconnected" ru="{}: отключено"/>

@@ -276,19 +276,38 @@ ContinuePlan build_plan(AmsType type, const RunoutFacts& facts, int chosen_head)
 }
 
 bool switch_happened(const RunoutFacts& before, const RunoutFacts& now) {
-    return (before.paused && !now.paused) || now.routing != before.routing;
+    const bool rerouted = !before.routing.empty() && now.routing != before.routing;
+    return (before.paused && !now.paused) || rerouted;
 }
 
-SwitchVerdict judge_switch(const RunoutFacts& before, const RunoutFacts& now, SendReply reply,
-                           uint32_t ms_since_reply, uint32_t ms_since_send) {
+SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, bool needs_restore,
+                        SendReply reply, uint32_t ms_since_reply, uint32_t ms_since_send) {
+    const bool given_up = ms_since_send >= kSwitchGiveUpMs;
     if (switch_happened(before, now)) {
-        return SwitchVerdict::Switched;
+        // Only a clean reply proves the script reached its restore line.
+        if (!needs_restore || reply == SendReply::Ok) {
+            return SwitchStep::Done;
+        }
+        if (reply == SendReply::Refused || reply == SendReply::TransportLost || given_up) {
+            return SwitchStep::Restore;
+        }
+        return SwitchStep::Wait;
     }
     const bool answered = reply == SendReply::Ok || reply == SendReply::Refused;
-    if ((answered && ms_since_reply >= kSwitchSettleMs) || ms_since_send >= kSwitchGiveUpMs) {
-        return SwitchVerdict::Failed;
+    if ((answered && ms_since_reply >= kSwitchSettleMs) || given_up) {
+        return SwitchStep::Fail;
     }
-    return SwitchVerdict::Pending;
+    return SwitchStep::Wait;
+}
+
+bool label_written(const RunoutFacts& now, const FilamentRecord& label) {
+    const HeadFacts* h = find_head(now, now.runout_head);
+    return h != nullptr && h->record && *h->record == label;
+}
+
+bool worth_offering(const RunoutFacts& facts) {
+    const HeadFacts* h = find_head(facts, facts.runout_head);
+    return h != nullptr && !h->feeder_can_supply;
 }
 
 } // namespace helix::runout_other_head
