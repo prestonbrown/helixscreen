@@ -1296,9 +1296,11 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: refresh cost bench", "[.][bench][ams
                                     << (after - before) / double(kRuns));
 }
 
-TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over the canvas",
+TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots take a row under the path",
                  "[ams][pages][panel][portrait]") {
-    helix::test::ScopedGeometry portrait(272, 480);
+    const int size = GENERATE(0, 1);
+    const int32_t sizes[][2] = {{272, 480}, {480, 800}};
+    helix::test::ScopedGeometry portrait(sizes[size][0], sizes[size][1]);
     lv_subject_t* is_portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(is_portrait != nullptr);
     REQUIRE(lv_subject_get_int(is_portrait) == 1);
@@ -1307,16 +1309,19 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     lv_obj_t* dots = named("page_dots");
     lv_obj_t* canvas = named("detail_path_canvas");
     REQUIRE_FALSE(lv_obj_is_hidden(dots));
-    // Floating, so the dots take no row of the unit view's height...
-    CHECK(lv_obj_is_floating(dots));
-    // ...and they sit inside the canvas's bottom-left quarter.
-    lv_area_t da, ca;
+    // A row of the column, so the unit sizer leaves it room under the path...
+    CHECK_FALSE(lv_obj_is_floating(dots));
+    lv_area_t da, ca, head;
     lv_obj_get_coords(dots, &da);
     lv_obj_get_coords(canvas, &ca);
-    CAPTURE(da.x1, da.y1, da.x2, da.y2, ca.x1, ca.y1, ca.x2, ca.y2);
-    CHECK(da.y2 <= ca.y2);
-    CHECK(da.y1 >= (ca.y1 + ca.y2) / 2);
-    CHECK(da.x2 <= (ca.x1 + ca.x2) / 2 + 1);
+    CAPTURE(size, da.x1, da.y1, da.x2, da.y2, ca.x1, ca.y1, ca.x2, ca.y2);
+    // ...wholly below the path, its toolhead included, and on screen.
+    CHECK(da.y1 > ca.y2);
+    if (ui_filament_path_canvas_get_toolhead_box(canvas, &head)) {
+        CAPTURE(head.y1, head.y2);
+        CHECK(da.y1 > head.y2);
+    }
+    CHECK(da.y2 < sizes[size][1]);
 }
 
 // ---- Art tiles on the overview ----

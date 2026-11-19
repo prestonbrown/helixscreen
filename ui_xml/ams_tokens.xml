@@ -88,14 +88,6 @@
     <px name="ams_portrait_path_h_medium" value="166"/>
     <px name="ams_portrait_path_h_large" value="300"/>
 
-    <!-- Portrait unit view: how far the page dots rise from the view's bottom edge, which the
-         panel's scroll leaves just past the navigation bar. -->
-    <px name="ams_page_dots_lift_micro" value="-24"/>
-    <px name="ams_page_dots_lift_tiny" value="-24"/>
-    <px name="ams_page_dots_lift_small" value="-28"/>
-    <px name="ams_page_dots_lift_medium" value="-28"/>
-    <px name="ams_page_dots_lift_large" value="-32"/>
-
     <!-- One line of font_small: the loaded strip's position and name lines. -->
     <px name="ams_loaded_name_line_h_micro" value="15"/>
     <px name="ams_loaded_name_line_h_tiny" value="15"/>

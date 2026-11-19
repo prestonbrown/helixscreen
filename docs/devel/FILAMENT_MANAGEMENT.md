@@ -1335,10 +1335,10 @@ has no room for both side by side), and the step progress is a row instead of a 
 there. The row shows only the current step's label, centred under its dots
 (`ui_step_progress_set_current_label_only`), because a label under each of four 66 px steps
 collides; the row is 39 px. The portrait 2x2 cells (480x800 and up) lay each button's icon beside its
-label: the longest, "Check slots", takes 126 px of a 223 px cell at 480x800. In the overview's unit view the page dots float
-over the canvas's empty bottom-left corner in portrait (`dots_portrait`, half the width,
-`floating`), and the unit view's row gap is `space_xxs`, so the unit view fits 272x480 and
-320x480 without scrolling. `[portrait]`
+label: the longest, "Check slots", takes 126 px of a 223 px cell at 480x800. In the overview's unit view the page dots take
+their own row under the path, which the unit sizer counts below the diagram
+(`on_screen_bottom`), and the unit view's row gap is `space_xxs`, so the unit view fits 272x480
+and 320x480 without scrolling. `[portrait]`
 pins the 272x480 panel: the strip and status above the diagram, the bottom section under
 it, the capped canvas with the toolhead whole, eight lane badges apart.
 
