@@ -69,6 +69,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
   public:
     /// A tool changer has no housing, and flat spools stand in none, so build()
     /// finds no tray for either.
+    static constexpr int kAllLanesEmpty = -2;
     void build(const char* env_mode, int gates = 4, bool tool_changer = false, bool ace = false,
                bool openams = false, bool buffer = false, int empty_lane = -1) {
         helix::Config::get_instance()->set<std::string>("/ams/spool_style", flat_ ? "flat" : "3d");
@@ -87,9 +88,10 @@ class AmsTrayPanelFixture : public XMLTestFixture {
         REQUIRE(mock->start().success());
         if (buffer)
             mock->set_unit_buffer_health(0, BufferHealth{});
-        if (empty_lane >= 0) {
-            // A bare bay: no filament and nothing known about a spool.
-            mock->force_slot_cleared(empty_lane);
+        // A bare bay: no filament and nothing known about a spool; kAllLanesEmpty bares them all.
+        for (int i = 0; i < gates; ++i) {
+            if (empty_lane == i || empty_lane == kAllLanesEmpty)
+                mock->force_slot_cleared(i);
         }
         AmsState::instance().set_backend(std::move(mock));
         AmsState::instance().init_subjects(true);
@@ -1193,6 +1195,32 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(labels.size() == 4);
     CHECK(lv_obj_is_hidden(labels[1]));
     CHECK(at::s_tray.leader_count == ticks);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: a unit with every lane empty stays below its column's top",
+                 "[ams][tray][ui_integration][unit-art]") {
+    // With no labels over it the drawing has nothing holding it down: the fit must keep its
+    // top on screen, not only the path's foot.
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/false, /*openams=*/false,
+          /*buffer=*/false, /*empty_lane=*/kAllLanesEmpty);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_t* column = container_;
+    while (column &&
+           !(lv_obj_get_name(column) && std::string(lv_obj_get_name(column)) == "left_column"))
+        column = lv_obj_get_parent(column);
+    REQUIRE(column != nullptr);
+    lv_area_t col, art, drawn;
+    lv_obj_get_coords(column, &col);
+    lv_obj_get_coords(drawing, &art);
+    REQUIRE(helix::ui::unit_art_drawn_area(drawing, drawn));
+    CHECK(art.y1 + drawn.y1 >= col.y1 - 2);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap at any size",
