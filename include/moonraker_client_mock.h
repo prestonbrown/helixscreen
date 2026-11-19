@@ -2870,6 +2870,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::string type;
         std::string vendor;
         uint32_t rgb;
+        std::string subtype{"Basic"};
+        /// A multi-colour record's colours ("RRGGBB"); empty means the one
+        /// colour rgb names.
+        std::vector<std::string> colors{};
+        int alpha{0xFF};
+        int multi_mode{0};
     };
     mutable std::mutex u1_snapswap_mutex_;
     std::array<U1Spool, static_cast<size_t>(kU1Channels)> u1_spools_{
@@ -2878,6 +2884,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
          {"PLA", "Snapmaker", 0x19C3D6},
          {"PLA", "Snapmaker", 0xF08000}}};
     int u1_active_head_ = 0;
+    /// print_task_config's logical tool -> head map and Auto-Replenish switch,
+    /// which INNER_AUTO_REPLENISH_FILAMENT rewrites and reads.
+    std::array<int, static_cast<size_t>(kU1Channels)> u1_map_table_{0, 1, 2, 3};
+    bool u1_auto_replenish_{true};
+    /// One U1 print-task line (SET_PRINT_FILAMENT_CONFIG, SET_PRINT_PREFERENCES,
+    /// INNER_AUTO_REPLENISH_FILAMENT, T<n>), nullopt when it is none of them.
+    std::optional<int> u1_snapswap_line(const std::string& gcode);
+    /// Auto-Replenish after a runout on @p empty_head: the first other head whose
+    /// filament record matches the empty head's takes over the logical tools,
+    /// is picked up, and the print resumes. Paused prints only.
+    void u1_auto_replenish(int empty_head);
 
     /// FEED_AUTO MODULE=<m> CHANNEL=<c> AUTO=<0|1>: set that channel's head's
     /// automatic mode and publish it. @return true when the line was one.

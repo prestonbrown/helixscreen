@@ -403,3 +403,31 @@ TEST_CASE("SnapSwap mock: a stock U1's four heads, swap, unload and re-tag",
     CHECK(ptc["filament_vendor"][1] == "Generic");
     CHECK(ptc["filament_color_rgba"][1] == "112233FF");
 }
+
+TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labelled after",
+          "[ams][mock][snapmaker][runout_other_head]") {
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    helix::ScopedEnv u1{"HELIX_MOCK_PRINTER", "snapmaker_u1"};
+    MoonrakerClientMock u1_mock(MoonrakerClientMock::PrinterType::SNAPMAKER_U1, 100.0);
+    // The plan's script for head 0 running out and head 3 chosen, Auto-Replenish off.
+    const std::string script =
+        "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1\n"
+        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Snapmaker FILAMENT_TYPE=PLA "
+        "FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 COLORS=F08000 MULTI_MODE=0 ALPHA=255 FORCE=1\n"
+        "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0\n"
+        "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0";
+    REQUIRE(u1_mock.gcode_script("SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0") == 0);
+
+    REQUIRE(u1_mock.start_print_internal("3DBenchy.gcode"));
+    REQUIRE(u1_mock.gcode_script("PAUSE") == 0);
+    REQUIRE(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PAUSED);
+    REQUIRE(u1_mock.gcode_script(script) == 0);
+
+    const json status = u1_mock.u1_snapswap_status_json();
+    const json& ptc = status["print_task_config"];
+    CHECK(ptc["extruder_map_table"][0] == 3);
+    CHECK(ptc["filament_color_multi"][0]["colors"][0] == "F08000");
+    CHECK(ptc["auto_replenish_filament"] == false);
+    CHECK(status["extruder3"]["active_pin"] == true);
+    CHECK(u1_mock.get_print_phase() == MoonrakerClientMock::MockPrintPhase::PRINTING);
+}
