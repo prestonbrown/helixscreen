@@ -2,10 +2,10 @@
 """QIDI Box: a wide silver base whose sides climb steeply to the rear, under a smoked lid.
 
 Read off QIDI's product renders (front and three-quarter). Four spools stand side by side,
-axles left to right, each in a bay between tall black dividers, on a black floor level with
-the base's front top edge, so the whole spool shows through the glass. The lid's front pane is
-about as tall as the base's front; its roof climbs gently to the rear, where the base's sides
-reach about twice their front height. A white slider latch sits on the base's top edge, over
+axles left to right, each in a bay between tall black dividers, its feet in a well of the
+black floor level with the base's front top edge. The lid's front pane is about as tall as the
+base's front; its roof climbs gently to the rear, where the base's sides reach about twice
+their front height. A white slider latch sits on the base's top edge, over
 a darker band across the top of the front.
 """
 from pathlib import Path
@@ -14,18 +14,21 @@ from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
 SPOOL_R = 0.25
-# The front is about 2.5 spool diameters wide; the base's front about 0.75 of one tall.
-W, D = 1.25, 0.8
-ZF = 0.38  # the base's front top edge, and the floor the spools stand on
-ZB = 0.74  # the base's side top at the rear
-LID_FRONT, LID_REAR = 0.74, 0.92
+# The renders read the front as about 2.5 spool diameters wide and the base's front as 0.8 of
+# one tall, with the spools wholly above the base. The shared frame holds no taller or wider
+# unit, so the box is drawn a little narrower and lower: the spools' feet dip just behind the
+# base's front edge and the lid's front pane stands a little taller than the base.
+W, D = 1.0, 0.66
+ZF = 0.28  # the base's front top edge, and the floor of the bays
+ZB = 0.58  # the base's side top at the rear
+LID_FRONT, LID_REAR = 0.64, 0.79
 BODY, SEAM, BAND = "#b8bbc1", "#8f9298", "#9c9fa5"
 SMOKE, FRAME = "#2f3239", "#1b1c20"
 FLOOR, DIVIDER = "#141518", "#0f1013"
 LATCH = "#eef0f3"
 CENTERS = [W * f for f in (0.16, 0.385, 0.615, 0.84)]
 SPOOL_Y = D * 0.48
-SPOOL_Z = ZF + SPOOL_R + 0.005
+SPOOL_Z = ZF + SPOOL_R - 0.06
 TRAY_PX_PER_UNIT = 46.2 / SPOOL_R
 _REPO = Path(__file__).resolve().parents[3]
 
