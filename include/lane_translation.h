@@ -125,4 +125,8 @@ struct ColorReading {
 /// read back as no colour. Every colour picker routes its result through this.
 [[nodiscard]] uint32_t picked_color(uint32_t rgb);
 
+/// The color name a label shows for a slot's color: empty when the slot has
+/// none (is_declarable_color), so a colorless lane is never called "Medium Gray".
+[[nodiscard]] std::string slot_color_name(uint32_t rgb);
+
 } // namespace helix::ams

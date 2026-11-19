@@ -42,6 +42,7 @@
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "lane_source_store.h"
+#include "lane_translation.h"
 #include "lvgl.h"
 #include "print_stop_reason.h"
 #include "printer_discovery.h"
@@ -2299,7 +2300,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             auto ext_identity = SpoolmanManager::find_identity(ext.spoolman_id);
             std::string label = helix::resolve_filament_label(
                 ext, ext_identity ? &*ext_identity : nullptr,
-                helix::get_color_name_from_hex(ext.color_rgb), lv_tr("External"));
+                helix::ams::slot_color_name(ext.color_rgb), lv_tr("External"));
             if (strcmp(lv_subject_get_string(&current_material_text_), label.c_str()) != 0) {
                 lv_subject_set_string(&current_material_text_, label.c_str());
             }
@@ -2363,7 +2364,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             auto identity = SpoolmanManager::find_identity(slot_info.spoolman_id);
             std::string label =
                 helix::resolve_filament_label(slot_info, identity ? &*identity : nullptr,
-                                              helix::get_color_name_from_hex(slot_info.color_rgb));
+                                              helix::ams::slot_color_name(slot_info.color_rgb));
             if (strcmp(lv_subject_get_string(&current_material_text_), label.c_str()) != 0) {
                 lv_subject_set_string(&current_material_text_, label.c_str());
             }
