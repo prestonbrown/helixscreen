@@ -284,8 +284,12 @@ struct MixedFrame {
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
     RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
     // Each direct lane's own head; spread a head's width apart from the shared one where the
-    // lanes stand closer than that (the shared head then stands at hub_cx).
+    // lanes stand closer than that. A hub lane's entry is its column (its outlet under a view
+    // scale).
     int32_t head_x[FilamentPathData::kMaxSlots] = {};
+    // The shared head's center X: under the hub, or apart from it where the hub stands where
+    // its lanes meet and the trunk leans to the head.
+    int32_t shared_head_x = 0;
 
     SlotRenderStates states;
 };

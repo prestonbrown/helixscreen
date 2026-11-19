@@ -1362,6 +1362,89 @@ TEST_CASE("FilamentPath plan: MIXED heads, direct and shared, spread where they 
         CHECK(xs[j] - xs[j - 1] > head_w);
 }
 
+TEST_CASE("FilamentPath plan: under a view scale a MIXED hub stands where its lanes meet, off "
+          "the direct lanes, and the heads keep the lanes' order",
+          "[filament-path][plan][parallel][art-fit]") {
+    // A pass-through unit whose four outlets stand close together, as an HTLF's do.
+    static const helix::ui::tray::RailFaceArt kArt{4,         1.69235f, 0.44159f, 0.10514f,
+                                                   -0.00212f, 0.44159f, 0.99392f};
+    auto d = make_data(helix::PathTopology::MIXED);
+    d->view_hub_h = 24;
+    d->rail_art = &kArt;
+    d->slot_is_hub_routed[2] = true;
+    d->slot_is_hub_routed[3] = true;
+    BaseGeometry g = geometry();
+    g.height = per_lane_required_height(*d, g);
+    const MixedFrame f = compute_mixed_frame(*d, g);
+    REQUIRE(f.through.w > 0);
+    REQUIRE(f.hub_count == 2);
+    int32_t out[4];
+    for (int i = 0; i < 4; ++i)
+        out[i] = rail_outlet_x(kArt, f.through, i);
+    // Heads in the lanes' order: no tube crosses another.
+    CHECK(f.head_x[0] < f.head_x[1]);
+    CHECK(f.head_x[1] < f.shared_head_x);
+    // The hub stands clear of the direct lanes' outlets, between its own lanes and its head.
+    CHECK(f.hub_cx - f.hub_w / 2 > out[1]);
+    const int32_t meet = (out[2] + out[3]) / 2;
+    CHECK(f.hub_cx < f.shared_head_x);
+    CHECK(std::abs(f.hub_cx - meet) < std::abs(f.shared_head_x - meet));
+}
+
+TEST_CASE("FilamentPath plan: under a view scale per-lane heads stand at the canvas foot",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    d->view_hub_h = 24;
+    d->theme.tool_tag_h = 14;
+    const BaseGeometry g = geometry();
+    const ParallelRows r = parallel_rows(*d, g);
+    const int32_t foot = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).bottom;
+    // Only the tool tags' overhang below them, and no idle band.
+    CHECK(foot + d->theme.tool_tag_h / 2 <= g.y_off + g.height);
+    CHECK(foot + d->theme.tool_tag_h / 2 >= g.y_off + g.height - 6);
+}
+
+TEST_CASE("FilamentPath plan: under a view scale a row of heads takes at most half the width",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    d->view_hub_h = 24;
+    BaseGeometry g = geometry();
+    const auto row_w = [&](int32_t scale) {
+        const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        return 4 * ((b.right - b.left) + 4 * d->theme.sensor_radius);
+    };
+    // Room for four heads at the hub layout's size: they keep it.
+    g.width = 2 * row_w(d->theme.extruder_scale);
+    CHECK(parallel_rows(*d, g).tool_scale == d->theme.extruder_scale);
+    // A narrow canvas: they shrink to fit half of it.
+    g.width = row_w(d->theme.extruder_scale) * 3 / 2;
+    const int32_t scale = parallel_rows(*d, g).tool_scale;
+    CHECK(scale < d->theme.extruder_scale);
+    CHECK(row_w(scale) <= g.width / 2);
+}
+
+TEST_CASE("FilamentPath plan: under a view scale a MIXED hub's lanes lean in no flatter than "
+          "the fan allows",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::MIXED);
+    d->view_hub_h = 24;
+    d->slot_is_hub_routed[2] = true;
+    d->slot_is_hub_routed[3] = true;
+    BaseGeometry g = geometry();
+    // Lanes packed close: the heads spread, carrying the hub off to one side of its lanes.
+    for (int i = 0; i < 4; ++i)
+        g.slot_x[i] = 180 + 12 * i;
+    g.height = per_lane_required_height(*d, g);
+    const MixedFrame f = compute_mixed_frame(*d, g);
+    REQUIRE(f.hub_count == 2);
+    for (int i = 2; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[f.slot_to_fan[i]];
+        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
+        CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
+    }
+}
+
 TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
           "[filament-path][plan][parallel]") {
     auto d = make_data(helix::PathTopology::PARALLEL);

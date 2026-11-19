@@ -1223,6 +1223,48 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     CHECK(art.y1 + drawn.y1 >= col.y1 - 2);
 }
 
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: lane numbers stand in one row, readable or as dots",
+                 "[ams][tray][ui_integration][unit-art][lane-badges]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    int dots = 0;
+    int32_t cy[4] = {};
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* badge = ui_ams_slot_get_status_badge(slot(i));
+        REQUIRE(badge != nullptr);
+        lv_obj_t* number = lv_obj_find_by_name(badge, "slot_badge_label");
+        REQUIRE(number != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(badge, &a);
+        const int32_t full_w = lv_area_get_width(&a);
+        lv_obj_get_transformed_area(badge, &a, LV_OBJ_POINT_TRANSFORM_FLAG_RECURSIVE);
+        cy[i] = (a.y1 + a.y2) / 2;
+        if (lv_obj_get_style_opa(number, LV_PART_MAIN) == LV_OPA_TRANSP) {
+            // A dot, small and with no number.
+            ++dots;
+            CHECK(lv_area_get_width(&a) <= 10);
+        } else {
+            // A number no smaller than it reads.
+            CHECK(lv_area_get_width(&a) * 10 >= full_w * 7 - 10);
+        }
+    }
+    // One unit is all numbers or all dots, on one row along the unit's edge: no stairstep.
+    CHECK((dots == 0 || dots == 4));
+    for (int i = 1; i < 3; ++i) {
+        CAPTURE(i, cy[i - 1], cy[i], cy[i + 1]);
+        CHECK(std::abs(cy[i + 1] - 2 * cy[i] + cy[i - 1]) <= 2);
+    }
+    check_badges_apart(4);
+}
+
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap at any size",
                  "[ams][tray][ui_integration][unit-art][lane-badges][lane-label-live]") {
     const int unit = GENERATE(0, 1, 2); // Box Turtle, ACE, OpenAMS's AMS 2 Pro

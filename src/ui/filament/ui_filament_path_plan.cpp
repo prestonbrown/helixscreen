@@ -698,13 +698,45 @@ int32_t row_between(int32_t top, int32_t bottom, float fraction) {
 
 } // namespace
 
+namespace {
+/// The share of the canvas width a row of per-lane heads may take under a view scale.
+constexpr int32_t kHeadRowShareNum = 1, kHeadRowShareDen = 2;
+/// The smallest a shrunk head draws and still reads as a head.
+constexpr int32_t kMinHeadScale = 4;
+/// The gap a scaled row of heads' tool tags leaves above the canvas bottom.
+constexpr int32_t kHeadsFootMargin = 2;
+
+/// The size of @p heads per-lane heads standing in a row: under a view scale the hub layout's,
+/// shrunk where the row would take more than kHeadRowShare of the canvas width, so several
+/// heads leave the drawing above its height.
+int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g, int heads) {
+    const int32_t base = data.theme.extruder_scale;
+    if (data.view_hub_h <= 0)
+        return LV_MAX(6, base * 2 / 3);
+    const int32_t budget = g.width * kHeadRowShareNum / kHeadRowShareDen;
+    const auto row = [&](int32_t scale) {
+        const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        return heads * ((b.right - b.left) + 4 * data.theme.sensor_radius);
+    };
+    int32_t scale = base;
+    while (heads > 1 && scale > kMinHeadScale && row(scale) > budget)
+        --scale;
+    return scale;
+}
+/// Where a row of per-lane heads stands: @p ratio of the way down the canvas, or under a view
+/// scale on its foot, with room for the tool tags hanging below them and no more.
+int32_t per_lane_heads_bottom(const FilamentPathData& data, const BaseGeometry& g, float ratio) {
+    if (data.view_hub_h > 0)
+        return g.y_off + g.height - data.theme.tool_tag_h / 2 - kHeadsFootMargin;
+    return g.y_off + (int32_t)(g.height * ratio);
+}
+} // namespace
+
 ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) {
     ParallelRows r;
-    // Under a view scale every head is the size the hub layout's would be: never smaller.
-    r.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
-                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    r.tool_scale = per_lane_tool_scale(data, g, LV_MIN(g.slot_count, FilamentPathData::kMaxSlots));
     r.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
-    r.toolhead_y = toolhead_standing_on(g.y_off + (int32_t)(g.height * kParallelGlyphBottomRatio),
+    r.toolhead_y = toolhead_standing_on(per_lane_heads_bottom(data, g, kParallelGlyphBottomRatio),
                                         r.tool_scale);
     r.sensor_y = row_between(r.entry_y, r.toolhead_y, kParallelSensorFraction);
     // The tubes hang from the spools' bottom edge, the round cap's top on it.
@@ -741,6 +773,27 @@ int32_t parallel_head_x(const FilamentPathData& data, const BaseGeometry& g,
     return left + i * each;
 }
 
+/// The lowest a MIXED hub's top stands: a short stub of shared tube over its head.
+static int32_t mixed_hub_lowest_top(const BaseGeometry& g, const MixedFrame& f) {
+    const int32_t stub = LV_MAX(10, (int32_t)(g.height * 0.03f));
+    return toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top - stub - f.hub_h;
+}
+
+/// The highest a MIXED hub's top stands for the lanes from a pass-through unit's outlets to
+/// reach it on diagonals no flatter than kFanMinSlope.
+static int32_t mixed_hub_fan_top(const FilamentPathData& data, const MixedFrame& f) {
+    // The hub's entries spread across its top, so a lane runs in only to its nearest one.
+    const float reach = std::max(0.0f, (float)f.hub_w / 2 - 8.0f);
+    float run = 0.0f;
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); i++) {
+        if (data.slot_is_hub_routed[i])
+            run = std::max(run, std::fabs((float)(f.head_x[i] - f.hub_cx)) - reach);
+    }
+    return f.sensor_y + data.theme.sensor_radius +
+           (int32_t)std::ceil(
+               std::max(0.75f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom));
+}
+
 int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
     if (data.view_hub_h <= 0 || g.height <= 0)
         return 0;
@@ -748,12 +801,16 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
     // A run from each lane's outlet down to its head long enough to read as a tube with its
     // sensors on it; a shared hub's run also holds the hub between them; and a pass-through
     // unit's own drawing its room.
-    const int32_t run_need = (mixed ? 6 : 4) * data.view_hub_h;
+    const int32_t run_need = (mixed ? 5 : 4) * data.view_hub_h;
     const auto fits = [&](int32_t height) {
         g.height = height;
         if (mixed) {
             const MixedFrame f = compute_mixed_frame(data, g);
             if (has_through_art(data) && f.through.w <= 0)
+                return false;
+            // The hub's lanes reach it on diagonals steep enough.
+            if (!data.hub_on_toolhead && f.hub_count > 0 &&
+                mixed_hub_fan_top(data, f) > mixed_hub_lowest_top(g, f))
                 return false;
             const int32_t head_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
             return head_top - f.entry_y >= run_need;
@@ -771,7 +828,10 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
 
 // MIXED layout: the toolhead glyphs stand on a line near the bottom; the lane
 // sensors and the hub sit fixed fractions of the way down to the toolheads.
-MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry& g) {
+namespace {
+/// compute_mixed_frame() with a pass-through unit's drawing ending @p art_cut higher under a
+/// view scale.
+MixedFrame mixed_frame_with(const FilamentPathData& data, const BaseGeometry& g, int32_t art_cut) {
     MixedFrame f;
     constexpr float kGlyphBottomY = 0.80f;
     constexpr float kSensorFraction = 0.36f;
@@ -781,10 +841,17 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     constexpr float kMixedArtBottom = 0.5f;
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
-    f.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
-                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    int heads = 0;
+    bool shared = false;
+    for (int i = 0; i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); i++) {
+        if (data.slot_is_hub_routed[i])
+            shared = true;
+        else
+            ++heads;
+    }
+    f.tool_scale = per_lane_tool_scale(data, g, heads + (shared ? 1 : 0));
     f.toolhead_y =
-        toolhead_standing_on(g.y_off + (int32_t)(g.height * kGlyphBottomY), f.tool_scale);
+        toolhead_standing_on(per_lane_heads_bottom(data, g, kGlyphBottomY), f.tool_scale);
     const int32_t run = f.toolhead_y - f.entry_y;
     f.sensor_y = row_between(f.entry_y, f.toolhead_y, kSensorFraction);
     f.hub_h = LV_MAX(16, (int32_t)(run * kHubHFraction));
@@ -823,7 +890,7 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         // Under a view scale the drawing takes the room down to what the sensors, the hub and
         // the shared head need below it; the rows below it then follow it down.
         const int32_t scaled_lowest =
-            nozzle_top - stub - f.hub_h - fan - 2 * data.theme.sensor_radius;
+            nozzle_top - stub - f.hub_h - fan - 2 * data.theme.sensor_radius - art_cut;
         const int32_t bottom =
             data.view_hub_h > 0
                 ? scaled_lowest
@@ -871,8 +938,15 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
             if (!data.slot_is_hub_routed[i])
                 heads[k++] = {f.head_x[i], i};
         }
-        if (f.hub_count > 0)
+        if (f.hub_count > 0) {
+            // The shared head stands in the row where its lanes leave the unit, so the heads
+            // keep the lanes' order and no tube crosses another.
+            int32_t sum = 0;
+            for (int i = 0; i < n; i++)
+                sum += data.slot_is_hub_routed[i] ? f.head_x[i] : 0;
+            f.hub_cx = from_outlets ? sum / f.hub_count : f.hub_cx;
             heads[k++] = {f.hub_cx, -1};
+        }
         std::sort(heads, heads + k, [](const Head& l, const Head& r) { return l.x < r.x; });
         const GlyphBounds b = toolhead_glyph_bounds(0, 0, f.tool_scale);
         const int32_t w = b.right - b.left;
@@ -895,8 +969,40 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
             }
         }
     }
+    f.shared_head_x = f.hub_cx;
     // ~60% of the full hub topology width, enough for the hub lanes
     f.hub_w = LV_MAX(40, data.theme.hub_width * 3 / 5);
+    // Under a view scale the hub's lanes converge on it as the hub layout's do: each diagonal no
+    // flatter than kFanMinSlope (per_lane_required_height asks the height for it). Leaving a
+    // pass-through unit's outlets they meet halfway over to the shared head, clear of the direct
+    // lanes' outlets either side, and the trunk leans on down to the head; otherwise the hub drops
+    // toward its head as far as the diagonals need.
+    if (data.view_hub_h > 0 && !data.hub_on_toolhead && f.hub_count > 0) {
+        const bool from_outlets = f.through.w > 0;
+        if (from_outlets) {
+            int32_t sum = 0, lo = INT32_MIN, hi = INT32_MAX;
+            for (int i = 0; i < n; i++)
+                sum += data.slot_is_hub_routed[i] ? f.head_x[i] : 0;
+            const int32_t meet = sum / f.hub_count;
+            const int32_t clear = 2 * data.theme.sensor_radius;
+            for (int i = 0; i < n; i++) {
+                if (data.slot_is_hub_routed[i])
+                    continue;
+                const int32_t out = rail_outlet_x(*data.rail_art, f.through, i);
+                if (out < meet)
+                    lo = std::max(lo, out + clear + f.hub_w / 2);
+                else
+                    hi = std::min(hi, out - clear - f.hub_w / 2);
+            }
+            // Halfway over to the shared head, so the lanes in and the trunk out share the lean.
+            const int32_t mid = (meet + f.shared_head_x) / 2;
+            f.hub_cx = lo <= hi ? std::clamp(mid, lo, hi) : mid;
+        }
+        const int32_t fan_top = std::min(mixed_hub_fan_top(data, f), mixed_hub_lowest_top(g, f));
+        const int32_t hub_top = from_outlets ? fan_top : std::max(f.hub_cy - f.hub_h / 2, fan_top);
+        f.hub_cy = hub_top + f.hub_h / 2;
+        f.hub_bottom = hub_top + f.hub_h;
+    }
 
     for (int i = 0; i < FilamentPathData::kMaxSlots; i++)
         f.slot_to_fan[i] = -1;
@@ -913,8 +1019,31 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         fan_in[fan_n] = {col, (float)f.sensor_y};
         f.slot_to_fan[i] = fan_n++;
     }
+    const float fillet = data.view_hub_h > 0 ? kScaledFanFillet : 8.0f;
     pg::build_merge_fan(fan_in, fan_n, (float)f.hub_cx, (float)hub_top, (float)f.hub_w,
-                        /*entry_margin=*/8.0f, /*fillet_r=*/8.0f, /*max_slope=*/1.2f, f.hub_fan);
+                        /*entry_margin=*/8.0f, fillet, /*max_slope=*/1.2f, f.hub_fan);
+    return f;
+}
+} // namespace
+
+MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry& g) {
+    MixedFrame f = mixed_frame_with(data, g, 0);
+    // Under a view scale a pass-through unit's drawing gives up the height its lanes need to
+    // reach the hub on steep enough diagonals, as far as it still draws; its outlets move as it
+    // shrinks, so the need is measured again.
+    int32_t cut = 0;
+    for (int pass = 0; pass < 3; ++pass) {
+        if (f.through.w <= 0 || data.view_hub_h <= 0 || data.hub_on_toolhead || f.hub_count <= 0)
+            break;
+        const int32_t over = mixed_hub_fan_top(data, f) - mixed_hub_lowest_top(g, f);
+        if (over <= 0)
+            break;
+        cut += over;
+        const MixedFrame shorter = mixed_frame_with(data, g, cut);
+        if (shorter.through.w <= 0)
+            break; // the drawing stays; the canvas asks for more height instead
+        f = shorter;
+    }
     return f;
 }
 
@@ -1406,8 +1535,21 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
         }
         out.trunk_route = out.route_count;
         Route& r = new_route(out);
-        append_line(r, (float)f.hub_cx, (float)f.hub_bottom, (float)f.hub_cx, nozzle_top,
-                    trunk.style(PathSegment::NOZZLE));
+        const float hx = (float)f.hub_cx, tx = (float)f.shared_head_x;
+        if (std::fabs(tx - hx) < 0.5f) {
+            append_line(r, hx, (float)f.hub_bottom, hx, nozzle_top,
+                        trunk.style(PathSegment::NOZZLE));
+        } else {
+            // From where the lanes meet, down and over to the shared head.
+            const float run = nozzle_top - (float)f.hub_bottom;
+            const pg::PathPoint pts[4] = {{hx, (float)f.hub_bottom},
+                                          {hx, (float)f.hub_bottom + run * 0.15f},
+                                          {tx, (float)f.hub_bottom + run * 0.7f},
+                                          {tx, nozzle_top}};
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, pts, 4, bend_radius(tx - hx));
+            route_append(r, bend, trunk.style(PathSegment::NOZZLE));
+        }
     }
     total_dropped(out);
 }
