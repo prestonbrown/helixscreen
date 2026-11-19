@@ -252,7 +252,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         // its even gaps: as much room over it as the bypass merge and toolhead band take
         // under it.
         const int32_t r = f.sensor_r;
-        if (f.hub_y - f.hub_h / 2 - f.prep_band_y < f.hub_h * 3 / 2)
+        if (f.hub_y - f.hub_h / 2 - f.prep_band_y < f.hub_h * 3 / 4)
             return false;
         // No lane's diagonal leans flatter than kFanMinSlope, its fillets' straight legs
         // aside: a flatter one reads as a step sideways just above the hub.
@@ -264,7 +264,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
             if (kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) > drop + 0.5f)
                 return false;
         }
-        if (f.output_y + 3 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
+        if (f.output_y + 2 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
             return false;
 
         return !wants_buffer || f.buffer_y - f.cap_h / 2 - f.output_y >= 3 * r;
@@ -588,6 +588,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const bool scaled = data.view_hub_h > 0;
     const int32_t entry_spacing = scaled ? separation + 2 : 22;
     const int32_t entry_margin = scaled ? f.sensor_r + 2 : 8;
+    const float fan_fillet = scaled ? kScaledFanFillet : 8.0f;
     const int reserve = 0;
     const int hub_lanes = fan_n;
     const pg::MergeLaneIn* fit_in = fan_in;
@@ -638,19 +639,16 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
             // The entries at the hub's least width, and each lane's run to its own.
             const float usable = (float)(min_width - 2 * entry_margin);
             const float step = usable / (float)(fit_n - 1);
-            float run = 0.0f, start = -1e9f;
+            // Each lane from its own start: a lane leaving lower runs a shorter way in.
+            float need = -1e9f;
             for (int i = 0; i < fan_n; ++i) {
                 const float offset = (float)i - (float)(fan_n - 1) / 2.0f;
-                run =
-                    std::max(run, std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x));
+                const float run = std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x);
+                const float start = std::max(fan_in[i].start_y, (float)f.prep_band_y);
+                need = std::max(need, start + std::max(0.75f * (float)f.hub_h,
+                                                       run * kFanMinSlope + 2.0f * kFanLegRoom));
             }
-            for (int i = 0; i < fan_n; ++i)
-                start = std::max(start, fan_in[i].start_y);
-            const float drop =
-                std::max(1.5f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom) +
-                (float)f.sensor_r;
-            top = std::min(roomy_top,
-                           (int32_t)std::ceil(std::max(start, (float)f.prep_band_y) + drop));
+            top = std::min(roomy_top, (int32_t)std::ceil(need + (float)f.sensor_r));
         }
         hub_top = LV_MAX(LV_MAX(top, lanes_top), art_floor);
         f.hub_y = hub_top + f.hub_h / 2;
@@ -667,10 +665,10 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t tube_end_y = hub_top - f.sensor_r;
     f.hub_box_w = (int32_t)std::ceil(pg::merge_fan_width(
         fit_in, fit_n, (float)f.center_x, (float)tube_end_y, (float)min_width, (float)max_width,
-        (float)entry_margin, /*fillet_r=*/8.0f, max_slope, (float)separation, reserve));
+        (float)entry_margin, /*fillet_r=*/fan_fillet, max_slope, (float)separation, reserve));
     pg::MergeFanInfo fan_info;
     pg::build_merge_fan(fan_in, fan_n, (float)f.center_x, (float)hub_top, (float)f.hub_box_w,
-                        (float)entry_margin, /*fillet_r=*/8.0f, max_slope, f.hub_fan, reserve,
+                        (float)entry_margin, /*fillet_r=*/fan_fillet, max_slope, f.hub_fan, reserve,
                         &fan_info);
     // Under a view scale a lane within a couple of pixels of its entry drops straight in: a
     // sub-pixel offset drawn through two fillets reads as a step.
@@ -1543,7 +1541,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                 }
             }
             pg::FilamentPath fan;
-            pg::route_polyline_filleted(fan, pts, 4, 8.0f);
+            pg::route_polyline_filleted(fan, pts, 4, data.view_hub_h > 0 ? kScaledFanFillet : 8.0f);
             route_append(r, fan, lane.style(PathSegment::LANE));
             if (!lane.on)
                 continue;
