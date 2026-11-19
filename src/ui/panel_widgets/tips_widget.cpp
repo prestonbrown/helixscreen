@@ -533,10 +533,14 @@ void TipsWidget::apply_pending_tip() {
         }
     });
 
-    // Completion callback: mark animation as done
+    // Completion callback: mark animation as done. A tip that arrived during
+    // the fade-in is still waiting in pending_tip_, so it gets its own fade.
     lv_anim_set_completed_cb(&anim, [](lv_anim_t* a) {
         auto* self = static_cast<TipsWidget*>(a->var);
         self->tip_animating_ = false;
+        if (self->pending_tip_.id != self->current_tip_.id) {
+            self->start_tip_fade_transition(self->pending_tip_);
+        }
     });
 
     lv_anim_start(&anim);
