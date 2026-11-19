@@ -1089,6 +1089,11 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
 // Routes, styles, bands
 // ============================================================================
 
+bool hub_is_bare(const FilamentPathData& data) {
+    return data.topology == static_cast<int>(PathTopology::HUB) && !data.hub_on_toolhead &&
+           data.slot_count == 1;
+}
+
 bool operator==(const SpanStyle& a, const SpanStyle& b) {
     return a.wall == b.wall && lv_color_eq(a.bore, b.bore) && a.filled == b.filled &&
            a.painted == b.painted;
@@ -1606,6 +1611,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
     const bool bypass = data.show_bypass && feeds;
     // On-toolhead the merge point sits above the head hub, off the trunk.
     const bool bypass_on_trunk = bypass && !on_head;
+    const bool bare = hub_is_bare(data);
     const bool bypass_owns = bypass_on_trunk && data.bypass_active;
     // The bypass filament reached the nozzle; on its own route it takes the
     // same error rules as an AMS lane.
@@ -1677,10 +1683,14 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             pg::FilamentPath fan;
             pg::route_polyline_filleted(fan, f.hub_fan[i].pts, 4, 8.0f);
             route_append(r, fan, lane.style(PathSegment::LANE));
+            if (bare)
+                append_line(r, f.hub_fan[i].pts[3].x, hub_top, cx, hub_bot,
+                            lane.style(PathSegment::HUB));
             if (!lane.on)
                 continue;
-            append_line(r, f.hub_fan[i].pts[3].x, hub_top, cx, hub_bot,
-                        unpainted(lane.style(PathSegment::HUB)));
+            if (!bare)
+                append_line(r, f.hub_fan[i].pts[3].x, hub_top, cx, hub_bot,
+                            unpainted(lane.style(PathSegment::HUB)));
         } else if (linear) {
             append_line(r, x, (float)f.prep_y, x, hub_top, lane.style(PathSegment::LANE));
             if (!lane.on)
@@ -1723,10 +1733,14 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             pg::FilamentPath fan;
             pg::route_polyline_filleted(fan, pts, 4, data.view_hub_h > 0 ? kScaledFanFillet : 8.0f);
             route_append(r, fan, lane.style(PathSegment::LANE));
+            // A lone lane's tube runs on, drawn, where a hub box would stand.
+            const auto through = lane.style(PathSegment::HUB);
+            if (bare)
+                append_line(r, pts[3].x, hub_top, cx, hub_bot, through);
             if (!lane.on)
                 continue;
-            const auto through = lane.style(PathSegment::HUB);
-            append_line(r, pts[3].x, hub_top, cx, hub_bot, unpainted(through));
+            if (!bare)
+                append_line(r, pts[3].x, hub_top, cx, hub_bot, unpainted(through));
         }
 
         out.active_route = i;

@@ -603,6 +603,23 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
         data->hits.hub_valid = true;
     }
 
+    // One lane on the page gathers nothing: no hub box, only the buffer's meter where the hub
+    // carries one, a small box on the tube (a tap on it opens the buffer's detail).
+    if (hub_is_bare(*data)) {
+        const int32_t mw = hub_buffer_glyph_width(f.hub_h);
+        const lv_area_t meter = {f.center_x - mw / 2, f.hub_y - f.hub_h / 2, f.center_x + mw / 2,
+                                 f.hub_y + f.hub_h / 2};
+        if (f.buffer_in_hub) {
+            draw_hub_buffer_glyph(ctx, meter);
+            data->hits.buffer = meter;
+            data->hits.buffer_valid = true;
+        }
+        data->hits.hub_anchor =
+            f.buffer_in_hub ? meter : lv_area_t{f.center_x, f.hub_y, f.center_x, f.hub_y};
+        data->hits.hub_anchor_valid = true;
+        return;
+    }
+
     // Under a view scale the gear stands outside the box's right edge, so the box keeps to the
     // lanes it gathers; a buffer riding in the hub shows its state in a slot at the box's right
     // end, and a tap there opens the buffer's detail.
@@ -627,6 +644,8 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
         data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
                           LV_MAX(f.center_x + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
         data->hits.hub_valid = true;
+        data->hits.hub_anchor = data->hits.hub;
+        data->hits.hub_anchor_valid = true;
     }
 }
 
@@ -683,6 +702,7 @@ void draw_nozzle_glyph(const RenderCtx& ctx, const LinearHubFrame& f) {
 // active route's filled prefix becomes the animation pass's path.
 void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     data->hits.hub_valid = false;
+    data->hits.hub_anchor_valid = false;
     data->hits.buffer_valid = false;
     data->hits.bypass_valid = false;
 

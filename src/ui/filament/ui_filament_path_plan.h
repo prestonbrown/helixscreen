@@ -303,6 +303,10 @@ inline constexpr float kHeadUnits = 6.5f;
 /// @p max_h.
 int32_t head_scale_within_height(int32_t scale, float max_h);
 
+/// A hub with one lane entering on this page gathers nothing: no hub box is drawn, only the
+/// buffer's meter where the hub carries one, and the lane's tube runs on through.
+bool hub_is_bare(const FilamentPathData& data);
+
 MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry& g);
 
 // PARALLEL rows: the lane entries, each tool's entry sensor, and its toolhead.

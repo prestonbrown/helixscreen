@@ -181,9 +181,9 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f) {
     const ThemeCache& theme = data->theme;
     data->hits.offpage_valid[0] = data->hits.offpage_valid[1] = false;
     const lv_font_t* font = theme.label_font;
-    if (!font || !data->hits.hub_valid)
+    if (!font || !(data->hits.hub_anchor_valid || data->hits.hub_valid))
         return;
-    const lv_area_t hub = data->hits.hub;
+    const lv_area_t hub = data->hits.hub_anchor_valid ? data->hits.hub_anchor : data->hits.hub;
     const int32_t pad = LV_MAX(4, f.hub_h / 4);
     const int32_t gap = f.sensor_r + 2;
     const int32_t h = f.hub_h;

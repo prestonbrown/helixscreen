@@ -166,11 +166,13 @@ bool helix::ui::hub_box_hit(lv_point_t p, int32_t cx, int32_t cy, int32_t w, int
 }
 
 bool helix::ui::recorded_box_hit(lv_point_t p, const lv_area_t& box, lv_point_t rendered_origin,
-                                 lv_point_t current_origin, int32_t margin) {
+                                 lv_point_t current_origin, int32_t margin, int32_t min_size) {
     lv_point_t q{p.x + rendered_origin.x - current_origin.x,
                  p.y + rendered_origin.y - current_origin.y};
-    return hub_box_hit(q, (box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2, box.x2 - box.x1,
-                       box.y2 - box.y1, margin);
+    // A box drawn smaller than a finger still takes a finger's tap, centered on it.
+    return hub_box_hit(q, (box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2,
+                       std::max(box.x2 - box.x1, min_size - 2 * margin),
+                       std::max(box.y2 - box.y1, min_size - 2 * margin), margin);
 }
 
 helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTapLayout& layout) {
@@ -300,7 +302,7 @@ static void filament_path_click_cb(lv_event_t* e) {
     // records the drawn area in data->hits.buffer, valid only when drawn this pass.
     if (data->buffer_present && data->buffer_callback && data->hits.buffer_valid) {
         if (helix::ui::recorded_box_hit(point, data->hits.buffer, data->hits.origin, {x_off, y_off},
-                                        4)) {
+                                        4, helix::ui::kPathFingerPx)) {
             spdlog::debug("[FilamentPath] Buffer control clicked");
             data->buffer_callback(data->buffer_user_data);
             return;
@@ -311,7 +313,7 @@ static void filament_path_click_cb(lv_event_t* e) {
     for (int side = 0; side < 2 && data->offpage_callback; ++side) {
         if (data->hits.offpage_valid[side] &&
             helix::ui::recorded_box_hit(point, data->hits.offpage[side], data->hits.origin,
-                                        {x_off, y_off}, 4)) {
+                                        {x_off, y_off}, 4, helix::ui::kPathFingerPx)) {
             data->offpage_callback(side, data->offpage_user_data);
             return;
         }
@@ -323,8 +325,8 @@ static void filament_path_click_cb(lv_event_t* e) {
     // screen. hub_valid is set only when a box was actually drawn this pass
     // (LINEAR selector / HUB), so PARALLEL is naturally excluded.
     if (data->hub_callback && data->hits.hub_valid) {
-        if (helix::ui::recorded_box_hit(point, data->hits.hub, data->hits.origin, {x_off, y_off},
-                                        4)) {
+        if (helix::ui::recorded_box_hit(point, data->hits.hub, data->hits.origin, {x_off, y_off}, 4,
+                                        helix::ui::kPathFingerPx)) {
             spdlog::debug("[FilamentPath] Selector/hub box clicked");
             data->hub_callback(point, data->hub_user_data);
             return;

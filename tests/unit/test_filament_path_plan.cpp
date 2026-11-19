@@ -360,6 +360,22 @@ TEST_CASE("FilamentPath plan: band_segment crosses the tube", "[filament-path][p
            (near(p1, 200, 134.5f) && near(p0, 200, 145.5f))));
 }
 
+TEST_CASE("FilamentPath plan: one lane into a hub is no hub: its tube runs on drawn",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    d->slot_count = 1;
+    REQUIRE(hub_is_bare(*d));
+    load_active(*d, 0, PathSegment::NOZZLE);
+    const PathPlan& plan = plan_for(*d);
+    REQUIRE(plan.active_route >= 0);
+    // One stroke from spool to inlet: nothing hidden where a hub box would stand.
+    Stroke strokes[16];
+    CHECK(coalesce(plan.routes[plan.active_route], strokes, 16) == 1);
+    // Two lanes do gather in a hub.
+    d->slot_count = 2;
+    CHECK_FALSE(hub_is_bare(*d));
+}
+
 TEST_CASE("FilamentPath plan: HUB active route runs unbroken from spool to inlet",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);

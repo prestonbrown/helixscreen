@@ -251,6 +251,10 @@ struct LayerState {
 struct HitRects {
     lv_area_t hub = {0, 0, 0, 0};
     bool hub_valid = false;
+    /// Where the hub stands, drawn as a box or not (a lone lane's bare tube): the off-page chips
+    /// stand beside it.
+    lv_area_t hub_anchor = {0, 0, 0, 0};
+    bool hub_anchor_valid = false;
     lv_area_t buffer = {0, 0, 0, 0};
     bool buffer_valid = false;
     lv_area_t bypass = {0, 0, 0, 0};
