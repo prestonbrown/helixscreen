@@ -629,6 +629,8 @@ void set_lane_picking(const helix::ui::WidgetRef slot_widgets[], int n, const Un
     for (int i = 1; art && i < n; ++i)
         pitch = std::min<int32_t>(pitch, std::abs(art->outlet[i].x - art->outlet[i - 1].x));
     const bool pick = art && n > 1 && pitch < kMinLaneTapPx;
+    spdlog::debug("[AmsDetail] Lane taps: {} lanes at a {} px pitch, {}", n,
+                  pitch == INT32_MAX ? 0 : pitch, pick ? "picked from a list" : "each its own");
     for (int i = 0; i < n; ++i)
         if (slot_widgets[i])
             lv_obj_set_clickable(slot_widgets[i], !pick);
