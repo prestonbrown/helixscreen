@@ -2873,11 +2873,13 @@ class AmsState {
     helix::Subject buffer_value_pct_{};  // fill gauge: the pressure, 0..100
     helix::Subject buffer_target_pct_{}; // fill gauge: the set point, -1 without one
     helix::Subject buffer_label_{};      // "FPS" / "Sync"
-    char buffer_label_buf_[16]{};
+    // The buffer texts render translated and the subject truncates by bytes:
+    // ja "バッファー" is 15 bytes, ru "Нейтрален" 18, ru "Цель достигнута" 29.
+    char buffer_label_buf_[32]{};
     helix::Subject buffer_value_text_{}; // "32%", "-45%", "Pressure: 32%"
     char buffer_value_text_buf_[48]{};
     helix::Subject buffer_short_text_{}; // "32%", "-45%": the number alone, for narrow surfaces
-    char buffer_short_text_buf_[16]{};
+    char buffer_short_text_buf_[48]{};
     helix::Subject
         buffer_lean_text_{}; // "Running tight" / "Balanced", or "At target" / "Above target"
     char buffer_lean_text_buf_[48]{};
