@@ -1515,7 +1515,11 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
             // The lane's load sensor sits midway down its straight run below
             // the prep sensor (to the selector, or to the fan's first bend).
             const bool load_band = data.slot_has_load_sensor[i] && !data.art_sensors;
-            if (on_head) {
+            if (on_head && data.art_sensors) {
+                // The unit's drawing shows its own selector: each tube runs unbroken from its
+                // outlet down to the combiner on the head.
+                append_line(r, x, (float)f.prep_y, x, pts[0].y, lane.style(PathSegment::LANE));
+            } else if (on_head) {
                 const int32_t sel_top_px = f.selector_y - f.hub_h / 2;
                 const float sel_top = (float)sel_top_px;
                 if (load_band) {

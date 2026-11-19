@@ -582,8 +582,9 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     lv_opa_t hub_opa = (data->topology == 0) ? LV_OPA_60 : LV_OPA_COVER;
 
     // On-toolhead mode draws the passthrough selector first, in its classic
-    // spot under the lanes, full slot width like LINEAR's selector.
-    if (data->hub_on_toolhead) {
+    // spot under the lanes, full slot width like LINEAR's selector; a unit whose drawing shows
+    // its own selector has none drawn again (its tap target is the hub on the head below).
+    if (data->hub_on_toolhead && !data->art_sensors) {
         int32_t sel_w = data->theme.hub_width;
         if (data->slot_count > 1) {
             int32_t first_slot_x = g.slot_x[0];
@@ -623,8 +624,9 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
 
     // Single source of truth for the selector/hub hit-test: record the exact
     // box we just drew (absolute display coords), gear included. On-toolhead
-    // mode recorded the SELECTOR box above; the head hub is not a control.
-    if (!data->hub_on_toolhead) {
+    // mode recorded the SELECTOR box above; the head hub is a control only where no selector
+    // is drawn (a unit drawing its own).
+    if (!data->hub_on_toolhead || data->art_sensors) {
         data->hits.hub = {f.center_x - hub_w / 2, f.hub_y - f.hub_h / 2,
                           LV_MAX(f.center_x + hub_w / 2, extras.gear_right), f.hub_y + f.hub_h / 2};
         data->hits.hub_valid = true;
