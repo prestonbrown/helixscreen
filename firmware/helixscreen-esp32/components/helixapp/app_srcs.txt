@@ -256,6 +256,8 @@ src/printer/power_loss_sensor.cpp
 src/printer/pre_print_option.cpp
 src/printer/pre_print_preferences.cpp
 src/printer/preflight_validator.cpp
+src/printer/print_cost.cpp
+src/printer/print_cost_service.cpp
 src/printer/print_lifecycle_state.cpp
 src/printer/print_start_checks.cpp
 src/printer/print_start_inputs.cpp

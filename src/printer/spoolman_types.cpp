@@ -319,8 +319,11 @@ std::vector<std::string> recent_brands(const std::vector<SpoolInfo>& spools) {
 
 namespace helix {
 
-std::string format_price_with_currency(double price, const std::string& currency) {
-    if (price <= 0) {
+std::string format_price_with_currency(double price, const std::string& currency,
+                                       bool zero_is_amount) {
+    if (zero_is_amount && price == 0.0) {
+        price = 0.0; // a negative zero would print "-0.00"
+    } else if (!(price > 0)) {
         return {};
     }
 

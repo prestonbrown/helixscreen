@@ -21,6 +21,10 @@
 #include <vector>
 
 namespace helix {
+
+namespace print_cost {
+struct CostSettings;
+}
 class IMoonrakerClient;
 
 /// Jog step mode selector. The setting stores it; the motion panel offers it.
@@ -166,6 +170,34 @@ class SettingsManager {
     /// Written and saved at once. False when the save failed.
     bool set_maintenance_record(const std::string& printer_prefix,
                                 const helix::maintenance::State& state);
+
+    // =========================================================================
+    // PRINT COST (prestonbrown/helixscreen#2132)
+    // =========================================================================
+
+    /// The materials Settings > Print Cost lists a price per kg for. Any other
+    /// material uses the default price.
+    static constexpr const char* kCostMaterials[] = {"PLA", "PETG", "ABS", "ASA",
+                                                     "TPU", "PA",   "PC"};
+    /// Currency codes the setting offers, in its dropdown's order.
+    static constexpr const char* kCostCurrencies[] = {
+        "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "SEK", "NOK", "DKK",
+        "PLN", "CZK", "CNY", "KRW", "INR", "BRL", "MXN", "NZD", "ZAR"};
+
+    /// Prices per kg, electricity price (global) and printer watts (this printer).
+    helix::print_cost::CostSettings get_cost_settings() const;
+    /// The currency for prices that are not Spoolman's; "USD" until set.
+    std::string get_cost_currency() const;
+    void set_cost_currency(const std::string& code);
+    /// Price per kg for @p material ("" = the default for every other material); 0 = unset.
+    double get_cost_price_per_kg(const std::string& material) const;
+    void set_cost_price_per_kg(const std::string& material, double price);
+    /// Printer's average power draw while printing, in watts; 0 = unset.
+    double get_cost_watts() const;
+    void set_cost_watts(double watts);
+    /// Electricity price per kWh; 0 = unset.
+    double get_cost_price_per_kwh() const;
+    void set_cost_price_per_kwh(double price);
 
     // =========================================================================
     // CHAMBER ASSIGNMENT (owned by SettingsManager — sensor/heater override)
