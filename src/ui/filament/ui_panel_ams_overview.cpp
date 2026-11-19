@@ -500,22 +500,11 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
     helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
 
     if (detail_path_canvas_) {
-        // The hub box is sized for the widest unit of this hub, at the lane pitch that
-        // unit's slot row has, so it holds still as the pages go by.
-        int hub_lanes = 0;
-        for (const auto& other : pages_) {
-            if (other.group == page.group && other.unit_index < static_cast<int>(info.units.size()))
-                hub_lanes = std::max(hub_lanes, info.units[other.unit_index].slot_count);
-        }
-        int32_t lane_pitch = 0;
-        if (hub_lanes > 0 && detail_widgets_.slot_grid) {
-            lv_obj_t* slot_area = lv_obj_get_parent(detail_widgets_.slot_grid);
-            lv_obj_update_layout(slot_area);
-            const AmsSlotLayout widest =
-                helix::ui::ams_detail_slot_layout(lv_obj_get_content_width(slot_area), hub_lanes);
-            lane_pitch = widest.slot_width - widest.overlap;
-        }
-        ui_filament_path_canvas_set_fixed_hub(detail_path_canvas_, hub_lanes, lane_pitch);
+        // Each unit's lanes converge into a hub sized for them, as on the single-unit panel:
+        // a hub sized for the widest unit of the group would leave a smaller unit's lanes
+        // running flat across to it. The hub stays on the centered unit's center line, so paging
+        // changes only its width, and only where the lane counts differ.
+        ui_filament_path_canvas_set_fixed_hub(detail_path_canvas_, 0);
         ui_filament_path_canvas_set_offpage_units(detail_path_canvas_, page.same_hub_before,
                                                   page.drying_before, page.same_hub_after,
                                                   page.drying_after);

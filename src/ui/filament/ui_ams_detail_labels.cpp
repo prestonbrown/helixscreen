@@ -438,10 +438,21 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
     const int32_t overflow = bottom - limit;
     // Under a view scale the unit is sized from the path once the path is set up for this
     // unit's slots: a path still laid out for the slots before them would size it wrongly.
-    if (s_view_scale.unit > 0)
+    if (s_view_scale.unit > 0) {
+        // The drawing must also stay below its column's top: a unit with no labels over it
+        // (every lane empty) otherwise grows until the drawing runs off the top.
+        int32_t over = cc.y1 + need - 1 - limit;
+        lv_area_t drawn, art_coords;
+        lv_obj_t* column = view_column(canvas);
+        if (column && s_tray.art_obj && helix::ui::unit_art_drawn_area(s_tray.art_obj, drawn)) {
+            lv_area_t col;
+            lv_obj_get_coords(column, &col);
+            lv_obj_get_coords(s_tray.art_obj, &art_coords);
+            over = std::max(over, col.y1 - (art_coords.y1 + drawn.y1));
+        }
         return ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
-               fit_scaled_unit(cc.y1 + need - 1 - limit, ui_filament_path_canvas_fan_growth(canvas),
-                               layout);
+               fit_scaled_unit(over, ui_filament_path_canvas_fan_growth(canvas), layout);
+    }
     if (overflow <= 0)
         return false;
     // The drawing scales with its spools: shrinking it by the overflow gives the path that room.
