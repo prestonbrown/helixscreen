@@ -985,9 +985,11 @@ SysLayout compute_sys_layout(const SystemPathData& data, const lv_area_t& obj_co
     const int32_t toolhead_y = L.y_off + (int32_t)(L.height * bottom_ratio) -
                                helix::ui::toolhead_bounds(data.toolhead_style, 0, 0, scale).bottom;
     const int32_t run = toolhead_y - L.entry_y;
-    const float merge = L.multi_tool ? 0.35f : 0.30f;
-    const float hub = L.multi_tool ? 0.61f : 0.52f;
-    const float hub_h = L.multi_tool ? 0.175f : 0.15f;
+    // One toolhead: the lines start their diagonals just under the cards and meet in a hub
+    // nearer the units than the toolhead, so the long straight run is the hub's to the head.
+    const float merge = L.multi_tool ? 0.35f : 0.04f;
+    const float hub = L.multi_tool ? 0.61f : 0.44f;
+    const float hub_h = L.multi_tool ? 0.175f : 0.13f;
     L.merge_y = L.entry_y + (int32_t)(run * merge);
     L.hub_y = L.entry_y + (int32_t)(run * hub);
     L.hub_h = (int32_t)(run * hub_h);

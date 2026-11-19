@@ -139,8 +139,10 @@ TEST_CASE("Overview layout: the toolheads stand on their glyph-bottom line",
     auto d = multi();
     const SysLayout single = compute_sys_layout(*d, AREA);
     CHECK(single.nozzle_y == 346);
-    CHECK(single.hub_y + single.hub_h / 2 == 213);
-    CHECK(single.merge_y == 117);
+    // One toolhead: the lines start converging just under the cards, and the hub stands nearer
+    // the cards than the toolhead, leaving the long straight run to the head.
+    CHECK(single.merge_y - single.entry_y < (single.nozzle_y - single.entry_y) / 10);
+    CHECK(single.hub_y - single.entry_y < single.nozzle_y - single.hub_y);
 
     d->total_tools = 3;
     const SysLayout row = compute_sys_layout(*d, AREA);
@@ -239,7 +241,8 @@ TEST_CASE("Overview plan: an idle system keeps an idle trunk with its toolhead b
     REQUIRE(plan.trunk_route == 2);
     const Route& trunk = plan.routes[2];
     CHECK(contiguous(trunk.path));
-    CHECK(near(seg_start(trunk.path.segs[0]), 200, 213, 0.5f));
+    const SysLayout L = compute_sys_layout(*d, AREA);
+    CHECK(near(seg_start(trunk.path.segs[0]), 200, (float)(L.hub_y + L.hub_h / 2), 0.5f));
     CHECK(near(seg_end(trunk.path.segs[trunk.path.count - 1]), 200, 315, 0.5f));
     REQUIRE(plan.band_count == 3);
     CHECK(plan.bands[2].state == BandState::Empty);
@@ -1267,13 +1270,10 @@ TEST_CASE("Overview plan: every labelled box on the mock rigs is tall enough for
             CHECK(L.hub_h >= d.label_line_h);
         }
         if (!L.multi_tool) {
-            // At micro the trunk from the hub down to the toolhead's top is too short for a
-            // labelled buffer box, so that one box goes bare.
+            // The hub stands high, so even at micro the trunk below it holds a full-height box.
             const TrunkBuffer b = trunk_buffer(d, L);
-            const bool micro = std::string(rig.name).find("micro") != std::string::npos;
-            CHECK(b.labeled == !micro);
-            if (b.labeled)
-                CHECK(b.h >= d.label_line_h);
+            CHECK(b.labeled);
+            CHECK(b.h >= d.label_line_h);
         }
     }
 }
