@@ -234,7 +234,7 @@ translations:
   ADXL: ADXL
   AFC: AFC
   AFC Update Available: AFC 有可用更新
-  AFC buffer: AFC 缓冲区
+  AFC buffer: AFC 缓冲器
   AFC failure reset complete: AFC故障重置完成
   AFC failure reset failed: AFC故障重置失败
   AFC recovery complete: AFC恢复完成
@@ -553,10 +553,10 @@ translations:
   Brush nozzle: '刷洗喷嘴'
   Brush the gear teeth clean.: "将齿轮齿面刷干净。"
   Brush the mounted tool's nozzle clean: '用刷子清洁当前安装工具的喷嘴'
-  Buffer: 缓冲区
-  Buffer Status: 缓冲区状态
+  Buffer: 缓冲器
+  Buffer Status: 缓冲器状态
   Buffer tube problem: 缓冲管故障
-  Buffer-driven gear speed control: "由缓冲区控制齿轮速度"
+  Buffer-driven gear speed control: "由缓冲器控制齿轮速度"
   Build Volume: '打印尺寸'
   'Build Volume: ': '构建尺寸: '
   'Building preview: %d%%': '正在生成预览：%d%%'
@@ -1454,8 +1454,8 @@ translations:
   Exhaust fan speed: '排气风扇速度'
   'Exhaust: keep chamber at or below': '排气：将腔体保持在不高于'
   Exit Code: 退出代码
-  Expanded: 伸展
-  'Expanded: the toolhead pulls filament faster than it arrives': '伸展：打印头拉动耗材快于送入'
+  Expanded: 拉伸
+  'Expanded: the toolhead pulls filament faster than it arrives': '拉伸：打印头拉动耗材快于送入'
   Expected boolean: '需要布尔值'
   Expected float: '需要小数值'
   Explore how the selected palette shapes text, controls, and status colors.: 探索所选调色板如何影响文本、控件和状态颜色。
@@ -1642,7 +1642,7 @@ translations:
   Feeders: 送料器
   Feeding filament to nozzle: "正在向喷嘴送料"
   Filament: 耗材
-  Filament Buffer: '耗材缓冲区'
+  Filament Buffer: '耗材缓冲器'
   Filament Control: 耗材控制
   Filament Detected: 检测到耗材
   Filament Dryer: 耗材烘干
@@ -1663,7 +1663,7 @@ translations:
   Filament Used: 已用耗材
   Filament already exists: 耗材已存在
   Filament buffer failure during feed: 送料时耗材缓冲器故障
-  Filament buffer position against its target: '耗材缓冲区相对目标的位置'
+  Filament buffer position against its target: '耗材缓冲器相对目标的位置'
   Filament buffer stopped moving: 耗材缓冲器停止移动
   Filament by Type: 按类型分类的耗材
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
@@ -1793,7 +1793,7 @@ translations:
   Free space unknown: '可用空间未知'
   Freed {}: '已释放 {}'
   Freed {}, but some files could not be deleted: '已释放 {}，但部分文件无法删除'
-  From Buffer: 来自缓冲区
+  From Buffer: 来自缓冲器
   From Printer: '从打印机'
   From SpoolmanDB: '来自 SpoolmanDB'
   From Version: 起始版本
@@ -1810,7 +1810,7 @@ translations:
   Gate: 通道
   Gates: 通道
   Gateway: '网关'
-  Gear Buffer Speed: '齿轮缓冲区速度'
+  Gear Buffer Speed: '齿轮缓冲器速度'
   Gear Spool Speed: '齿轮料盘速度'
   Gear Unload Speed: '齿轮卸载速度'
   Gear motor synced: 齿轮电机已同步
@@ -2643,7 +2643,7 @@ translations:
   No answer from the printer; it may still be calibrating: 打印机无应答；可能仍在校准
   "No answer: check the IP address and that this device is on the printer's Wi-Fi, not mobile data.": "无响应:请检查 IP 地址,并确认此设备连接的是打印机的 Wi-Fi,而不是移动数据。"
   "No answer: check the IP address and that this device is on the printer's network.": "无响应:请检查 IP 地址,并确认此设备与打印机在同一网络。"
-  No buffer data available: 无可用缓冲区数据
+  No buffer data available: 无可用缓冲器数据
   No camera — use USB barcode scanner: 无摄像头 — 请使用 USB 条码扫描器
   No chamber temperature sensor detected: '未检测到腔体温度传感器'
   No changes to revert: 没有可撤销的更改
@@ -4420,7 +4420,7 @@ translations:
   Failed to start. See the Moonraker log.: "启动失败。请查看 Moonraker 日志。"
   This feature requires different hardware or configuration: 此功能需要不同的硬件或配置
   Stopped. Restart Moonraker to start it again.: "已停止。重启 Moonraker 以重新启动。"
-  This filament system does not report buffer or flow data.: 此耗材系统不报告缓冲区或流量数据。
+  This filament system does not report buffer or flow data.: 此耗材系统不报告缓冲器或流量数据。
   This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures.: '此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。'
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。

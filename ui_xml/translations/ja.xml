@@ -1723,7 +1723,7 @@
   <translation tag="Free space unknown" ja="空き容量不明"/>
   <translation tag="Freed {}" ja="{}を解放しました"/>
   <translation tag="Freed {}, but some files could not be deleted" ja="{}を解放しましたが、一部のファイルは削除できませんでした"/>
-  <translation tag="From Buffer" ja="バッファから"/>
+  <translation tag="From Buffer" ja="バッファーから"/>
   <translation tag="From Printer" ja="プリンターから"/>
   <translation tag="From SpoolmanDB" ja="SpoolmanDB から"/>
   <translation tag="From Version" ja="更新前バージョン"/>
@@ -1739,7 +1739,7 @@
   <translation tag="Gate" ja="ゲート"/>
   <translation tag="Gates" ja="ゲート"/>
   <translation tag="Gateway" ja="ゲートウェイ"/>
-  <translation tag="Gear Buffer Speed" ja="ギアのバッファ速度"/>
+  <translation tag="Gear Buffer Speed" ja="ギアのバッファー速度"/>
   <translation tag="Gear Spool Speed" ja="ギアのスプール速度"/>
   <translation tag="Gear Unload Speed" ja="ギアのアンロード速度"/>
   <translation tag="Gear motor synced" ja="ギアモーターを同期しました"/>
@@ -2648,7 +2648,7 @@
   <translation tag="No tool on the head" ja="ツールヘッドにツールがありません"/>
   <translation tag="No tools to calibrate" ja="キャリブレートするツールがありません"/>
   <translation tag="No turn: the gap moved {:.1f} Hz" ja="回していません: 差は{:.1f} Hz動きました"/>
-  <translation tag="No unit has a filament buffer" ja="フィラメントバッファを持つユニットがありません"/>
+  <translation tag="No unit has a filament buffer" ja="フィラメントバッファーを持つユニットがありません"/>
   <translation tag="No unit has a moving selector" ja="可動セレクターを持つユニットがありません"/>
   <translation tag="No unit has a servo" ja="サーボを持つユニットがありません"/>
   <translation tag="No unit has an encoder" ja="エンコーダーを持つユニットがありません"/>

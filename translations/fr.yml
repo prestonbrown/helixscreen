@@ -899,8 +899,8 @@ translations:
   Completed {}d ago: 'Terminé il y a {} j'
   Completed {}h ago: 'Terminé il y a {} h'
   Completed {}m ago: 'Terminé il y a {} min'
-  Compressed: Compressé
-  'Compressed: filament arrives faster than it is used': 'Compressé : le filament arrive plus vite qu''il n''est utilisé'
+  Compressed: Comprimé
+  'Compressed: filament arrives faster than it is used': 'Comprimé : le filament arrive plus vite qu''il n''est utilisé'
   Computing calibration...: Calcul de la calibration...
   Config Dir: Dossier de configuration
   Config Edit Failed: 'Échec de la modification de la configuration'
@@ -1466,8 +1466,8 @@ translations:
   Exhaust fan speed: 'Vitesse du ventilateur d''extraction'
   'Exhaust: keep chamber at or below': 'Extraction : garder la chambre au plus à'
   Exit Code: Code de sortie
-  Expanded: Détendu
-  'Expanded: the toolhead pulls filament faster than it arrives': 'Détendu : la tête tire le filament plus vite qu''il n''arrive'
+  Expanded: Étiré
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Étiré : la tête tire le filament plus vite qu''il n''arrive'
   Expected boolean: 'Valeur booléenne attendue'
   Expected float: 'Nombre décimal attendu'
   Explore how the selected palette shapes text, controls, and status colors.: Explorez comment la palette sélectionnée façonne les couleurs du texte, des contrôles et des statuts.

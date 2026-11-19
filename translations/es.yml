@@ -1454,8 +1454,8 @@ translations:
   Exhaust fan speed: 'Velocidad del ventilador de escape'
   'Exhaust: keep chamber at or below': 'Escape: mantener la cámara a un máximo de'
   Exit Code: Código de salida
-  Expanded: Expandido
-  'Expanded: the toolhead pulls filament faster than it arrives': 'Expandido: el cabezal tira del filamento más rápido de lo que llega'
+  Expanded: Estirado
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Estirado: el cabezal tira del filamento más rápido de lo que llega'
   Expected boolean: 'Se esperaba un valor booleano'
   Expected float: 'Se esperaba un número decimal'
   Explore how the selected palette shapes text, controls, and status colors.: Explore cómo la paleta seleccionada da forma a los colores de texto, controles y estado.
@@ -1810,7 +1810,7 @@ translations:
   Gate: Gate
   Gates: Gates
   Gateway: 'Puerta de enlace'
-  Gear Buffer Speed: 'Velocidad del engranaje desde el buffer'
+  Gear Buffer Speed: 'Velocidad del engranaje desde el búfer'
   Gear Spool Speed: 'Velocidad del engranaje desde la bobina'
   Gear Unload Speed: 'Velocidad de descarga del engranaje'
   Gear motor synced: Motor de engranaje sincronizado

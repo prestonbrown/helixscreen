@@ -31,6 +31,7 @@ GLOSSARY_GROUPS: dict[str, list[str]] = {
         "Slots", "Lanes", "Gates", "Feeders", "Tools", "Toolheads",
     ],
     "Filament features": ["Endless Spool", "Filament Mapping", "Assigned Tool"],
+    "Filament buffer": ["Buffer", "Filament Buffer", "Compressed", "Expanded", "Neutral"],
     "Actions": [
         "Save", "Cancel", "Close", "Delete", "Edit", "Retry",
         "Install", "Uninstall", "Update", "Print", "Pause", "Resume",
@@ -114,6 +115,16 @@ translation agents (the relevant column is injected into their prompts).
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.
+- **Buffer** is the mechanical spring or slider in the tube between a filament
+  unit and the extruder, never memory. The noun follows Bambu's HMS catalogue
+  (`resources/hms/hms_<lang>_*.json` in Bambu Studio), which names this part in
+  every locale: de `Puffer`, fr `Tampon`, es `búfer`, ja `バッファー` (not
+  `バッファ`), zh `缓冲器` (Bambu and Creality both; `缓冲区` is the computing
+  sense). Its states are a spring pair: **Compressed** is pushed in, **Expanded**
+  is pulled out under tension, so Expanded renders as stretched (de `Gedehnt`, fr
+  `Étiré`, es `Estirado`, it `Esteso`, pt `Esticado`, zh `拉伸`), never as
+  relaxed or as swollen. **Neutral** is shared with the LED white-tone label and
+  keeps a word that fits both.
 
 ## Glossary
 """

@@ -1389,8 +1389,8 @@
   <translation tag="Exhaust fan speed" es="Velocidad del ventilador de escape"/>
   <translation tag="Exhaust: keep chamber at or below" es="Escape: mantener la cámara a un máximo de"/>
   <translation tag="Exit Code" es="Código de salida"/>
-  <translation tag="Expanded" es="Expandido"/>
-  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" es="Expandido: el cabezal tira del filamento más rápido de lo que llega"/>
+  <translation tag="Expanded" es="Estirado"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" es="Estirado: el cabezal tira del filamento más rápido de lo que llega"/>
   <translation tag="Expected boolean" es="Se esperaba un valor booleano"/>
   <translation tag="Expected float" es="Se esperaba un número decimal"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." es="Explore cómo la paleta seleccionada da forma a los colores de texto, controles y estado."/>
@@ -1739,7 +1739,7 @@
   <translation tag="Gate" es="Gate"/>
   <translation tag="Gates" es="Gates"/>
   <translation tag="Gateway" es="Puerta de enlace"/>
-  <translation tag="Gear Buffer Speed" es="Velocidad del engranaje desde el buffer"/>
+  <translation tag="Gear Buffer Speed" es="Velocidad del engranaje desde el búfer"/>
   <translation tag="Gear Spool Speed" es="Velocidad del engranaje desde la bobina"/>
   <translation tag="Gear Unload Speed" es="Velocidad de descarga del engranaje"/>
   <translation tag="Gear motor synced" es="Motor de engranaje sincronizado"/>

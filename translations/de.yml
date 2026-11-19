@@ -1454,8 +1454,8 @@ translations:
   Exhaust fan speed: 'Abluftlüfter-Drehzahl'
   'Exhaust: keep chamber at or below': 'Abluft: Kammer höchstens halten bei'
   Exit Code: Exit-Code
-  Expanded: Ausgedehnt
-  'Expanded: the toolhead pulls filament faster than it arrives': 'Ausgedehnt: Der Druckkopf zieht Filament schneller, als es ankommt'
+  Expanded: Gedehnt
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Gedehnt: Der Druckkopf zieht Filament schneller, als es ankommt'
   Expected boolean: 'Boolescher Wert erwartet'
   Expected float: 'Gleitkommazahl erwartet'
   Explore how the selected palette shapes text, controls, and status colors.: Erkunden Sie, wie die gewählte Palette Text, Steuerelemente und Statusfarben gestaltet.

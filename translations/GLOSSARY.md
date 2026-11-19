@@ -68,6 +68,16 @@ translation agents (the relevant column is injected into their prompts).
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.
+- **Buffer** is the mechanical spring or slider in the tube between a filament
+  unit and the extruder, never memory. The noun follows Bambu's HMS catalogue
+  (`resources/hms/hms_<lang>_*.json` in Bambu Studio), which names this part in
+  every locale: de `Puffer`, fr `Tampon`, es `búfer`, ja `バッファー` (not
+  `バッファ`), zh `缓冲器` (Bambu and Creality both; `缓冲区` is the computing
+  sense). Its states are a spring pair: **Compressed** is pushed in, **Expanded**
+  is pulled out under tension, so Expanded renders as stretched (de `Gedehnt`, fr
+  `Étiré`, es `Estirado`, it `Esteso`, pt `Esticado`, zh `拉伸`), never as
+  relaxed or as swollen. **Neutral** is shared with the LED white-tone label and
+  keeps a word that fits both.
 
 ## Glossary
 
@@ -107,6 +117,16 @@ translation agents (the relevant column is injected into their prompts).
 | Endless Spool | Endlosspule | Bobina infinita | Bobine infinie | Bobina infinita | エンドレススプール | Carretel infinito | Бесконечная катушка | 无限料盘 |
 | Filament Mapping | Filament-Zuordnung | Mapeo de Filamento | Mappage du filament | Mappatura filamento | フィラメントマッピング | Mapeamento de Filamento | Сопоставление филамента | 耗材映射 |
 | Assigned Tool | Zugewiesenes Werkzeug | Herramienta asignada | Outil attribué | Strumento assegnato | 割り当てツール | Ferramenta atribuída | Назначенный инструмент | 已分配工具 |
+
+### Filament buffer
+
+| English | de | es | fr | it | ja | pt | ru | zh |
+|---|---|---|---|---|---|---|---|---|
+| Buffer | Puffer | Búfer | Tampon | Buffer | バッファー | Buffer | Буфер | 缓冲器 |
+| Filament Buffer | Filamentpuffer | Búfer de filamento | Tampon de filament | Buffer filamento | フィラメントバッファー | Buffer de filamento | Буфер филамента | 耗材缓冲器 |
+| Compressed | Komprimiert | Comprimido | Comprimé | Compresso | 圧縮 | Comprimido | Сжат | 压缩 |
+| Expanded | Gedehnt | Estirado | Étiré | Esteso | 伸長 | Esticado | Растянут | 拉伸 |
+| Neutral | Neutral | Neutro | Neutre | Neutro | ニュートラル | Neutro | Нейтральный | 中性 |
 
 ### Actions
 
