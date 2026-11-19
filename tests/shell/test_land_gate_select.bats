@@ -31,6 +31,7 @@ t=app; vars=""
 for a in "$@"; do case "$a" in -*) ;; *=*) vars="$vars $a" ;; *) t=$a ;; esac; done
 echo "make $t$vars" >> "$CALLS"
 [ "$t" != quality ] || echo "qc-only: ${HELIX_QC_ONLY:-all}" >> "$CALLS"
+[ "$t" != quality ] || [ -z "${HELIX_QC_CHANGED_FROM:-}" ] || echo "qc-changed: $HELIX_QC_CHANGED_FROM" >> "$CALLS"
 echo "output of $t"
 eval "rc=\${RC_$(echo "$t" | tr - _):-0}"
 exit "$rc"'
@@ -447,4 +448,203 @@ PY
     run make --no-print-directory -C "$dir" probe TEST_SELECT_CHANGED=src/a.cpp
     [ "$status" -ne 0 ]
     lacks "verdict=" "$output"
+}
+
+# --------------------------------------------------------------------------
+# mk/tests.mk's selected sweep, on a scratch Makefile: tests.mk's shard runner
+# and select_cases, the real unit-sweep and test-slow recipes, a stub selector,
+# a stub test binary and a live (stub) jobpool, which runs each batch of
+# shards in a fresh bash that sees only exported variables.
+# --------------------------------------------------------------------------
+
+sweep_makefile() {
+    local dir="$BATS_TEST_TMPDIR/sweep"
+    mkdir -p "$dir/scripts" "$dir/bin"
+    {
+        printf 'SHELL := /bin/bash\nJOBS_CLAIMED := 1\nBUILD_DIR := build\nOBJ_DIR := build/obj\nTEST_BIN := %s\nECHO := @echo\n' "$dir/bin/helix-tests"
+        printf 'SHARD_ARTIFACT_ROOT := %s\n' "$dir/shards"
+        awk '/^# Test Dependency System/ { exit } { print }' "$REPO_ROOT/mk/tests.mk"
+        awk '/^(unit-sweep|test-slow): test-build/ { on = 1; sub(/: test-build/, ":") } on { print } on && /^$/ { on = 0 }' "$REPO_ROOT/mk/tests.mk"
+        printf '\ndefine run_slow_tiers\n\techo full slow tiers\nendef\n'
+    } >"$dir/Makefile"
+    cat >"$dir/scripts/gate_select.py" <<'PY'
+import os, sys
+out = sys.argv[sys.argv.index("--out") + 1]
+os.makedirs(os.path.dirname(out), exist_ok=True)
+n = int(os.environ.get("FAKE_CASES", "0"))
+open(out, "w").write("".join('"case %d"\n' % i for i in range(n)))
+print(("SELECT %d case(s)" % n) if n else "NONE nothing")
+PY
+    printf '#!/bin/sh\ncase "$1" in pool) exit 0 ;; esac\nexit 0\n' >"$dir/scripts/helix-claim"
+    printf '#!/bin/sh\nexit 0\n' >"$dir/scripts/triage_shard.sh"
+    printf '#!/bin/sh\n[ "$1" = with-token ] && shift 2\nexec "$@"\n' >"$dir/bin/fakejp"
+    # Catch2 refuses a --shard-count without a number (exit 255); otherwise
+    # shard i runs the input file's cases i, i+count, ...
+    cat >"$dir/bin/helix-tests" <<'SH'
+#!/bin/bash
+file="" count=1 index=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -f) file=$2; shift ;;
+        --shard-count) case "$2" in ''|-*) echo "error: --shard-count needs a number" >&2; exit 255 ;; esac; count=$2; shift ;;
+        --shard-index) index=$2; shift ;;
+    esac
+    shift
+done
+n=$(grep -c . "$file" 2>/dev/null || echo 0)
+k=0
+for ((i = index; i < n; i += count)); do k=$((k + 1)); done
+[ -n "${FAKE_RUN_NONE:-}" ] && k=0
+echo "All tests passed ($k assertions in $k test cases)"
+exit "${FAKE_EXIT:-0}"
+SH
+    chmod +x "$dir/scripts/"* "$dir/bin/"*
+    echo "$dir"
+}
+
+@test "a selected sweep under a live jobpool runs every selected case, sharded" {
+    local dir
+    dir=$(sweep_makefile)
+    FAKE_CASES=5 HELIX_JOBPOOL="$dir/bin/fakejp" run make --no-print-directory -C "$dir" unit-sweep \
+        TEST_SELECT_CHANGED=src/a.cpp NPROCS=8 SHARD_TIMEOUT=60
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "Running 5 test shards" "$output"
+    lacks "exit 255" "$output"
+    contains "ran 5 of 5 selected case(s)" "$output"
+}
+
+@test "a selected sweep that runs fewer cases than it selected fails, crash setting or not" {
+    local dir
+    dir=$(sweep_makefile)
+    FAKE_CASES=3 FAKE_RUN_NONE=1 HELIX_JOBPOOL="$dir/bin/fakejp" run make --no-print-directory -C "$dir" unit-sweep \
+        TEST_SELECT_CHANGED=src/a.cpp NPROCS=8 SHARD_TIMEOUT=60 SHARD_CRASH_FAILS=0
+    [ "$status" -ne 0 ] || fail "a sweep that ran nothing passed: $output"
+    contains "selected 3 case(s), but the shards ran 0" "$output"
+}
+
+@test "a shard exiting 255 (Catch2 refusing its arguments, no signal) fails the sweep, not just warns" {
+    local dir
+    dir=$(sweep_makefile)
+    FAKE_CASES=3 FAKE_EXIT=255 HELIX_JOBPOOL="$dir/bin/fakejp" run make --no-print-directory -C "$dir" unit-sweep \
+        TEST_SELECT_CHANGED=src/a.cpp NPROCS=8 SHARD_TIMEOUT=60 SHARD_CRASH_FAILS=0
+    [ "$status" -ne 0 ] || fail "$output"
+    contains "failed (exit 255)" "$output"
+    # A real signal after passing assertions still only warns without SHARD_CRASH_FAILS.
+    FAKE_CASES=3 FAKE_EXIT=139 HELIX_JOBPOOL="$dir/bin/fakejp" run make --no-print-directory -C "$dir" unit-sweep \
+        TEST_SELECT_CHANGED=src/a.cpp NPROCS=8 SHARD_TIMEOUT=60 SHARD_CRASH_FAILS=0
+    [ "$status" -eq 0 ]
+    contains "crashed after its assertions passed (signal 11)" "$output"
+}
+
+@test "the selected slow tier under a live jobpool runs every selected case" {
+    local dir
+    dir=$(sweep_makefile)
+    FAKE_CASES=4 HELIX_JOBPOOL="$dir/bin/fakejp" run make --no-print-directory -C "$dir" test-slow \
+        TEST_SELECT_CHANGED=src/a.cpp SLOW_SHARDS=16 SHARD_TIMEOUT=60
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "ran 4 of 4 selected case(s)" "$output"
+}
+
+# --------------------------------------------------------------------------
+# Release gates, reruns and stamps
+# --------------------------------------------------------------------------
+
+@test "valve: a release-prep branch runs everything" {
+    local repo="$BATS_TEST_TMPDIR/relprep"
+    git init -q -b release-prep/v9.9.0 "$repo"
+    [[ "$(python3 "$SELECT" --root "$repo" plan --changed docs/x.md | awk -F'\t' '$1 == "ci-shards" { print $2 " " $3 }')" == "full the branch is release-prep/v9.9.0" ]]
+}
+
+@test "each result row records the plan it ran under, and the history marks a selected gate" {
+    change src/ui/tour/tour_steps.cpp
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    [ "$(cut -d' ' -f1,3 "$LAND_GATE_LOGDIR/rows/ci-shards.plan")" = "select selected" ] ||
+        fail "$(cat "$LAND_GATE_LOGDIR/rows/ci-shards.plan")"
+    [ "$(cut -d' ' -f1,3 "$LAND_GATE_LOGDIR/rows/plugin.plan")" = "skip selected" ] || fail "skip row"
+    grep -Eq '^[0-9]+ [0-9]+ PASS\(sel\) ' "$LAND_GATE_HISTORY" || fail "$(cat "$LAND_GATE_HISTORY")"
+    grep -q " ci-shards=PASS(sel):" "$LAND_GATE_HISTORY"
+}
+
+# A clean commit in a scratch clone, so results are recorded and a rerun can
+# complete them. The selector is the real one, copied in with the gate.
+gate_clone() {
+    local repo="$BATS_TEST_TMPDIR/clone"
+    git init -q -b main "$repo"
+    mkdir -p "$repo/scripts/lib" "$repo/.githooks/lib"
+    cp "$REPO_ROOT/scripts/land-gate.sh" "$REPO_ROOT/scripts/gate_select.py" "$repo/scripts/"
+    cp "$REPO_ROOT/scripts/lib/build_hosts.sh" "$REPO_ROOT/scripts/lib/sweep_location.sh" "$repo/scripts/lib/"
+    cp "$REPO_ROOT/.githooks/lib/land-gate-stamp.sh" "$repo/.githooks/lib/"
+    mkdir -p "$repo/src" && echo x >"$repo/src/a.cpp"
+    printf 'build/\n' >"$repo/.gitignore"
+    git -C "$repo" add -A && git -C "$repo" -c user.email=t@e -c user.name=t commit -qm base
+    echo "$repo"
+}
+
+@test "a narrower rerun cannot replace a row a full run recorded, and no stamp comes of it" {
+    local repo
+    repo=$(gate_clone)
+    export LAND_GATE_LOGDIR="$repo/build/land-gate"
+    change src/a.cpp
+    cd "$repo"
+    HELIX_GATE_FULL=1 RC_unit_sweep=1 run ./scripts/land-gate.sh
+    [ "$status" -ne 0 ]
+    contains "HELIX_GATE_FULL=1 make land-gate STAGES=ci-shards" "$output"
+    run ./scripts/land-gate.sh --rerun ci-shards
+    [ "$status" -ne 0 ] || fail "a selected rerun replaced a full row: $output"
+    contains "narrower than the full run" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$(git rev-parse HEAD)" ]
+    HELIX_GATE_FULL=1 run ./scripts/land-gate.sh --rerun ci-shards
+    [ "$status" -eq 0 ] || fail "$output"
+}
+
+@test "rows recorded under different plans never stamp the commit" {
+    local repo sha
+    repo=$(gate_clone)
+    export LAND_GATE_LOGDIR="$repo/build/land-gate"
+    change src/a.cpp
+    cd "$repo"
+    sha=$(git rev-parse HEAD)
+    RC_unit_sweep=1 run ./scripts/land-gate.sh
+    [ "$status" -ne 0 ]
+    HELIX_GATE_FULL=1 run ./scripts/land-gate.sh --rerun ci-shards
+    [ "$status" -ne 0 ] || fail "a merge of a full row into a selected run stamped: $output"
+    contains "recorded under different plans" "$output"
+    [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$sha" ]
+}
+
+# --------------------------------------------------------------------------
+# Docs-only quality and python triggers
+# --------------------------------------------------------------------------
+
+@test "a docs-only change's quality sweep gets the changed paths, so every gate a .md wakes runs" {
+    change docs/devel/BUILD_SYSTEM.md
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -q "^qc-changed: .*changed.txt$" "$CALLS" || fail "$(cat "$CALLS")"
+}
+
+@test "HELIX_QC_CHANGED_FROM runs the gates whose trigger matches a path, and the untriggered ones" {
+    local list="$BATS_TEST_TMPDIR/paths"
+    echo docs/devel/BUILD_SYSTEM.md >"$list"
+    run bash -c 'eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+        QC_TRIGGER_qc_code_lint="\.md$" QC_TRIGGER_qc_xml_tools="^ui_xml/"
+        HELIX_QC_CHANGED_FROM="$1" STAGED_ONLY=false
+        qc_wanted qc_code_lint && echo "code_lint runs"
+        qc_wanted qc_xml_tools || echo "xml_tools skipped"
+        qc_wanted qc_phase1 && echo "untriggered runs"' _ "$list"
+    contains "code_lint runs" "$output"
+    contains "xml_tools skipped" "$output"
+    contains "untriggered runs" "$output"
+    hash_with() {
+        HELIX_QC_CHANGED_FROM="$1" bash -c \
+            'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+    }
+    [ "$(hash_with "$list")" != "$(hash_with "")" ] || fail "a partial sweep shares the full sweep's stamp"
+}
+
+@test "plan: python runs for the doc-screenshot manifest and for the workflows its tests read" {
+    [[ "$(plan_of python docs/images/doc-screenshots.yml)" == run* ]] || fail "manifest"
+    [[ "$(plan_of python .github/workflows/ci-watch.yml)" == run* ]] || fail "workflows"
+    [[ "$(plan_of python docs/devel/TESTING.md)" == skip* ]]
 }

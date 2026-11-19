@@ -96,7 +96,8 @@ SLOW_ORDER ?= --order rand --rng-seed 1
 # and shares the tokens with compiles. Asked once, when a sweep starts.
 SHARD_CONCURRENCY ?= $(eval SHARD_CONCURRENCY := $(shell echo $$(($(JOBS_CLAIMED) * 3))))$(SHARD_CONCURRENCY)
 
-# Run tests in parallel using Catch2 sharding
+# Run tests in parallel using Catch2 sharding. Leaves ran_cases, the cases the
+# shards' summaries report, in the recipe's shell.
 # Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
 #       $(3) = Catch2 order flags (default: declaration order)
 # Collects PIDs and waits for all, failing if any shard fails
@@ -151,7 +152,7 @@ define run_tests_parallel
 				if grep -q "test cases.*|.*failed" "$$shard_dir/$$i.log" 2>/dev/null; then \
 					echo "$(RED)$(BOLD)✗ Shard $$i had test failures (exit $$ec)$(RESET)"; \
 					failed=1; suspect="$$suspect $$i"; \
-				elif [ "$$ec" -gt 128 ] 2>/dev/null; then \
+				elif [ "$$ec" -gt 128 ] 2>/dev/null && [ "$$ec" -le 192 ]; then \
 					sig=$$((ec - 128)); \
 					if [ "$(SHARD_CRASH_FAILS)" = 1 ]; then \
 						echo "$(RED)$(BOLD)✗ Shard $$i crashed after its assertions passed (signal $$sig)$(RESET)"; \
@@ -167,6 +168,8 @@ define run_tests_parallel
 			fi; \
 		fi; \
 	done; \
+	ran_cases=$$(cat "$$shard_dir"/*.log 2>/dev/null | grep -oE "in [0-9]+ test cases?\)|test cases: +[0-9]+" | \
+		grep -oE "[0-9]+" | awk '{ s += $$1 } END { print s + 0 }'); \
 	if [ -n "$$suspect" ]; then \
 		$(call diagnose_shards,$$shard_dir,$$suspect,$(1),$(or $(2),$(NPROCS)),$(3)); \
 	else \
@@ -182,16 +185,19 @@ endef
 # comma-separated list of paths (land-gate passes it); scripts/gate_select.py
 # reads the test build's dependency files and writes the Catch2 input file of
 # the cases matching $(1) that the change reaches. Sets, in the recipe's
-# shell: sel_verdict (FULL, SELECT or NONE), sel_file (the input file, exported
-# for the shards' subshells) and sel_shards (at most NPROCS, at most one shard
-# per case). Without TEST_SELECT_CHANGED the verdict is FULL, the whole filter.
+# shell: sel_verdict (FULL, SELECT or NONE), sel_file (the input file),
+# sel_count (its cases) and sel_shards (at most NPROCS, at most one shard per
+# case). sel_file and sel_shards are exported: under a live jobpool each batch
+# of shards runs in a fresh bash that sees nothing else. Without
+# TEST_SELECT_CHANGED the verdict is FULL, the whole filter. check_selected_ran
+# fails a run whose shards ran fewer cases than were selected.
 # The rule and its safety valves: scripts/gate_select.py's header.
 TEST_SELECT_CHANGED ?=
 TEST_SELECT_DIR = $(BUILD_DIR)/test-select
 
 # Args: $(1) = Catch2 test spec, $(2) = name of the input file under TEST_SELECT_DIR.
 define select_cases
-	sel_verdict=FULL; sel_file=; sel_shards=$(NPROCS); \
+	sel_verdict=FULL; sel_file=; sel_count=0; sel_shards=$(NPROCS); \
 	if [ -n "$(TEST_SELECT_CHANGED)" ]; then \
 		sel_file="$(TEST_SELECT_DIR)/$(2).txt"; \
 		sel_out=$$(python3 scripts/gate_select.py cxx --changed "$(TEST_SELECT_CHANGED)" \
@@ -199,10 +205,18 @@ define select_cases
 		printf '%s\n' "$$sel_out" | sed 's/^/[test-select $(2)] /'; \
 		sel_verdict=$${sel_out%% *}; \
 		if [ "$$sel_verdict" = SELECT ]; then \
-			n=$$(wc -l <"$$sel_file"); sel_shards=$$(( n < $(NPROCS) ? n : $(NPROCS) )); \
+			sel_count=$$(wc -l <"$$sel_file"); sel_shards=$$(( sel_count < $(NPROCS) ? sel_count : $(NPROCS) )); \
 		fi; \
 	fi; \
-	export sel_file
+	export sel_file sel_shards
+endef
+
+define check_selected_ran
+	if [ "$$ran_cases" != "$$sel_count" ]; then \
+		echo "$(RED)$(BOLD)✗ selected $$sel_count case(s), but the shards ran $$ran_cases$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo "ran $$ran_cases of $$sel_count selected case(s)"
 endef
 
 # Post-mortem for shards that failed, crashed, or timed out.
@@ -478,7 +492,7 @@ unit-sweep: test-build
 	$(call select_cases,~[.] ~[slow],fast); \
 	case $$sel_verdict in \
 		NONE) exit 0 ;; \
-		SELECT) $(call run_tests_parallel,-f $$sel_file,$$sel_shards) ;; \
+		SELECT) $(call run_tests_parallel,-f $$sel_file,$$sel_shards); $(call check_selected_ran) ;; \
 		*) $(call run_tests_parallel,"~[.] ~[slow]") ;; \
 	esac; \
 	END_TIME=$$(date +%s); \
@@ -916,9 +930,11 @@ test-slow: test-build
 		*) slow_file=$$sel_file; slow_verdict=$$sel_verdict; \
 		   $(call select_cases,[slow][serial],slow-serial); \
 		   if [ "$$slow_verdict" = SELECT ]; then \
-		       sel_file=$$slow_file; export sel_file; \
-		       n=$$(wc -l <"$$sel_file"); sel_shards=$$(( n < $(SLOW_SHARDS) ? n : $(SLOW_SHARDS) )); \
+		       sel_file=$$slow_file; sel_count=$$(wc -l <"$$sel_file"); \
+		       sel_shards=$$(( sel_count < $(SLOW_SHARDS) ? sel_count : $(SLOW_SHARDS) )); \
+		       export sel_file sel_shards; \
 		       $(call run_tests_parallel,-f $$sel_file,$$sel_shards,$(SLOW_ORDER)); \
+		       $(call check_selected_ran); \
 		   fi; \
 		   if [ "$$sel_verdict" = SELECT ]; then \
 		       $(TEST_BIN) -f "$$sel_file" --durations yes; \
