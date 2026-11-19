@@ -80,6 +80,28 @@ MoonrakerAPIMock::MoonrakerAPIMock(MoonrakerClient& client, PrinterState& state)
     job_api_ = std::make_unique<helix::MoonrakerJobAPIMock>(client, &state);
     rest_api_ = std::make_unique<MoonrakerRestAPIMock>(client, get_http_base_url());
     timelapse_api_ = std::make_unique<MoonrakerTimelapseAPIMock>(client, get_http_base_url());
+
+    // HELIX_MOCK_MATERIAL_ZOFFSET=start_print_vars: the file defining the table,
+    // where Jacobean's K2 Kalico keeps it, so a Save can edit it.
+    if (MoonrakerClientMock::material_zoffset_mock() ==
+        MoonrakerClientMock::MaterialZOffsetMock::StartPrintVars) {
+        const std::map<std::string, std::string> files = {
+            {"printer.cfg", "[include overrides.cfg]\n\n[printer]\nkinematics: corexy\n"},
+            {"overrides.cfg", "[gcode_macro _START_PRINT_VARS]\n"
+                              "######################################################\n"
+                              "# per-material first-layer offsets\n"
+                              "######################################################\n"
+                              "variable_offset_PLA: 0\n"
+                              "variable_offset_PETG: 0.04\n"
+                              "variable_offset_ABS: -0.02\n"
+                              "variable_offset_ASA: 0\n"
+                              "variable_offset_DEFAULT: 0\n"
+                              "variable_offset_PROBE: 0\n"
+                              "variable_heat_soak: 0 # minutes\n"
+                              "gcode:\n"}};
+        files_mock().set_config_files(files);
+        transfers_mock().set_config_files(files);
+    }
 }
 
 MoonrakerAdvancedAPIMock& MoonrakerAPIMock::advanced_mock() {

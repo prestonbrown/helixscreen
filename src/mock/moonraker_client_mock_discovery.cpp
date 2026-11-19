@@ -523,6 +523,9 @@ void MoonrakerClientMock::populate_capabilities() {
     if (helix::mock::timelapse_plugin_present()) {
         mock_objects.push_back("timelapse");
     }
+    // HELIX_MOCK_MATERIAL_ZOFFSET: a per-material Z offset table and its start macro.
+    append_material_zoffset_objects(mock_objects);
+
     // HELIX_MOCK_TIMELAPSE=helix-macros: helper macros loaded, no TIMELAPSE_TAKE_FRAME.
     if (helix::mock::timelapse_helix_macros_loaded()) {
         for (const char* m : {"HELIX_READY", "HELIX_ENDED", "HELIX_RESET", "HELIX_START_PRINT",

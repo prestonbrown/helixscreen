@@ -16,6 +16,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "material_z_offset_state.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -60,6 +61,8 @@ class ControlsSaveZOffsetFixture : public LVGLUITestFixture {
         hw.parse_objects(objects);
         ToolState::instance().init_tools(hw);
 
+        // The save buttons also bind material_zoffset_active, as the app registers it.
+        helix::material_zoffset::MaterialZOffsetState::instance().init_subjects();
         helix::zoffset::deinit_save_available_subject();
         helix::zoffset::init_save_available_subject(true);
 

@@ -727,11 +727,13 @@ void run_material_save(const std::string& material, int microns) {
                 NOTIFY_ERROR("{}", message);
             }
             // A dirty tool still saves the way it always does; the machine-wide
-            // offset is the material's and stays out of it.
-            if (helix::ToolState::instance().dirty_tool_indices().empty()) {
+            // offset is the material's and stays out of it. That save may
+            // restart Klipper, so never while a job holds the machine.
+            PrinterState& ps = get_printer_state();
+            if (helix::ToolState::instance().dirty_tool_indices().empty() ||
+                lv_subject_get_int(ps.print_state().get_machine_motion_blocked_subject()) != 0) {
                 return;
             }
-            PrinterState& ps = get_printer_state();
             if (IMoonrakerAPI* again = get_moonraker_api()) {
                 save_dirty_offsets(
                     again, shared_save_watch(), ps.profile_state().z_offset_calibration_strategy(),

@@ -1964,6 +1964,8 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
                   bed_target);
 
     dispatch_print_state_notification("printing");
+    // The start macro applies the material's Z offset (HELIX_MOCK_MATERIAL_ZOFFSET).
+    apply_material_zoffset_at_start(meta.filament_type);
     return true;
 }
 

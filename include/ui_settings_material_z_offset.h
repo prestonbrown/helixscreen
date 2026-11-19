@@ -55,7 +55,7 @@ class MaterialZOffsetOverlay : public OverlayBase {
     std::array<helix::Subject, kMaterials.size()> temp_subjects_{};
     std::array<helix::Subject, kMaterials.size()> mesh_subjects_{};
     char value_bufs_[kMaterials.size()][32]{};
-    char temp_bufs_[kMaterials.size()][32]{};
+    char temp_bufs_[kMaterials.size()][96]{};
     /// The setup's two lines of code, shown as written in every language.
     helix::Subject macro_line_subject_{};
     helix::Subject slicer_line_subject_{};

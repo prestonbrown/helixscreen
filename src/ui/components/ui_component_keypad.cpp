@@ -79,6 +79,8 @@ static lv_obj_t* keypad_parent = nullptr;
 // Decimals offered once a decimal point is entered. Two covers retraction
 // distances (0.85mm) and half-step square corner velocity alike.
 static constexpr int kKeypadFractionDigits = 2;
+// The most a field may ask for: a Z offset is set in microns (0.025mm).
+static constexpr int kKeypadMaxFractionDigits = 3;
 
 // Current config and input state
 static ui_keypad_config_t current_config;
@@ -278,7 +280,7 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
             ? std::max(std::fabs(config->min_value), std::fabs(config->max_value))
             : config->max_value);
     if (config->max_fraction_digits > 0) {
-        input.max_frac_digits = std::min(config->max_fraction_digits, kKeypadFractionDigits);
+        input.max_frac_digits = std::min(config->max_fraction_digits, kKeypadMaxFractionDigits);
         input.max_total_digits = input.max_int_digits + input.max_frac_digits;
     } else {
         input.max_frac_digits = static_cast<int>(helix::ui::KeypadInput::BUF_SIZE);

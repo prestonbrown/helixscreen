@@ -143,6 +143,7 @@ void MaterialZOffsetOverlay::edit_offset(const std::string& row_material) {
     config.max_value = kMaxOffsetMm;
     config.allow_decimal = true;
     config.allow_negative = true;
+    config.max_fraction_digits = 3;
     // The keypad keeps the title pointer while it is open.
     editing_title_ = material.empty() ? std::string(lv_tr("Any other material")) : row_material;
     config.title_label = editing_title_.c_str();

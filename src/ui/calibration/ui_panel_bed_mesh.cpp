@@ -1673,14 +1673,18 @@ void BedMeshPanel::finish_calibration(const std::string& profile) {
 }
 
 bool BedMeshPanel::offer_material_mesh() {
-    auto& temps = get_printer_state().temperature_state();
-    const int target = lv_subject_get_int(temps.get_bed_target_subject());
-    const int bed_deci = target > 0 ? target : lv_subject_get_int(temps.get_bed_temp_subject());
+    // A mesh probed on a cold bed belongs to no material: the bed's shape at
+    // a material's temperature is the whole point of keeping one per material.
+    const int target_deci =
+        lv_subject_get_int(get_printer_state().temperature_state().get_bed_target_subject());
+    if (target_deci <= 0) {
+        return false;
+    }
     const std::vector<std::string> materials(
         helix::settings::MaterialZOffsetOverlay::kMaterials.begin() + 1,
         helix::settings::MaterialZOffsetOverlay::kMaterials.end());
     const auto offer = helix::material_zoffset::MaterialZOffsetState::instance().mesh_offer(
-        materials, bed_deci / 10);
+        materials, target_deci / 10);
     if (!offer) {
         return false;
     }
