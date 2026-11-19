@@ -1434,7 +1434,7 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
         return false;
     refresh_theme_colors(data);
     const LinearHubFrame f = compute_linear_hub_frame(*data, g);
-    *area_out = hub_box_area(*data, g, f);
+    *area_out = hub_box_drawn_area(*data, g, f);
     return true;
 }
 

@@ -534,8 +534,30 @@ struct HubBoxExtras {
     /// box's right end instead.
     int32_t max_right = INT32_MAX;
     lv_area_t slot{};       ///< out: the slot's area
+    lv_area_t box{};        ///< out: the box drawn, without an outside gear
     int32_t gear_right = 0; ///< out: the right edge of what was drawn, the gear included
 };
+
+/// Where a hub box stands once its label and gear fit it.
+struct HubBoxShape {
+    int32_t cx = 0;
+    int32_t width = 0;
+    bool gear_outside = false;
+};
+
+/// The box @p width wide about @p cx grown until a label @p label_w wide and a gear @p gear_w
+/// wide (0: none) fit, as draw_hub_box() draws it: the gear just outside its right edge where
+/// @p extras asks and that stays left of extras->max_right, else inside; a box whose right end
+/// then crosses max_right grows leftward instead.
+HubBoxShape hub_box_shape(int32_t cx, int32_t width, int32_t label_w, int32_t gear_w,
+                          const HubBoxExtras* extras);
+
+/// The LINEAR/HUB hub box's label: "SELECTOR" for a selector, else "HUB".
+const char* hub_section_label(const FilamentPathData& data);
+
+/// Whether the LINEAR/HUB hub box carries a gear: it has a callback and actions, and is no
+/// fixed selector.
+bool hub_section_interactive(const FilamentPathData& data);
 
 /// Labeled rounded box (HUB / SELECTOR / BUF). Text color, font and corner
 /// radius come from the theme cache in ctx. An interactive box carries a gear

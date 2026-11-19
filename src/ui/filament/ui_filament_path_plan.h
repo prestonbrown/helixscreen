@@ -298,10 +298,20 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const
 int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
                             const LinearHubFrame& f);
 
-/// The hub or selector box as drawn, without its gear: hub_box_width() about center_x, its
-/// right end held to hub_box_right_limit().
+/// The hub or selector box before its label and gear widen it: hub_box_width() about
+/// center_x, its right end held to hub_box_right_limit().
 lv_area_t hub_box_area(const FilamentPathData& data, const BaseGeometry& g,
                        const LinearHubFrame& f);
+
+/// What the LINEAR/HUB hub box carries: an outside gear under a view scale, kept left of
+/// hub_box_right_limit(), and the buffer's slot where the hub carries one.
+HubBoxExtras hub_section_extras(const FilamentPathData& data, const BaseGeometry& g,
+                                const LinearHubFrame& f);
+
+/// The LINEAR/HUB hub or selector box as draw_hub_section() draws it, without an outside gear:
+/// hub_box_area() grown by hub_box_shape() for its label and gear.
+lv_area_t hub_box_drawn_area(const FilamentPathData& data, const BaseGeometry& g,
+                             const LinearHubFrame& f);
 
 /// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
 /// kToolheadGlyphBottomRatio of the canvas height.

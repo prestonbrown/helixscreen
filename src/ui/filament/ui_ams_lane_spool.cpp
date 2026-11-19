@@ -751,6 +751,11 @@ bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& sever
     return true;
 }
 
+void ams_lane_spool_notify(lv_obj_t* spool) {
+    if (const LaneSpoolData* data = get_lane_spool_data(spool))
+        notify_listener(data);
+}
+
 void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void* user) {
     if (LaneSpoolData* data = get_lane_spool_data(spool)) {
         data->listener = listener;

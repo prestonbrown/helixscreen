@@ -1839,6 +1839,49 @@ TEST_CASE_METHOD(
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: a lane renamed to a longer material lays its labels out again",
+                 "[ams][tray][ui_integration][over-lane][lane-label-live]") {
+    const bool art = GENERATE(false, true);
+    CAPTURE(art);
+    if (art)
+        unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    for (int i = 0; i < 4; ++i)
+        set_lane_live(i, "PLA");
+    panel_->refresh_slots();
+    process_lvgl(20);
+    // Only the material changes: same color, same fill, the lane still loaded.
+    set_lane_live(1, "PETG-CF");
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    const std::vector<lv_obj_t*> labels = over_lane_labels();
+    REQUIRE(labels.size() == 4);
+    CHECK(std::string(lv_label_get_text(labels[1])) == "PETG-CF");
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: on a compact screen, the unit reserves the label rows its short "
+                 "labels take",
+                 "[ams][tray][ui_integration][over-lane][short-label]") {
+    // Four "Silk PLA" lanes at 480x272 stand in one row of "PLA": the row laid out for them
+    // reserves that one row, not the two the whole names would take.
+    helix::test::ScopedGeometry geometry(480, 272);
+    build("passive", 4);
+    for (int i = 0; i < 4; ++i)
+        set_lane_live(i, "Silk PLA");
+    AmsDetailWidgets w = ams_detail_find_widgets(lv_obj_find_by_name(panel_obj_, "unit_detail"));
+    helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+    int count = (int)lv_obj_get_child_count(slot_grid_);
+    for (int i = 0; i < count; ++i)
+        slots[i].reset(slot(i));
+    ams_detail_destroy_slots(w, slots, count);
+    const AmsDetailSlotResult made =
+        ams_detail_create_slots(w, slots, kAmsDetailMaxSlots, -1, nullptr, nullptr);
+    REQUIRE(made.slot_count == 4);
+    CHECK(made.layout.label_rows == 1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit: on a compact screen, labels too crowded for whole names read the "
                  "base material",
                  "[ams][tray][ui_integration][over-lane][short-label]") {

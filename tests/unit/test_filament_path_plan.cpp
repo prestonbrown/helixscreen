@@ -183,6 +183,87 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(area_eq(hub, d->hits.hub));
 }
 
+TEST_CASE("FilamentPath: a hub box its label and gear widen stays left of its limit",
+          "[filament-path][plan][hits][bypass]") {
+    // A 20 px box about x=100, its label 60 px and its gear 10 px wide.
+    HubBoxExtras inside;
+    inside.max_right = 120;
+    const HubBoxShape in = hub_box_shape(100, 20, 60, 10, &inside);
+    CHECK_FALSE(in.gear_outside);
+    CHECK(in.width == 60 + 2 * (10 + 4));
+    // It grows leftward: its right end stops at the limit.
+    CHECK(in.cx + in.width / 2 == 120);
+
+    // An outside gear is placed by the widened box: widened, the box would put it past 140.
+    HubBoxExtras outside;
+    outside.gear_outside = true;
+    outside.max_right = 140;
+    const HubBoxShape out = hub_box_shape(100, 20, 60, 10, &outside);
+    CHECK_FALSE(out.gear_outside);
+    CHECK(out.cx + out.width / 2 <= 140);
+    // With room for it, the gear stands outside and the box holds only the label.
+    outside.max_right = 150;
+    const HubBoxShape roomy = hub_box_shape(100, 20, 60, 10, &outside);
+    CHECK(roomy.gear_outside);
+    CHECK(roomy.cx == 100);
+    CHECK(roomy.width == 60 + 2 * 4);
+    // A box with no gear (no actions) still holds its label and slot.
+    outside.slot_w = 12;
+    const HubBoxShape plain = hub_box_shape(100, 20, 60, 0, &outside);
+    CHECK(plain.width == 60 + 2 * 4 + 12);
+    CHECK_FALSE(plain.gear_outside);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath: a short LINEAR selector bar widened for its label and gear stays "
+                 "clear of the bypass spool",
+                 "[filament-path][plan][hits][bypass]") {
+    // Few lanes leave the bar narrower than its label and gear, which widen it toward the
+    // spool beside it.
+    helix::test::ScopedGeometry micro(480, 272);
+    const int lanes = GENERATE(2, 3, 4, 6, 12);
+    const int32_t width = GENERATE(160, 200, 240, 285);
+    CAPTURE(lanes, width);
+    lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
+    lv_obj_set_size(w, width, 151);
+    ui_filament_path_canvas_set_slot_count(w, lanes);
+    ui_filament_path_canvas_set_slot_width(w, 20);
+    ui_filament_path_canvas_set_slot_overlap(w, 3);
+    ui_filament_path_canvas_set_topology(w, static_cast<int>(helix::PathTopology::LINEAR));
+    ui_filament_path_canvas_set_view_scale(
+        w, helix::ui::path_view_scale(151, helix::ui::kPathTubeLimits));
+    ui_filament_path_canvas_set_show_bypass(w, true);
+    ui_filament_path_canvas_set_hub_callback(w, [](lv_point_t, void*) {}, nullptr);
+    ui_filament_path_canvas_set_hub_actions(w, true);
+    render(*this, w);
+
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    int32_t mx = 0;
+    int32_t my = 0;
+    REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, &my));
+    const LinearHubFrame f = widget_frame(w);
+    const int32_t spool_left = mx - helix::ui::ams_slot_spool_size() / 2;
+    const int32_t spool_bottom = my - helix::ui::bypass_spool_bottom_above_merge();
+    const bool at_level = spool_bottom - helix::ui::bypass_spool_box_size() <= f.hub_y + f.hub_h &&
+                          spool_bottom >= f.hub_y - f.hub_h;
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    // The bar always reaches the last lane's tube, past the spool's edge if it must.
+    const int32_t limit =
+        std::max(spool_left, c.x1 + get_slot_x(d, lanes - 1, c.x1) + d->theme.tube_gauge);
+    CAPTURE(spool_left, limit, at_level, d->hits.hub.x1, d->hits.hub.x2);
+    if (at_level)
+        CHECK(d->hits.hub.x2 <= limit);
+    // The getter reports the box drawn: the tap area less any gear outside it.
+    lv_area_t hub;
+    REQUIRE(ui_filament_path_canvas_get_hub_box(w, &hub));
+    CHECK(hub.x1 == d->hits.hub.x1);
+    CHECK(hub.y1 == d->hits.hub.y1);
+    CHECK(hub.y2 == d->hits.hub.y2);
+    CHECK(hub.x2 <= d->hits.hub.x2);
+}
+
 // ============================================================================
 // Pure plan
 // ============================================================================
