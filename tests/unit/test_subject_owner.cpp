@@ -37,6 +37,8 @@
 
 #include "../catch_amalgamated.hpp"
 
+extern char** environ; // the libc environment, handed to the child process
+
 using helix::Subject;
 
 namespace {
