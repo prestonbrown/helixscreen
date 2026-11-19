@@ -152,6 +152,7 @@ tests/shell/test_quality_checks_awake.bats	scripts/quality-checks.sh
 tests/shell/test_quality_push_only.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push include/utils/network_validation.h scripts/compile_command.py scripts/merge_compile_commands.py scripts/qc/ scripts/quality-checks.sh scripts/syntax_check.py
 tests/shell/test_r2_prune_plan.bats	scripts/r2-prune-plan.sh
 tests/shell/test_ratchet_gate.bats	scripts/qc/_lib.sh scripts/qc/design_tokens.sh scripts/quality-checks.sh scripts/ratchet.py
+tests/shell/test_ratchet_report.bats	scripts/check_growth_ratchets.py scripts/check_hardcoded_pixels.py scripts/check_orphan_callbacks.py scripts/check_test_budget.py scripts/ratchet_report.py
 tests/shell/test_raw_print_job_state_gate.bats	scripts/check_source_rules.py scripts/source_strip.py scripts/qc/decl_ui.sh src/printer/print_lifecycle_state.cpp
 tests/shell/test_raw_this_queue_update_gate.bats	scripts/check_raw_this_queue_update.py scripts/source_strip.py scripts/staged_content.py src/ui/filament/ui_spool_wizard.cpp
 tests/shell/test_release_channel.bats	RELEASE_CHANNEL scripts/release-channel.sh
