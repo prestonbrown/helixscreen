@@ -1049,10 +1049,13 @@ TEST_CASE("Overview plan: the router runs once per set of route ends",
         plan_overview(*d, compute_sys_layout(*d, taller), *plan, boxes);
         CHECK(d->route_memo.searches == 2);
     }
-    SECTION("the lean shortfall searches once per canvas size") {
-        const int32_t need = overview_lean_shortfall(*d, area);
-        CHECK(overview_lean_shortfall(*d, area) == need);
+    SECTION("the lean shortfall searches once per canvas size, and answers as a fresh one") {
+        overview_lean_shortfall(*d, area);
+        const int32_t kept = overview_lean_shortfall(*d, area);
         CHECK(d->route_memo.searches == 2);
+        auto cold = std::make_unique<SystemPathData>(*d);
+        cold->route_memo = {};
+        CHECK(overview_lean_shortfall(*cold, area) == kept);
         const lv_area_t taller = {0, 0, 399, 259};
         overview_lean_shortfall(*d, taller);
         CHECK(d->route_memo.searches == 3);

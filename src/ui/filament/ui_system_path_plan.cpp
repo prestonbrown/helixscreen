@@ -940,42 +940,6 @@ void router_input(const SystemPathData& data, GlobalRoute* routes, int n, Router
     in.cfg.allow_horizontal = false;
 }
 
-using RouteKey = SystemPathData::RouteMemo::Key;
-
-// Every RouterConfig field: one left out would serve routes planned under another config.
-static_assert(sizeof(tuberoute::RouterConfig) == 10 * sizeof(float),
-              "RouterConfig changed: compare the new field in same_config()");
-bool same_config(const tuberoute::RouterConfig& a, const tuberoute::RouterConfig& b) {
-    return a.clearance == b.clearance && a.bus_pitch == b.bus_pitch && a.group_gap == b.group_gap &&
-           a.fillet_r == b.fillet_r && a.lead_in == b.lead_in && a.lead_out == b.lead_out &&
-           a.slope == b.slope && a.alt_slope == b.alt_slope &&
-           a.allow_horizontal == b.allow_horizontal && a.align == b.align;
-}
-
-RouteKey route_key(const RouterInput& in, int n) {
-    RouteKey k;
-    k.traces = n;
-    k.bus_count = in.bus_count;
-    for (int b = 0; b < in.bus_count; ++b)
-        k.bus_sizes[b] = in.buses[b].count;
-    std::copy(in.sources, in.sources + n, k.sources);
-    std::copy(in.sinks, in.sinks + n, k.sinks);
-    k.cfg = in.cfg;
-    return k;
-}
-
-bool same_point(const pg::PathPoint& a, const pg::PathPoint& b) {
-    return a.x == b.x && a.y == b.y;
-}
-
-bool same_key(const RouteKey& a, const RouteKey& b) {
-    return a.traces == b.traces && a.bus_count == b.bus_count &&
-           std::equal(a.bus_sizes, a.bus_sizes + a.bus_count, b.bus_sizes) &&
-           std::equal(a.sources, a.sources + a.traces, b.sources, same_point) &&
-           std::equal(a.sinks, a.sinks + a.traces, b.sinks, same_point) &&
-           same_config(a.cfg, b.cfg);
-}
-
 // Lays every route out with the tube router: each one a drop, one jog and a drop,
 // in source order, never crossing and a haloed tube apart. A PARALLEL or MIXED
 // unit's routes are one bus, so they jog as a ribbon; every other unit's tube is
@@ -989,8 +953,8 @@ bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
     RouterInput in;
     router_input(data, routes, n, in);
     SystemPathData::RouteMemo& memo = data.route_memo;
-    const RouteKey key = route_key(in, n);
-    if (!memo.routes_kept || !same_key(memo.routes_key, key)) {
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.routes_kept || !tuberoute::same_input(memo.routes_key, key)) {
         memo.routes_key = key;
         memo.routes_kept = true;
         ++memo.searches;
@@ -1280,8 +1244,8 @@ int32_t overview_lean_shortfall(const SystemPathData& data, const lv_area_t& coo
     // The least height any lean needs: a shallow jog is shorter, but its ribbon
     // stacks deeper, so the easiest slope is not always the shallowest.
     SystemPathData::RouteMemo& memo = data.route_memo;
-    const RouteKey key = route_key(in, n);
-    if (!memo.lean_kept || !same_key(memo.lean_key, key)) {
+    const tuberoute::InputKey key = tuberoute::input_key(in.buses, in.bus_count, in.cfg);
+    if (!memo.lean_kept || !tuberoute::same_input(memo.lean_key, key)) {
         tuberoute::Trace traces[SystemPathData::kMaxTools];
         float least = std::numeric_limits<float>::max();
         for (float slope : kRouterSlopes) {

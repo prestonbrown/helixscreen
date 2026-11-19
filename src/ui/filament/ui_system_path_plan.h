@@ -134,21 +134,13 @@ struct SystemPathData {
     // instead of routing again; anything that moves an end misses. Written only
     // by the plan code (ui_system_path_plan.cpp).
     struct RouteMemo {
-        struct Key {
-            int traces = 0;
-            int bus_count = 0;
-            int bus_sizes[kMaxTools] = {};
-            pathgeo::PathPoint sources[kMaxTools] = {};
-            pathgeo::PathPoint sinks[kMaxTools] = {};
-            tuberoute::RouterConfig cfg;
-        };
         // The routes the plan draws: whether the slope ladder fit them, and how.
-        Key routes_key;
+        tuberoute::InputKey routes_key;
         bool routes_kept = false;
         bool routes_fit = false;
         tuberoute::Trace traces[kMaxTools] = {};
         // overview_lean_shortfall's least extra height, in pixels below the sinks.
-        Key lean_key;
+        tuberoute::InputKey lean_key;
         bool lean_kept = false;
         float lean_short_px = 0.0f;
         // Router searches run rather than reused (a slope ladder or a lean search).

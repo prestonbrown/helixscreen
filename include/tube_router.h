@@ -142,6 +142,26 @@ RouteStatus plan_routes_ladder(const Bus* buses, int bus_count, const RouterConf
                                const float* slopes, int slope_count, bool level_last, Trace* out,
                                int out_cap, RouteReport* report = nullptr);
 
+/// Whether @p a and @p b set every field alike.
+bool same_config(const RouterConfig& a, const RouterConfig& b);
+
+/// A plan's whole input held by value: buses, ends and config. Two plans with
+/// equal keys route to the same traces, so a caller can keep a plan's answer
+/// against its key and route again only when the key changes.
+struct InputKey {
+    int traces = 0;
+    int bus_count = 0;
+    int bus_sizes[kMaxTraces] = {};
+    PathPoint sources[kMaxTraces] = {};
+    PathPoint sinks[kMaxTraces] = {};
+    RouterConfig cfg;
+};
+
+/// The key of @p buses under @p cfg; buses past kMaxTraces traces in all are left out.
+InputKey input_key(const Bus* buses, int bus_count, const RouterConfig& cfg);
+
+bool same_input(const InputKey& a, const InputKey& b);
+
 /// Least distance between the segments @p a0-@p a1 and @p b0-@p b1: 0 where they cross.
 float segment_distance(PathPoint a0, PathPoint a1, PathPoint b0, PathPoint b1);
 

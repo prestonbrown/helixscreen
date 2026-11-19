@@ -102,10 +102,6 @@ class AmsPanelTestAccess {
         p.path_extra_ = extra;
         p.settled_need_ = settled;
     }
-    /// Take the panel's callbacks off the widgets that may outlive it.
-    static void detach_hooks(AmsOverviewPanel& p) {
-        p.detach_widget_hooks();
-    }
 };
 
 } // namespace helix

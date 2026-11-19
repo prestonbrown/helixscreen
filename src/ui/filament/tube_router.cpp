@@ -538,6 +538,42 @@ RouteStatus plan_routes_ladder(const Bus* buses, int bus_count, const RouterConf
     return route_ladder(in, n, cfg, ladder, count, out, r);
 }
 
+// Every RouterConfig field: one left out would let a kept plan answer for another config.
+static_assert(sizeof(RouterConfig) == 10 * sizeof(float),
+              "RouterConfig changed: compare the new field in same_config()");
+bool same_config(const RouterConfig& a, const RouterConfig& b) {
+    return a.clearance == b.clearance && a.bus_pitch == b.bus_pitch && a.group_gap == b.group_gap &&
+           a.fillet_r == b.fillet_r && a.lead_in == b.lead_in && a.lead_out == b.lead_out &&
+           a.slope == b.slope && a.alt_slope == b.alt_slope &&
+           a.allow_horizontal == b.allow_horizontal && a.align == b.align;
+}
+
+InputKey input_key(const Bus* buses, int bus_count, const RouterConfig& cfg) {
+    InputKey k;
+    k.cfg = cfg;
+    for (int b = 0; buses && b < bus_count && b < kMaxTraces; ++b) {
+        const Bus& bus = buses[b];
+        if (bus.count <= 0 || !bus.sources || !bus.sinks || k.traces + bus.count > kMaxTraces)
+            break;
+        std::copy(bus.sources, bus.sources + bus.count, k.sources + k.traces);
+        std::copy(bus.sinks, bus.sinks + bus.count, k.sinks + k.traces);
+        k.bus_sizes[k.bus_count++] = bus.count;
+        k.traces += bus.count;
+    }
+    return k;
+}
+
+bool same_input(const InputKey& a, const InputKey& b) {
+    auto same_point = [](const PathPoint& p, const PathPoint& q) {
+        return p.x == q.x && p.y == q.y;
+    };
+    return a.traces == b.traces && a.bus_count == b.bus_count &&
+           std::equal(a.bus_sizes, a.bus_sizes + a.bus_count, b.bus_sizes) &&
+           std::equal(a.sources, a.sources + a.traces, b.sources, same_point) &&
+           std::equal(a.sinks, a.sinks + a.traces, b.sinks, same_point) &&
+           same_config(a.cfg, b.cfg);
+}
+
 float segment_distance(PathPoint a0, PathPoint a1, PathPoint b0, PathPoint b1) {
     return dist_seg_seg({a0, a1}, {b0, b1});
 }

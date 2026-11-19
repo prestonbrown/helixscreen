@@ -875,7 +875,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Ba
 
     tap(named("back_button"));
     CHECK(helix::nav::is_showing(panel_root));
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
     CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
@@ -898,7 +898,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     close();
     open();
     CHECK(helix::nav::is_showing(root()));
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
     CHECK(lv_obj_is_hidden(named("unit_detail_container")));
@@ -908,16 +908,21 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     CHECK(page_current() == 2);
 }
 
-TEST_CASE_METHOD(PagingFixture,
-                 "Overview: the canvases keep no chip callback into a detached panel",
+TEST_CASE_METHOD(PagingFixture, "Overview: the canvases keep no chip callback into a cleared panel",
                  "[ams][pages][panel][overview]") {
     open();
-    lv_obj_t* overview_canvas = AmsPanelTestAccess::system_path(panel());
-    lv_obj_t* unit_canvas = AmsPanelTestAccess::path_canvas(panel());
+    lv_obj_t* area = named("system_path_area");
+    lv_obj_t* overview_canvas = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(area); ++i)
+        if (helix::ui::syspath::system_path_data(lv_obj_get_child(area, i)))
+            overview_canvas = lv_obj_get_child(area, i);
+    REQUIRE(overview_canvas != nullptr);
+    lv_obj_t* unit_canvas = named("detail_path_canvas");
     REQUIRE(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb != nullptr);
     REQUIRE(get_data(unit_canvas)->offpage_callback != nullptr);
 
-    AmsPanelTestAccess::detach_hooks(panel());
+    // The panel lets go of its widgets before their tree is deleted.
+    panel().clear_panel_reference();
     CHECK(helix::ui::syspath::system_path_data(overview_canvas)->parked_chip_cb == nullptr);
     CHECK(get_data(unit_canvas)->offpage_callback == nullptr);
 }
@@ -926,12 +931,16 @@ TEST_CASE_METHOD(PagingFixture, "Overview: tile height given to the path goes wi
                  "[ams][pages][panel][overview]") {
     open();
     constexpr int32_t kStaleNeed = 17;
+    auto path_room = [&] {
+        const AmsOverviewPanel& p = panel();
+        return std::make_pair(AmsPanelTestAccess::path_extra(p),
+                              AmsPanelTestAccess::settled_need(p));
+    };
 
     SECTION("a torn-down panel reopens with full-height tiles") {
         AmsPanelTestAccess::set_path_room(panel(), 40, kStaleNeed);
         destroy_ams_overview_panel_ui();
-        CHECK(AmsPanelTestAccess::path_extra(panel()) == 0);
-        CHECK(AmsPanelTestAccess::settled_need(panel()) == INT32_MIN);
+        CHECK(path_room() == std::make_pair(int32_t{0}, int32_t{INT32_MIN}));
     }
     SECTION("a rebuilt card row fits its path afresh") {
         AmsPanelTestAccess::set_path_room(panel(), 0, kStaleNeed);
@@ -940,8 +949,8 @@ TEST_CASE_METHOD(PagingFixture, "Overview: tile height given to the path goes wi
         AmsState::instance().bump_slots_version();
         drain();
         process_lvgl(30);
-        REQUIRE(AmsPanelTestAccess::unit_cards(panel()).size() == 13);
-        CHECK(AmsPanelTestAccess::settled_need(panel()) != kStaleNeed);
+        REQUIRE(cards().size() == 13);
+        CHECK(path_room().second != kStaleNeed);
     }
 }
 
@@ -955,7 +964,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages noth
     const lv_point_t on_path = {(path.x1 + path.x2) / 2, (path.y1 + path.y2) / 2};
     swipe(on_path, -150);
     swipe(on_path, +150);
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(page_count() == 0);
 
     // The cards row still scrolls sideways under a drag, and that pages nothing either.
@@ -966,7 +975,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a swipe over the overview pages noth
     const int32_t before = lv_obj_get_scroll_x(row);
     swipe(on_row, -150);
     CHECK(lv_obj_get_scroll_x(row) > before);
-    CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK_FALSE(in_unit_view());
     CHECK(page_count() == 0);
 }
 
@@ -977,7 +986,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: coming back from an overlay keeps th
     // An overlay covers the panel and goes away; the panel never closed.
     panel().on_deactivate(DeactivateReason::NavigateAway);
     panel().on_activate();
-    CHECK(AmsPanelTestAccess::in_unit_view(panel()));
+    CHECK(in_unit_view());
     CHECK(page_current() == 7);
     CHECK(unit_name() == "Box unit 7");
 }
