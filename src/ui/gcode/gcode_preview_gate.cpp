@@ -42,18 +42,27 @@ nlohmann::json preview_rate_json(const PreviewRateEntry& entry) {
     return node;
 }
 
-double learned_preview_rate(const helix::Config& config, const std::string& board,
-                            const std::string& version) {
-    const auto entry = parse_preview_rate(config.try_get_json(kPreviewRatePath));
+double learned_rate(const helix::Config& config, const char* path, const std::string& board,
+                    const std::string& version) {
+    const auto entry = parse_preview_rate(config.try_get_json(path));
     if (!entry || entry->board != board || entry->version != version) {
         return 0.0;
     }
     return entry->mb_per_cpu_s;
 }
 
-void save_preview_rate(helix::Config& config, const PreviewRateEntry& entry) {
-    config.set<nlohmann::json>(kPreviewRatePath, preview_rate_json(entry));
+void save_rate(helix::Config& config, const char* path, const PreviewRateEntry& entry) {
+    config.set<nlohmann::json>(path, preview_rate_json(entry));
     config.save();
+}
+
+double learned_preview_rate(const helix::Config& config, const std::string& board,
+                            const std::string& version) {
+    return learned_rate(config, kPreviewRatePath, board, version);
+}
+
+void save_preview_rate(helix::Config& config, const PreviewRateEntry& entry) {
+    save_rate(config, kPreviewRatePath, entry);
 }
 
 PreviewGate decide_preview_gate(uint64_t bytes, const PreviewGateInputs& in) {
@@ -167,30 +176,62 @@ RateRecord decide_rate_record(double mb_per_cpu_s, bool board_known, bool printi
     return RateRecord::Persist;
 }
 
+#if HELIX_HAS_GCODE_VIEWER
+namespace {
+
+/// Keep @p value, measured on this board, per decide_rate_record(): stored at
+/// @p path when it is new, and in @p session (when given) for the rest of the run.
+void record_rate(const char* path, double value, double* session, const char* what) {
+    helix::Config* config = helix::Config::get_instance();
+    const bool board_known = config && !preview_rate_board().empty();
+    const double stored =
+        board_known ? learned_rate(*config, path, preview_rate_board(), preview_rate_version())
+                    : 0.0;
+    switch (decide_rate_record(value, board_known, print_holds_machine(), stored)) {
+    case RateRecord::Ignore:
+        return;
+    case RateRecord::SessionOnly:
+        if (session)
+            *session = value;
+        return;
+    case RateRecord::Persist:
+        if (session)
+            *session = value;
+        spdlog::info("[PreviewGate] Learned {} {:.1f} on {}", what, value, preview_rate_board());
+        save_rate(*config, path, {value, preview_rate_board(), preview_rate_version()});
+        return;
+    }
+}
+
+} // namespace
+#endif
+
 void record_preview_rate(double mb_per_cpu_s) {
 #if !HELIX_HAS_GCODE_VIEWER
     // Nothing scans an index here, so there is never a rate to keep; compiling
     // the store out lets the linker drop it from the firmware image.
     (void)mb_per_cpu_s;
 #else
+    record_rate(kPreviewRatePath, mb_per_cpu_s, &session_rate(), "index rate (MB/cpu-s)");
+#endif
+}
+
+double learned_render_rate() {
+#if !HELIX_HAS_GCODE_VIEWER
+    return 0.0;
+#else
     helix::Config* config = helix::Config::get_instance();
-    const bool board_known = config && !preview_rate_board().empty();
-    const double stored =
-        board_known ? learned_preview_rate(*config, preview_rate_board(), preview_rate_version())
-                    : 0.0;
-    switch (decide_rate_record(mb_per_cpu_s, board_known, print_holds_machine(), stored)) {
-    case RateRecord::Ignore:
-        return;
-    case RateRecord::SessionOnly:
-        session_rate() = mb_per_cpu_s;
-        return;
-    case RateRecord::Persist:
-        session_rate() = mb_per_cpu_s;
-        spdlog::info("[PreviewGate] Learned index rate {:.1f} MB/cpu-s on {}", mb_per_cpu_s,
-                     preview_rate_board());
-        save_preview_rate(*config, {mb_per_cpu_s, preview_rate_board(), preview_rate_version()});
-        return;
-    }
+    if (!config || preview_rate_board().empty())
+        return 0.0;
+    return learned_rate(*config, kRenderRatePath, preview_rate_board(), preview_rate_version());
+#endif
+}
+
+void record_render_rate(double tris_per_ms) {
+#if !HELIX_HAS_GCODE_VIEWER
+    (void)tris_per_ms;
+#else
+    record_rate(kRenderRatePath, tris_per_ms, nullptr, "3D render rate (tris/ms)");
 #endif
 }
 

@@ -173,6 +173,20 @@ TEST_CASE("gpu_triangle_budget leaves every other driver uncapped", "[gcode][gl_
     REQUIRE(gpu_triangle_budget(nullptr) == 0);
 }
 
+TEST_CASE("A measured render rate caps the build, whatever the driver", "[gcode][gl_fallback]") {
+    using helix::gcode::build_triangle_cap;
+    using helix::gcode::kVc4TriangleBudget;
+
+    // llvmpipe on a 4-core A76 measured ~1,500 triangles/ms behind a v3d render
+    // node: capped by the rate, though the driver rule leaves v3d uncapped.
+    CHECK(build_triangle_cap(1500.0f, "v3d") == 375'000);
+    // VC4's rate gives the cap the driver rule gives it.
+    CHECK(build_triangle_cap(4000.0f, "vc4-drm") == kVc4TriangleBudget);
+    // Nothing measured yet: the driver rule decides.
+    CHECK(build_triangle_cap(0.0f, "vc4-drm") == kVc4TriangleBudget);
+    CHECK(build_triangle_cap(0.0f, "v3d") == 0);
+}
+
 // ---------------------------------------------------------------------------
 // Init-failure fallback: "no GL at all" must reach the viewer (issue #1555)
 //
