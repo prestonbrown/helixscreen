@@ -20,7 +20,7 @@ TEARDOWN_SRC="src/application/printer_session.cpp"
 TEARDOWN_FN="PrinterSession::teardown_printer_scope"
 TEARDOWN_GOLDEN="tests/shell/fixtures/teardown_printer_scope_order.txt"
 
-TAIL_SRC="src/application/application.cpp"
+TAIL_SRC="src/application/application_shutdown.cpp"
 TAIL_FN="Application::shutdown"
 TAIL_GOLDEN="tests/shell/fixtures/shutdown_exit_tail_order.txt"
 

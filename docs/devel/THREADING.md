@@ -1156,6 +1156,7 @@ Relevant tags: `[state]` (subjects/observers), `[connection]` (WebSocket lifecyc
 | `include/ui_widget_memory.h` | `lvgl_unique_ptr` / `lvgl_make_unique` |
 | `src/printer/printer_state.cpp` | `set_*_internal()` reference pattern |
 | `src/network/wifi_manager.cpp` | Backend integration reference |
-| `src/application/application.cpp` | Main loop and shutdown order |
+| `src/application/application.cpp` | Main loop |
+| `src/application/application_shutdown.cpp` | Shutdown order |
 | `scripts/check_l081_anti_pattern.py` | L081 lint gate |
 | `scripts/check_timer_destructor_cancel.py` | Timer dtor-cancellation lint gate |

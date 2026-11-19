@@ -2156,6 +2156,23 @@ EOF
     contains "limit $UI_NAV_MANAGER_INCLUDER_LIMIT" "$output"
 }
 
+@test "the ui_nav_manager.h lint counts Application's translation units as one includer" {
+    local i
+    fixture_root
+    mkdir -p include
+    for i in $(seq $((UI_NAV_MANAGER_INCLUDER_LIMIT - 1))); do
+        printf '#include "ui_nav_manager.h"\n' | put "src/ui/includer_$i.cpp"
+    done
+    printf '#include "ui_nav_manager.h"\n' | put src/application/application.cpp
+    printf '#include "ui_nav_manager.h"\n' | put src/application/application_display.cpp
+    printf '#include "ui_nav_manager.h"\n' | put src/application/application_startup.cpp
+    run lint_ui_nav_manager_includers
+    [ "$status" -eq 0 ] || fail "$output"
+    printf '#include "ui_nav_manager.h"\n' | put src/application/application_sdl_shortcuts.cpp
+    run lint_ui_nav_manager_includers
+    [ "$status" -eq 1 ]
+}
+
 @test "the ESP32 heap-walk lint fires on a walk in a per-event path and skips comments" {
     local f
     fixture_root
@@ -2181,7 +2198,7 @@ EOF
         put include/ui_guided_device_flow.h
     printf 'void (*const kFlows[])() = {\n    register_wifi_device_flows,\n    register_led_device_flows,\n};\n' |
         put src/ui/filament/ui_guided_device_flow.cpp
-    printf '    register_builtin_guided_device_flows();\n' | put src/application/application.cpp
+    printf '    register_builtin_guided_device_flows();\n' | put src/application/application_startup.cpp
     printf '    register_builtin_guided_device_flows();\n' | put firmware/helixscreen-esp32/components/helixapp/app_boot.cpp
     run lint_guided_device_flows
     [ "$status" -eq 0 ] || fail "$output"

@@ -369,7 +369,7 @@ Force the rotation probe to run on next startup, even if it has already run or a
 |----------|-------|
 | **Values** | `1` (force probe) |
 | **Default** | Unset (probe only on first boot, fbdev only, no existing rotation) |
-| **Files** | `src/application/application.cpp`, `src/application/display_manager.cpp` |
+| **Files** | `src/application/application_display.cpp`, `src/application/display_manager.cpp` |
 
 ```bash
 # Test the rotation probe on SDL (desktop)
@@ -409,7 +409,7 @@ The name says size, but the value is a resolution: it selects the display mode, 
 |----------|-------|
 | **Values** | Named preset: `micro`, `tiny`, `small`, `medium`, `large`, `xlarge` — or custom `WxH` format (e.g., `480x400`, `1920x1080`) |
 | **Default** | Auto-detected from display hardware |
-| **File** | `src/system/cli_args.cpp#parse_screen_size_string` (reached from `src/application/application.cpp` via `EnvironmentConfig::get_screen_size()`) |
+| **File** | `src/system/cli_args.cpp#parse_screen_size_string` (reached from `src/application/application_bootstrap.cpp` via `EnvironmentConfig::get_screen_size()`) |
 | **Priority** | The `-s` command-line flag takes precedence over this variable |
 | **Case** | Case-insensitive: the value is lowercased before matching, which also normalises the separator, so `1920X1080` and `MEDIUM` parse (`src/system/cli_args.cpp#parse_screen_size_string/"helix::text_io::to_lower(size_str)"`) |
 
@@ -499,7 +499,7 @@ Select which monitor to use when running with SDL backend on multi-monitor syste
 |----------|-------|
 | **Values** | Display index (`0`, `1`, `2`, ...) |
 | **Default** | `0` (primary display) |
-| **File** | `src/application/application.cpp` (set via `setenv()` in `init_display()`, consumed by the SDL driver) |
+| **File** | `src/application/application_display.cpp` (set via `setenv()` in `init_display()`, consumed by the SDL driver) |
 
 ```bash
 # Run on second monitor
@@ -514,7 +514,7 @@ Position the SDL window at exact screen coordinates.
 |----------|-------|
 | **Values** | Pixel coordinates (integers) |
 | **Default** | Centered on selected display |
-| **File** | `src/application/application.cpp` (set via `setenv()` in `init_display()`, consumed by the SDL driver) |
+| **File** | `src/application/application_display.cpp` (set via `setenv()` in `init_display()`, consumed by the SDL driver) |
 
 ```bash
 # Position window at specific coordinates
@@ -546,7 +546,7 @@ Allow HelixScreen to start with no pointer input device. By default `DisplayMana
 |----------|-------|
 | **Values** | `0` or `false` drops the requirement. Any other value (or unset) keeps it. |
 | **Default** | Unset — a pointer device is required |
-| **File** | `src/application/application.cpp` (sets `DisplayManager::Config::require_pointer`) |
+| **File** | `src/application/application_display.cpp` (sets `DisplayManager::Config::require_pointer`) |
 
 ```bash
 # Boot on a machine with no touchscreen and no mouse
@@ -1351,7 +1351,7 @@ Automatically quit the application after a specified duration.
 |----------|-------|
 | **Values** | `100` to `3600000` (milliseconds) |
 | **Default** | No timeout (run indefinitely) |
-| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application.cpp`) |
+| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application_bootstrap.cpp`) |
 
 ```bash
 # Quit after 5 seconds
@@ -1370,7 +1370,7 @@ Automatically capture a screenshot before quitting (use with `HELIX_AUTO_QUIT_MS
 |----------|-------|
 | **Values** | `1` (enable) |
 | **Default** | Disabled |
-| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application.cpp`) |
+| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application_bootstrap.cpp`) |
 
 ```bash
 # Automated screenshot capture (screenshot.sh drives helix-screen ctl end to end)
@@ -1385,7 +1385,7 @@ Enable frame counting and FPS reporting for performance testing.
 |----------|-------|
 | **Values** | Any value (presence enables) |
 | **Default** | Disabled |
-| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application.cpp`) |
+| **File** | `src/config/environment_config.cpp` (surfaced via `src/application/application_bootstrap.cpp`) |
 
 ```bash
 # Run performance benchmark
@@ -1900,7 +1900,7 @@ Override the runtime asset directory. When set, the application `chdir()`s to th
 |----------|-------|
 | **Values** | Absolute path to directory containing `ui_xml/`, `assets/`, `config/` |
 | **Default** | Auto-detect from executable path |
-| **File** | `src/application/application.cpp` |
+| **File** | `src/application/application_bootstrap.cpp` |
 
 ```bash
 # Assets on a separate partition
@@ -1935,7 +1935,7 @@ Set the log verbosity level. Preferred over the legacy `HELIX_DEBUG` variable.
 |----------|-------|
 | **Values** | `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off` |
 | **Default** | `warn` |
-| **File** | `scripts/helix-launcher.sh`, `src/system/cli_args.cpp`, `src/application/application.cpp` |
+| **File** | `scripts/helix-launcher.sh`, `src/system/cli_args.cpp`, `src/application/application_bootstrap.cpp` |
 
 ```bash
 # In helixscreen.env (persistent, recommended for deployed systems):
@@ -2062,7 +2062,7 @@ Detection only — nothing is killed. A deadlocked UI thread leaves the process 
 |----------|-------|
 | **Values** | `0`–`3600` seconds. `0` disables detection. Out-of-range and unparseable values are ignored with a warning. |
 | **Default** | `60` (`MainLoopHangDetector::kDefaultThresholdMs`) |
-| **File** | `src/application/application.cpp` (wiring), `include/main_loop_heartbeat.h` (logic) |
+| **File** | `src/application/application_startup.cpp` (wiring), `include/main_loop_heartbeat.h` (logic) |
 
 ```bash
 # Trip it quickly while testing the detector
@@ -2547,7 +2547,7 @@ These are set at compile time to enable/disable features:
 HELIX_SCREENSHOT_DISPLAY=0 HELIX_SCREENSHOT_OPEN=1 ./scripts/screenshot.sh helix-screen test-output
 ```
 
-### Logging Destination (`scripts/helix-launcher.sh` + `src/application/application.cpp`)
+### Logging Destination (`scripts/helix-launcher.sh` + `src/application/application_bootstrap.cpp`)
 
 Set these in `helixscreen.env`, which the launcher sources before it builds the command line, or export them from a `platform_pre_start` hook.
 

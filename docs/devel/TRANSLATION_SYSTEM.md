@@ -672,7 +672,7 @@ The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance
 | `src/system/translation_loader.cpp` | Per-locale pack loader (`ensure_translation_loaded()`) |
 | `include/core/temperature_units.h`, `include/core/temp_unit_subject.h` | Celsius/Fahrenheit conversion and the unit-change observer |
 | `include/region_defaults.h`, `src/system/region_defaults.cpp` | Region defaults for temperature unit and date order |
-| `src/application/application.cpp` | Translation startup / language switching |
+| `src/application/application_startup.cpp` | Translation startup / language switching |
 | `src/system/system_settings_manager.cpp` | Locale switching (`ensure_translation_loaded()` + `lv_translation_set_language()`) |
 
 ## Troubleshooting
