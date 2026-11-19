@@ -49,12 +49,13 @@ TEST_CASE("featured_tip: freshness", "[featured_tip]") {
     CHECK(featured_tip::is_fresh(tip, 1e12));
 }
 
-TEST_CASE("featured_tip: lines replace the tips unless the tile says otherwise", "[featured_tip]") {
-    CHECK(featured_tip::featured_only(nlohmann::json()));
-    CHECK(featured_tip::featured_only(nlohmann::json::object()));
+TEST_CASE("featured_tip: lines mix with the tips unless the tile opts into replacing them",
+          "[featured_tip]") {
+    CHECK_FALSE(featured_tip::featured_only(nlohmann::json()));
+    CHECK_FALSE(featured_tip::featured_only(nlohmann::json::object()));
     CHECK(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": true})")));
     CHECK_FALSE(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": false})")));
-    CHECK(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": "no"})")));
+    CHECK_FALSE(featured_tip::featured_only(nlohmann::json::parse(R"({"featured_only": "yes"})")));
 }
 
 TEST_CASE("featured_tip: replacing the tips, a line stays current for a week", "[featured_tip]") {

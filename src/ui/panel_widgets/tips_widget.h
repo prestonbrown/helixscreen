@@ -58,8 +58,8 @@ class TipsWidget : public PanelWidget {
     lv_timer_t* featured_poll_timer_ = nullptr;
     helix::AsyncLifetimeGuard lifetime_;
 
-    // Featured lines replace the tips while one is current (featured_tip.h)
-    bool featured_only_ = true;
+    // Featured lines mix in with the tips unless the tile opts into replacing them (featured_tip.h)
+    bool featured_only_ = false;
 
     // The tile's size from on_size_changed; 0 until it is sized
     int tile_w_ = 0;

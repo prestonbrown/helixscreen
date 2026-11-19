@@ -22,13 +22,13 @@ inline constexpr const char* kKey = "featured_tip";
 /// replay it, and a shown line holds the tile for one rotation.
 inline constexpr double kMaxAgeSeconds = 600.0;
 
-/// Featured lines replacing tips (the default): the latest line holds the tile
+/// Featured lines replacing tips (opt-in): the latest line holds the tile
 /// until a newer one arrives or it is this old, so a writer that stopped
 /// posting does not pin one line to the screen forever.
 inline constexpr double kReplaceMaxAgeSeconds = 7.0 * 24 * 3600;
 
-/// Tips-widget config key: true (or absent) lets featured lines replace the
-/// tips while one is current; false mixes each one in for a single rotation.
+/// Tips-widget config key: true lets featured lines replace the tips while one
+/// is current; false (or absent) mixes each one in for a single rotation.
 inline constexpr const char* kConfigFeaturedOnly = "featured_only";
 
 struct FeaturedTip {
@@ -42,7 +42,7 @@ struct FeaturedTip {
 /// The record, or nullopt when it has no id or no title. Never throws.
 std::optional<FeaturedTip> parse_record(const nlohmann::json& value);
 
-/// Whether featured lines replace the tips under this widget @p config. Default true.
+/// Whether featured lines replace the tips under this widget @p config. Default false.
 bool featured_only(const nlohmann::json& config);
 
 /// The oldest a line may be and still show: kReplaceMaxAgeSeconds when

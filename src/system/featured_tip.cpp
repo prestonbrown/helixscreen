@@ -24,10 +24,10 @@ std::optional<FeaturedTip> parse_record(const nlohmann::json& value) {
 
 bool featured_only(const nlohmann::json& config) {
     if (!config.is_object() || !config.contains(kConfigFeaturedOnly)) {
-        return true;
+        return false;
     }
     const auto& value = config[kConfigFeaturedOnly];
-    return !value.is_boolean() || value.get<bool>();
+    return value.is_boolean() && value.get<bool>();
 }
 
 double max_age_seconds(bool featured_only) {
