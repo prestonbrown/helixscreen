@@ -142,6 +142,30 @@ CurrencySource currency_source(const Breakdown& breakdown) {
     return CurrencySource::Setting;
 }
 
+std::optional<uint32_t> currency_option(std::string_view options, std::string_view code) {
+    if (code.empty()) {
+        return std::nullopt;
+    }
+    const auto same = [](std::string_view a, std::string_view b) {
+        return a.size() == b.size() &&
+               std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
+                   return std::toupper(static_cast<unsigned char>(x)) ==
+                          std::toupper(static_cast<unsigned char>(y));
+               });
+    };
+    uint32_t index = 0;
+    size_t start = 0;
+    while (start <= options.size()) {
+        const size_t end = std::min(options.find('\n', start), options.size());
+        if (same(options.substr(start, end - start), code)) {
+            return index;
+        }
+        start = end + 1;
+        ++index;
+    }
+    return std::nullopt;
+}
+
 Breakdown compute(const std::vector<ToolInput>& tools, double seconds,
                   const CostSettings& settings) {
     Breakdown out;

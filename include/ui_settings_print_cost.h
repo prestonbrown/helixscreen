@@ -57,6 +57,9 @@ class PrintCostOverlay : public OverlayBase {
     helix::Subject kwh_subject_{};
     char kwh_buf_[32]{};
     std::string editing_title_; ///< The open keypad's title
+    /// The saved currency when the dropdown offers no such option; the dropdown
+    /// shows this text, and keeps the pointer, until the user picks one.
+    std::string unlisted_currency_;
 };
 
 inline PrintCostOverlay& get_print_cost_overlay() {
