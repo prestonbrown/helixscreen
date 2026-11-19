@@ -119,6 +119,25 @@ inline size_t gpu_triangle_budget(const char* render_driver) {
     return 0;
 }
 
+/// Draw time the whole model may take at one frame of the measured rate. VC4's
+/// ~4,000 triangles/ms over this is kVc4TriangleBudget, so a measured rate and
+/// the driver rule agree on the board the rule was made for.
+constexpr float kBuildFrameMs = 250.0f;
+
+/// The triangle cap a 3D build gets: what @p measured_rate (triangles per ms this
+/// board's renderer measured, 0 = none yet) draws in kBuildFrameMs, or, before
+/// anything has been measured, gpu_triangle_budget() of @p render_driver. A
+/// software renderer (llvmpipe) is capped here by the rate it measures, whatever
+/// GPU the render node's kernel driver names.
+///
+/// @return max triangles per frame, 0 for no cap
+inline size_t build_triangle_cap(float measured_rate, const char* render_driver) {
+    if (measured_rate > 0.0f) {
+        return static_cast<size_t>(measured_rate * kBuildFrameMs);
+    }
+    return gpu_triangle_budget(render_driver);
+}
+
 /// Decide whether a GL_RENDERER string names a software rasterizer rather than
 /// a GPU.
 ///

@@ -96,6 +96,18 @@ static BandSegmentCounts count_band_segments(const helix::gcode::ParsedGCodeFile
     return counts;
 }
 
+/// The rate a 3D build plans with: what this run's renderer measured, kept per
+/// board through record_render_rate(), or the rate stored for this board while
+/// nothing has drawn yet this run. Main thread.
+static float planning_render_rate() {
+    const float measured = helix::gcode::render_schedule::last_measured_rate().load();
+    if (measured > 0.0f) {
+        helix::ui::record_render_rate(measured);
+        return measured;
+    }
+    return static_cast<float>(helix::ui::learned_render_rate());
+}
+
 /// Build a 3D RibbonGeometry from a parsed gcode file using the memory budget
 /// system. Returns nullptr if the budget tier forces 2D or the build exceeds
 /// the budget. Shared between the initial async-load path and the on-demand
@@ -111,7 +123,7 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
     size_t available_kb = budget_mgr.read_system_available_kb();
     size_t budget = budget_mgr.calculate_budget(available_kb);
     std::string render_driver = budget_mgr.read_render_driver_name();
-    size_t max_tris = helix::gcode::gpu_triangle_budget(render_driver.c_str());
+    size_t max_tris = helix::gcode::build_triangle_cap(measured_rate, render_driver.c_str());
     // Size the tier on what the builder will actually build. GeometryBuilder
     // drops auxiliary (purge / prime tower) segments, so estimating from
     // total_segments charged the budget for mass that never becomes geometry
@@ -525,7 +537,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread
     const uint32_t default_rgb = default_3d_extrusion_rgb();
-    const float measured_rate = helix::gcode::render_schedule::last_measured_rate().load();
+    const float measured_rate = planning_render_rate();
 #ifdef ENABLE_3D_RENDERER
     // A renderer that gave up on the GPU this session draws nothing more, so
     // building 3D geometry for it only holds memory beside the 2D renderer.
@@ -781,7 +793,7 @@ void helix::gcode_viewer::start_on_demand_3d_build(gcode_viewer_state_t* st, lv_
     const uint64_t gen = st->load_generation();
     const helix::gcode::ParsedGCodeFile* file = st->gcode_file.get();
     const uint32_t default_rgb = default_3d_extrusion_rgb();
-    const float measured_rate = helix::gcode::render_schedule::last_measured_rate().load();
+    const float measured_rate = planning_render_rate();
 
     struct OnDemandBuild {
         std::unique_ptr<helix::gcode::RibbonGeometry> geometry;
