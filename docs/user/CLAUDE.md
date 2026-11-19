@@ -34,7 +34,9 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/home-widgets-controls.md` | Control and system widgets: Toolhead, Bed Mesh, Tool Switcher, GCode Console, power, LEDs |
 | `guide/home-edit-mode.md` | Edit Mode: adding, moving and resizing widgets, pages |
 | `guide/printer-manager.md` | Printer Manager: name, model, custom printer image, capability chips |
+| `guide/z-offset.md` | Z offset: what it is, calibration per probe type, baby steps and the tune hint, what Save does, firmware-managed printers, per-tool offsets, the save setting, gotchas |
 | `guide/printing.md` | File selection, printing, the file-fits-printer check, the door-open warning, pausing at a layer, tune overlay, Z-offset, recovering after a power loss (firmware recovery and the plugin's guided resume) |
+| `guide/z-offset-by-material.md` | Z offset and bed mesh per material: why, setup for the K2 `_START_PRINT_VARS`, a hand-made copy and HelixScreen's macro (PRINT_START line, `[save_variables]`, slicer `MATERIAL=`), saving during a print, stored meshes, DEFAULT, gotchas and limitations |
 | `guide/print-monitoring.md` | Pre-print filament checks (empty-slot block, unassigned-tool Color Mismatch, bypass exemption), camera-based failure detection (Snapmaker U1 dialog, Creality K2 AI toggle) |
 | `guide/temperature.md` | Nozzle/bed temperature panels, presets, reassigning preset filament types, graphs, drying filament on the bed, chamber heater diagnostics card |
 | `guide/chamber-heater.md` | Add-on chamber heater setup (BIGTREETECH Panda Breath): network step, stock vs DragonBreath firmware, the Klipper module and config each needs, the Snapmaker U1 menu shortcut, troubleshooting |
@@ -56,7 +58,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/appearance.md` | Dark mode, themes and the theme editor, Glass Effects, animations, widget labels, printer visuals (toolhead style, G-code preview, bed mesh render) |
 | `guide/settings/touch-input.md` | Touch calibration, debug viz, scroll engage distance, long press, home screen editing, scroll guard, scroll buttons, Android keyboard and navigation bar |
 | `guide/settings/sound.md` | Sounds, volume, UI sounds, sound themes, output device, custom themes, supported hardware, troubleshooting |
-| `guide/settings/printing.md` | Machine limits, motion, retraction, enclosure, multi-filament systems, material temperatures, cold load/unload, post-filament cooldown, tool-change confirmation, timelapse, macro buttons |
+| `guide/settings/printing.md` | Machine limits, motion, retraction, enclosure, multi-filament systems, material temperatures, Z offset by material, cold load/unload, post-filament cooldown, tool-change confirmation, timelapse, macro buttons |
 | `guide/settings/devices.md` | Hardware health, camera, print photos, fans, sensors, LEDs, power devices, Spoolman (with switching spools at each tool change) |
 | `guide/settings/led-settings.md` | LED strip selection, auto-state, macro devices, setup guides |
 | `guide/settings/safety.md` | Safety & Alerts: E-Stop confirmation, cancel escalation, macro confirmation, spaghetti detection, holding slicer prints that do not fit, print completion alert, on-screen alerts |

@@ -164,6 +164,7 @@ translations:
   '1 unit': '1 ед.'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой
+  1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Установите вспомогательные макросы. Они добавляют HELIX_MATERIAL_OFFSET и хранилище [save_variables] для смещений."
   1. Printer homes all axes (~1 minute): 1. Принтер ищет ноль по всем осям (~1 минута)
   1. Printer homes and probes the bed: 1. Принтер паркуется и зондирует стол
   1. Printer will home and probe each screw: 1. Принтер запаркуется и проверит каждый винт
@@ -176,6 +177,7 @@ translations:
   180° Upside Down: 180° вверх ногами
   2 min: '2 мин'
   2 minutes: 2 минуты
+  '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. В PRINT_START после парковки и зондирования, но до вашего шага построения сетки, добавьте строку:"
   2. Jog X and Y until the nozzle is centered over the chute opening: 2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба
   2. Jog Y until the nozzle is centered over the chute opening: 2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба
 
@@ -192,6 +194,7 @@ translations:
   2D Layers: 2D слои
   3. Adjust screws, then re-probe to verify: 3. Отрегулируйте винты, затем перепроверьте
   3. Every toolhead is probed and the offsets are saved: 3. Каждая печатающая головка измеряется, и смещения сохраняются
+  "3. Have the slicer's start G-code pass the material to PRINT_START:": "3. Пусть стартовый G-код слайсера передаёт материал в PRINT_START:"
   3. Lower nozzle until paper drags slightly: 3. Опустите сопло, пока бумага не начнёт слегка цепляться
   3. Save the position: 3. Сохраните позицию
 
@@ -225,8 +228,12 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
+  A first-layer offset and bed mesh for each material: "Смещение первого слоя и сетка стола для каждого материала"
   A folder name in moonraker.conf is unsafe.: "Имя папки в moonraker.conf небезопасно."
+  A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "Сетка отмечает материал с сохранённой сеткой стола, которая загружается при старте печати без построения сетки."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'На принтере настроен макрос прогрева (heat soak). HelixScreen обнаруживает его, но не запускает.'
+  ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
+  : "Нагретый стол расширяется с температурой, поэтому у каждого материала может быть своё смещение первого слоя. Стартовый макрос применяет его, а сохранение во время печати меняет только материал этой печати."
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Карта высот стола, по которой Klipper компенсирует неровности поверхности. Просмотр и калибровка на экране «Сетка стола».'
   A left, B right: "A слева, B справа"
@@ -377,6 +384,7 @@ translations:
   Allwinner: Allwinner
   Already connecting — wait a moment and try again: Подключение уже выполняется — подождите и попробуйте снова
   Already mounted: 'Уже установлен'
+  Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."
   Always Show Bypass Spool: Всегда показывать катушку байпаса
   Always show Android navigation bar instead of using gestures: Всегда показывать панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
@@ -411,6 +419,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: При запуске приложения произошла ошибка. Некоторые функции могут быть недоступны.
   Appearance: Внешний вид
   Appearance & Region: "Внешний вид и регион"
+  'Applied for this session only: {}': "Применено только на этот сеанс: {}"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Применено к {}. Klipper забудет значение после перезапуска: укажите {} как Pressure Advance в профиле филамента в слайсере или сохраните его на катушку.'
   Applies to: Применяется к
@@ -542,6 +551,7 @@ translations:
   Bed warming timed out: Нагрев стола — время ожидания истекло
   Bed {}: Стол {}
   Bed {} / {}: Стол {} / {}
+  Bed {} °C: "Стол {} °C"
   Before starting: 'Перед началом'
   Below target: Ниже цели
   Belt Tension: Натяжение ремня
@@ -1092,6 +1102,7 @@ translations:
   "Setup, navigation and gestures": "Настройка, навигация и жесты"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."
   Unload stopped: 'Выгрузка остановлена'
+  Used when a material has no entry: "Используется, если у материала нет записи"
   "User Guide": "Руководство пользователя"
   "Your filament system": "Ваша система филамента"
   '{} could not be checked from Home - review it and tap Print': 'Не удалось проверить {} с главного экрана – проверьте файл и нажмите «Печать»'
@@ -2180,6 +2191,7 @@ translations:
   Invert: Инвертировать
   Is the bed clear?: "Стол свободен?"
   Issue description: Описание проблемы
+  It applies after the next Klipper restart.: "Вступит в силу после следующего перезапуска Klipper."
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
   It homes and heats on its own (no start macro found).: Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден).
@@ -2548,6 +2560,7 @@ translations:
   Memory: Память
   Memory (MB): Память (МБ)
   Memory Snapshot: Снимок памяти
+  Mesh kept for {}: "Сетка сохранена для {}"
   Mesh saved as '{}': Сетка сохранена как '{}'
   Method: Метод
   Min: Мин
@@ -2895,6 +2908,7 @@ translations:
   'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offer to save Z-offset changes to the printer config: 'Предлагать сохранить изменения Z-Offset в конфигурации принтера'
   Offset: Смещение
+  Offset per material: "Смещение по материалу"
   Offsets Saved: Смещения сохранены
   Offsets saved: Смещения сохранены
   Old logs: 'Старые журналы'
@@ -2909,6 +2923,7 @@ translations:
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : 'Раз в день удаляет копии для печати старше недели и журналы старше месяца. Ваши файлы, фото и видео таймлапса сохраняются.'
   One tap runs this macro. Dangerous macros still ask.: 'Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение.'
+  One-time setup: "Первоначальная настройка"
   'Only on {0}: {1} Hz': "Только {0}: {1} Гц"
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'Только пока это приложение подключено. Установите плагин HelixPrint, чтобы охватить всю печать.'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'Только пока это приложение подключено. Обновите плагин HelixPrint, чтобы охватить всю печать.'
@@ -3679,6 +3694,7 @@ translations:
   Save Z-Offset: Сохранить Z-Offset
   Save Z-Offset Buttons: 'Кнопки сохранения Z-Offset'
   Save Z-Offset?: Сохранить Z-Offset?
+  Save as {} mesh?: "Сохранить как сетку {}?"
   Save calibration: Сохранить калибровку
   Save changes to persist them across restarts?: Сохранить изменения, чтобы они сохранились после перезапуска?
   'Save failed: {}': 'Ошибка сохранения: {}'
@@ -3687,9 +3703,12 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
+  Save writes the print's material; off, it saves one offset for every print: "Сохранение пишет материал печати; выкл. — одно смещение для всех печатей"
+  Save {} mm for {}? Other materials keep their own offsets.: "Сохранить {} мм для {}? Другие материалы сохранят свои смещения."
   Saved Z-Offset: Сохранённый Z-Offset
   Saved for the mounted head; other heads keep their own: 'Сохранено для установленной печатающей головки; остальные головки сохраняют своё'
   "Saved {} mm": "Сохранено {} мм"
+  Saved {} mm for {}: "Сохранено {} мм для {}"
   "Saved {} mm, {} mm after Save": "Сохранено {} мм, {} мм после сохранения"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились.'
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
@@ -4525,6 +4544,7 @@ translations:
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой.'
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
+  This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
@@ -4542,6 +4562,8 @@ translations:
   This printer's network service controls the WiFi radio: WiFi-модулем управляет сетевая служба этого принтера
   This printer's network service manages saved WiFi networks: Сохранёнными сетями WiFi управляет сетевая служба этого принтера
   This printer's screen has not shared a layout: "Экран этого принтера не поделился раскладкой"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "Стартовый макрос этого принтера задаёт Z-Offset для каждого материала, поэтому сохранение в зонд применит его дважды. Включите Настройки > Печать > Z-Offset по материалу, чтобы сохранить его для материала печати."
   This printer's travel or settings cannot hold the test moves.: 'Ход или настройки этого принтера не позволяют выполнить тестовые движения.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Это удаляет компонент Moonraker плагина и перезапускает Moonraker. Принтер ненадолго отключится. Если в PRINT_START всё ещё остались старые строки отслеживания фаз, они также удаляются, при этом резервные копии сохраняются. Перезапуск Klipper применяет эти изменения.
@@ -5015,6 +5037,9 @@ translations:
   Z Calibration: Калибровка Z
   Z Movement: Движение Z
   Z Offset: Z Offset
+  Z Offset by Material: "Z-Offset по материалу"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "Z-Offset по материалу здесь выключен, но на принтере был ещё включён, поэтому это смещение включает смещение материала. Теперь он выключен на принтере; нажмите «Сохранить» ещё раз, чтобы записать смещение в зонд."
   Z Probe: Z-зонд
   Z Range: Диапазон Z
   Z Tilt Adjust...: Регулировка наклона Z...
@@ -5022,6 +5047,7 @@ translations:
   Z is at its limit ({}mm): Z на пределе ({}mm)
   Z jog feedrate: Скорость перемещения по оси Z
   Z motor calibration failed: Не удалась калибровка двигателя Z
+  Z offset by material: "Z-Offset по материалу"
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и создания сетки
   Z tilt: Наклон Z
   Z {:.2f} mm: Z {:.2f} мм
@@ -5050,6 +5076,7 @@ translations:
   'Z: 0.000': 'Z: 0.000'
   Zone {:.0f}-{:.0f} Hz: "Зона {:.0f}-{:.0f} Гц"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': 'В [resonance_tester] нет probe_points, поэтому у головы нет безопасной высоты для кругов приработки.'
+  '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] найден {} раз в файлах конфигурации, которые загружает printer.cfg; ожидался один"
   already loaded: 'уже загружен'
   attempt {}: 'попытка {}'
   auto: авто
@@ -5134,6 +5161,7 @@ translations:
   passive: пассивно
   preparing: подготовка
   printer default: по умолчанию для принтера
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
   prints: печатей
   ready to load: 'готов к загрузке'
   remaining: осталось
@@ -5199,6 +5227,7 @@ translations:
   '{} axes homed': 'Оси {} запаркованы'
   '{} axis homed': Ось {} запаркована
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} нельзя исключить: имя содержит символы, которые нельзя отправить на принтер'
+  '{} cannot be stored on this printer.': "{} нельзя сохранить на этом принтере."
   '{} changed': 'изменено: {}'
   '{} command timed out': Время команды {} истекло
   '{} complete': '{} завершено'
@@ -5250,7 +5279,9 @@ translations:
   '{} lines in helixscreen.env were ignored': 'В helixscreen.env проигнорировано строк: {}'
   '{} kept crashing the panel; switched back to {}': '{} постоянно вызывал сбой экрана; возврат к {}'
   '{} is tighter': "{} туже"
+  '{} is too large to search for [{}]': "{} слишком велик для поиска [{}]"
   "{} isn't loaded. The print will pause when it needs it.": '{}: филамент не загружен. Печать приостановится, когда он понадобится.'
+  '{} kept changing while saving': "{} продолжал меняться во время сохранения"
   '{} kept crashing the panel; pick a printer to connect': '{} постоянно вызывал сбой экрана; выберите принтер для подключения'
   '{} linked to Spoolman spool #{} from its tag': '{}: привязано к катушке Spoolman #{} по метке'
   '{} m': '{} м'
@@ -5323,6 +5354,7 @@ translations:
   'Product': 'Продукт'
   'Remaining weight': 'Остаток веса'
   'Reset to tag': 'Восстановить по метке'
+  'Save the Z-offset after the print: saving restarts Klipper.': "Сохраните Z-Offset после печати: сохранение перезапускает Klipper."
   'Save the changes to this spool?': 'Сохранить изменения этой катушки?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Не совпадает со связанной катушкой Spoolman. Обновить в Spoolman или отвязать и оставить на этом слоте?'
   'Unlink': 'Отвязать'

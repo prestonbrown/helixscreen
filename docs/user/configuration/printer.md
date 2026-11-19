@@ -80,6 +80,7 @@ The ring labels on the jog pad show whatever distances you set.
 |-----|---------|--------|--------------|
 | `z_offset.step_index` | `2` | `0` 0.05 mm, `1` 0.025 mm, `2` 0.01 mm, `3` 0.005 mm | The step size of the Z-offset nudge buttons on the Print Tune overlay, remembered between prints. Choosing a size on the overlay writes it. |
 | `z_offset.save_mode` | `0` | `0` Auto, `1` Show, `2` Hide | Whether HelixScreen offers to save Z-offset changes to the printer config. Hide removes every Save Z-Offset button (header, Controls, Home widget) and the save step of Z-offset calibration. Baby-stepping still works for the session. Auto hides them on printers where each tool keeps its own Z offset (tool changers) and shows them elsewhere. **Settings > Printing > Motion > Save Z-Offset Buttons**. |
+| `material_z_offset.enabled` | `false` | `true`, `false` | Keep a separate Z offset for each material, applied by the print-start macro, and make Save write only the print's material. The values themselves live on the printer, not here. **Settings > Printing > Z Offset by Material**; see [Z Offset by Material](../guide/z-offset-by-material.md). |
 
 ---
 

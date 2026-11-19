@@ -1500,6 +1500,9 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (mock_toolchanger_selected() && !is_mock_reforge_afc() && (r = gcode_toolchanger(g))) {
         return *r;
     }
+    if (material_zoffset_mock() != MaterialZOffsetMock::None && (r = gcode_material_zoffset(g))) {
+        return *r;
+    }
     if ((r = gcode_respond(raw_gcode))) {
         return *r;
     }

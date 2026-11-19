@@ -18,6 +18,7 @@
 #include "hardware_role_registry.h"
 #include "json_utils.h"
 #include "light_button_config.h"
+#include "material_z_offset_state.h"
 #include "pa_calibration_run.h"
 #include "printer_detector.h"
 #include "printer_fan_state.h"
@@ -95,6 +96,12 @@ void zoffset_persistence_step(DiscoveryContext& ctx) {
         },
         0, /*silent=*/true, /*on_queued=*/nullptr,
         /*caller_surfaces_errors=*/false);
+}
+
+// Re-read which per-material Z offset row this printer has; the status replay
+// that follows fills its table.
+void material_zoffset_step(DiscoveryContext& ctx) {
+    material_zoffset::MaterialZOffsetState::instance().on_discovery(ctx.hw);
 }
 
 // Undo what an interrupted pressure-advance run left on the printer. A run this
@@ -243,6 +250,7 @@ void settle_light_buttons_step(DiscoveryContext&) {
 constexpr DiscoveryStep kCoreSteps[] = {
     {"set_hardware", false, set_hardware_step, nullptr},
     {"zoffset_persistence", false, zoffset_persistence_step, nullptr},
+    {"material_zoffset", false, material_zoffset_step, nullptr},
     {"pa_run_recovery", false, pa_run_recovery_step, nullptr},
     {"temp_graph_seed", false, temp_graph_seed_step, nullptr},
     {"status_dispatch", false, status_dispatch_step, "post_status_dispatch"},

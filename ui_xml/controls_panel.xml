@@ -195,8 +195,10 @@
                and the save path itself all ask one question. -->
           <ui_button name="btn_save_z_offset"
                      width="100%" height="#button_height_sm" variant="success" icon="check" text="Save Z-Offset"
-                     hidden="true" moves_machine="true">
+                     hidden="true">
             <bind_flag_if_eq subject="z_offset_save_available" flag="hidden" ref_value="0"/>
+            <!-- Guarded only while the save would be the machine-wide one. -->
+            <bind_state_if_eq subject="z_offset_save_motion_blocked" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_controls_save_z_offset"/>
           </ui_button>
           <!-- Motion | Motors Off. Motors Off keeps a fixed tappable width and

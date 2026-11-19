@@ -3,7 +3,7 @@
 **Settings > Printing** holds the settings that change how your printer moves, heats and handles filament, and the buttons and macros HelixScreen runs for you. The page has three sections:
 
 - **MACHINE**: Machine Limits, Motion, Retraction Settings and Enclosure
-- **FILAMENT**: Multi-Filament System Management, Material Temperatures, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Material presets heat the bed and chamber, Number slots from 0 and Confirm tool changes
+- **FILAMENT**: Multi-Filament System Management, Material Temperatures, Z Offset by Material, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Material presets heat the bed and chamber, Number slots from 0 and Confirm tool changes
 - **EXTRAS**: Timelapse, Power-loss recovery, Resume reloads the saved bed mesh, Apply start options to prints from other apps, and Macro Buttons
 
 Rows for things your printer doesn't have are hidden, so your list may be shorter than the one pictured.
@@ -42,7 +42,7 @@ Under the sliders, a **Config-defined (read-only)** section shows your **Max Z V
 
 ## Motion
 
-Jog layout, which way the Z buttons move, jog speeds, how far each jog pad button moves, the Z clearance a move across the plate keeps (Bed tab, Move tab positions and the home Toolhead widget), and whether Save Z-Offset buttons appear. See [Motion](../motion.md#motion-settings) for what each one does.
+Jog layout, which way the Z buttons move, jog speeds, how far each jog pad button moves, the Z clearance a move across the plate keeps (Bed tab, Move tab positions and the home Toolhead widget), and whether Save Z-Offset buttons appear. See [Motion](../motion.md#motion-settings) for what each one does, and the [Z Offset guide](../z-offset.md#the-save-z-offset-buttons-setting) for what the save setting changes.
 
 ---
 
@@ -164,6 +164,18 @@ Which material each preset button uses is kept in `settings.json` under `preset_
 If you upgraded from 1.0, your Material Temperatures changes were moved into `user_filaments.json` the first time 1.1 started. If `user_filaments.json` isn't valid JSON at that moment, they stay in `settings.json` and the move is tried again at the next start.
 
 ---
+
+## Z Offset by Material
+
+Keeps a separate first-layer Z offset for each material, and optionally a stored bed mesh per material, because a bed heated for PETG or ABS sits at a slightly different height than one heated for PLA. The printer's start macro applies the right one at every print, and **Save** during a print changes only that print's material.
+
+The screen shows one of three things:
+
+- **One-time setup**, when your printer has no per-material storage yet: install the helper macros, add one line to your `PRINT_START`, and have your slicer pass the material.
+- **Update the helper macros**, when they are installed but Klipper has no `[save_variables]` to keep the values in.
+- **The list**, with the **Z offset by material** switch, **Any other material** (the default) and PLA, PETG, ABS, ASA, TPU, PA and PC. Tap a value to type a new one. A grid mark means the material has a stored bed mesh.
+
+The setting is kept for each printer. It isn't offered on printers whose firmware stores the Z offset itself. Setup for each kind of printer, how saving works and the full list of gotchas: [Z Offset by Material](../z-offset-by-material.md).
 
 ## Allow cold load/unload
 

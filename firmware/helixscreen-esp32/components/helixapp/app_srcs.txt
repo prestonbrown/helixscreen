@@ -245,6 +245,8 @@ src/printer/macro_executor.cpp
 src/printer/macro_param_cache.cpp
 src/printer/macro_param_defaults.cpp
 src/printer/macro_params.cpp
+src/printer/material_z_offset.cpp
+src/printer/material_z_offset_state.cpp
 src/printer/mount_feed_sequence.cpp
 src/printer/openams_status_parse.cpp
 src/printer/pause_cause.cpp
@@ -772,6 +774,7 @@ src/ui/settings/ui_settings_machine_limits.cpp
 src/ui/settings/ui_settings_macro_buttons.cpp
 src/ui/settings/ui_settings_material_temps.cpp
 src/ui/settings/ui_settings_motion.cpp
+src/ui/settings/ui_settings_material_z_offset.cpp
 src/ui/settings/ui_settings_print_cost.cpp
 src/ui/settings/ui_settings_printing.cpp
 src/ui/settings/ui_settings_safety.cpp
@@ -1008,6 +1011,7 @@ src/calibration/motor_ripple_view.cpp
 # MOCK: src/mock/moonraker_client_mock.cpp
 # MOCK: src/mock/moonraker_client_mock_files.cpp
 # MOCK: src/mock/moonraker_client_mock_history.cpp
+# MOCK: src/mock/moonraker_client_mock_material_zoffset.cpp
 # MOCK: src/mock/moonraker_client_mock_objects.cpp
 # MOCK: src/mock/moonraker_client_mock_print.cpp
 # MOCK: src/mock/moonraker_client_mock_queue.cpp

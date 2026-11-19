@@ -45,7 +45,7 @@ struct ui_keypad_config_t {
     bool allow_negative;           ///< Allow negative values
     ui_keypad_callback_t callback; ///< Called on OK confirmation
     void* user_data;               ///< Passed to callback
-    /// Digits accepted after the decimal point, 1 to 2; 0 caps only the total digit count.
+    /// Digits accepted after the decimal point, 1 to 3; 0 caps only the total digit count.
     int max_fraction_digits = 0;
     /// Called on OK with an in-range value, before `callback`. An empty result accepts
     /// it; anything else is shown as an error and the keypad stays open.

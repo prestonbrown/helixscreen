@@ -116,6 +116,7 @@ translations:
   '1 unit': '1 unidad'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Cada boquilla se calienta, se limpia y se aparca delante para que la cepilles
+  1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Instala las macros de ayuda. Añaden HELIX_MATERIAL_OFFSET y un almacén [save_variables] para los offsets."
   1. Printer homes all axes (~1 minute): 1. La impresora referencia todos los ejes (~1 minuto)
   1. Printer homes and probes the bed: 1. La impresora hace origen y sondea la cama
   1. Printer will home and probe each screw: 1. La impresora hará origen y sondeará cada tornillo
@@ -128,6 +129,7 @@ translations:
   180° Upside Down: 180° invertido
   2 min: '2 min'
   2 minutes: 2 minutos
+  '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. En PRINT_START, después del homing y el sondeo y antes de tu propio paso de malla, añade esta línea:"
   2. Jog X and Y until the nozzle is centered over the chute opening: 2. Mueva X e Y hasta que la boquilla quede centrada sobre la apertura del conducto
   2. Jog Y until the nozzle is centered over the chute opening: 2. Mueva Y hasta que la boquilla quede centrada sobre la apertura del conducto
 
@@ -144,6 +146,7 @@ translations:
   2D Layers: Capas 2D
   3. Adjust screws, then re-probe to verify: 3. Ajuste los tornillos, luego vuelva a sondear para verificar
   3. Every toolhead is probed and the offsets are saved: 3. Se mide cada cabezal y se guardan los offsets
+  "3. Have the slicer's start G-code pass the material to PRINT_START:": "3. Haz que el G-code de inicio del laminador pase el material a PRINT_START:"
   3. Lower nozzle until paper drags slightly: 3. Baje la boquilla hasta que el papel roce ligeramente
   3. Save the position: 3. Guarde la posición
 
@@ -177,8 +180,12 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Una impresora delta no puede hacer home en X e Y sin mover Z, así que no se puede reanudar una impresión."
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Un ventilador que hace pasar el aire de la cámara por un filtro. Contrólalo en la pantalla de temperatura de la cámara.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Unos minutos, casi todo calentando. No juzgas nada a ojo.'
+  A first-layer offset and bed mesh for each material: "Un offset de primera capa y una malla de cama para cada material"
   A folder name in moonraker.conf is unsafe.: "Un nombre de carpeta en moonraker.conf no es seguro."
+  A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh.: "Una cuadrícula marca un material con una malla de cama guardada, que se carga al iniciar las impresiones que no hacen malla."
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'Hay una macro de heat soak configurada en la impresora. HelixScreen la detecta pero no la ejecuta.'
+  ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
+  : "Una cama caliente se dilata con la temperatura, así que cada material puede tener su propio offset de primera capa. La macro de inicio lo aplica, y Guardar durante una impresión cambia solo el material de esa impresión."
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un calentador que caldea el aire dentro de la cámara. Ajusta su temperatura en la pantalla de temperatura de la cámara.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Un mapa de alturas de la cama que Klipper usa para compensar una superficie irregular. Consúltalo y calíbralo en la pantalla Malla de Cama.'
   A left, B right: "A izquierda, B derecha"
@@ -329,6 +336,7 @@ translations:
   Allwinner: Allwinner
   Already connecting — wait a moment and try again: Ya se está conectando — espera un momento e inténtalo de nuevo
   Already mounted: 'Ya montada'
+  Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "¿Guardar también esta malla para {}? Sus impresiones que no hacen malla la cargan al inicio."
   Always Show Bypass Spool: Mostrar siempre la bobina de bypass
   Always show Android navigation bar instead of using gestures: Mostrar siempre la barra de navegación de Android en lugar de usar gestos
   Ambient Transfer: Transferencia ambiente
@@ -363,6 +371,7 @@ translations:
   App startup encountered an error. Some features may be unavailable.: El inicio de la aplicación encontró un error. Algunas funciones pueden no estar disponibles.
   Appearance: Apariencia
   Appearance & Region: "Apariencia y región"
+  'Applied for this session only: {}': "Aplicado solo en esta sesión: {}"
   ? "Applied to {}. Klipper forgets it on restart: enter {} as Pressure advance in your slicer's filament profile, or save it to the spool."
   : 'Aplicado a {}. Klipper lo olvida al reiniciar: introduce {} como Pressure Advance en el perfil de filamento de tu laminador o guárdalo en la bobina.'
   Applies to: Se aplica a
@@ -486,6 +495,7 @@ translations:
   Bed warming timed out: Calentamiento de cama — tiempo de espera agotado
   Bed {}: Cama {}
   Bed {} / {}: Cama {} / {}
+  Bed {} °C: "Cama {} °C"
   Before starting: 'Antes de empezar'
   Below target: Por debajo del objetivo
   Belt Tension: Tensión de correa
@@ -1032,6 +1042,7 @@ translations:
   "Setup, navigation and gestures": "Configuración, navegación y gestos"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Toca una ranura para cargarla o descargarla, elegir una bobina o editar sus datos. Tus cambios se mantienen sincronizados con la impresora y Spoolman."
   Unload stopped: Descarga detenida
+  Used when a material has no entry: "Se usa cuando un material no tiene entrada"
   "User Guide": "Guía del usuario"
   "Your filament system": "Tu sistema de filamento"
   '{} could not be checked from Home - review it and tap Print': 'No se pudo comprobar {} desde Inicio: revísalo y toca Imprimir'
@@ -2116,6 +2127,7 @@ translations:
   Invert: Invertir
   Is the bed clear?: "¿Está despejada la cama?"
   Issue description: Descripción del problema
+  It applies after the next Klipper restart.: "Se aplica tras el próximo reinicio de Klipper."
   It can be un-archived in Spoolman's web UI.: Se puede desarchivar en la interfaz web de Spoolman.
   It has not reported its slots yet. Try again in a moment.: Aún no ha informado de sus ranuras. Inténtelo de nuevo en un momento.
   It homes and heats on its own (no start macro found).: Hace homing y calienta por su cuenta (no se encontró macro de inicio).
@@ -2484,6 +2496,7 @@ translations:
   Memory: Memoria
   Memory (MB): Memoria (MB)
   Memory Snapshot: Instantánea de memoria
+  Mesh kept for {}: "Malla guardada para {}"
   Mesh saved as '{}': Malla guardada como '{}'
   Method: Método
   Min: Mín
@@ -2831,6 +2844,7 @@ translations:
   'Off: runs with these values without asking': 'Desactivado: ejecuta con estos valores sin preguntar'
   Offer to save Z-offset changes to the printer config: 'Ofrecer guardar los cambios de Z-Offset en la configuración de la impresora'
   Offset: Desfase
+  Offset per material: "Offset por material"
   Offsets Saved: Offsets guardados
   Offsets saved: Offsets guardados
   Old logs: 'Registros antiguos'
@@ -2845,6 +2859,7 @@ translations:
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : 'Una vez al día, elimina las copias de impresión de más de una semana y los registros de más de un mes. Tus archivos, fotos y vídeos timelapse se conservan.'
   One tap runs this macro. Dangerous macros still ask.: 'Un toque ejecuta esta macro. Las macros peligrosas siguen preguntando.'
+  One-time setup: "Configuración inicial"
   'Only on {0}: {1} Hz': "Solo en {0}: {1} Hz"
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'Solo mientras esta app esté conectada. Instala el plugin HelixPrint para cubrir todas las impresiones.'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'Solo mientras esta app esté conectada. Actualiza el plugin HelixPrint para cubrir todas las impresiones.'
@@ -3599,6 +3614,7 @@ translations:
   Save Z-Offset: Guardar Z-Offset
   Save Z-Offset Buttons: 'Botones de guardar Z-Offset'
   Save Z-Offset?: ¿Guardar Z-Offset?
+  Save as {} mesh?: "¿Guardar como malla de {}?"
   Save calibration: Guardar calibración
   Save changes to persist them across restarts?: ¿Guardar cambios para mantenerlos entre reinicios?
   'Save failed: {}': 'Error al guardar: {}'
@@ -3607,9 +3623,12 @@ translations:
   Save the new heater values to printer.cfg? Klipper restarts.: ¿Guardar los nuevos valores del calentador en printer.cfg? Klipper se reiniciará.
   Save to Spool: Guardar en bobina
   Save to Spoolman: Guardar en Spoolman
+  Save writes the print's material; off, it saves one offset for every print: "Guardar escribe el material de la impresión; desactivado, guarda un offset para todas las impresiones"
+  Save {} mm for {}? Other materials keep their own offsets.: "¿Guardar {} mm para {}? Los demás materiales conservan sus propios offsets."
   Saved Z-Offset: Z-Offset guardado
   Saved for the mounted head; other heads keep their own: 'Guardado para el cabezal montado; los demás cabezales conservan el suyo'
   "Saved {} mm": "Guardado {} mm"
+  Saved {} mm for {}: "Guardado {} mm para {}"
   "Saved {} mm, {} mm after Save": "Guardado {} mm, {} mm tras guardar"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron.'
   Saved to crash_report.txt (QR not available): Guardado en crash_report.txt (QR no disponible)
@@ -4437,6 +4456,7 @@ translations:
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Esta impresora tiene compensación de motor, así que la comprobación se ejecuta dos veces: primero desactivada, luego activada.'
   This printer has no IFS.: "Esta impresora no tiene IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Esta impresora no tiene la macro LOAD_FILAMENT de INDX"
+  This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Esta impresora aún no tiene un almacén [save_variables]. Actualiza las macros de ayuda para añadirlo y reinicia Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Esta impresora no tiene descarga automática. Corte el filamento en el cabezal y sáquelo a mano.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Esta impresora no tiene zona horaria, así que su reloj marca UTC. Elige la tuya."
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Esta impresora no tiene el comando {}, así que no se puede guardar el Z-offset.'
@@ -4454,6 +4474,8 @@ translations:
   This printer's network service controls the WiFi radio: El servicio de red de esta impresora controla la radio WiFi
   This printer's network service manages saved WiFi networks: El servicio de red de esta impresora gestiona las redes WiFi guardadas
   This printer's screen has not shared a layout: "La pantalla de esta impresora no ha compartido un diseño"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "La macro de inicio de esta impresora fija un Z-Offset para cada material, así que guardarlo en la sonda lo aplicaría dos veces. Activa Ajustes > Impresión > Z-Offset por material para guardarlo para el material de la impresión."
   This printer's travel or settings cannot hold the test moves.: 'El recorrido o los ajustes de esta impresora no permiten los movimientos de prueba.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Esto elimina el componente de Moonraker del plugin y reinicia Moonraker. La impresora se desconectará brevemente. Si aún hay líneas de seguimiento de fases antiguas en PRINT_START, también se eliminan, conservando copias de seguridad. Un reinicio de Klipper aplica eso.
@@ -4927,6 +4949,9 @@ translations:
   Z Calibration: Calibración Z
   Z Movement: Movimiento Z
   Z Offset: Z Offset
+  Z Offset by Material: "Z-Offset por material"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "Z-Offset por material está desactivado aquí pero seguía activo en la impresora, así que este offset incluye el de un material. Ya está desactivado en la impresora; pulsa Guardar de nuevo para guardar el offset en la sonda."
   Z Probe: Sonda Z
   Z Range: Rango Z
   Z Tilt Adjust...: Ajuste de inclinación Z...
@@ -4934,6 +4959,7 @@ translations:
   Z is at its limit ({}mm): Z está en su límite ({}mm)
   Z jog feedrate: Velocidad de avance del movimiento Z
   Z motor calibration failed: Falló la calibración del motor Z
+  Z offset by material: "Z-Offset por material"
   Z probes for bed leveling and mesh generation: Sondas Z para nivelación de cama y generación de malla
   Z tilt: Inclinación Z
   Z {:.2f} mm: Z {:.2f} mm
@@ -4962,6 +4988,7 @@ translations:
   'Z: 0.000': 'Z: 0.000'
   Zone {:.0f}-{:.0f} Hz: "Zona {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] no tiene probe_points, así que el cabezal no tiene una altura segura para las vueltas de asentamiento.'
+  '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] se encontró {} veces en los archivos de configuración que carga printer.cfg; se esperaba una vez"
   already loaded: 'ya cargado'
   attempt {}: 'intento {}'
   auto: auto
@@ -5042,6 +5069,7 @@ translations:
   passive: pasivo
   preparing: preparando
   printer default: valor por defecto de la impresora
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carga más de {} archivos de configuración; [{}] no se buscó en todos"
   prints: impresiones
   ready to load: 'listo para cargar'
   remaining: restante
@@ -5107,6 +5135,7 @@ translations:
   '{} axes homed': 'Ejes {} en origen'
   '{} axis homed': Eje {} en origen
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} no se puede excluir: su nombre tiene caracteres que no se pueden enviar a la impresora'
+  '{} cannot be stored on this printer.': "{} no se puede guardar en esta impresora."
   '{} changed': '{} cambiado(s)'
   '{} command timed out': Tiempo agotado del comando {}
   '{} complete': '{} completado'
@@ -5150,7 +5179,9 @@ translations:
   '{} lines in helixscreen.env were ignored': '{} líneas de helixscreen.env fueron ignoradas'
   '{} kept crashing the panel; switched back to {}': '{} bloqueó la pantalla repetidamente; se volvió a {}'
   '{} is tighter': "{} está más tensa"
+  '{} is too large to search for [{}]': "{} es demasiado grande para buscar [{}]"
   "{} isn't loaded. The print will pause when it needs it.": '{} no está cargado. La impresión se pausará cuando lo necesite.'
+  '{} kept changing while saving': "{} siguió cambiando mientras se guardaba"
   '{} kept crashing the panel; pick a printer to connect': '{} bloqueó la pantalla repetidamente; elige una impresora para conectar'
   '{} linked to Spoolman spool #{} from its tag': 'Se vinculó {} a la bobina #{} de Spoolman por su etiqueta'
   '{} m': '{} m'
@@ -5207,6 +5238,7 @@ translations:
   'Product': 'Producto'
   'Remaining weight': 'Peso restante'
   'Reset to tag': 'Restablecer al tag'
+  'Save the Z-offset after the print: saving restarts Klipper.': "Guarda el Z-Offset después de la impresión: guardar reinicia Klipper."
   'Save the changes to this spool?': '¿Guardar los cambios de este carrete?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'No coincide con el carrete vinculado de Spoolman. ¿Actualizarlo en Spoolman o desvincularlo y mantenerlo en este carril?'
   'Unlink': 'Desvincular'

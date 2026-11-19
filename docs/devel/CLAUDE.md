@@ -92,6 +92,7 @@ All developer documentation lives here. When working on features, look up the re
 | `PRINT_START_PROFILES.md` | Print-start phase detection: signal sources, JSON profile schema, authoring a profile for a new printer |
 | `PRINT_START_INTEGRATION.md` | User-facing macro setup for print start tracking |
 | `Z_OFFSET_PERSISTENCE.md` | Firmware that persists z-offset outside `gcode_move` (ZMOD AD5M/AD5X): why the idle reading lies, adding a firmware, Save Z-Offset |
+| `MATERIAL_Z_OFFSET.md` | Z offset and bed mesh by material: the storage rows (`_START_PRINT_VARS`, HelixScreen's macro), the one-line config edit, which material a Save writes, adding a row |
 | `POWER_LOSS_RECOVERY.md` | Power-loss resume backends; the Creality probe is **active and side-effectful** and must run before resume. Read before touching PLR |
 | `UPDATE_SYSTEM.md` | Update channels (stable/beta/dev), R2 CDN, Moonraker updater |
 | `SOUND_SYSTEM.md` | Audio architecture, JSON themes, backends (SDL, ALSA, PWM, M300). User guide: `../user/guide/settings/sound.md` |

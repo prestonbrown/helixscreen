@@ -61,6 +61,7 @@
 #include "lock_manager.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
+#include "material_z_offset_state.h"
 #include "panel_widget_manager.h"
 #include "plr_offer_controller.h"
 #include "plugin_status_refresh.h"
@@ -168,6 +169,7 @@ void SubjectInitializer::init_core_and_state() {
     // Z-offset save availability. Derived from PrinterState's strategy and
     // machine-wide offset plus ToolState's per-tool dirty flag, so it registers
     // after all three, and before any panel XML binds the name.
+    helix::material_zoffset::MaterialZOffsetState::instance().init_subjects();
     helix::zoffset::init_save_available_subject();
 
     // The active bed mesh's stats, read by BedMeshPanel's XML and the home tile. They

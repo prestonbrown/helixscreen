@@ -445,7 +445,7 @@ void ToolOffsetCalibrationPanel::save_offsets() {
     // and so do staged tool parameters; a firmware that persists immediately
     // restarts nothing.
     const bool restart_expected =
-        helix::zoffset::saves_global(facts) ||
+        helix::zoffset::folds_global(facts) ||
         (facts.tools_dirty &&
          helix::tool_offsets::persist_requires_save_config(ps.get_discovery()));
     if (!restart_expected) {
@@ -456,7 +456,7 @@ void ToolOffsetCalibrationPanel::save_offsets() {
         lv_tr("Save offsets?"),
         // The one restart also commits the babystep; say so in the words the
         // Controls and header saves use.
-        helix::zoffset::saves_global(facts)
+        helix::zoffset::folds_global(facts)
             ? lv_tr("This will save the Z-offset and restart Klipper to write the configuration. "
                     "The printer will briefly disconnect.")
             : lv_tr("This writes the tool offsets to the printer's config and restarts Klipper, "
@@ -481,14 +481,14 @@ void ToolOffsetCalibrationPanel::send_save() {
     // this same restart or silently lost by it, its pending delta still shown
     // in Controls for an adjustment that no longer exists.
     const helix::zoffset::SaveAvailability facts = helix::zoffset::current_save_availability();
-    if (!helix::zoffset::saves_global(facts) && !facts.tools_dirty) {
+    if (!helix::zoffset::folds_global(facts) && !facts.tools_dirty) {
         spdlog::info("[ToolOffsetCal] Nothing left to save");
         return;
     }
     lv_subject_set_string(&status_, lv_tr("Saving offsets..."));
     helix::zoffset::save_dirty_offsets(
         api, save_watch_, ps.profile_state().z_offset_calibration_strategy(), ps.get_discovery(),
-        helix::zoffset::saves_global(facts),
+        helix::zoffset::folds_global(facts),
         object_lifetime_.bg_cb("ToolOffsetCal::saved",
                                [this]() {
                                    last_error_.clear();

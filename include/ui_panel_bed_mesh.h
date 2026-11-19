@@ -180,6 +180,10 @@ class BedMeshPanel : public OverlayBase {
                             std::function<void(const std::string&)> on_failed);
     void copy_calibrated_mesh(const std::string& from, const std::string& to);
     void finish_calibration(const std::string& profile);
+    /// With Z offset by material on, offer to keep the fresh mesh as the
+    /// material's too, then go on to the SAVE_CONFIG prompt. False when there
+    /// is nothing to offer.
+    bool offer_material_mesh();
 
     /// BED_MESH_PROFILE SAVE under @p name. Klipper declines a save on the console
     /// and still answers the request ok, so a refusal there is reported through

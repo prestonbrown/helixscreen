@@ -53,6 +53,10 @@
         <setting_action_row name="row_print_cost"
                             label="Print Cost" icon="cash" description="Filament prices and electricity"
                             callback="on_print_cost_clicked"/>
+        <setting_action_row name="row_material_z_offset"
+                            label="Z Offset by Material" icon="layers"
+                            description="A first-layer offset and bed mesh for each material"
+                            callback="on_material_z_offset_clicked"/>
         <setting_toggle_row name="row_allow_cold_extrude"
                             label="Allow cold load/unload" icon="cooldown"
                             description="Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves)"
