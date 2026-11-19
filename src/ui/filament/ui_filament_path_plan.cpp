@@ -266,6 +266,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         }
         if (f.output_y + 3 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
             return false;
+
         return !wants_buffer || f.buffer_y - f.cap_h / 2 - f.output_y >= 3 * r;
     };
     const int32_t own = g.height;
@@ -648,11 +649,29 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     // that the bypass merges and the toolhead band sits in the clear room above the head.
     // The room is sized for the buffer the hub still carries: art in the selector's slot
     // has already taken it away.
-    // Under a view scale the hub always stands that room over the head: the lanes' fan takes
-    // whatever height is left above it, and nothing below stretches with the canvas.
+    // Under a view scale the hub stands just below the lanes' fan: the fan takes the height its
+    // diagonals need, and whatever the canvas has past that goes to the trunk from the hub down
+    // to the head.
     const int32_t roomy_top = glyph_top - room_under_hub(f.has_buffer) - f.hub_h;
     if (!data.hub_on_toolhead && (hub_top > roomy_top || data.view_hub_h > 0)) {
-        hub_top = LV_MAX(LV_MAX(roomy_top, lanes_top), art_floor);
+        int32_t top = roomy_top;
+        if (scaled && fit_n > 1) {
+            // The entries at the hub's least width, and each lane's run to its own.
+            const float usable = (float)(min_width - 2 * entry_margin);
+            const float step = usable / (float)(fit_n - 1);
+            float run = 0.0f, start = -1e9f;
+            for (int i = 0; i < fit_n; ++i) {
+                const float entry = (float)f.center_x - usable / 2.0f + step * (float)i;
+                run = std::max(run, std::fabs(entry - fit_in[i].slot_x));
+                start = std::max(start, fit_in[i].start_y);
+            }
+            const float drop =
+                std::max(1.5f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom) +
+                (float)f.sensor_r;
+            top = std::min(roomy_top,
+                           (int32_t)std::ceil(std::max(start, (float)f.prep_band_y) + drop));
+        }
+        hub_top = LV_MAX(LV_MAX(top, lanes_top), art_floor);
         f.hub_y = hub_top + f.hub_h / 2;
         f.output_y = f.hub_y + f.hub_h / 2;
         place_under_unit(f.output_y);
