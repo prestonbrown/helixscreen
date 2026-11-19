@@ -4950,6 +4950,8 @@ translations:
   Z Movement: Movimiento Z
   Z Offset: Z Offset
   Z Offset by Material: "Z-Offset por material"
+  ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  : "Z-Offset por material está desactivado aquí pero seguía activo en la impresora, así que este offset incluye el de un material. Ya está desactivado en la impresora; pulsa Guardar de nuevo para guardar el offset en la sonda."
   Z Probe: Sonda Z
   Z Range: Rango Z
   Z Tilt Adjust...: Ajuste de inclinación Z...

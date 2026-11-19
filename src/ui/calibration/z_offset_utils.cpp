@@ -757,7 +757,7 @@ void run_material_save(const std::string& material, int microns) {
     g_shared_save_started_ms = lv_tick_get();
     g_shared_save_running = true;
     helix::material_zoffset::MaterialZOffsetState::instance().save_offset(
-        api, material, microns, [](bool ok, const std::string& message) {
+        material, microns, [](bool ok, const std::string& message) {
             end_shared_save();
             if (ok) {
                 get_printer_state().motion_state().clear_pending_z_offset_delta();
@@ -788,10 +788,21 @@ void save_dirty_offsets_shared() {
     if (route == SaveRoute::MacroOwnsOffset) {
         spdlog::warn("[ZOffsetUtils] Machine-wide Z-offset save refused: the start macro applies a "
                      "per-material offset");
-        NOTIFY_WARNING("{}", lv_tr("This printer's start macro sets a Z offset for each material, "
-                                   "so saving it into the probe would apply it twice. Turn on "
-                                   "Settings > Printing > Z Offset by Material to save it for the "
-                                   "print's material."));
+        if (by_material.switch_disagrees()) {
+            // The setting is off but the printer still applies per-material
+            // offsets, so this offset came from one: switch it off, then the
+            // next Save can store it in the probe.
+            by_material.reconcile(get_moonraker_api());
+            NOTIFY_WARNING("{}", lv_tr("Z Offset by Material is off here but was still on on the "
+                                       "printer, so this offset includes a material's. It is now "
+                                       "switched off on the printer; tap Save again to store the "
+                                       "offset in the probe."));
+        } else {
+            NOTIFY_WARNING("{}", lv_tr("This printer's start macro sets a Z offset for each "
+                                       "material, so saving it into the probe would apply it "
+                                       "twice. Turn on Settings > Printing > Z Offset by Material "
+                                       "to save it for the print's material."));
+        }
         return;
     }
     if (route == SaveRoute::Refused) {
