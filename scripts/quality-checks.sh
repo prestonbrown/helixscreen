@@ -273,6 +273,14 @@ QC_DEFERRED=""
 QC_LEFT=""
 qc_wanted() {
   local re
+  # HELIX_QC_ONLY names the only gates to run: land-gate's docs-only change
+  # runs the doc gates alone.
+  if [ -n "${HELIX_QC_ONLY:-}" ]; then
+    case " $HELIX_QC_ONLY " in
+      *" $1 "*) return 0 ;;
+      *) QC_SKIPPED="$QC_SKIPPED $1"; return 1 ;;
+    esac
+  fi
   # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
   # land gate and CI, which every branch passes before it reaches main.
   if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then

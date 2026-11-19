@@ -72,6 +72,10 @@ exit "${RC_no_mocks:-0}"'
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
+    # These tests drive the gate's wiring with every step running; the plan's
+    # narrowing has its own tests in test_land_gate_select.bats.
+    export HELIX_GATE_FULL=1
+    unset LAND_GATE_CHANGED_FILE
 }
 
 # No test here runs make in the real tree: a recipe is checked by copying its
@@ -90,8 +94,8 @@ row() { # <status> <step>: the table row for step has that status
     for s in $ALL_STEPS; do row PASS "$s"; done
     contains "LAND GATE: PASS" "$output"
     grep -qx "make app" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
     grep -qx "make test-ui-ci" "$CALLS"
     grep -qx "make test-plugin" "$CALLS"
     grep -qx "make test-python" "$CALLS"
@@ -174,14 +178,14 @@ row() { # <status> <step>: the table row for step has that status
     row FAIL ci-shards
 }
 
-@test "a failed app build skips the UI steps and fails the gate" {
+@test "a failed app build blocks the UI steps and fails the gate" {
     RC_app=2 run "$GATE"
     [ "$status" -eq 1 ]
     row FAIL app-build
-    row SKIP ui
-    row SKIP plugin
-    row SKIP no-mocks
-    row SKIP quality
+    row BLOCKED ui
+    row BLOCKED plugin
+    row BLOCKED no-mocks
+    row BLOCKED quality
     refute_grep "make test-ui-ci" "$CALLS"
     refute_grep "^no-mocks " "$CALLS"
     row PASS bats
@@ -209,11 +213,11 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     row PASS bats
 }
 
-@test "a local C++ run after a failed app build still skips quality" {
+@test "a local C++ run after a failed app build still blocks quality" {
     RC_app=2 run "$GATE"
     [ "$status" -eq 1 ]
     row PASS ci-shards
-    row SKIP quality
+    row BLOCKED quality
     refute_grep "make quality" "$CALLS"
 }
 
@@ -236,8 +240,8 @@ order_of() { grep -nx "$1" "$CALLS.order" | head -n 1 | cut -d: -f1; }
     [ "$(grep -c "^host-run sweep" "$CALLS")" -eq 1 ]
     grep -qx "host-run sweep NPROCS=8 SHARD_TIMEOUT=600 SHARD_CRASH_FAILS=1" "$CALLS"
     refute_grep "make unit-sweep" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
     grep -qx "make test-ui-ci" "$CALLS"
 }
 
@@ -475,11 +479,11 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     : >"$CALLS"
     gate_in_tree --rerun ui
     [ "$status" -eq 0 ]
-    [ "$(grep '^make' "$CALLS")" = "$(printf 'make app\nmake test-shell BATS_REQUIRED=1 BATS_APP=without\nmake test-shell BATS_REQUIRED=1 BATS_APP=needs\nmake test-ui-ci\nmake quality')" ]
+    [ "$(grep '^make' "$CALLS")" = "$(printf 'make app\nmake test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1\nmake test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1\nmake test-ui-ci\nmake quality')" ]
     [ -f "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
 }
 
-@test "a rerun whose app build fails records its dependents SKIP and stamps nothing" {
+@test "a rerun whose app build fails records its dependents BLOCKED and stamps nothing" {
     stamp_tree
     RC_test_ui_ci=1 gate_in_tree
     [ "$status" -eq 1 ]
@@ -487,9 +491,9 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     RC_app=2 gate_in_tree --rerun ui
     [ "$status" -eq 1 ]
     row FAIL app-build
-    row SKIP ui
-    row SKIP bats
-    row SKIP quality
+    row BLOCKED ui
+    row BLOCKED bats
+    row BLOCKED quality
     refute_grep "make test-ui-ci" "$CALLS"
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
 }
@@ -503,8 +507,8 @@ gate_in_tree() { run bash -c 'cd "$1" && shift && "$@"' _ "$T" "$GATE" "$@"; }
     : >"$CALLS"
     RC_test_shell=1 gate_in_tree --rerun app-build,plugin,no-mocks
     [ "$status" -eq 1 ]
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
     row PASS app-build
     row FAIL bats
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$SHA" ]
@@ -791,10 +795,10 @@ teardown() {
     HOOK_app='sleep 2' HOOK_test_shell='echo "shell$vars" >> "$CALLS.order"' run "$GATE"
     [ "$status" -eq 0 ]
     row PASS bats
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without" "$CALLS"
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
-    [ "$(order_of "shell BATS_REQUIRED=1 BATS_APP=without")" -lt "$(order_of "end app")" ]
-    [ "$(order_of "end app")" -lt "$(order_of "shell BATS_REQUIRED=1 BATS_APP=needs")" ]
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
+    [ "$(order_of "shell BATS_REQUIRED=1 BATS_APP=without BATS_ALL=1")" -lt "$(order_of "end app")" ]
+    [ "$(order_of "end app")" -lt "$(order_of "shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1")" ]
 }
 
 @test "a bats half past the step timeout reads TIMEOUT" {
@@ -821,7 +825,7 @@ teardown() {
     HOOK_test_shell='case "$vars" in *without*) exit 4 ;; esac' run "$GATE"
     [ "$status" -eq 1 ]
     row FAIL bats
-    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs" "$CALLS"
+    grep -qx "make test-shell BATS_REQUIRED=1 BATS_APP=needs BATS_ALL=1" "$CALLS"
 }
 
 @test "patches/ is applied before any lane starts, so bats and the freshness checks read patched submodules" {

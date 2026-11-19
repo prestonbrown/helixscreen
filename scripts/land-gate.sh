@@ -54,6 +54,25 @@
 #                     runs makes of its own in the tree. tests/python is left to
 #                     the python step (HELIX_QC_SKIP_PYTHON_TESTS=1)
 #
+# A gate runs what the change can reach. scripts/gate_select.py plans each step
+# from the paths that differ from the merge-base (committed, staged, unstaged,
+# untracked) before any lane starts, and the plan prints above the lanes:
+#
+#   run     the step runs as listed above
+#   select  a narrower run: ci-shards and slow get the change as
+#           TEST_SELECT_CHANGED, so the sweep runs only the C++ cases whose
+#           dependency files reach it (mk/tests.mk select_cases); bats runs
+#           with BATS_GATE=1; python runs the files that read C++ source;
+#           quality runs the doc gates alone for a docs-only change
+#   full    every C++ case (or bats file): a safety valve fired
+#   skip    nothing the step reads changed. Its row reads SKIP with the
+#           reason and counts as a pass
+#
+# HELIX_GATE_FULL=1 runs everything, and so does a gate on a release/* branch;
+# the release procedure sets it. The full suites also run nightly and on every
+# push to main, which catch what a selection leaves out. A step a failed
+# app-build keeps from running reads BLOCKED and fails the gate.
+#
 # After app-build, ui, plugin, no-mocks and (with a test-host C++ run) quality
 # run side by side. patches/ is applied before any lane starts, so nothing a
 # lane reads in a submodule is half patched.
@@ -103,6 +122,7 @@ export HELIX_TEST_MAX_LOAD=${HELIX_TEST_MAX_LOAD:-0}
 HELIX_CLAIM=${HELIX_CLAIM:-$(dirname "$SELF")/helix-claim}
 ESP32_CHECK=${ESP32_CHECK:-$(dirname "$SELF")/esp32_syntax_check.py}
 NO_MOCKS_CHECK=${NO_MOCKS_CHECK:-$(dirname "$SELF")/check_no_mocks.py}
+GATE_SELECT=${GATE_SELECT:-$(dirname "$SELF")/gate_select.py}
 LAND_GATE_BASE_REF=${LAND_GATE_BASE_REF:-origin/main}
 CI_SHARDS=${CI_SHARDS:-8}
 CI_SHARD_TIMEOUT=${CI_SHARD_TIMEOUT:-600}
@@ -115,6 +135,9 @@ LAND_GATE_STEP_TIMEOUT=${LAND_GATE_STEP_TIMEOUT:-3600}
 # the tree's teardown.
 LAND_GATE_HISTORY=${LAND_GATE_HISTORY:-${XDG_STATE_HOME:-$HOME/.local/state}/helixscreen/land-gate-history.tsv}
 ROWS_DIR="$LAND_GATE_LOGDIR/rows"
+# What gate_select.py planned for this run, and the change it planned from.
+PLAN="$LAND_GATE_LOGDIR/plan.tsv"
+CHANGED_LIST="$LAND_GATE_LOGDIR/changed.txt"
 RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
 STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 no-mocks quality"
@@ -146,7 +169,30 @@ step() {
     [ "$status" = PASS ]
 }
 
-skip() { printf 'SKIP - %s\n' "$2" >"$ROWS_DIR/$1"; }
+# blocked <step> <why>: a step that could not run because one it needs failed.
+blocked() { printf 'BLOCKED - %s\n' "$2" >"$ROWS_DIR/$1"; }
+
+# planned <step> [field]: the plan's verdict for the step (field 2), its reason
+# (3) or its argument (4). A step the plan does not name runs.
+planned() {
+    local v
+    v=$(awk -F'\t' -v s="$1" -v f="${2:-2}" '$1 == s { print $f; exit }' "$PLAN" 2>/dev/null)
+    if [ -z "$v" ] && [ "${2:-2}" = 2 ]; then v=run; fi
+    printf '%s\n' "$v"
+}
+plan_mode() { awk -F'\t' '$1 == "# mode" { print $2; exit }' "$PLAN" 2>/dev/null; }
+
+# unreached <step>: the plan skips it; its row says why and counts as a pass.
+unreached() {
+    printf 'SKIP - not reached: %s\n' "$(planned "$1" 3)" >"$ROWS_DIR/$1"
+    echo "[$(date +%H:%M:%S)] $1: SKIP ($(planned "$1" 3))"
+}
+
+# The change as make's TEST_SELECT_CHANGED: every path, comma-separated.
+test_select_args() {
+    [ "$(planned "$1")" = select ] || return 0
+    printf 'TEST_SELECT_CHANGED=%s\n' "$(paste -sd, "$CHANGED_LIST")"
+}
 
 # Where the branch left LAND_GATE_BASE_REF, as pre-push measures a new branch.
 branch_base() {
@@ -232,6 +278,10 @@ app_build() {
 # between the halves never counts against bats.
 bats_half() {
     local mk=("$MAKE" --no-print-directory test-shell BATS_REQUIRED=1 "BATS_APP=$1")
+    case "$(planned bats)" in
+        full) mk+=(BATS_ALL=1) ;;
+        select) mk+=(BATS_GATE=1 "BATS_BASE=$GATE_BASE") ;;
+    esac
     local budget=${LAND_GATE_BATS_HALF_TIMEOUT:-$LAND_GATE_STEP_TIMEOUT} rc=0
     if [ -n "$TIMEOUT_BIN" ]; then
         "$TIMEOUT_BIN" -k 30 "$budget" "${mk[@]}" || rc=$?
@@ -268,20 +318,26 @@ bats_halves() {
 # run_step <name>: one step, by its table name. The gate's lanes and a rerun
 # both run steps through here, so a rerun runs exactly what the gate ran.
 run_step() {
-    local mk=("$MAKE" --no-print-directory)
+    local mk=("$MAKE" --no-print-directory) sel=()
+    if [ "$(planned "$1")" = skip ]; then
+        unreached "$1"
+        return 0
+    fi
     case "$1" in
         app-build) step app-build bash "$SELF" --app-build ;;
         ci-shards)
+            mapfile -t sel < <(test_select_args ci-shards)
             if [ "$SWEEP_WHERE" = remote ]; then
-                step ci-shards "$TEST_HOST_RUN" sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1
+                step ci-shards "$TEST_HOST_RUN" sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1 "${sel[@]}"
             else
-                step ci-shards "${mk[@]}" unit-sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1
+                step ci-shards "${mk[@]}" unit-sweep "NPROCS=$CI_SHARDS" "SHARD_TIMEOUT=$CI_SHARD_TIMEOUT" SHARD_CRASH_FAILS=1 "${sel[@]}"
             fi ;;
         slow)
+            mapfile -t sel < <(test_select_args slow)
             if [ "$SWEEP_WHERE" = remote ]; then
-                step slow "$TEST_HOST_RUN" exec -- make --no-print-directory test-slow SHARD_CRASH_FAILS=1
+                step slow "$TEST_HOST_RUN" exec -- make --no-print-directory test-slow SHARD_CRASH_FAILS=1 "${sel[@]}"
             else
-                step slow "${mk[@]}" test-slow SHARD_CRASH_FAILS=1
+                step slow "${mk[@]}" test-slow SHARD_CRASH_FAILS=1 "${sel[@]}"
             fi ;;
         # Each half has the step timeout of its own; this one, three of them,
         # only backs those up across the wait for app-build between them.
@@ -290,14 +346,18 @@ run_step() {
             LAND_GATE_BATS_HALF_TIMEOUT=$half LAND_GATE_STEP_TIMEOUT=$backstop step bats bash "$SELF" --bats ;;
         ui) step ui "${mk[@]}" test-ui-ci ;;
         plugin) step plugin "${mk[@]}" test-plugin ;;
-        python) step python "${mk[@]}" test-python ;;
+        python)
+            [ "$(planned python)" != select ] || sel=("PYTHON_TESTS=$(planned python 4)")
+            step python "${mk[@]}" test-python "${sel[@]}" ;;
         theme-tokens) step theme-tokens "${mk[@]}" check-theme-tokens ;;
         xml-schema) step xml-schema "${mk[@]}" check-xml-schema ;;
         lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
         lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
         esp32) step esp32 bash "$SELF" --esp32-check ;;
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
-        quality) step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 HELIX_QC_SKIP_PYTHON_TESTS=1 "${mk[@]}" quality ;;
+        quality)
+            [ "$(planned quality)" != select ] || sel=("HELIX_QC_ONLY=$(planned quality 4)")
+            step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 HELIX_QC_SKIP_PYTHON_TESTS=1 "${sel[@]}" "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
 }
@@ -311,15 +371,16 @@ lane() {
                 # quality starts makes of its own in this tree (an incremental app
                 # build, the XML tools), so it waits for the local sweep to link
                 # and finish. This lane starts after the app build's row exists.
-                if grep -q '^PASS ' "$ROWS_DIR/app-build" 2>/dev/null; then
+                if grep -Eq '^(PASS|SKIP) ' "$ROWS_DIR/app-build" 2>/dev/null; then
                     run_step quality
                 else
-                    skip quality "app-build failed"
+                    blocked quality "app-build failed"
                 fi
             fi ;;
         app)
             if run_step app-build; then
-                head -n 1 "$LAND_GATE_LOGDIR/app-build.why.log" 2>/dev/null | sed "s/^/[$(date +%H:%M:%S)] /"
+                [ "$(planned app-build)" = skip ] ||
+                    head -n 1 "$LAND_GATE_LOGDIR/app-build.why.log" 2>/dev/null | sed "s/^/[$(date +%H:%M:%S)] /"
                 # Each writes only its own row and log, and none rebuilds what
                 # another reads, so they share the tree's wait for nothing.
                 run_step ui &
@@ -329,10 +390,10 @@ lane() {
                 wait
             else
                 head -n 1 "$LAND_GATE_LOGDIR/app-build.why.log" 2>/dev/null | sed "s/^/[$(date +%H:%M:%S)] /"
-                skip ui "app-build failed"
-                skip plugin "app-build failed"
-                skip no-mocks "app-build failed"
-                [ "$SWEEP_WHERE" = local ] || skip quality "app-build failed"
+                blocked ui "app-build failed"
+                blocked plugin "app-build failed"
+                blocked no-mocks "app-build failed"
+                [ "$SWEEP_WHERE" = local ] || blocked quality "app-build failed"
             fi ;;
         bats) run_step bats ;;
         fresh)
@@ -429,6 +490,7 @@ if [ "$SWEEP_WHERE" = local ] && [ "$(uname -s)" = Darwin ] && { [ -z "$RERUN" ]
 fi
 APP_LANE_PID=
 export SWEEP_WHERE MAKE TEST_HOST_RUN CI_SHARDS CI_SHARD_TIMEOUT LAND_GATE_LOGDIR LAND_GATE_STEP_TIMEOUT ROWS_DIR APP_LANE_PID
+export PLAN CHANGED_LIST GATE_SELECT
 
 judged="$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
 judged_sha="$(git rev-parse HEAD 2>/dev/null || true)"
@@ -482,6 +544,37 @@ mkdir -p "$ROWS_DIR" || exit 2
 rm -f "$ROWS_DIR"/*
 gate_t0=$SECONDS
 
+# The plan: what the change since the merge-base can reach. With no merge-base
+# there is no change to read, so everything runs. LAND_GATE_CHANGED_FILE hands
+# the planner a list of paths instead of a diff (the gate's own tests).
+GATE_BASE=$(branch_base 2>/dev/null) || GATE_BASE=
+export GATE_BASE
+plan_src=()
+if [ -n "${LAND_GATE_CHANGED_FILE:-}" ]; then
+    plan_src=(--changed-from "$LAND_GATE_CHANGED_FILE")
+elif [ -n "$GATE_BASE" ]; then
+    plan_src=(--base "$GATE_BASE")
+fi
+plan_ok=0
+if [ ${#plan_src[@]} -gt 0 ] && "$GATE_SELECT" changed "${plan_src[@]}" >"$CHANGED_LIST" 2>"$PLAN.err" &&
+    "$GATE_SELECT" plan "${plan_src[@]}" >"$PLAN" 2>>"$PLAN.err"; then
+    plan_ok=1
+fi
+if [ "$plan_ok" = 0 ]; then
+    [ -n "$GATE_BASE" ] || echo "no merge-base with $LAND_GATE_BASE_REF" >>"$PLAN.err"
+    : >"$CHANGED_LIST"
+    {
+        printf '# mode\tfull\t\t\n'
+        for s in $STEPS; do
+            case "$s" in ci-shards | slow | bats) v=full ;; *) v=run ;; esac
+            printf '%s\t%s\t%s\t\n' "$s" "$v" "no plan, so everything runs"
+        done
+    } >"$PLAN"
+    echo "→ no plan ($(tail -n 1 "$PLAN.err" 2>/dev/null)): everything runs"
+fi
+echo "→ plan: $(plan_mode) ($(wc -l <"$CHANGED_LIST" | tr -d ' ') changed path(s) since ${GATE_BASE:0:10}; HELIX_GATE_FULL=1 runs everything)"
+awk -F'\t' '$1 !~ /^#/ { printf "    %-17s %-6s  %s\n", $1, $2, $3 }' "$PLAN" 2>/dev/null
+
 # The app build applies patches/ to the submodules while bats, the freshness
 # checks and a test-host C++ run's copy of the tree already read them. Applied
 # first, every lane sees fully patched submodules; with the stamp current it is
@@ -507,7 +600,7 @@ print_table() {
         else
             status=FAIL secs=- log="no result: its lane died"
         fi
-        [ "$status" = PASS ] || { failed=1; unpassed+=",$s"; }
+        case "$status" in PASS | SKIP) ;; *) failed=1; unpassed+=",$s" ;; esac
         if [ "$secs" = - ]; then dur=-; else dur="${secs}s"; fi
         printf '  %-7s  %-17s %7s  %s\n' "$status" "$s" "$dur" "$log"
     done
@@ -542,8 +635,8 @@ if [ -n "$RERUN" ]; then
     for s in $STEPS; do
         reruns "$s" || continue
         case " $BUILD_DEPENDENTS " in
-            *" $s "*) if ! grep -q '^PASS ' "$ROWS_DIR/app-build" 2>/dev/null; then
-                          skip "$s" "app-build failed"
+            *" $s "*) if ! grep -Eq '^(PASS|SKIP) ' "$ROWS_DIR/app-build" 2>/dev/null; then
+                          blocked "$s" "app-build failed"
                           continue
                       fi ;;
         esac
