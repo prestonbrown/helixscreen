@@ -1016,6 +1016,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                            {"app", app_name},
                            {"software_version", software_version},
                            {"klipper_path", "/home/pi/klipper"},
+                           {"config_file", "/home/pi/printer_data/config/printer.cfg"},
                            {"python_path", "/home/pi/klippy-env/bin/python"},
                            {"log_file", "/home/pi/printer_data/logs/klippy.log"}}}};
 

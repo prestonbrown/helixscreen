@@ -48,6 +48,7 @@
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
+#include "material_z_offset_state.h"
 #include "memory_monitor.h"
 #include "mock_performance_source.h"
 #include "moonraker_api.h"
@@ -757,6 +758,9 @@ void PrinterSession::teardown_printer_scope(TeardownScope scope, DisplayManager*
 
     // Unsubscribe bed mesh, power device and sensor state
     helix::BedMeshState::instance().detach();
+    // A save or file search still waiting on the old printer must never reach
+    // the next one, nor the api about to be destroyed.
+    helix::material_zoffset::MaterialZOffsetState::instance().reset_printer_scope();
     if (m_moonraker && m_moonraker->api()) {
         helix::PowerDeviceState::instance().unsubscribe(*m_moonraker->api());
         helix::SensorState::instance().unsubscribe(*m_moonraker->api());

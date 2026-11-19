@@ -4,6 +4,7 @@
 #include "ui_filament_runout_handler.h"
 
 #include "ui_resume_dispatch.h"
+#include "ui_runout_other_head_modal.h"
 #include "ui_unload_lane_choice.h"
 
 #include "ams_backend.h"
@@ -258,6 +259,26 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         user_took_manual_action_ = true; // in-dialog action suppresses auto-close
         dispatch_purge();
     });
+
+    // Continue on another loaded head (#2137), where the filament system can
+    // move the rest of the print there. The chooser stacks on this dialog.
+    {
+        AmsBackend* backend = AmsState::instance().get_backend();
+        int runout_head = backend ? backend->get_current_tool() : -1;
+        if (backend && runout_lane_ >= 0) {
+            runout_head = backend->head_for_slot(runout_lane_).value_or(runout_head);
+        }
+        runout_modal_.set_other_head_offered(
+            runout_head >= 0 && helix::ui::RunoutOtherHeadModal::available(runout_head));
+        runout_modal_.set_on_use_other_head([token, runout_head]() {
+            if (token.expired())
+                return;
+            spdlog::info("[FilamentRunoutHandler] User chose another toolhead after a runout "
+                         "on head {}",
+                         runout_head);
+            helix::ui::RunoutOtherHeadModal::show_owned(runout_head);
+        });
+    }
 
     runout_modal_.set_on_ok_dismiss([token]() {
         if (token.expired())

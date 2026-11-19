@@ -31,6 +31,7 @@
 #include "macro_manager.h"
 #include "macro_param_cache.h"
 #include "macro_patterns.h"
+#include "material_z_offset.h"
 #include "moonraker_api.h"
 #include "moonraker_auth.h"
 #include "moonraker_client.h"
@@ -1446,6 +1447,15 @@ json MoonrakerDiscoverySequence::build_subscription_objects(const PrinterDiscove
     // whenever such a printer is idle. See include/z_offset_persistence.h.
     for (const auto& obj : helix::zoffset::required_status_objects(hw)) {
         subscription_objects[obj] = nullptr;
+    }
+
+    // The per-material Z offset table and what the start macro last applied.
+    // An object already subscribed keeps its field list (bed_mesh carries
+    // profiles). See include/material_z_offset.h.
+    for (const auto& obj : helix::material_zoffset::required_status_objects(hw)) {
+        if (!subscription_objects.contains(obj)) {
+            subscription_objects[obj] = nullptr;
+        }
     }
 
     // Firmware that reports faults as structured codes keeps the standing

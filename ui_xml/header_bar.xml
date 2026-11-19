@@ -257,8 +257,12 @@
          title already flex-grows, so a labelled button here eats the title. -->
     <ui_button name="header_save_z_offset"
                width="content" height="$action_button_height" style_max_height="#header_button_height"
-               style_bg_color="#success" icon="check" icon_size="sm" hidden="true" moves_machine="true">
+               style_bg_color="#success" icon="check" icon_size="sm" hidden="true">
       <bind_flag_if_eq subject="z_offset_save_available" flag="hidden" ref_value="0"/>
+      <!-- The toolhead guard follows the save a tap would make: the machine-wide
+           save restarts Klipper and waits while a job holds the machine; a
+           per-material one moves nothing and restarts nothing. -->
+      <bind_state_if_eq subject="z_offset_save_motion_blocked" state="disabled" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_header_save_z_offset"/>
     </ui_button>
   </view>

@@ -2499,6 +2499,9 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
         if (ptc.filament_sub_type[i]) {
             task_subtype_[static_cast<size_t>(i)] = *ptc.filament_sub_type[i];
         }
+        if (ptc.filament_color_multi[i]) {
+            task_color_multi_[static_cast<size_t>(i)] = *ptc.filament_color_multi[i];
+        }
         if (ptc.filament_official[i]) {
             task_official_[static_cast<size_t>(i)] = *ptc.filament_official[i];
         }
@@ -2894,6 +2897,7 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
         apply_working_slot_locked(fx);
 
         apply_print_task_config_locked(delta, fx);
+        note_pause_records_locked();
         fx.check_used_heads = used_heads_check_due_locked(frame_names_state, frame_names_file);
         fx.check_used_heads_file = print_filename_;
         fx.check_used_heads_print = print_generation_;
@@ -4143,6 +4147,72 @@ AmsBackendSnapmaker::get_endless_spool_capabilities() const {
             .editability = EndlessSpoolEditability::ReadOnly,
             .restriction = EndlessSpoolRestriction::FirmwareManaged,
             .switchable = true};
+}
+
+std::optional<helix::runout_other_head::FilamentRecord>
+AmsBackendSnapmaker::task_record_locked(int head) const {
+    // The record Auto-Replenish compares: vendor, type, subtype and colour
+    // record. A head whose vendor or type reads NONE is never a candidate.
+    const auto idx = static_cast<size_t>(head);
+    const auto& multi = task_color_multi_[idx];
+    if (!task_vendor_[idx] || is_unset_task_field(*task_vendor_[idx]) || !task_type_[idx] ||
+        is_unset_task_field(*task_type_[idx]) || !multi) {
+        return std::nullopt;
+    }
+    return helix::runout_other_head::FilamentRecord{.vendor = *task_vendor_[idx],
+                                                    .type = *task_type_[idx],
+                                                    .subtype =
+                                                        task_subtype_[idx].value_or(std::string{}),
+                                                    .colors = multi->colors,
+                                                    .alpha = multi->alpha,
+                                                    .multi_mode = multi->mode};
+}
+
+void AmsBackendSnapmaker::note_pause_records_locked() {
+    if (!print_state_ || *print_state_ != "paused") {
+        pause_records_.fill(std::nullopt);
+        return;
+    }
+    for (int i = 0; i < kNumTools; ++i) {
+        auto& kept = pause_records_[static_cast<size_t>(i)];
+        if (!kept) {
+            kept = task_record_locked(i);
+        }
+    }
+}
+
+std::optional<helix::runout_other_head::RunoutFacts>
+AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
+    namespace roh = helix::runout_other_head;
+    if (runout_head < 0 || runout_head >= kNumTools) {
+        return std::nullopt;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    roh::RunoutFacts facts;
+    facts.runout_head = runout_head;
+    facts.paused = print_state_ && *print_state_ == "paused";
+    facts.active_head = system_info_.current_tool;
+    facts.auto_switch_enabled = print_preferences_.auto_replenish;
+    const auto& kept = pause_records_[static_cast<size_t>(runout_head)];
+    facts.original = kept ? kept : task_record_locked(runout_head);
+    facts.routing = extruder_map_table_;
+    for (int i = 0; i < kNumTools; ++i) {
+        const auto& snap = channel_snapshots_[static_cast<size_t>(i)];
+        const auto& ext = extruder_states_[static_cast<size_t>(i)];
+        roh::HeadFacts h;
+        h.head = i;
+        h.nozzle_diameter = ext.nozzle_diameter;
+        h.nozzle_flow = ext.nozzle_volume_type.value_or(std::string{});
+        // The firmware's own tests (print_task_config.py
+        // cmd_INNER_AUTO_REPLENISH_FILAMENT): the feeder can supply the head
+        // now, or it finished a load into it.
+        h.feeder_can_supply = snap.module_exist && !snap.disable_auto && snap.filament_detected &&
+                              snap.sensor_enabled;
+        h.loaded_by_feeder = snap.state == "load_finish" || h.feeder_can_supply;
+        h.record = task_record_locked(i);
+        facts.heads.push_back(std::move(h));
+    }
+    return facts;
 }
 
 AmsError AmsBackendSnapmaker::apply_endless_spool_enabled(bool enabled) {

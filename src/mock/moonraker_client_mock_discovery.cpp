@@ -523,6 +523,9 @@ void MoonrakerClientMock::populate_capabilities() {
     if (helix::mock::timelapse_plugin_present()) {
         mock_objects.push_back("timelapse");
     }
+    // HELIX_MOCK_MATERIAL_ZOFFSET: a per-material Z offset table and its start macro.
+    append_material_zoffset_objects(mock_objects);
+
     // HELIX_MOCK_TIMELAPSE=helix-macros: helper macros loaded, no TIMELAPSE_TAKE_FRAME.
     if (helix::mock::timelapse_helix_macros_loaded()) {
         for (const char* m : {"HELIX_READY", "HELIX_ENDED", "HELIX_RESET", "HELIX_START_PRINT",
@@ -693,6 +696,17 @@ void MoonrakerClientMock::populate_capabilities() {
                                 "print_task_config", "machine_state_manager"}) {
             if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
                 mock_objects.push_back(obj);
+            }
+        }
+        // HELIX_MOCK_U1_EMPTY_PORTS=<head digits>: those heads' spools ran
+        // out at the port (an empty feeder), as after a real runout.
+        if (const char* empty = std::getenv("HELIX_MOCK_U1_EMPTY_PORTS")) {
+            for (const char* c = empty; *c != '\0'; ++c) {
+                if (*c >= '0' && *c < '0' + kU1Channels) {
+                    const auto head = static_cast<size_t>(*c - '0');
+                    u1_filament_detected_[head] = false;
+                    u1_channel_state_[head] = "wait_insert";
+                }
             }
         }
     }

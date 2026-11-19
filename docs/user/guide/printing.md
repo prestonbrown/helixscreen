@@ -397,7 +397,7 @@ The overlay also holds the Z-Offset controls (see [Z-Offset / Baby Steps](#z-off
 
 ## Z-Offset / Baby Steps
 
-Fine-tune your first layer height, during a print or while idle.
+Fine-tune your first layer height, during a print or while idle. The [Z Offset guide](z-offset.md) covers calibration, firmware-managed printers, per-tool offsets and the gotchas in full.
 
 The [Z-Offset widget](home-widgets-print.md#z-offset-widget) puts the live offset, the baby-step buttons and **Save** on the home screen.
 
@@ -432,6 +432,10 @@ Next to the Z-Offset reading, the Tune overlay can show a line such as "Saved 0.
 An adjustment made from the Tune overlay is temporary: it lasts for this print unless you save it.
 
 The Save Z-Offset buttons can be turned off for a printer with **Save Z-Offset Buttons** in **Settings > Printing > Motion** (see [Motion](motion.md#motion-settings)). They start off on tool changers, and the switch is hidden on printers whose firmware saves the offset itself.
+
+### A Z offset for each material
+
+A bed heated for PETG or ABS sits at a slightly different height than one heated for PLA. **Settings > Printing > Z Offset by Material** keeps a separate offset (and optionally a bed mesh) for each material and applies the right one at every print. With it on, **Save** writes only the print's material, works during a print, and does not restart Klipper. Setup and limitations: [Z Offset by Material](z-offset-by-material.md).
 
 **The hint under the Z-Offset controls** tells you what happens to your adjustment:
 

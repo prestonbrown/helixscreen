@@ -10,6 +10,7 @@
 #include "exception_policy.h"
 #include "gcode_parser.h"
 #include "json_utils.h"
+#include "material_z_offset_state.h"
 #include "memory_monitor.h"
 #include "print_3mf.h"
 #include "print_cost_service.h"
@@ -429,6 +430,8 @@ void ActivePrintMediaManager::describe_archive_plate(const std::string& filename
                     const FileMetadata meta = three_mf::plate_file_metadata(*shown);
                     auto& print_state = printer_state_.print_state();
                     print_state.set_print_materials(materials_in_metadata(meta));
+                    helix::material_zoffset::MaterialZOffsetState::instance().note_print_file(
+                        helix::material_zoffset::first_filament(meta.filament_type));
                     helix::print_cost::ActivePrintCost::instance().set_file(archive, meta);
                     if (meta.estimated_time > 0) {
                         print_state.set_estimated_print_time(static_cast<int>(meta.estimated_time));
@@ -647,6 +650,8 @@ void ActivePrintMediaManager::load_thumbnail_for_file(const std::string& filenam
                 }
 
                 printer_state_.print_state().set_print_materials(materials_in_metadata(metadata));
+                helix::material_zoffset::MaterialZOffsetState::instance().note_print_file(
+                    helix::material_zoffset::first_filament(metadata.filament_type));
                 helix::print_cost::ActivePrintCost::instance().set_file(metadata_filename,
                                                                         metadata);
 

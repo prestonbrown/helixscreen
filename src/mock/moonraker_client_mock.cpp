@@ -1964,6 +1964,8 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
                   bed_target);
 
     dispatch_print_state_notification("printing");
+    // The start macro applies the material's Z offset (HELIX_MOCK_MATERIAL_ZOFFSET).
+    apply_material_zoffset_at_start(meta.filament_type, filename);
     return true;
 }
 
@@ -2106,6 +2108,18 @@ bool MoonrakerClientMock::toggle_filament_runout() {
 
     spdlog::info("[MoonrakerClientMock] Filament toggle on '{}': {} -> {}", runout_sensor,
                  new_state ? "empty" : "detected", new_state ? "detected" : "empty");
+
+    // On the U1 an empty spool also empties the head's feeder port; the
+    // firmware's Auto-Replenish reads that before it looks for another head.
+    if (is_mock_u1_snapswap()) {
+        int head = 0;
+        {
+            std::lock_guard<std::mutex> lock(u1_snapswap_mutex_);
+            head = u1_active_head_;
+        }
+        u1_filament_detected_[static_cast<size_t>(head)] = new_state;
+        publish_u1_channel_frame(head);
+    }
 
     // Dispatch status update through normal flow
     json status;

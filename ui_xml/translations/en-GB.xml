@@ -10,6 +10,7 @@
   <translation tag="Any other material" en-GB="Any other material"/>
   <translation tag="Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand." en-GB="Auto loading is off for this toolhead. Turn it on under Print Behaviour, or load the filament by hand."/>
   <translation tag="Auto loading is off; turn it on under Print Behavior" en-GB="Auto loading is off; turn it on under Print Behaviour"/>
+  <translation tag="Auto-Replenish is turned on for this switch and off again after." en-GB="Auto-Replenish is turned on for this switch and off again after."/>
   <translation tag="Average draw while printing, in watts" en-GB="Average draw while printing, in watts"/>
   <translation tag="Bed Leveling" en-GB="Bed Levelling"/>
   <translation tag="Bluetooth initialization failed" en-GB="Bluetooth initialisation failed"/>
@@ -32,6 +33,8 @@
   <translation tag="Color Mismatch" en-GB="Colour Mismatch"/>
   <translation tag="Color Sensors" en-GB="Colour Sensors"/>
   <translation tag="Colors for every screen" en-GB="Colours for every screen"/>
+  <translation tag="Continue on Another Toolhead" en-GB="Continue on Another Toolhead"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." en-GB="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes."/>
   <translation tag="Could not analyze PRINT_START macro. Some print options may be unavailable." en-GB="Could not analyse PRINT_START macro. Some print options may be unavailable."/>
   <translation tag="Could not initialize WiFi hardware. Check system configuration." en-GB="Could not initialise WiFi hardware. Check system configuration."/>
   <translation tag="Currency" en-GB="Currency"/>
@@ -39,6 +42,10 @@
   <translation tag="Customize preset temperatures" en-GB="Customise preset temperatures"/>
   <translation tag="Customize your home screen" en-GB="Customise your home screen"/>
   <translation tag="Delete the layer indexes? Previews read each file again until it is analyzed again." en-GB="Delete the layer indexes? Previews read each file again until it is analysed again."/>
+  <translation tag="Different color" en-GB="Different colour"/>
+  <translation tag="Different material" en-GB="Different material"/>
+  <translation tag="Different nozzle flow type" en-GB="Different nozzle flow type"/>
+  <translation tag="Different nozzle size" en-GB="Different nozzle size"/>
   <translation tag="Edit Theme Colors" en-GB="Edit Theme Colours"/>
   <translation tag="Edit Theme Colors (Modified)" en-GB="Edit Theme Colours (Modified)"/>
   <translation tag="Electricity" en-GB="Electricity"/>
@@ -48,6 +55,8 @@
   <translation tag="Failed to initialize Bluetooth" en-GB="Failed to initialise Bluetooth"/>
   <translation tag="Failed to initialize Bluetooth context" en-GB="Failed to initialise Bluetooth context"/>
   <translation tag="Favorites" en-GB="Favourites"/>
+  <translation tag="Filament is still at the empty head&apos;s feeder" en-GB="Filament is still at the empty head&apos;s feeder"/>
+  <translation tag="Filament not identified" en-GB="Filament not identified"/>
   <translation tag="Filament price per kg" en-GB="Filament price per kg"/>
   <translation tag="Filament prices and electricity" en-GB="Filament prices and electricity"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." en-GB="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and colour, then resume."/>
@@ -61,6 +70,7 @@
   <translation tag="Initializing..." en-GB="Initialising..."/>
   <translation tag="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements." en-GB="Input shaping reduces ringing and ghosting artefacts caused by printer vibrations during fast movements."/>
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." en-GB="Input shaping reduces vibration artefacts (ringing) in your prints."/>
+  <translation tag="Its filament is a different color." en-GB="Its filament is a different colour."/>
   <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." en-GB="Jog Y until the nozzle is centred over the chute opening, then tap Save."/>
   <translation tag="Last print canceled" en-GB="Last print cancelled"/>
   <translation tag="Leveling Gantry..." en-GB="Levelling Gantry..."/>
@@ -73,8 +83,11 @@
   <translation tag="Map to closest colors with matching material" en-GB="Map to closest colours with matching material"/>
   <translation tag="Neutralize Tension" en-GB="Neutralise Tension"/>
   <translation tag="No color" en-GB="No colour"/>
+  <translation tag="No other toolhead can take over this print." en-GB="No other toolhead can take over this print."/>
   <translation tag="Not Initialized" en-GB="Not Initialised"/>
+  <translation tag="Not loaded by its feeder" en-GB="Not loaded by its feeder"/>
   <translation tag="Nozzle did not reach {} — {} canceled" en-GB="Nozzle did not reach {} — {} cancelled"/>
+  <translation tag="Nozzle not reported" en-GB="Nozzle not reported"/>
   <translation tag="Open Source Licenses" en-GB="Open Source Licences"/>
   <translation tag="Open color and brightness controls" en-GB="Open colour and brightness controls"/>
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" en-GB="OpenAMS keeps this spool in Spoolman, which takes only material, colour, brand and weight here"/>
@@ -90,11 +103,13 @@
   <translation tag="Print canceled" en-GB="Print cancelled"/>
   <translation tag="Printer is not ready. Please wait for initialization." en-GB="Printer is not ready. Please wait for initialisation."/>
   <translation tag="Printer power" en-GB="Printer power"/>
+  <translation tag="Ran out" en-GB="Ran out"/>
   <translation tag="Reaches {:g} mm from the center, past this printer&apos;s {:g} mm radius." en-GB="Reaches {:g} mm from the centre, past this printer&apos;s {:g} mm radius."/>
   <translation tag="Reduce ringing and ghosting artifacts" en-GB="Reduce ringing and ghosting artefacts"/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" en-GB="Reduce vibration artefacts like ringing and ghosting"/>
   <translation tag="Replenish ignores color" en-GB="Replenish ignores colour"/>
   <translation tag="Resume canceled" en-GB="Resume cancelled"/>
+  <translation tag="Same filament" en-GB="Same filament"/>
   <translation tag="Set the X and Y belts with the motorized tensioners" en-GB="Set the X and Y belts with the motorised tensioners"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" en-GB="Set the filament type and colour by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle"/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." en-GB="Set this to Spoolman&apos;s currency if you use both."/>
@@ -106,13 +121,16 @@
   <translation tag="TD-1 filament color detection" en-GB="TD-1 filament colour detection"/>
   <translation tag="THEME COLORS" en-GB="THEME COLOURS"/>
   <translation tag="Temperature control optimized for {} at {}." en-GB="Temperature control optimised for {} at {}."/>
+  <translation tag="That toolhead can no longer take over the print" en-GB="That toolhead can no longer take over the print"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." en-GB="The print is cancelled and you pick the best band from what has printed so far."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." en-GB="The printable size in millimetres (X × Y × Z), from the axis limits in the printer&apos;s Klipper config."/>
+  <translation tag="The printer has not reported whether Auto-Replenish is on" en-GB="The printer has not reported whether Auto-Replenish is on"/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." en-GB="The printer may home and move the toolhead, then the motorised tensioners set the X and Y belts. Keep the bed and gantry clear."/>
   <translation tag="Theme Colors" en-GB="Theme Colours"/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." en-GB="This printer fills its gates from Spoolman. Make colour, material and spool changes in Spoolman."/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en-GB="This wait ends only at its temperature: cancelling takes an emergency stop and a firmware restart."/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." en-GB="Upgrade to AFC 1.2.0 or newer for multi-colour spools. It also adds filament names, which otherwise need Spoolman."/>
+  <translation tag="Use Another Toolhead" en-GB="Use Another Toolhead"/>
   <translation tag="Vertical Artifact Check" en-GB="Vertical Artefact Check"/>
   <translation tag="Vertical Artifact Compensation" en-GB="Vertical Artefact Compensation"/>
   <translation tag="WiFi initialization failed: {}" en-GB="WiFi initialisation failed: {}"/>
@@ -120,5 +138,10 @@
   <translation tag="Z probes for bed leveling and mesh generation" en-GB="Z probes for bed levelling and mesh generation"/>
   <translation tag="color differs" en-GB="colour differs"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" en-GB="exact: same material and colour. material: same material. next: any ready slot, even a different material"/>
+  <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en-GB="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
+  <translation tag="{} did not switch to {}. The print is still paused." en-GB="{} did not switch to {}. The print is still paused."/>
+  <translation tag="{} holds the same filament, and the printer uses that one." en-GB="{} holds the same filament, and the printer uses that one."/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." en-GB="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament."/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." en-GB="{} ran out, and the printer has not said what it was printing."/>
   <translation tag="{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present." en-GB="{} will switch to a slot whose filament type AND colour both match the active spool and whose own port sensor reads filament present."/>
 </translations>

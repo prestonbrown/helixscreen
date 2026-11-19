@@ -116,6 +116,23 @@ class RunoutGuidanceModal : public Modal {
         lv_subject_set_int(&resume_blocked_subject_, blocked ? 1 : 0);
     }
 
+    /**
+     * @brief Offer "Use Another Toolhead" (#2137): continue the paused print on
+     *        another loaded head.
+     *
+     * Set at every show from RunoutOtherHeadModal::available(); the button also
+     * hides outside a pause. Main thread only.
+     */
+    void set_other_head_offered(bool offered) {
+        lv_subject_set_int(&other_head_offered_subject_, offered ? 1 : 0);
+    }
+
+    /// Callback for the "Use Another Toolhead" button (btn_other_head). The
+    /// dialog stays open: the chooser stacks on it and Back returns here.
+    void set_on_use_other_head(Callback cb) {
+        on_use_other_head_ = std::move(cb);
+    }
+
     /// Subject the handler observes/binds; exposed so the handler can read the
     /// current gate state. Component-scoped, statically stored (survives
     /// show/hide). Never null after construction (init_subjects runs in ctor).
@@ -129,6 +146,11 @@ class RunoutGuidanceModal : public Modal {
     /// without going through an XML scope lookup.
     static lv_subject_t* advisory_subject() {
         return &advisory_subject_;
+    }
+
+    /// The subject set_other_head_offered() drives; same storage rules.
+    static lv_subject_t* other_head_offered_subject() {
+        return &other_head_offered_subject_;
     }
 
     /**
@@ -323,6 +345,14 @@ class RunoutGuidanceModal : public Modal {
     Callback on_resume_;
     Callback on_cancel_print_;
     Callback on_ok_dismiss_;
+    Callback on_use_other_head_;
+
+    static void other_head_button_cb(lv_event_t* e) {
+        auto* self = static_cast<RunoutGuidanceModal*>(lv_event_get_user_data(e));
+        if (self && self->on_use_other_head_) {
+            self->on_use_other_head_();
+        }
+    }
 
     // Capability subject driving the capable-aware layout (0 = manual Load
     // prominent, 1 = autofeed: Resume-first, manual row demoted). C++-owned and
@@ -341,6 +371,9 @@ class RunoutGuidanceModal : public Modal {
     // surface's private state when all three share it. Default 0: a caller that forgets
     // set_advisory() gets the warning icon, which is the safe direction to fail.
     static inline helix::Subject advisory_subject_{};
+    // 1 = offer "Use Another Toolhead" (#2137). Default 0: never offered unless
+    // the show site says the filament system can do it.
+    static inline helix::Subject other_head_offered_subject_{};
     static inline bool subjects_initialized_ = false;
 
     static void init_subjects() {
@@ -351,10 +384,12 @@ class RunoutGuidanceModal : public Modal {
         autofeed_capable_subject_.init_int(0);
         resume_blocked_subject_.init_int(0);
         advisory_subject_.init_int(0);
+        other_head_offered_subject_.init_int(0);
 
         lv_xml_register_subject(nullptr, "runout_autofeed_capable", &autofeed_capable_subject_);
         lv_xml_register_subject(nullptr, "runout_resume_blocked", &resume_blocked_subject_);
         lv_xml_register_subject(nullptr, "runout_is_advisory", &advisory_subject_);
+        lv_xml_register_subject(nullptr, "runout_other_head_offered", &other_head_offered_subject_);
 
         StaticSubjectRegistry::instance().register_deinit("RunoutGuidanceModal", []() {
             if (!subjects_initialized_)
@@ -362,9 +397,11 @@ class RunoutGuidanceModal : public Modal {
             lv_xml_unregister_subject(nullptr, "runout_autofeed_capable");
             lv_xml_unregister_subject(nullptr, "runout_resume_blocked");
             lv_xml_unregister_subject(nullptr, "runout_is_advisory");
+            lv_xml_unregister_subject(nullptr, "runout_other_head_offered");
             autofeed_capable_subject_.reset();
             resume_blocked_subject_.reset();
             advisory_subject_.reset();
+            other_head_offered_subject_.reset();
             subjects_initialized_ = false;
         });
     }
