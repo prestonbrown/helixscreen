@@ -7848,6 +7848,9 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
     AmsError execute_gcode(const std::string& gcode) override {
         sent_.push_back(gcode);
         pending_acks_.emplace_back(nullptr);
+        if (fail_g28 && gcode == "G28") {
+            return AmsErrorHelper::not_connected("homing failed");
+        }
         return AmsErrorHelper::success();
     }
 
@@ -7862,6 +7865,8 @@ class AfcDispatchAckHelper : public AmsBackendAfc {
     }
 
     bool homed = true;
+    /// The G28 a dispatch sends ahead of its payload fails.
+    bool fail_g28 = false;
 
     /// Whether an optimistic dispatch is still armed and awaiting resolution
     /// -- mirrors ToolChangerTestAccess::has_pending_dispatch(). Reachable
@@ -7979,6 +7984,54 @@ TEST_CASE("AFC names the lane a load is headed for until the load ends",
     CHECK(h.get_system_info().pending_target_slot == 3);
     h.feed_state("Idle");
     CHECK(h.get_system_info().pending_target_slot == -1);
+}
+
+TEST_CASE("AFC lane change shows the incoming lane through the load half",
+          "[ams][afc][dispatch][spool_spin][toolchange]") {
+    AfcDispatchAckHelper h;
+    h.feed_afc({{"current_state", "Idle"}, {"current_lane", "lane1"}});
+    REQUIRE(h.get_system_info().current_slot == 0);
+
+    // CHANGE_TOOL unloads lane1, reports Idle between the halves, then loads lane3.
+    auto change_to_lane3 = [&h]() {
+        h.feed_afc({{"current_state", "Unloading"}, {"next_lane", "lane3"}});
+        h.feed_afc({{"current_state", "Idle"}, {"current_lane", nullptr}});
+        CHECK(h.get_system_info().action == AmsAction::UNLOADING);
+        CHECK(h.get_system_info().pending_target_slot == 2);
+        h.feed_afc({{"current_state", "Loading"}});
+        CHECK(h.get_system_info().path_active_slot() == 2);
+        h.feed_afc({{"current_state", "Idle"}, {"current_lane", "lane3"}, {"next_lane", nullptr}});
+        CHECK(h.get_system_info().pending_target_slot == -1);
+        CHECK(h.get_system_info().path_active_slot() == 2);
+    };
+
+    SECTION("a load the user started") {
+        REQUIRE(h.load_filament(2).success());
+        change_to_lane3();
+    }
+    SECTION("a tool change from the print's gcode") {
+        change_to_lane3();
+    }
+}
+
+TEST_CASE("AFC load that never starts names no incoming lane", "[ams][afc][dispatch]") {
+    AfcDispatchAckHelper h;
+
+    SECTION("its homing move fails") {
+        h.homed = false;
+        h.fail_g28 = true;
+        REQUIRE(h.load_filament(2).success());
+        REQUIRE(h.sent().size() == 1);
+        CHECK(h.action() == AmsAction::IDLE);
+    }
+    SECTION("Klipper restarts under it") {
+        REQUIRE(h.load_filament(2).success());
+        REQUIRE(h.get_system_info().pending_target_slot == 2);
+        h.on_klipper_restarted();
+        CHECK(h.action() == AmsAction::IDLE);
+    }
+    CHECK(h.get_system_info().pending_target_slot == -1);
+    CHECK(h.get_system_info().path_active_slot() == -1);
 }
 
 namespace helix {
