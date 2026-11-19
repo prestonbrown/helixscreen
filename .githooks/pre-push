@@ -34,16 +34,21 @@
 # leave a main, release/* or tag commit unswept that way is refused; push the
 # protected ref alone, or last.
 #
-# A tip `make land-gate` passed runs only patch drift
-# (.githooks/lib/land-gate-stamp.sh). That gate ran quality-checks.sh, the
-# clang/GCC divergence gate inside it, and esp32_syntax_check.py --require over
-# the branch since its merge-base with origin/main, which covers every firmware
-# unit the pushed range reaches, on exactly that commit. Patch drift is the one
-# question it did not answer: drift describes this tree's lib/, not the
-# commit. The pass counts from this clone, from another clone on this host, or
-# from a gate host named in HELIX_LAND_GATE_HOSTS (build-hosts.env), asked over
-# ssh when nothing here matches. A stamp names a commit, not a tree, so it
-# counts the same from a dirty tree, and no throwaway checkout is made.
+# A tip `make land-gate` passed skips the quality sweep and its clang/GCC
+# divergence gate: the gate ran quality-checks.sh on exactly that commit
+# (.githooks/lib/land-gate-stamp.sh). The pass counts from this clone, from
+# another clone on this host, or from a gate host named in HELIX_LAND_GATE_HOSTS
+# (build-hosts.env), asked over ssh when nothing here matches. A stamp names a
+# commit, not a tree, so it counts the same from a dirty tree, whose push is
+# swept in a throwaway checkout of that commit. Patch drift still runs: it
+# describes this tree's lib/, not the commit.
+#
+# The ESP32 syntax check is skipped too when the gate's own run covers it: every
+# pushed ref is main, and the pushed range lies inside the range the gate's
+# esp32 row measured (merge-base(HEAD, origin/main)..HEAD, which that row runs
+# with --require). Then the push runs patch drift alone, in seconds, with no
+# throwaway checkout. A push to release/* or a tag still runs the ESP32 check:
+# the gate measured its range from origin/main, not from that line.
 #
 # Doc anchors are not checked here: `make check-doc-anchors` is advisory, takes
 # over a minute, and blocks nothing, so a push would wait on a report it ignores.
@@ -69,6 +74,7 @@ cd "$REPO_ROOT"
 TARGET=""
 REMOTE_SHA=""
 WORK_BRANCHES_ONLY=1
+MAIN_ONLY=1
 PROTECTED_SHAS=""
 while read -r _local_ref local_sha remote_ref remote_sha; do
     # All zeros is a branch deletion: it publishes no content to gate.
@@ -76,6 +82,7 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
         "" | *[!0]*) TARGET="$local_sha" REMOTE_SHA="$remote_sha" ;;
         *) continue ;;
     esac
+    [ "$remote_ref" = refs/heads/main ] || MAIN_ONLY=""
     case "$remote_ref" in
         refs/heads/main | refs/heads/release/* | refs/tags/*)
             WORK_BRANCHES_ONLY=""
@@ -116,11 +123,24 @@ if [ -z "${HELIX_PREPUSH_FULL:-}" ]; then
         GATE_PASSED=1
     fi
 fi
-if [ -n "$GATE_PASSED" ]; then
-    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and ESP32 check it ran (HELIX_PREPUSH_FULL=1 runs them)"
+# esp32_covered_by_gate: the gate's esp32 row, merge-base(TARGET, origin/main)
+# to TARGET, holds the whole pushed range, BASE to TARGET.
+esp32_covered_by_gate() {
+    local fork
+    [ -n "$MAIN_ONLY" ] && [ -n "$BASE" ] || return 1
+    fork=$(git merge-base "$TARGET" origin/main 2>/dev/null) || return 1
+    git merge-base --is-ancestor "$fork" "$BASE" 2>/dev/null &&
+        git merge-base --is-ancestor "$BASE" "$TARGET" 2>/dev/null
+}
+if [ -n "$GATE_PASSED" ] && esp32_covered_by_gate; then
+    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and the ESP32 check its esp32 row covered (HELIX_PREPUSH_FULL=1 runs them)"
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || exit 1
     exit 0
 fi
+
+gate_passed_note() {
+    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
+}
 
 # Code that compiles on the host can still fail on the ESP32 image: int32_t is
 # long on Xtensa and the image builds -fno-exceptions. This syntax-checks the
@@ -138,10 +158,14 @@ TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . | head -1)"
 
 if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ]; then
     STATUS=0
-    echo "🚦 pre-push: $SWEEP_NOTE"
-    # Drift is asked once, below, where patches the push ships can be told
-    # apart from drift the push does not explain.
-    env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
+    if [ -n "$GATE_PASSED" ]; then
+        gate_passed_note
+    else
+        echo "🚦 pre-push: $SWEEP_NOTE"
+        # Drift is asked once, below, where patches the push ships can be told
+        # apart from drift the push does not explain.
+        env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
+    fi
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
     esp32_syntax_check "$REPO_ROOT" || STATUS=1
     exit "$STATUS"
@@ -208,10 +232,14 @@ done
 # never built. Reporting green off an unbuilt tree would be a vacuous pass, so
 # the gate declines - correctly - and the question moves below with patch drift.
 STATUS=0
-echo "🚦 pre-push: $SWEEP_NOTE"
-( cd "$ISOLATED/tree" \
-    && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
-       ./scripts/quality-checks.sh ) || STATUS=$?
+if [ -n "$GATE_PASSED" ]; then
+    gate_passed_note
+else
+    echo "🚦 pre-push: $SWEEP_NOTE"
+    ( cd "$ISOLATED/tree" \
+        && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
+           ./scripts/quality-checks.sh ) || STATUS=$?
+fi
 
 esp32_syntax_check "$ISOLATED/tree" || STATUS=1
 
@@ -223,7 +251,7 @@ fi
 
 prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
 
-if [ -z "$WORK_BRANCHES_ONLY" ] &&
+if [ -z "$GATE_PASSED" ] && [ -z "$WORK_BRANCHES_ONLY" ] &&
     [ -f "$REPO_ROOT/scripts/check_clang_diagnostics.py" ]; then
     echo ""
     echo "🐉 Checking clang/GCC divergence in your working tree (it has the compile database)..."

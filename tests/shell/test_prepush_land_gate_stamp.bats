@@ -67,26 +67,26 @@ run_hook() { # push TIP to a remote that has BASE
         _ "$ROOT" "$TIP" "$BASE" "$HOOK"
 }
 
-@test "a tip the land-gate passed skips the sweep and the ESP32 check, and still asks drift" {
+@test "a tip the land-gate passed skips the sweep and still runs ESP32 and drift" {
     stamp "$TIP"
     run_hook
     [ "$status" -eq 0 ]
     contains "make land-gate passed ${TIP:0:9}" "$output"
     lacks "ran: quality-checks" "$output"
-    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 
-@test "from a dirty tree, a gated tip makes no throwaway checkout and runs only drift" {
+@test "from a dirty tree, a gated tip skips the sweep and the clang gate" {
     stamp "$TIP"
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
-    lacks "throwaway checkout" "$output"
+    contains "throwaway checkout" "$output"
     contains "make land-gate passed ${TIP:0:9}" "$output"
     lacks "ran: quality-checks" "$output"
     lacks "ran: check_clang_diagnostics" "$output"
-    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 
@@ -96,7 +96,6 @@ run_hook() { # push TIP to a remote that has BASE
     [ "$status" -eq 0 ]
     lacks "land-gate passed" "$output"
     contains "ran: quality-checks" "$output"
-    contains "ran: esp32_syntax_check" "$output"
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
@@ -138,7 +137,7 @@ run_hook() { # push TIP to a remote that has BASE
     [ "$status" -eq 0 ]
     contains "make land-gate passed ${TIP:0:9} on gate.invalid; skipping" "$output"
     lacks "ran: quality-checks" "$output"
-    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
     [ "$(cat "$BATS_TEST_TMPDIR/ssh-calls")" = "$(printf 'down.invalid\ngate.invalid')" ]
     grep -q "^host gate.invalid" "$HELIX_LAND_GATE_STAMP_DIR/$TIP"
@@ -189,11 +188,11 @@ run_hook() { # push TIP to a remote that has BASE
     echo in-flight >"$ROOT/f"
     run_hook
     [ "$status" -eq 0 ]
-    lacks "throwaway checkout" "$output"
+    contains "throwaway checkout" "$output"
     contains "make land-gate passed ${TIP:0:9} on gate.invalid" "$output"
     lacks "ran: quality-checks" "$output"
     lacks "ran: check_clang_diagnostics" "$output"
-    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: esp32_syntax_check" "$output"
     contains "ran: check_patch_drift" "$output"
 }
 
@@ -251,4 +250,50 @@ run_hook() { # push TIP to a remote that has BASE
     contains "(quiet.invalid: answered without the record token); running the sweep" "$output"
     contains "ran: quality-checks" "$output"
     [ ! -e "$HELIX_LAND_GATE_STAMP_DIR/$TIP" ]
+}
+
+run_push() { # <stdin lines>: push whatever refs the lines name
+    run env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+        bash -c 'cd "$1" && printf "%s" "$2" | bash "$3"' _ "$ROOT" "$1" "$HOOK"
+}
+
+@test "a gated main push inside the gate's esp32 range runs only drift, with no throwaway checkout" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    echo in-flight >"$ROOT/f"
+    run_hook
+    [ "$status" -eq 0 ]
+    contains "skipping the quality sweep and the ESP32 check its esp32 row covered" "$output"
+    lacks "throwaway checkout" "$output"
+    lacks "ran: quality-checks" "$output"
+    lacks "ran: esp32_syntax_check" "$output"
+    contains "ran: check_patch_drift" "$output"
+}
+
+@test "a gated push to release/* or a tag still runs the ESP32 check" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    for ref in refs/heads/release/1.1 refs/tags/v9.9.9; do
+        run_push "refs/heads/x $TIP $ref $BASE"$'\n'
+        [ "$status" -eq 0 ]
+        lacks "ran: quality-checks" "$output"
+        contains "ran: esp32_syntax_check" "$output"
+    done
+}
+
+@test "a gated main push pushed beside another branch still runs the ESP32 check" {
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$BASE"
+    stamp "$TIP"
+    run_push "refs/heads/w $TIP refs/heads/w 0000000000000000000000000000000000000000"$'\n'"refs/heads/main $TIP refs/heads/main $BASE"$'\n'
+    [ "$status" -eq 0 ]
+    contains "ran: esp32_syntax_check" "$output"
+}
+
+@test "a gated main push whose range starts before the gate's fork point still runs the ESP32 check" {
+    # origin/main at TIP puts the gate's fork point at TIP, so BASE..TIP was never measured.
+    git -C "$ROOT" update-ref refs/remotes/origin/main "$TIP"
+    stamp "$TIP"
+    run_hook
+    [ "$status" -eq 0 ]
+    contains "ran: esp32_syntax_check" "$output"
 }
