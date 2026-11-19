@@ -444,6 +444,8 @@ def plan(root, changed):
     else:
         mode = 'selected'
     rows = []
+    # Documentation reaches no test step, wherever it lives (scripts/CLAUDE.md).
+    code = [c for c in changed if not is_doc(c)]
     cxx, cxx_why = cxx_path_verdict(changed)
     cxx_verdict = {'full': 'full', 'none': 'skip', 'select': 'select'}[cxx]
     for s in STAGES:
@@ -457,16 +459,16 @@ def plan(root, changed):
         elif s == 'bats':
             rows.append((s, 'select', 'tooling files whose paths changed, product files the change reaches', ''))
         elif s == 'python':
-            hit = next((c for c in changed if matches(c, PYTHON_ALL)), None)
+            hit = next((c for c in code if matches(c, PYTHON_ALL)), None)
             if hit:
                 rows.append((s, 'run', f'{hit} changed', ''))
-            elif any(c.startswith(('src/', 'include/')) for c in changed):
+            elif any(c.startswith(('src/', 'include/')) for c in code):
                 rows.append((s, 'select', 'C++ source changed: only the files that read it',
                              ' '.join(PYTHON_CXX_READERS)))
             else:
                 rows.append((s, 'skip', 'nothing it reads changed', ''))
         elif s in STAGE_TRIGGERS:
-            hit = next((c for c in changed if matches(c, STAGE_TRIGGERS[s])), None)
+            hit = next((c for c in code if matches(c, STAGE_TRIGGERS[s])), None)
             if hit:
                 rows.append((s, 'run', f'{hit} changed', ''))
             else:

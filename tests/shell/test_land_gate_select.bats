@@ -171,10 +171,11 @@ plan_of() { # <stage> <changed path>...: "<verdict> <why>" for the stage
     python3 "$SELECT" --root "$REPO_ROOT" plan --changed tests/unit/test_version.cpp | grep -q "^# mode	tests"
 }
 
-@test "plan: python runs whole for scripts/, the C++ readers for src/, nothing for tests/unit" {
+@test "plan: python runs whole for scripts/, the C++ readers for src/, nothing for tests/unit or a doc" {
     [[ "$(plan_of python scripts/doc_anchors.py)" == run* ]] || fail "verdict differs"
     [[ "$(plan_of python src/app_globals.cpp)" == select* ]] || fail "verdict differs"
     [[ "$(plan_of python tests/unit/test_version.cpp)" == skip* ]] || fail "verdict differs"
+    [[ "$(plan_of python scripts/CLAUDE.md)" == skip* ]] || fail "verdict differs"
 }
 
 @test "plan: ui runs for anything the app is built from, not for scripts or tests" {
