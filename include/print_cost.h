@@ -116,6 +116,19 @@ struct Breakdown {
     bool complete = false;
 };
 
+/// Whose currency a figure is in.
+enum class CurrencySource { Setting = 0, Spoolman };
+
+/**
+ * @brief The currency that labels @p breakdown
+ *
+ * Spoolman's when any filament line was priced from a Spoolman spool; the
+ * setting's when every line came from the settings. A mix, or electricity
+ * beside Spoolman prices, assumes the two currencies are the same, which the
+ * Print Cost settings tell the user to make true.
+ */
+[[nodiscard]] CurrencySource currency_source(const Breakdown& breakdown);
+
 /// Price each tool and add electricity for @p seconds.
 [[nodiscard]] Breakdown compute(const std::vector<ToolInput>& tools, double seconds,
                                 const CostSettings& settings);

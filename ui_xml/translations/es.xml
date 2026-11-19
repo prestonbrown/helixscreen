@@ -1685,6 +1685,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." es="Sigue el manual para cambiar la boquilla o el hotend."/>
   <translation tag="For a first Z home: claim the tool you put on the head" es="Para el primer origen de Z: registrar la herramienta que colocó en el cabezal"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" es="Para materiales que necesitan un cerramiento cálido, como ABS o ASA"/>
+  <translation tag="For prices that do not come from Spoolman" es="Para los precios que no vienen de Spoolman"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" es="Forzar los ventiladores del MMU apagados o encendidos, o seguir el control del ventilador"/>
   <translation tag="Force/weight sensors" es="Sensores de fuerza/peso"/>
   <translation tag="Forget" es="Olvidar"/>
@@ -3655,6 +3656,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" es="Ajustar las correas X e Y con los tensores motorizados"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." es="Configura el reloj, el tema y las unidades. Puedes cambiarlos más tarde en Ajustes."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" es="Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." es="Elige aquí la moneda de Spoolman si usas ambos."/>
   <translation tag="Set up" es="Configurar"/>
   <translation tag="Set up your label printer in Settings" es="Configure su impresora de etiquetas en Ajustes"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." es="Indica qué está realmente seleccionado y cargado. Nada se mueve."/>
@@ -3801,7 +3803,6 @@
   <translation tag="Spoolman support is off in Happy Hare" es="El soporte de Spoolman está desactivado en Happy Hare"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" es="Spoolman no disponible — los pesos del filamento pueden estar desactualizados"/>
   <translation tag="Spoolman was not configured." es="Spoolman no estaba configurado."/>
-  <translation tag="Spoolman&apos;s currency is used when it is connected" es="Se usa la moneda de Spoolman cuando está conectado"/>
   <translation tag="Spoolman: %zu Spool" es="Spoolman: %zu bobina"/>
   <translation tag="Spoolman: %zu Spools" es="Spoolman: %zu bobinas"/>
   <translation tag="Spoolman: %zu/%zu Spool" es="Spoolman: %zu/%zu bobina"/>

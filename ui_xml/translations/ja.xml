@@ -1685,6 +1685,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ja="マニュアルに従ってノズルまたはホットエンドを交換します。"/>
   <translation tag="For a first Z home: claim the tool you put on the head" ja="初回のZホーミング用：ヘッドに取り付けたツールを登録"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ja="ABSやASAなど、暖かいエンクロージャーが必要な材料向け"/>
+  <translation tag="For prices that do not come from Spoolman" ja="Spoolman 以外から来る価格に使います"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" ja="MMU ファンを強制オフ／オンにするか、ファン制御に従う"/>
   <translation tag="Force/weight sensors" ja="力/重量センサー"/>
   <translation tag="Forget" ja="登録解除"/>
@@ -3655,6 +3656,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." ja="両方を使う場合は、ここを Spoolman の通貨に合わせてください。"/>
   <translation tag="Set up" ja="セットアップ"/>
   <translation tag="Set up your label printer in Settings" ja="設定でラベルプリンターをセットアップしてください"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." ja="実際に選択・装填されている状態を設定します。何も動きません。"/>
@@ -3801,7 +3803,6 @@
   <translation tag="Spoolman support is off in Happy Hare" ja="Happy Hare の Spoolman サポートはオフです"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" ja="Spoolmanが利用できません — フィラメント重量が古い可能性があります"/>
   <translation tag="Spoolman was not configured." ja="Spoolman は設定されていませんでした。"/>
-  <translation tag="Spoolman&apos;s currency is used when it is connected" ja="Spoolman接続時はその通貨を使います"/>
   <translation tag="Spoolman: %zu Spool" ja="Spoolman: %zu 個のスプール"/>
   <translation tag="Spoolman: %zu Spools" ja="Spoolman: %zu 個のスプール"/>
   <translation tag="Spoolman: %zu/%zu Spool" ja="Spoolman: %zu/%zu 個のスプール"/>

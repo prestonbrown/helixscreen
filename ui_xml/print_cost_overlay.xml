@@ -12,9 +12,12 @@
                   text="A spool's own price in Spoolman is used when it has one. These prices cover every other spool."
                   long_mode="wrap" style_text_color="#text_muted"/>
       <setting_dropdown_row name="row_cost_currency"
-                            label="Currency" icon="cash" description="Spoolman's currency is used when it is connected"
+                            label="Currency" icon="cash" description="For prices that do not come from Spoolman"
                             options="USD&#10;EUR&#10;GBP&#10;JPY&#10;CAD&#10;AUD&#10;CHF&#10;SEK&#10;NOK&#10;DKK&#10;PLN&#10;CZK&#10;CNY&#10;KRW&#10;INR&#10;BRL&#10;MXN&#10;NZD&#10;ZAR"
                             bind_selected="print_cost_currency" callback="on_print_cost_currency_changed"/>
+      <text_small width="100%"
+                  text="Set this to Spoolman's currency if you use both." long_mode="wrap"
+                  style_text_color="#text_muted" style_pad_left="#space_lg"/>
       <setting_section_header title="Filament price per kg" hide_icon="true"/>
       <print_cost_value_row label="Any other material"
                             value_subject="print_cost_price_default" callback="on_print_cost_field_clicked"

@@ -1765,6 +1765,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Suivez le manuel pour changer la buse ou le hotend."
   'For a first Z home: claim the tool you put on the head': "Pour une première prise d'origine Z : déclarer l'outil posé sur la tête"
   For materials that need a warm enclosure, like ABS or ASA: 'Pour les matériaux qui demandent une enceinte chaude, comme l''ABS ou l''ASA'
+  For prices that do not come from Spoolman: "Pour les prix qui ne viennent pas de Spoolman"
   Force the MMU fans off or on, or follow Fan Control: "Forcer les ventilateurs du MMU à l'arrêt ou en marche, ou suivre le contrôle du ventilateur"
   Force/weight sensors: 'Capteurs de force/poids'
   Forget: Oublier
@@ -3760,6 +3761,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "Réglez l'horloge, le thème et les unités. Vous pourrez tout modifier plus tard dans les Paramètres."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Réglez à la main le type et la couleur du filament pour ce slot. Si l'étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos
+  Set this to Spoolman's currency if you use both.: "Choisissez ici la devise de Spoolman si vous utilisez les deux."
   Set up: Configurer
   Set up your label printer in Settings: Configurez votre imprimante d'étiquettes dans les Paramètres
   Set what is really selected and loaded. Nothing moves.: 'Indiquez ce qui est réellement sélectionné et chargé. Rien ne bouge.'
@@ -3906,7 +3908,6 @@ translations:
   Spoolman support is off in Happy Hare: "La prise en charge de Spoolman est désactivée dans Happy Hare"
   Spoolman unavailable — filament weights may be stale: Spoolman indisponible — les poids de filament peuvent être obsolètes
   Spoolman was not configured.: 'Spoolman n''était pas configuré.'
-  Spoolman's currency is used when it is connected: "La devise de Spoolman est utilisée lorsqu'il est connecté"
   'Spoolman: %zu Spool': 'Spoolman : %zu bobine'
   'Spoolman: %zu Spools': 'Spoolman : %zu bobines'
   'Spoolman: %zu/%zu Spool': 'Spoolman : %zu/%zu bobine'

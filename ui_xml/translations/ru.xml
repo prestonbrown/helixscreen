@@ -1730,6 +1730,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ru="Замените сопло или хотенд по руководству."/>
   <translation tag="For a first Z home: claim the tool you put on the head" ru="Для первой парковки Z: закрепить инструмент, установленный на головку"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ru="Для материалов, которым нужен тёплый закрытый корпус, например ABS или ASA"/>
+  <translation tag="For prices that do not come from Spoolman" ru="Для цен, которые не берутся из Spoolman"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" ru="Принудительно выключить или включить вентиляторы MMU, или следовать управлению вентилятором"/>
   <translation tag="Force/weight sensors" ru="Датчики силы/веса"/>
   <translation tag="Forget" ru="Забыть"/>
@@ -3715,6 +3716,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" ru="Натянуть ремни X и Y моторизованными натяжителями"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ru="Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ru="Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." ru="Если используете оба, выберите здесь валюту Spoolman."/>
   <translation tag="Set up" ru="Настроить"/>
   <translation tag="Set up your label printer in Settings" ru="Настройте принтер этикеток в Настройках"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." ru="Укажите, что на самом деле выбрано и загружено. Ничего не двигается."/>
@@ -3861,7 +3863,6 @@
   <translation tag="Spoolman support is off in Happy Hare" ru="Поддержка Spoolman отключена в Happy Hare"/>
   <translation tag="Spoolman unavailable — filament weights may be stale" ru="Spoolman недоступен — вес филамента может быть устаревшим"/>
   <translation tag="Spoolman was not configured." ru="Spoolman не был настроен."/>
-  <translation tag="Spoolman&apos;s currency is used when it is connected" ru="При подключённом Spoolman используется его валюта"/>
   <translation tag="Spoolman: %zu Spool" ru="Spoolman: %zu катушка"/>
   <translation tag="Spoolman: %zu Spools" ru="Spoolman: %zu катушки"/>
   <translation tag="Spoolman: %zu Spools_few" ru="Spoolman: %zu катушки"/>

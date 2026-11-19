@@ -1753,6 +1753,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "Segui il manuale per sostituire ugello o hotend."
   'For a first Z home: claim the tool you put on the head': 'Per il primo homing Z: registra lo strumento messo sulla testina'
   For materials that need a warm enclosure, like ABS or ASA: 'Per materiali che richiedono un''enclosure calda, come ABS o ASA'
+  For prices that do not come from Spoolman: "Per i prezzi che non provengono da Spoolman"
   Force the MMU fans off or on, or follow Fan Control: "Forza le ventole MMU spente o accese, o segui il controllo ventola"
   Force/weight sensors: 'Sensori di forza/peso'
   Forget: Dimentica
@@ -3748,6 +3749,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "Imposta orologio, tema e unità. Puoi cambiarli in seguito nelle Impostazioni."
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Impostare a mano tipo e colore del filamento per questo slot. Se il tag dovrebbe essere leggibile, reinserire la bobina con l'etichetta rivolta verso il lettore quando la box è inattiva
+  Set this to Spoolman's currency if you use both.: "Imposta qui la valuta di Spoolman se usi entrambi."
   Set up: Configura
   Set up your label printer in Settings: Configura la stampante etichette nelle Impostazioni
   Set what is really selected and loaded. Nothing moves.: 'Imposta cosa è davvero selezionato e caricato. Nulla si muove.'
@@ -3894,7 +3896,6 @@ translations:
   Spoolman support is off in Happy Hare: "Il supporto Spoolman è disattivato in Happy Hare"
   Spoolman unavailable — filament weights may be stale: Spoolman non disponibile — i pesi del filamento potrebbero non essere aggiornati
   Spoolman was not configured.: Spoolman non era configurato.
-  Spoolman's currency is used when it is connected: "Con Spoolman connesso si usa la sua valuta"
   'Spoolman: %zu Spool': 'Spoolman: %zu bobina'
   'Spoolman: %zu Spools': 'Spoolman: %zu bobine'
   'Spoolman: %zu/%zu Spool': 'Spoolman: %zu/%zu bobina'
