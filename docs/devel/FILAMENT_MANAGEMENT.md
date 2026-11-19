@@ -1212,8 +1212,9 @@ drawing is `src/ui/filament/ui_ams_detail.cpp`.
   "+" badge says it, and the backend's slot status decides, so the label comes or goes the
   moment a lane fills or empties (the lane spool's listener, `unit_view_lane_changed`,
   lays the labels out again without placing the tray). Labels take the fewest rows, up to
-  three (`ams_over_lane_label_rows`), that show every name whole, else at least three
-  characters before the ellipsis, cycling label by label. Each keeps clear of its same-row
+  three (two on a compact screen, Tiny and below; `ams_over_lane_label_rows`), that show
+  every name whole, else at least three characters before the ellipsis, cycling label by
+  label; at the most rows a label with no room for three characters is left out. Each keeps clear of its same-row
   neighbours and of the ticks of labels in higher rows, and stays inside the unit's row
   (`ams_over_lane_label_spans`); centered where the room allows, it slides off a crowded side
   with its tick still under it.

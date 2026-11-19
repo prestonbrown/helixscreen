@@ -251,16 +251,18 @@ inline void ams_over_lane_label_spans(const float x[], const int row[], const in
  * @brief The rows (1 to kAmsOverLaneMaxRows) the labels over lanes at @p x take, rows cycling
  * label by label (k % rows): the fewest that give every label its whole text (@p whole), else
  * the fewest that give each at least a few readable characters (@p readable), else
- * kAmsOverLaneMaxRows. No label reaches past @p lo or @p hi.
+ * @p max_rows (at most kAmsOverLaneMaxRows), where the labels shorten to their room. No label
+ * reaches past @p lo or @p hi.
  */
 inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
                                     const int32_t readable[], int n, int32_t gap, float lo,
-                                    float hi) {
+                                    float hi, int max_rows = kAmsOverLaneMaxRows) {
+    max_rows = std::clamp(max_rows, 1, kAmsOverLaneMaxRows);
     int row[64];
     AmsLabelSpan span[64];
     n = std::min(n, 64);
     for (const int32_t* need : {whole, readable}) {
-        for (int rows = 1; rows <= kAmsOverLaneMaxRows; ++rows) {
+        for (int rows = 1; rows <= max_rows; ++rows) {
             for (int k = 0; k < n; ++k)
                 row[k] = k % rows;
             ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
@@ -271,7 +273,7 @@ inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
                 return rows;
         }
     }
-    return kAmsOverLaneMaxRows;
+    return max_rows;
 }
 
 /// How the lane numbers under a drawn unit stand: in one row or alternating between two (odd

@@ -253,6 +253,14 @@ void set_layout_unit(int unit_index, lv_obj_t* view, bool path_art) {
     s_layout_view = view;
 }
 
+/// The most rows the labels over the lanes take: two on a compact screen, whose height the unit
+/// needs more than a third row of names; the labels shorten instead.
+static int over_lane_label_max_rows() {
+    return helix::widget_size::current_breakpoint() <= UiBreakpoint::Tiny
+               ? 2
+               : helix::ui::kAmsOverLaneMaxRows;
+}
+
 int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
                          const AmsSlotLayout& layout, lv_obj_t* slot_area) {
     const int32_t gap = theme_manager_get_spacing("space_xs");
@@ -272,7 +280,8 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
     }
     const float row_w = (float)lv_obj_get_content_width(slot_area);
     const float start = (float)(layout.centering_offset + layout.slot_width / 2);
-    return helix::ui::ams_over_lane_label_rows(x, whole, need, shown, gap, -start, row_w - start);
+    return helix::ui::ams_over_lane_label_rows(x, whole, need, shown, gap, -start, row_w - start,
+                                               over_lane_label_max_rows());
 }
 
 /// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands:
@@ -554,8 +563,8 @@ int32_t place_unit_labels() {
     const int32_t label_gap = theme_manager_get_spacing("space_xs");
     // Labels keep inside the unit's row.
     const float row_w = (float)lv_obj_get_width(container);
-    const int rows =
-        helix::ui::ams_over_lane_label_rows(shown_x, text_w, need, shown, label_gap, 0.0f, row_w);
+    const int rows = helix::ui::ams_over_lane_label_rows(shown_x, text_w, need, shown, label_gap,
+                                                         0.0f, row_w, over_lane_label_max_rows());
     int row_of[kAmsDetailMaxSlots];
     helix::ui::AmsLabelSpan span[kAmsDetailMaxSlots];
     for (int k = 0; k < shown; ++k)
@@ -575,6 +584,14 @@ int32_t place_unit_labels() {
     }
     for (int k = 0; k < shown; ++k) {
         lv_obj_t* label = ui_ams_slot_get_material_label(s_tray.slot[lane_of[k]]);
+        // Held to its rows, a label without room for a few characters is left out rather than
+        // shown as a sliver; its lane's number and the picker still name it.
+        const bool dropped =
+            rows >= over_lane_label_max_rows() && span[k].left + span[k].right < need[k];
+        // DECLARATIVE_OK: measured layout; a label shows only where it reads
+        lv_obj_set_hidden(label, dropped);
+        if (dropped)
+            continue;
         // A centered label takes all the room either side allows evenly, so a longer name
         // that fits needs no new layout; a slid one keeps to its span.
         const bool centered = span[k].left == span[k].right;
@@ -602,7 +619,7 @@ int32_t place_unit_labels() {
     for (int i = 0; i < n; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
         lv_obj_t* label = slot ? ui_ams_slot_get_material_label(slot) : nullptr;
-        if (!label || lv_obj_get_parent(label) != layer)
+        if (!label || lv_obj_get_parent(label) != layer || lv_obj_is_hidden(label))
             continue;
         lv_area_t la;
         lv_obj_get_coords(label, &la);

@@ -1290,6 +1290,7 @@ void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::Path
     load_theme_sizes(data);
     data->view_hub_h = 0;
     data->view_cap_h = 0;
+    data->view_unit = 0.0f;
     data->buffer_in_hub = false;
     if (scale.unit > 0.0f) {
         ThemeCache& theme = data->theme;
@@ -1299,6 +1300,7 @@ void ui_filament_path_canvas_set_view_scale(lv_obj_t* obj, const helix::ui::Path
         theme.hub_width = scale.hub_min_w;
         data->view_hub_h = scale.hub_h;
         data->view_cap_h = scale.cap_h;
+        data->view_unit = scale.unit;
         data->buffer_in_hub = scale.buffer_in_hub;
     }
     // The same scale again changes nothing, so it paints nothing.

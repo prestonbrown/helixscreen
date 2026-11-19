@@ -27,6 +27,7 @@
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
+#include "panel_widget_size.h"
 #include "src/ui/filament/ui_ams_detail_labels.h"
 #include "src/ui/filament/ui_ams_detail_tray.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
@@ -220,8 +221,8 @@ class AmsTrayPanelFixture : public XMLTestFixture {
 
     /// Each shown label over the drawn unit stands over its own spool, its dotted tick a
     /// straight vertical line from just under it down to the spool top; labels cycle through
-    /// at most three rows, no two in one row overlap, each keeps at least three characters
-    /// before an ellipsis, and an empty lane shows none.
+    /// at most three rows (two on a compact screen), no two in one row overlap, each keeps at
+    /// least three characters before an ellipsis or is left out, and an empty lane shows none.
     void check_labels_over_lanes(const std::vector<lv_obj_t*>& all) {
         namespace at = helix::ui::ams_tray;
         std::vector<lv_obj_t*> labels;
@@ -257,14 +258,22 @@ class AmsTrayPanelFixture : public XMLTestFixture {
                                std::min(whole, helix::ui::text_width(head.c_str(), font, 0)) - 1);
         }
         const int rows = (int)tops.size();
-        CHECK(rows <= 3);
-        // Three rows are the most; short of them every label keeps a few characters.
-        if (rows < 3)
-            for (int i = 0; i < n; ++i) {
-                CAPTURE(i);
-                CHECK(readable[(size_t)i]);
-            }
-        for (int i = 0; i + rows < n; ++i) {
+        // Three rows are the most, two on a compact screen; every label shown keeps a few
+        // characters, and one with no room for them at the most rows is left out.
+        const int max_rows = helix::widget_size::current_breakpoint() <= UiBreakpoint::Tiny ? 2 : 3;
+        CHECK(rows <= max_rows);
+        for (int i = 0; i < n; ++i) {
+            CAPTURE(i);
+            CHECK(readable[(size_t)i]);
+        }
+        bool dropped = false;
+        for (int i = 0; i < (int)all.size() && i < 16; ++i) {
+            lv_obj_t* spool = lv_obj_find_by_name(slot(i), "lane_spool");
+            dropped |= spool && !helix::ui::ams_lane_spool_empty(spool) &&
+                       lv_obj_is_hidden(all[(size_t)i]);
+        }
+        CHECK((!dropped || rows == max_rows));
+        for (int i = 0; !dropped && i + rows < n; ++i) {
             CAPTURE(i, rows);
             CHECK(areas[(size_t)i].y1 == areas[(size_t)(i + rows)].y1);
             CHECK(areas[(size_t)i].x2 < areas[(size_t)(i + rows)].x1);

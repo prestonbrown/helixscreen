@@ -1404,10 +1404,28 @@ TEST_CASE("FilamentPath plan: under a view scale per-lane heads stand at the can
     CHECK(foot + d->theme.tool_tag_h / 2 >= g.y_off + g.height - 6);
 }
 
+TEST_CASE("FilamentPath plan: on a compact view per-lane runs and heads shrink with its unit",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    // A compact view: the hub stands as tall as its label, far more than its 2.3 units.
+    d->view_hub_h = 17;
+    d->view_unit = 5.0f;
+    d->theme.extruder_scale = 12;
+    BaseGeometry g = geometry();
+    for (int i = 0; i < 4; ++i)
+        g.slot_x[i] = 140 + 40 * i; // heads stand right under their lanes
+    g.height = per_lane_required_height(*d, g);
+    const ParallelRows r = parallel_rows(*d, g);
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale);
+    CHECK(b.bottom - b.top <= 5.0f * d->view_unit);
+    CHECK(b.top - r.entry_y <= 6.0f * d->view_unit + 2);
+}
+
 TEST_CASE("FilamentPath plan: under a view scale a row of heads takes at most half the width",
           "[filament-path][plan][parallel][art-fit]") {
     auto d = make_data(helix::PathTopology::PARALLEL);
     d->view_hub_h = 24;
+    d->view_unit = 20.0f; // a roomy view: the heads' height sets no limit here
     BaseGeometry g = geometry();
     const auto row_w = [&](int32_t scale) {
         const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);

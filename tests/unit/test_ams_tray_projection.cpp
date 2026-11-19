@@ -455,6 +455,8 @@ TEST_CASE("labels over a drawn unit: the fewest rows that give every label its r
     CHECK(ams_over_lane_label_rows(x, wide, wide, 4, 4, -40, 160) == 2);
     const int32_t wider[4] = {100, 100, 100, 100};
     CHECK(ams_over_lane_label_rows(x, wider, wider, 4, 4, -40, 160) == 3);
+    // Held to two rows (a compact screen): the labels shorten to them instead of a third.
+    CHECK(ams_over_lane_label_rows(x, wider, wider, 4, 4, -40, 160, 2) == 2);
     // Whole text first: two rows show it all though one row would keep a few characters.
     CHECK(ams_over_lane_label_rows(x, wide, fit, 4, 4, -40, 160) == 2);
     // Too long for any rows whole: the fewest rows that keep a few characters.

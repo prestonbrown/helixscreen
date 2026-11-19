@@ -703,12 +703,15 @@ namespace {
 constexpr int32_t kHeadRowShareNum = 1, kHeadRowShareDen = 2;
 /// The smallest a shrunk head draws and still reads as a head.
 constexpr int32_t kMinHeadScale = 4;
+/// The tallest a per-lane head stands under a view scale, in view units.
+constexpr float kHeadUnits = 5.0f;
 /// The gap a scaled row of heads' tool tags leaves above the canvas bottom.
 constexpr int32_t kHeadsFootMargin = 2;
 
 /// The size of @p heads per-lane heads standing in a row: under a view scale the hub layout's,
-/// shrunk where the row would take more than kHeadRowShare of the canvas width, so several
-/// heads leave the drawing above its height.
+/// shrunk where the row would take more than kHeadRowShare of the canvas width or a head would
+/// stand taller than kHeadUnits view units, so several heads leave the drawing above its
+/// height.
 int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g, int heads) {
     const int32_t base = data.theme.extruder_scale;
     if (data.view_hub_h <= 0)
@@ -718,8 +721,15 @@ int32_t per_lane_tool_scale(const FilamentPathData& data, const BaseGeometry& g,
         const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
         return heads * ((b.right - b.left) + 4 * data.theme.sensor_radius);
     };
+    // No taller than kHeadUnits either, whatever the head style's proportions,
+    // so a row of heads leaves the unit above its height.
+    const auto tall = [&](int32_t scale) {
+        const GlyphBounds b = toolhead_glyph_bounds(0, 0, scale);
+        const float unit = data.view_unit > 0.0f ? data.view_unit : (float)data.view_hub_h / 2.3f;
+        return (float)(b.bottom - b.top) > kHeadUnits * unit;
+    };
     int32_t scale = base;
-    while (heads > 1 && scale > kMinHeadScale && row(scale) > budget)
+    while (heads > 1 && scale > kMinHeadScale && (row(scale) > budget || tall(scale)))
         --scale;
     return scale;
 }
@@ -794,6 +804,13 @@ static int32_t mixed_hub_fan_top(const FilamentPathData& data, const MixedFrame&
                std::max(0.75f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom));
 }
 
+namespace {
+/// View units (path_view_scale.h) at and below which a per-lane path takes its compact runs,
+/// and at and above which its full ones.
+constexpr float kCompactViewUnit = 5.0f;
+constexpr float kRoomyViewUnit = 9.0f;
+} // namespace
+
 int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
     if (data.view_hub_h <= 0 || g.height <= 0)
         return 0;
@@ -801,12 +818,22 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
     // A run from each lane's outlet down to its head long enough to read as a tube with its
     // sensors on it; a shared hub's run also holds the hub between them; and a pass-through
     // unit's own drawing its room.
-    const int32_t run_need = (mixed ? 5 : 4) * data.view_hub_h;
+    // The least runs in view units: a MIXED lane's holds its hub; a PARALLEL lane's only its
+    // sensor. A compact view (few pixels to the unit) spends more of its column on text that
+    // does not shrink with it, so its runs shorten toward the compact length.
+    const float unit = data.view_unit > 0.0f ? data.view_unit : (float)data.view_hub_h / 2.3f;
+    const float roomy =
+        std::clamp((unit - kCompactViewUnit) / (kRoomyViewUnit - kCompactViewUnit), 0.0f, 1.0f);
+    const auto run_units = [&](float compact, float full) {
+        return (compact + (full - compact) * roomy) * unit;
+    };
+    const int32_t run_need = (int32_t)std::lround(run_units(9.0f, 11.5f));
+    bool require_art = true;
     const auto fits = [&](int32_t height) {
         g.height = height;
         if (mixed) {
             const MixedFrame f = compute_mixed_frame(data, g);
-            if (has_through_art(data) && f.through.w <= 0)
+            if (require_art && has_through_art(data) && f.through.w <= 0)
                 return false;
             // The hub's lanes reach it on diagonals steep enough.
             if (!data.hub_on_toolhead && f.hub_count > 0 &&
@@ -815,15 +842,27 @@ int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
             const int32_t head_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
             return head_top - f.entry_y >= run_need;
         }
+        // Each lane runs to its head only as far as its sensor's room or its lean out to a head
+        // spread from the others needs, no flatter than a hub's lanes.
         const ParallelRows r = parallel_rows(data, g);
         const int32_t head_top = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).top;
-        return head_top - r.entry_y >= run_need;
+        float spread = 0.0f;
+        for (int i = 0; i < LV_MIN(g.slot_count, FilamentPathData::kMaxSlots); i++)
+            spread =
+                std::max(spread, (float)std::abs(parallel_head_x(data, g, r, i) - g.slot_x[i]));
+        const float lean = spread > 1.0f ? spread * kFanMinSlope + 2.0f * kFanLegRoom : 0.0f;
+        return (float)(head_top - r.entry_y) >= std::max(run_units(6.0f, 9.2f), lean);
     };
     const int32_t ceiling = std::max(g.height * 4, data.view_hub_h * 24);
-    for (int32_t h = data.view_hub_h; h <= ceiling; h += 2)
-        if (fits(h))
-            return h;
-    return g.height;
+    const int32_t own = g.height;
+    // A pass-through unit too wide for any height here goes undrawn: the path then asks only
+    // for its lanes.
+    for (int pass = 0; pass < 2; ++pass, require_art = false) {
+        for (int32_t h = data.view_hub_h; h <= ceiling; h += 2)
+            if (fits(h))
+                return h;
+    }
+    return own;
 }
 
 // MIXED layout: the toolhead glyphs stand on a line near the bottom; the lane
